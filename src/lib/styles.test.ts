@@ -230,3 +230,17 @@ describe('AMRAP, EMOM and for time', () => {
     }
   })
 })
+
+describe('tabata', () => {
+  it('makes 2-6 movements with the classic 20/10 x 8 timing', () => {
+    for (const minutes of [10, 20, 30, 60]) {
+      for (let seed = 1; seed <= 15; seed++) {
+        const w = gen('tabata', [], minutes, seed)
+        expect(w.length).toBeGreaterThanOrEqual(2)
+        expect(w.length).toBeLessThanOrEqual(6)
+        expect(w[0].wod).toMatchObject({ kind: 'tabata', work: 20, rest: 10, rounds: 8, intervals: w.length * 8 })
+        expect(minutesFor(w)).toBeLessThanOrEqual(minutes + 3)
+      }
+    }
+  })
+})

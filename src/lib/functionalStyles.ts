@@ -1,5 +1,6 @@
 import { EXERCISES } from '../data/exercises'
 import type { Exercise, PlannedExercise, Wod, WodKind } from '../types'
+import { buildWodItems, makeTabata } from './wod'
 import { byName, isMainLift, pick, roundTo, roundTo5, softShuffle, type Rng } from './randomUtil'
 
 const RUN = 'running'
@@ -159,7 +160,7 @@ export function generateCrossfit(minutes: number, rng: Rng, avoid: Set<string>):
 // Timed formats on their own: AMRAP, EMOM, or rounds for time, optionally aimed at body parts.
 // ---------------------------------------------------------------------------------------------
 
-const KIND_TO_FORMAT: Record<WodKind, WodFormat> = { amrap: 'AMRAP', emom: 'EMOM', fortime: 'FT' }
+const KIND_TO_FORMAT: Record<Exclude<WodKind, 'tabata'>, WodFormat> = { amrap: 'AMRAP', emom: 'EMOM', fortime: 'FT' }
 const HOME_GEAR = ['Bodyweight', 'Dumbbell', 'Kettlebell']
 
 /** Movements that suit a timed piece, limited to the chosen body parts when there are any. */
@@ -174,6 +175,19 @@ function timedPool(focus: string[]): Exercise[] {
 /** An AMRAP, EMOM or for-time workout that fits about `minutes`. Long sessions get a second and third part. */
 export function generateTimed(kind: WodKind, focus: string[], minutes: number, rng: Rng, avoid: Set<string>): PlannedExercise[] {
   const pool = softShuffle(timedPool(focus), avoid, rng)
+  if (kind === 'tabata') {
+    // Each movement gets a classic 4-minute Tabata (20s on / 10s off x 8) with a minute's rest before the next.
+    const want = Math.min(6, Math.max(2, Math.round(minutes / 5)))
+    const moves: Exercise[] = []
+    for (const e of pool) {
+      if (e.kind === 'cardio' || (e.group === 'Core' && moves.some((x) => x.group === 'Core'))) continue
+      moves.push(e)
+      if (moves.length === want) break
+    }
+    if (moves.length < 2) return []
+    const wod = makeTabata(moves.length)
+    return buildWodItems({ wod, moves: moves.map((e) => ({ exerciseId: e.id })), block: 'tabata', label: `Tabata · ${moves.length} movements · 20s on / 10s off × 8 each, 1 min rest between` })
+  }
   const used = new Set<string>()
   const out: PlannedExercise[] = []
   let left = minutes
@@ -191,7 +205,7 @@ export function generateTimed(kind: WodKind, focus: string[], minutes: number, r
     }
     if (moves.length < 2) break
     moves.forEach((e) => used.add(e.id))
-    out.push(...buildWod(m, moves, rng, part === 0 ? 'WOD' : `Part ${String.fromCharCode(65 + part)}`, KIND_TO_FORMAT[kind]))
+    out.push(...buildWod(m, moves, rng, part === 0 ? 'WOD' : `Part ${String.fromCharCode(65 + part)}`, KIND_TO_FORMAT[kind as Exclude<WodKind, 'tabata'>]))
     left -= m + 2
   }
   return out

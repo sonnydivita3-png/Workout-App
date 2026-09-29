@@ -28,7 +28,7 @@ export interface CardioEntry {
 }
 
 /** Time-based workout formats: as many rounds as possible, every minute on the minute, or a fixed amount of work against the clock. */
-export type WodKind = 'amrap' | 'emom' | 'fortime'
+export type WodKind = 'amrap' | 'emom' | 'fortime' | 'tabata'
 
 export interface Wod {
   kind: WodKind
@@ -36,8 +36,15 @@ export interface Wod {
   minutes: number
   /** EMOM: minutes per interval (1 = every minute on the minute). */
   interval?: number
-  /** For time: how many rounds to finish. */
+  /** For time: how many rounds to finish. Tabata: rounds per movement. */
   rounds?: number
+  /** Tabata: seconds of work and rest in each round (classically 20 on / 10 off). */
+  work?: number
+  rest?: number
+  /** Tabata: seconds of rest between movements. */
+  gap?: number
+  /** Tabata: total work intervals across all movements (movements × rounds). */
+  intervals?: number
 }
 
 /** A logged result for a whole timed block (the exercises in it are also logged, so history and streaks keep working). */
@@ -53,7 +60,7 @@ export interface TimedLog {
   rounds?: number
   /** AMRAP: extra reps on top of the last full round. */
   reps?: number
-  /** EMOM: intervals completed. */
+  /** EMOM / Tabata: intervals completed. */
   intervals?: number
   /** For time: finishing time in seconds. */
   seconds?: number

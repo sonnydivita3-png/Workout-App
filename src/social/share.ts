@@ -67,12 +67,21 @@ function cleanItem(x: unknown): PlannedExercise | null {
   const block = str(x.block, 40); if (block) out.block = block
   const blockLabel = str(x.blockLabel, 200); if (blockLabel) out.blockLabel = blockLabel
   const note = str(x.note, 600); if (note) out.note = note
-  if (isObj(x.wod) && (x.wod.kind === 'amrap' || x.wod.kind === 'emom' || x.wod.kind === 'fortime')) {
+  if (isObj(x.wod) && (x.wod.kind === 'amrap' || x.wod.kind === 'emom' || x.wod.kind === 'fortime' || x.wod.kind === 'tabata')) {
     const m = num(x.wod.minutes, 1, 180)
     if (m !== undefined) {
       const interval = num(x.wod.interval, 1, 10)
       const rounds = num(x.wod.rounds, 1, 50)
-      out.wod = { kind: x.wod.kind, minutes: Math.round(m), ...(interval !== undefined ? { interval: Math.round(interval) } : {}), ...(rounds !== undefined ? { rounds: Math.round(rounds) } : {}) }
+      const work = num(x.wod.work, 5, 300)
+      const rest = num(x.wod.rest, 0, 300)
+      const gap = num(x.wod.gap, 0, 600)
+      const intervals = num(x.wod.intervals, 1, 500)
+      out.wod = {
+        kind: x.wod.kind, minutes: Math.round(m),
+        ...(interval !== undefined ? { interval: Math.round(interval) } : {}), ...(rounds !== undefined ? { rounds: Math.round(rounds) } : {}),
+        ...(work !== undefined ? { work: Math.round(work) } : {}), ...(rest !== undefined ? { rest: Math.round(rest) } : {}),
+        ...(gap !== undefined ? { gap: Math.round(gap) } : {}), ...(intervals !== undefined ? { intervals: Math.round(intervals) } : {}),
+      }
     }
   }
   return out

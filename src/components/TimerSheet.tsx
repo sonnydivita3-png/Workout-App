@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { emomIntervals, wodTitle } from '../lib/wod'
+import { emomIntervals, tabataOf, wodTitle } from '../lib/wod'
 import type { Wod } from '../types'
 import { Sheet } from './Sheet'
 
@@ -29,7 +29,8 @@ export function TimerSheet({ wod, names, onClose, onFinish }: { wod: Wod; names:
   const [running, setRunning] = useState(false)
   const started = useRef(0)
   const elapsedRef = useRef(0)
-  const total = wod.minutes * 60
+  const tab = wod.kind === 'tabata' ? tabataOf(wod, names.length) : null
+  const total = tab ? tab.total : wod.minutes * 60
   const interval = (wod.interval ?? 1) * 60
 
   useEffect(() => {
@@ -46,16 +47,35 @@ export function TimerSheet({ wod, names, onClose, onFinish }: { wod: Wod; names:
 
   const idx = wod.kind === 'emom' ? Math.min(emomIntervals(wod) - 1, Math.floor(elapsed / interval)) : 0
   const done = elapsed >= total
+  // Tabata position: which movement, which round, and whether it's work, rest, or the break between movements.
+  let tPhase: 'work' | 'rest' | 'gap' = 'work'
+  let tMove = 0
+  let tRound = 1
+  let tLeft = 0
+  if (tab) {
+    const blockLen = tab.block + tab.gap
+    tMove = Math.min(tab.n - 1, Math.floor(elapsed / blockLen))
+    const within = elapsed - tMove * blockLen
+    if (within >= tab.block && tMove < tab.n - 1) { tPhase = 'gap'; tLeft = blockLen - within }
+    else {
+      const k = Math.min(tab.rounds - 1, Math.floor(within / (tab.work + tab.rest)))
+      const pos = within - k * (tab.work + tab.rest)
+      tRound = k + 1
+      tPhase = pos < tab.work ? 'work' : 'rest'
+      tLeft = tPhase === 'work' ? tab.work - pos : tab.work + tab.rest - pos
+    }
+  }
+  const phaseKey = tab ? `${tMove}:${tPhase}:${tRound}` : String(idx)
   // Beep on each new interval, and when time is up.
-  const lastIdx = useRef(0)
+  const lastKey = useRef(phaseKey)
   useEffect(() => {
-    if (running && wod.kind === 'emom' && idx !== lastIdx.current) beep()
-    lastIdx.current = idx
-  }, [idx, running, wod.kind])
+    if (running && (wod.kind === 'emom' || wod.kind === 'tabata') && phaseKey !== lastKey.current) beep(tPhase === 'rest' || tPhase === 'gap')
+    lastKey.current = phaseKey
+  }, [phaseKey, running, wod.kind, tPhase])
   useEffect(() => { if (done) beep(true) }, [done])
 
   const remaining = Math.max(0, total - elapsed)
-  const big = wod.kind === 'fortime' ? fmt(elapsed) : wod.kind === 'emom' ? fmt(Math.max(0, interval - (elapsed - idx * interval))) : fmt(remaining)
+  const big = tab ? fmt(Math.ceil(tLeft)) : wod.kind === 'fortime' ? fmt(elapsed) : wod.kind === 'emom' ? fmt(Math.max(0, interval - (elapsed - idx * interval))) : fmt(remaining)
   const reset = () => { elapsedRef.current = 0; setElapsed(0); setRunning(false) }
 
   return (
@@ -65,9 +85,16 @@ export function TimerSheet({ wod, names, onClose, onFinish }: { wod: Wod; names:
           <p className="mb-1 text-sm text-neutral-500">Interval {done ? emomIntervals(wod) : idx + 1} of {emomIntervals(wod)}</p>
         )}
         <p className="text-7xl font-extrabold tabular-nums tracking-tight" aria-live="off">{big}</p>
+        {tab && !done && (
+          <>
+            <p className={`mb-1 text-sm font-semibold uppercase tracking-widest ${tPhase === 'work' ? 'text-accent' : 'text-neutral-500'}`}>{tPhase === 'work' ? 'Work' : tPhase === 'rest' ? 'Rest' : 'Break'}</p>
+          </>
+        )}
+        {tab && !done && <p className="mt-2 text-lg font-medium">{tPhase === 'gap' ? `Next: ${names[tMove + 1]}` : names[tMove]}</p>}
+        {tab && !done && <p className="mt-1 text-xs text-neutral-400">Movement {tMove + 1} of {tab.n} · round {tPhase === 'gap' ? tab.rounds : tRound} of {tab.rounds}</p>}
         {wod.kind === 'emom' && !done && <p className="mt-2 text-lg font-medium">{names[idx % Math.max(1, names.length)]}</p>}
         {wod.kind === 'amrap' && <p className="mt-2 text-sm text-neutral-500">Count your rounds as you go.</p>}
-        {wod.kind === 'emom' && <p className="mt-1 text-xs text-neutral-400">Total {fmt(elapsed)} / {fmt(total)}</p>}
+        {(wod.kind === 'emom' || tab) && <p className="mt-1 text-xs text-neutral-400">Total {fmt(elapsed)} / {fmt(total)}</p>}
         {wod.kind === 'fortime' && <p className="mt-1 text-xs text-neutral-400">Time cap {fmt(total)}</p>}
         {done && <p className="mt-3 text-lg font-semibold">Time! 🔔</p>}
       </div>

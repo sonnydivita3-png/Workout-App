@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { WOD_KINDS, buildWodItems, wodTitle, type WodMove } from '../lib/wod'
+import { WOD_KINDS, buildWodItems, makeTabata, wodTitle, type WodMove } from '../lib/wod'
 import { findExercise, useStore } from '../store'
-import type { Exercise, WodKind } from '../types'
+import type { Exercise, Wod, WodKind } from '../types'
 import { ExercisePicker } from './ExercisePicker'
 import { NumberInput } from './NumberInput'
 import { Sheet } from './Sheet'
@@ -16,14 +16,19 @@ export function WodBuilderSheet({ date, onClose }: { date: string; onClose: () =
   const [minutes, setMinutes] = useState<number | null>(12)
   const [interval, setInterval] = useState(1)
   const [rounds, setRounds] = useState<number | null>(5)
+  const [work, setWork] = useState<number | null>(20)
+  const [rest, setRest] = useState<number | null>(10)
+  const [tRounds, setTRounds] = useState<number | null>(8)
   const [moves, setMoves] = useState<(WodMove & { ex: Exercise })[]>([])
   const [picking, setPicking] = useState(false)
   const [blockId] = useState(() => `wod-${Date.now().toString(36)}`)
 
   const mins = minutes && minutes > 0 ? Math.round(minutes) : 0
   const emomTotal = kind === 'emom' && mins ? Math.max(interval, Math.round(mins / interval) * interval) : mins
-  const wod = { kind, minutes: kind === 'emom' ? emomTotal : mins, ...(kind === 'emom' ? { interval } : {}), ...(kind === 'fortime' ? { rounds: rounds && rounds > 0 ? Math.round(rounds) : 1 } : {}) }
-  const valid = mins > 0 && moves.length >= 1
+  const wod: Wod = kind === 'tabata'
+    ? makeTabata(Math.max(1, moves.length), { work: work && work > 0 ? Math.round(work) : 20, rest: rest != null && rest >= 0 ? Math.round(rest) : 10, rounds: tRounds && tRounds > 0 ? Math.round(tRounds) : 8 })
+    : { kind, minutes: kind === 'emom' ? emomTotal : mins, ...(kind === 'emom' ? { interval } : {}), ...(kind === 'fortime' ? { rounds: rounds && rounds > 0 ? Math.round(rounds) : 1 } : {}) }
+  const valid = (kind === 'tabata' || mins > 0) && moves.length >= (kind === 'tabata' ? 1 : 1)
   const set = (id: string, patch: Partial<WodMove>) => setMoves((l) => l.map((m) => (m.exerciseId === id ? { ...m, ...patch } : m)))
 
   const add = () => {
@@ -41,7 +46,14 @@ export function WodBuilderSheet({ date, onClose }: { date: string; onClose: () =
         <p className="mb-4 text-xs text-neutral-400">{WOD_KINDS.find((k) => k.id === kind)!.blurb}</p>
 
         <div className="mb-4 flex flex-wrap items-end gap-3">
-          <label className="w-24 text-xs text-neutral-500">{kind === 'fortime' ? 'Time cap (min)' : 'Minutes'}<NumberInput value={minutes} onChange={setMinutes} /></label>
+          {kind !== 'tabata' && <label className="w-24 text-xs text-neutral-500">{kind === 'fortime' ? 'Time cap (min)' : 'Minutes'}<NumberInput value={minutes} onChange={setMinutes} /></label>}
+          {kind === 'tabata' && (
+            <>
+              <label className="w-20 text-xs text-neutral-500">Work (sec)<NumberInput value={work} onChange={setWork} /></label>
+              <label className="w-20 text-xs text-neutral-500">Rest (sec)<NumberInput value={rest} onChange={setRest} /></label>
+              <label className="w-20 text-xs text-neutral-500">Rounds<NumberInput value={tRounds} onChange={setTRounds} /></label>
+            </>
+          )}
           {kind === 'fortime' && <label className="w-24 text-xs text-neutral-500">Rounds<NumberInput value={rounds} onChange={setRounds} /></label>}
           {kind === 'emom' && (
             <div className="text-xs text-neutral-500">Every
@@ -50,7 +62,7 @@ export function WodBuilderSheet({ date, onClose }: { date: string; onClose: () =
           )}
         </div>
 
-        <h3 className={h3}>Movements{kind === 'emom' ? ' (one per interval, in order)' : kind === 'amrap' ? ' (one round)' : ' (one round)'}</h3>
+        <h3 className={h3}>Movements{kind === 'emom' ? ' (one per interval, in order)' : kind === 'tabata' ? ' (each gets its own Tabata)' : ' (one round)'}</h3>
         {moves.length === 0 ? <p className="mb-3 text-sm text-neutral-400">Add two or more movements.</p> : (
           <ul className="mb-3 divide-y divide-neutral-100">
             {moves.map((m) => {
@@ -75,7 +87,7 @@ export function WodBuilderSheet({ date, onClose }: { date: string; onClose: () =
         )}
         <button onClick={() => setPicking(true)} className="mb-3 w-full rounded-xl bg-neutral-100 py-2.5 text-sm font-medium text-neutral-700">+ Add movement</button>
 
-        {valid && <p className="mb-3 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-neutral-600">{wodTitle(wod)} · {moves.length} movement{moves.length === 1 ? '' : 's'}</p>}
+        {valid && <p className="mb-3 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-neutral-600">{wodTitle(wod)} · {moves.length} movement{moves.length === 1 ? '' : 's'}{kind === 'tabata' ? ` · about ${wod.minutes} min` : ''}</p>}
         <button disabled={!valid} onClick={add} className="w-full rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent disabled:opacity-30">Add to this day</button>
       </Sheet>
       {picking && (
