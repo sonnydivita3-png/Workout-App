@@ -13,7 +13,8 @@ npm test         # randomizer unit tests
 
 ## Features
 - Home dashboard: greeting, today's upcoming exercises, last workout, body weight log + chart, weekly stats, goals
-- Workout randomizer: pick body parts and/or cardio plus a time, get a balanced workout with sets, reps and cardio minutes; swap or remove exercises, reroll, add to the day or save as a routine
+- Workout randomizer with eight styles: standard, strength, supersets, HIIT circuit, PHA, Hyrox-style, CrossFit-style, bodyweight. Pick body parts and/or cardio plus a time; swap, choose, or remove exercises, step Back/Forward through versions, add to the day or save as a routine
+- Week or month planner: pick a goal, training days and session length; builds dated workouts with rest days, never trains the same major muscle group two days in a row, varies exercises, and adds a set in week 3 and a deload in week 4 of a month plan
 - Three ways to log lifting: weight × reps, bodyweight reps only, and timed holds (planks) in seconds; goals, history, and personal bests follow the same measure
 - Randomizer: Back/Forward through every version you've generated, random swap per exercise, or pick any exercise yourself
 - Weekly plan by weekday, per-set logging, "last time" reminders

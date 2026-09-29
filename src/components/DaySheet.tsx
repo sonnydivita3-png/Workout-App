@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { DAY_LABELS } from '../lib/dates'
+import { DAY_LABELS, parseISO, weekdayIndex } from '../lib/dates'
+import { dayPlanOf } from '../lib/plan'
 import { useStore } from '../store'
 import { primaryBtn, rowBtn, Sheet } from './Sheet'
 
@@ -7,12 +8,15 @@ type Mode = 'menu' | 'copy' | 'save' | 'load'
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
-export function DaySheet({ day, onClose }: { day: number; onClose: () => void }) {
-  const { plan, routines, copyDay, saveRoutine, deleteRoutine, loadRoutine } = useStore()
+/** `weekDates` are the 7 ISO dates (Mon–Sun) of the week being viewed. */
+export function DaySheet({ date, weekDates, onClose }: { date: string; weekDates: string[]; onClose: () => void }) {
+  const { plan, overrides, routines, copyDay, saveRoutine, deleteRoutine, loadRoutine, resetDay } = useStore()
   const [mode, setMode] = useState<Mode>('menu')
   const [targets, setTargets] = useState<number[]>([])
   const [name, setName] = useState('')
-  const planned = plan[day]
+  const day = weekdayIndex(parseISO(date))
+  const planned = dayPlanOf(plan, overrides, date)
+  const planOf = (i: number) => dayPlanOf(plan, overrides, weekDates[i])
   const empty = planned.length === 0
 
   const toggle = (i: number) => setTargets((t) => (t.includes(i) ? t.filter((x) => x !== i) : [...t, i]))
@@ -31,17 +35,17 @@ export function DaySheet({ day, onClose }: { day: number; onClose: () => void })
                 className={`rounded-xl py-2 text-sm ${targets.includes(i) ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'}`}
               >
                 {l}
-                {plan[i].length > 0 && <span className="block text-[10px] opacity-60">{plan[i].length} ex</span>}
+                {planOf(i).length > 0 && <span className="block text-[10px] opacity-60">{planOf(i).length} ex</span>}
               </button>
             ),
           )}
         </div>
-        {targets.some((i) => plan[i].length > 0) && (
+        {targets.some((i) => planOf(i).length > 0) && (
           <p className="pb-3 text-xs text-neutral-400">Days that already have exercises will be replaced.</p>
         )}
         <button
           disabled={targets.length === 0}
-          onClick={() => { copyDay(day, targets); onClose() }}
+          onClick={() => { copyDay(date, targets.map((i) => weekDates[i])); onClose() }}
           className={primaryBtn}
         >
           Copy to {targets.length || ''} day{targets.length === 1 ? '' : 's'}
@@ -77,7 +81,7 @@ export function DaySheet({ day, onClose }: { day: number; onClose: () => void })
         <ul>
           {routines.map((r) => (
             <li key={r.id} className="flex items-center">
-              <button onClick={() => { loadRoutine(day, r.id); onClose() }} className={rowBtn}>
+              <button onClick={() => { loadRoutine(date, r.id); onClose() }} className={rowBtn}>
                 <span>{r.name}</span>
                 <span className="text-xs text-neutral-400">{r.items.length} exercises</span>
               </button>
@@ -108,6 +112,12 @@ export function DaySheet({ day, onClose }: { day: number; onClose: () => void })
         <span>Load a routine</span>
         <span className="text-xs text-neutral-400">{routines.length ? `${routines.length} saved` : 'None saved yet'}</span>
       </button>
+      {overrides[date] && (
+        <button onClick={() => { resetDay(date); onClose() }} className={rowBtn}>
+          <span>Reset to weekly plan</span>
+          <span className="text-xs text-neutral-400">Undo generated plan for this day</span>
+        </button>
+      )}
     </Sheet>
   )
 }

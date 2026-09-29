@@ -1,12 +1,15 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { BUILTIN_BY_ID } from './data/exercises'
+import { parseISO, weekdayIndex } from './lib/dates'
+import { dayPlanOf } from './lib/plan'
 import type {
-  AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlannedExercise, Routine, StrengthSet, Units, WeekPlan,
+  AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Routine, StrengthSet, Units, WeekPlan,
 } from './types'
 
 export interface Data {
   plan: WeekPlan
+  overrides: PlanOverrides
   logs: ExerciseLog[]
   custom: Exercise[]
   units: Units
@@ -26,26 +29,43 @@ interface State extends Data {
   /** Wipe everything back to a fresh install, optionally keeping name, units and notification settings. */
   resetAll: (keepProfile: boolean) => void
   deleteBodyweight: (date: string) => void
-  addExercise: (day: number, exerciseId: string, kind: ExerciseKind) => void
-  removeExercise: (day: number, exerciseId: string) => void
-  setSetCount: (day: number, exerciseId: string, sets: number) => void
+  // Plan edits take a date: they change that date's override if it has one, else the weekly template.
+  addExercise: (date: string, exerciseId: string, kind: ExerciseKind) => void
+  removeExercise: (date: string, exerciseId: string) => void
+  setSetCount: (date: string, exerciseId: string, sets: number) => void
   saveStrength: (date: string, exerciseId: string, sets: StrengthSet[]) => void
   saveCardio: (date: string, exerciseId: string, cardio: CardioEntry) => void
   createCustom: (name: string, kind: ExerciseKind, mode?: ExerciseMode) => Exercise
   setUnits: (u: Partial<Units>) => void
   setName: (name: string) => void
   logBodyweight: (date: string, lb: number) => void
-  addPlanned: (day: number, items: PlannedExercise[]) => void
-  copyDay: (from: number, to: number[]) => void
+  addPlanned: (date: string, items: PlannedExercise[]) => void
+  copyDay: (from: string, to: string[]) => void
+  /** Write dated plans (e.g. a generated week or month); empty arrays are rest days. */
+  applyProgram: (days: PlanOverrides) => void
+  /** Drop a date's override so it follows the weekly template again. */
+  resetDay: (date: string) => void
   saveRoutine: (name: string, items: PlannedExercise[]) => void
   deleteRoutine: (id: string) => void
-  loadRoutine: (day: number, id: string) => void
+  loadRoutine: (date: string, id: string) => void
   addGoal: (goal: NewGoal) => void
   deleteGoal: (id: string) => void
   importData: (d: Data) => void
 }
 
 const emptyPlan = (): WeekPlan => Array.from({ length: 7 }, () => [])
+
+/** Apply `fn` to a date's exercises, editing its override if present, else the weekly template. */
+function editDay(s: Pick<Data, 'plan' | 'overrides'>, date: string, fn: (items: PlannedExercise[]) => PlannedExercise[]) {
+  if (s.overrides[date]) return { overrides: { ...s.overrides, [date]: fn(s.overrides[date]) } }
+  const day = weekdayIndex(parseISO(date))
+  return { plan: s.plan.map((d, i) => (i === day ? fn(d) : d)) }
+}
+
+const appendMissing = (d: PlannedExercise[], items: PlannedExercise[]) => [
+  ...d,
+  ...items.filter((p) => !d.some((q) => q.exerciseId === p.exerciseId)).map((p) => ({ ...p })),
+]
 
 const upsertLog = (logs: ExerciseLog[], next: ExerciseLog) => [
   ...logs.filter((l) => !(l.date === next.date && l.exerciseId === next.exerciseId)),
@@ -55,6 +75,7 @@ const upsertLog = (logs: ExerciseLog[], next: ExerciseLog) => [
 /** A fresh install's data. */
 const defaults = () => ({
   plan: emptyPlan(),
+  overrides: {} as PlanOverrides,
   logs: [] as ExerciseLog[],
   custom: [] as Exercise[],
   units: { weight: 'lb', distance: 'mi' } as Units,
@@ -103,24 +124,11 @@ export const useStore = create<State>()(
       clearNotifications: () => set({ notifications: [] }),
       setNotifPrefs: (p) => set((s) => ({ notifPrefs: { ...s.notifPrefs, ...p } })),
       deleteBodyweight: (date) => set((s) => ({ bodyweight: s.bodyweight.filter((b) => b.date !== date) })),
-      addExercise: (day, exerciseId, kind) =>
-        set((s) => ({
-          plan: s.plan.map((d, i) =>
-            i === day && !d.some((p) => p.exerciseId === exerciseId)
-              ? [...d, { exerciseId, sets: kind === 'strength' ? 3 : 1 }]
-              : d,
-          ),
-        })),
-      removeExercise: (day, exerciseId) =>
-        set((s) => ({
-          plan: s.plan.map((d, i) => (i === day ? d.filter((p) => p.exerciseId !== exerciseId) : d)),
-        })),
-      setSetCount: (day, exerciseId, sets) =>
-        set((s) => ({
-          plan: s.plan.map((d, i) =>
-            i === day ? d.map((p) => (p.exerciseId === exerciseId ? { ...p, sets } : p)) : d,
-          ),
-        })),
+      addExercise: (date, exerciseId, kind) =>
+        set((s) => editDay(s, date, (d) => (d.some((p) => p.exerciseId === exerciseId) ? d : [...d, { exerciseId, sets: kind === 'strength' ? 3 : 1 }]))),
+      removeExercise: (date, exerciseId) => set((s) => editDay(s, date, (d) => d.filter((p) => p.exerciseId !== exerciseId))),
+      setSetCount: (date, exerciseId, sets) =>
+        set((s) => editDay(s, date, (d) => d.map((p) => (p.exerciseId === exerciseId ? { ...p, sets } : p)))),
       saveStrength: (date, exerciseId, sets) =>
         set((s) => ({ logs: upsertLog(s.logs, { date, exerciseId, sets }) })),
       saveCardio: (date, exerciseId, cardio) =>
@@ -146,36 +154,36 @@ export const useStore = create<State>()(
             a.date.localeCompare(b.date),
           ),
         })),
-      addPlanned: (day, items) =>
-        set((s) => ({
-          plan: s.plan.map((d, i) =>
-            i === day ? [...d, ...items.filter((p) => !d.some((q) => q.exerciseId === p.exerciseId)).map((p) => ({ ...p }))] : d,
-          ),
-        })),
+      addPlanned: (date, items) => set((s) => editDay(s, date, (d) => appendMissing(d, items))),
       copyDay: (from, to) =>
-        set((s) => ({
-          plan: s.plan.map((d, i) => (to.includes(i) && i !== from ? s.plan[from].map((p) => ({ ...p })) : d)),
-        })),
+        set((s) => {
+          const items = dayPlanOf(s.plan, s.overrides, from)
+          let next: Pick<Data, 'plan' | 'overrides'> = { plan: s.plan, overrides: s.overrides }
+          for (const date of to) if (date !== from) next = { ...next, ...editDay(next, date, () => items.map((p) => ({ ...p }))) }
+          return next
+        }),
+      applyProgram: (days) => set((s) => ({ overrides: { ...s.overrides, ...days } })),
+      resetDay: (date) =>
+        set((s) => {
+          const { [date]: _dropped, ...rest } = s.overrides
+          void _dropped
+          return { overrides: rest }
+        }),
       saveRoutine: (name, items) =>
         set((s) => ({
           routines: [...s.routines, { id: `r-${Date.now().toString(36)}`, name: name.trim(), items: items.map((p) => ({ ...p })) }],
         })),
       deleteRoutine: (id) => set((s) => ({ routines: s.routines.filter((r) => r.id !== id) })),
-      loadRoutine: (day, id) =>
+      loadRoutine: (date, id) =>
         set((s) => {
           const r = s.routines.find((x) => x.id === id)
-          if (!r) return s
-          return {
-            plan: s.plan.map((d, i) =>
-              i === day ? [...d, ...r.items.filter((p) => !d.some((q) => q.exerciseId === p.exerciseId)).map((p) => ({ ...p }))] : d,
-            ),
-          }
+          return r ? editDay(s, date, (d) => appendMissing(d, r.items)) : s
         }),
       addGoal: (goal) => set((s) => ({ goals: [...s.goals, { ...goal, id: `g-${Date.now().toString(36)}` } as Goal] })),
       deleteGoal: (id) => set((s) => ({ goals: s.goals.filter((g) => g.id !== id) })),
       importData: (d) =>
         set({
-          plan: d.plan, logs: d.logs, custom: d.custom ?? [], units: d.units,
+          plan: d.plan, overrides: d.overrides ?? {}, logs: d.logs, custom: d.custom ?? [], units: d.units,
           name: d.name ?? '', bodyweight: d.bodyweight ?? [], routines: d.routines ?? [], goals: d.goals ?? [],
         }),
     }),

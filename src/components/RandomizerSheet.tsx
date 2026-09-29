@@ -1,25 +1,46 @@
 import { useState } from 'react'
-import { FOCUS_OPTIONS, generateWorkout, LIFT_GROUPS, minutesFor, replaceExercise, swapExercise } from '../lib/randomizer'
-import { findExercise, useStore } from '../store'
+import { parseISO, weekdayIndex } from '../lib/dates'
+import {
+  FOCUS_OPTIONS, generateWorkout, LIFT_GROUPS, minutesFor, replaceExercise, STYLES, styleInfo, swapExercise, type WorkoutStyle,
+} from '../lib/randomizer'
+import { useStore } from '../store'
 import type { PlannedExercise } from '../types'
 import { ExercisePicker } from './ExercisePicker'
+import { ModeSwitch, type GeneratorMode } from './ModeSwitch'
 import { primaryBtn, Sheet } from './Sheet'
+import { WorkoutList } from './WorkoutList'
 
 const MAX_HISTORY = 50
 const DURATIONS = [20, 30, 45, 60, 75, 90]
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
-const chip = (on: boolean) =>
-  `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'}`
+const chip = (on: boolean, disabled = false) =>
+  `rounded-full px-3 py-1.5 text-sm ${disabled ? 'bg-neutral-100 text-neutral-300' : on ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'}`
 
-export function RandomizerSheet({ day, onClose }: { day: number; onClose: () => void }) {
-  const { custom, addPlanned, saveRoutine } = useStore()
+interface Props {
+  date: string
+  onClose: () => void
+  onSwitchMode: (m: GeneratorMode) => void
+}
+
+export function RandomizerSheet({ date, onClose, onSwitchMode }: Props) {
+  const { addPlanned, saveRoutine } = useStore()
+  const dayName = DAY_NAMES[weekdayIndex(parseISO(date))]
   const [focus, setFocus] = useState<string[]>([])
   const [minutes, setMinutes] = useState(45)
+  const [style, setStyle] = useState<WorkoutStyle>('standard')
   // Every version of the workout, so an accidental reroll or swap can be walked back.
   const [history, setHistory] = useState<{ list: PlannedExercise[][]; at: number }>({ list: [], at: 0 })
   const [pickIndex, setPickIndex] = useState<number | null>(null)
+  const [naming, setNaming] = useState(false)
+  const [name, setName] = useState('')
+  const [saved, setSaved] = useState(false)
   const items = history.list[history.at] ?? null
+
+  const info = styleInfo(style)
+  const focusIgnored = info.focus === 'ignored'
+  const canGenerate = info.focus !== 'required' || focus.length > 0
+
   const commit = (next: PlannedExercise[]) => {
     if (next === items) return // nothing changed (e.g. no alternative to swap in)
     setHistory((h) => {
@@ -34,32 +55,46 @@ export function RandomizerSheet({ day, onClose }: { day: number; onClose: () => 
     setSaved(false)
     setNaming(false)
   }
-  const [naming, setNaming] = useState(false)
-  const [name, setName] = useState('')
-  const [saved, setSaved] = useState(false)
 
   const toggle = (g: string) => setFocus((f) => (f.includes(g) ? f.filter((x) => x !== g) : [...f, g]))
   const fullBody = LIFT_GROUPS.every((g) => focus.includes(g))
-  const defaultName = `${focus.length > 3 ? 'Full body' : focus.join(' + ')} · ${minutes} min`
+  const focusLabel = focusIgnored ? 'Full body' : focus.length === 0 ? 'Full body' : focus.length > 3 ? 'Full body' : focus.join(' + ')
+  const defaultName = `${info.label} · ${focusLabel} · ${minutes} min`
 
   const generate = (avoid?: PlannedExercise[]) =>
-    commit(generateWorkout(focus, minutes, Math.random, new Set(avoid?.map((p) => p.exerciseId))))
+    commit(generateWorkout(focus, minutes, { style, avoid: new Set(avoid?.map((p) => p.exerciseId)) }))
 
   if (!items) {
     return (
-      <Sheet title="Randomize workout" onClose={onClose} closeLabel="Cancel">
-        <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">What are you training?</h3>
-        <div className="mb-2 flex flex-wrap gap-2">
-          {FOCUS_OPTIONS.map((g) => (
-            <button key={g} onClick={() => toggle(g)} className={chip(focus.includes(g))}>{g}</button>
+      <Sheet title="Randomize" onClose={onClose} closeLabel="Cancel">
+        <ModeSwitch mode="one" onChange={onSwitchMode} />
+
+        <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Workout style</h3>
+        <div className="mb-1 flex flex-wrap gap-2">
+          {STYLES.map((s) => (
+            <button key={s.id} onClick={() => setStyle(s.id)} className={chip(s.id === style)}>{s.label}</button>
           ))}
         </div>
-        <button
-          onClick={() => setFocus(fullBody ? focus.filter((g) => g === 'Cardio') : [...LIFT_GROUPS, ...focus.filter((g) => g === 'Cardio')])}
-          className="mb-5 text-sm text-neutral-500 underline-offset-2 hover:underline"
-        >
-          {fullBody ? 'Clear body parts' : 'Select full body'}
-        </button>
+        <p className="mb-5 text-xs text-neutral-400">{info.blurb}</p>
+
+        <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">
+          What are you training?{info.focus === 'optional' && ' (optional)'}
+        </h3>
+        <div className="mb-2 flex flex-wrap gap-2">
+          {FOCUS_OPTIONS.map((g) => (
+            <button key={g} disabled={focusIgnored} onClick={() => toggle(g)} className={chip(focus.includes(g), focusIgnored)}>{g}</button>
+          ))}
+        </div>
+        {focusIgnored ? (
+          <p className="mb-5 text-xs text-neutral-400">{info.label} is a full-body format, so body parts aren’t used.</p>
+        ) : (
+          <button
+            onClick={() => setFocus(fullBody ? focus.filter((g) => g === 'Cardio') : [...LIFT_GROUPS, ...focus.filter((g) => g === 'Cardio')])}
+            className="mb-5 text-sm text-neutral-500 underline-offset-2 hover:underline"
+          >
+            {fullBody ? 'Clear body parts' : 'Select full body'}
+          </button>
+        )}
 
         <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">How long?</h3>
         <div className="mb-6 flex flex-wrap gap-2">
@@ -68,7 +103,7 @@ export function RandomizerSheet({ day, onClose }: { day: number; onClose: () => 
           ))}
         </div>
 
-        <button disabled={focus.length === 0} onClick={() => generate()} className={primaryBtn}>Generate workout</button>
+        <button disabled={!canGenerate} onClick={() => generate()} className={primaryBtn}>Generate workout</button>
       </Sheet>
     )
   }
@@ -96,31 +131,20 @@ export function RandomizerSheet({ day, onClose }: { day: number; onClose: () => 
           Forward ›
         </button>
       </div>
-      <p className="mb-3 text-sm text-neutral-400">{focus.join(' · ')} · about {Math.round(total)} min</p>
+      <p className="mb-3 text-sm text-neutral-400">
+        {info.label} · {focusLabel}{focus.includes('Cardio') && !focusIgnored ? ' + Cardio' : ''} · about {Math.round(total)} min
+      </p>
       {items.length === 0 ? (
         <p className="py-6 text-center text-neutral-400">Couldn’t build a workout for that. Try another mix.</p>
       ) : (
-        <ul className="mb-4 divide-y divide-neutral-100">
-          {items.map((p, i) => {
-            const ex = findExercise(custom, p.exerciseId)
-            if (!ex) return null
-            return (
-              <li key={p.exerciseId} className="flex items-center justify-between gap-2 py-2.5">
-                <span className="min-w-0">
-                  <span className="block truncate">{ex.name}</span>
-                  <span className="text-xs tabular-nums text-neutral-400">
-                    {ex.kind === 'cardio' ? `${p.minutes} min` : p.seconds ? `${p.sets} × ${p.seconds}s` : `${p.sets} × ${p.reps}`} · {ex.group}
-                  </span>
-                </span>
-                <span className="flex shrink-0 items-center gap-1 text-neutral-400">
-                  <button onClick={() => commit(swapExercise(items, i))} aria-label={`Random swap for ${ex.name}`} title="Random swap" className="h-8 w-8 rounded-full text-lg hover:bg-neutral-100">↻</button>
-                  <button onClick={() => setPickIndex(i)} aria-label={`Choose a replacement for ${ex.name}`} title="Choose exercise" className="h-8 w-8 rounded-full text-base hover:bg-neutral-100">✎</button>
-                  <button onClick={() => commit(items.filter((_, j) => j !== i))} aria-label={`Remove ${ex.name}`} className="h-8 w-8 rounded-full text-lg hover:bg-neutral-100">×</button>
-                </span>
-              </li>
-            )
-          })}
-        </ul>
+        <div className="mb-4">
+          <WorkoutList
+            items={items}
+            onSwap={(i) => commit(swapExercise(items, i))}
+            onChoose={setPickIndex}
+            onRemove={(i) => commit(items.filter((_, j) => j !== i))}
+          />
+        </div>
       )}
 
       {naming ? (
@@ -154,10 +178,10 @@ export function RandomizerSheet({ day, onClose }: { day: number; onClose: () => 
 
       <button
         disabled={items.length === 0}
-        onClick={() => { addPlanned(day, items); onClose() }}
+        onClick={() => { addPlanned(date, items); onClose() }}
         className={primaryBtn}
       >
-        Add to {DAY_NAMES[day]}
+        Add to {dayName}
       </button>
       {pickIndex !== null && (
         <ExercisePicker
@@ -166,7 +190,7 @@ export function RandomizerSheet({ day, onClose }: { day: number; onClose: () => 
           onClose={() => setPickIndex(null)}
         />
       )}
-      <button onClick={() => setHistory({ list: [], at: 0 })} className="mt-3 w-full text-center text-sm text-neutral-400">Change focus or time</button>
+      <button onClick={() => setHistory({ list: [], at: 0 })} className="mt-3 w-full text-center text-sm text-neutral-400">Change style, focus or time</button>
     </Sheet>
   )
 }

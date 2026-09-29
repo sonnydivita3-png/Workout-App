@@ -1,6 +1,7 @@
-import type { BodyweightEntry, Exercise, ExerciseLog, Goal, NotifPrefs, NotificationType, Units, WeekPlan } from '../types'
-import { addDays, mondayOf, parseISO, toISO, weekdayIndex } from './dates'
+import type { BodyweightEntry, Exercise, ExerciseLog, Goal, NotifPrefs, NotificationType, PlanOverrides, Units, WeekPlan } from '../types'
+import { addDays, mondayOf, parseISO, toISO } from './dates'
 import { goalPct, goalTitle } from './goals'
+import { dayPlanOf } from './plan'
 import { cardioSessions, hasData, setSessions, strengthSessions } from './stats'
 import { formatPace, formatSeconds, showDistance, showWeight } from './units'
 
@@ -16,6 +17,7 @@ interface Input {
   goals: Goal[]
   bodyweight: BodyweightEntry[]
   plan: WeekPlan
+  overrides?: PlanOverrides
   units: Units
   prefs: NotifPrefs
   today: string
@@ -117,7 +119,7 @@ export function computeNotifications(i: Input): Candidate[] {
   }
 
   if (i.prefs.daily && i.prefs.reminderTime && i.nowMinutes >= timeToMinutes(i.prefs.reminderTime)) {
-    const planned = i.plan[weekdayIndex(parseISO(today))]
+    const planned = dayPlanOf(i.plan, i.overrides, today)
     const done = new Set(i.logs.filter((l) => l.date === today && hasData(l)).map((l) => l.exerciseId))
     const left = planned.filter((p) => !done.has(p.exerciseId))
     if (left.length > 0) {

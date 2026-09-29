@@ -8,6 +8,7 @@ interface Props {
   setCount: number
   targetReps?: number
   targetSeconds?: number
+  note?: string
   current?: ExerciseLog
   last?: ExerciseLog
   onSetCount: (n: number) => void
@@ -15,7 +16,7 @@ interface Props {
   onRemove: () => void
 }
 
-export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, current, last, onSetCount, onChange, onRemove }: Props) {
+export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, note, current, last, onSetCount, onChange, onRemove }: Props) {
   const units = useStore((s) => s.units)
   const mode = exercise.mode ?? 'weight'
   const sets = Array.from({ length: setCount }, (_, i) => current?.sets?.[i] ?? { weight: null, reps: null, seconds: null })
@@ -41,6 +42,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, cu
             {exercise.group}
             {mode === 'time' && ' · timed'}
             {target && ` · target ${target}`}
+            {note && ` · ${note}`}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-3 text-neutral-400">

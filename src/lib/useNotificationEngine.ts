@@ -36,6 +36,7 @@ export function useNotificationEngine() {
   const goals = useStore((s) => s.goals)
   const bodyweight = useStore((s) => s.bodyweight)
   const plan = useStore((s) => s.plan)
+  const overrides = useStore((s) => s.overrides)
   const prefs = useStore((s) => s.notifPrefs)
   const [tick, setTick] = useState(0)
 
@@ -44,14 +45,14 @@ export function useNotificationEngine() {
       const s = useStore.getState()
       const now = new Date()
       const items = computeNotifications({
-        logs: s.logs, goals: s.goals, bodyweight: s.bodyweight, plan: s.plan, units: s.units, prefs: s.notifPrefs,
+        logs: s.logs, goals: s.goals, bodyweight: s.bodyweight, plan: s.plan, overrides: s.overrides, units: s.units, prefs: s.notifPrefs,
         today, nowMinutes: now.getHours() * 60 + now.getMinutes(),
         exerciseName: (id) => findExercise(s.custom, id),
       })
       deliver(s.pushNotifications(items))
     }, 1200) // let typing settle before judging a number
     return () => clearTimeout(t)
-  }, [logs, goals, bodyweight, plan, prefs, today, tick])
+  }, [logs, goals, bodyweight, plan, overrides, prefs, today, tick])
 
   // Fire the daily reminder if the app is open when the time arrives.
   useEffect(() => {
