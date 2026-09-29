@@ -12,6 +12,7 @@ interface Props {
 
 export function WorkoutList({ items, onSwap, onChoose, onRemove }: Props) {
   const custom = useStore((s) => s.custom)
+  const units = useStore((s) => s.units)
   const editable = !!(onSwap || onChoose || onRemove)
 
   return (
@@ -28,7 +29,7 @@ export function WorkoutList({ items, onSwap, onChoose, onRemove }: Props) {
                   <span className="min-w-0">
                     <span className="block truncate">{ex.name}</span>
                     <span className="text-xs tabular-nums text-neutral-400">
-                      {[describeItem(p, ex), ex.group].filter(Boolean).join(' · ')}
+                      {[describeItem(p, ex, units), ex.group].filter(Boolean).join(' · ')}
                     </span>
                   </span>
                   {editable && (

@@ -3,6 +3,7 @@ import { parseISO, toISO, weekDates, weekdayIndex } from '../lib/dates'
 import { groupByBlock } from '../lib/describe'
 import { dayPlanOf, isRestDay } from '../lib/plan'
 import { findExercise, selectLastLog, useStore } from '../store'
+import { CardioPlanSheet } from './CardioPlanSheet'
 import { ProgramSheet } from './ProgramSheet'
 import { RandomizerSheet } from './RandomizerSheet'
 import type { GeneratorMode } from './ModeSwitch'
@@ -93,6 +94,7 @@ export function PlanView() {
                   current={current}
                   last={last}
                   targetMinutes={p.minutes}
+                  targetDistance={p.distance}
                   note={p.note}
                   onChange={(c) => s.saveCardio(date, ex.id, c)}
                   onRemove={() => s.removeExercise(date, ex.id)}
@@ -113,6 +115,13 @@ export function PlanView() {
       {generator === 'one' && <RandomizerSheet date={date} onClose={() => setGenerator(null)} onSwitchMode={setGenerator} />}
       {generator === 'program' && (
         <ProgramSheet
+          onClose={() => setGenerator(null)}
+          onSwitchMode={setGenerator}
+          onApplied={(first) => { setAnchor(parseISO(first)); setDay(weekdayIndex(parseISO(first))) }}
+        />
+      )}
+      {generator === 'cardio' && (
+        <CardioPlanSheet
           onClose={() => setGenerator(null)}
           onSwitchMode={setGenerator}
           onApplied={(first) => { setAnchor(parseISO(first)); setDay(weekdayIndex(parseISO(first))) }}

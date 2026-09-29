@@ -43,6 +43,11 @@ interface State extends Data {
   copyDay: (from: string, to: string[]) => void
   /** Write dated plans (e.g. a generated week or month); empty arrays are rest days. */
   applyProgram: (days: PlanOverrides) => void
+  /**
+   * Add a cardio plan's sessions to their dates. By default they join whatever is already planned (a run
+   * replaces an existing run entry); with `replace` they take the whole day.
+   */
+  applyCardioPlan: (items: Record<string, PlannedExercise>, replace: boolean) => void
   /** Drop a date's override so it follows the weekly template again. */
   resetDay: (date: string) => void
   /** Mark a date as a rest day: an empty override, whatever the weekly template says. */
@@ -165,6 +170,15 @@ export const useStore = create<State>()(
           return next
         }),
       applyProgram: (days) => set((s) => ({ overrides: { ...s.overrides, ...days } })),
+      applyCardioPlan: (items, replace) =>
+        set((s) => {
+          const next = { ...s.overrides }
+          for (const [date, item] of Object.entries(items)) {
+            const existing = dayPlanOf(s.plan, s.overrides, date)
+            next[date] = replace ? [item] : [...existing.filter((p) => p.exerciseId !== item.exerciseId), item]
+          }
+          return { overrides: next }
+        }),
       setRestDay: (date) => set((s) => ({ overrides: { ...s.overrides, [date]: [] } })),
       resetDay: (date) =>
         set((s) => {

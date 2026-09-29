@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { storeWeight } from '../lib/units'
 import { findExercise, useStore } from '../store'
+import { CardioGoalForm } from './CardioGoalForm'
 import { ExercisePicker } from './ExercisePicker'
 import { NumberInput } from './NumberInput'
 import { primaryBtn, Sheet } from './Sheet'
 
-type Kind = 'workouts' | 'bodyweight' | 'lift'
+type Kind = 'workouts' | 'bodyweight' | 'lift' | 'cardio'
 
 const KINDS: { id: Kind; label: string }[] = [
   { id: 'workouts', label: 'Workouts / week' },
   { id: 'bodyweight', label: 'Body weight' },
   { id: 'lift', label: 'Exercise' },
+  { id: 'cardio', label: 'Cardio' },
 ]
 
 export function GoalSheet({ onClose }: { onClose: () => void }) {
@@ -36,7 +38,7 @@ export function GoalSheet({ onClose }: { onClose: () => void }) {
   return (
     <>
       <Sheet title="New goal" onClose={onClose} closeLabel="Cancel">
-        <div className="mb-4 flex gap-2">
+        <div className="mb-4 flex flex-wrap gap-2">
           {KINDS.map((k) => (
             <button
               key={k.id}
@@ -47,6 +49,8 @@ export function GoalSheet({ onClose }: { onClose: () => void }) {
             </button>
           ))}
         </div>
+
+        {kind === 'cardio' && <CardioGoalForm onDone={onClose} />}
 
         {kind === 'workouts' && (
           <label className="mb-4 block text-sm text-neutral-500">
@@ -65,7 +69,7 @@ export function GoalSheet({ onClose }: { onClose: () => void }) {
           </button>
         )}
 
-        {kind !== 'workouts' && (
+        {kind !== 'workouts' && kind !== 'cardio' && (
           <label className="mb-4 block text-sm text-neutral-500">
             {kind === 'lift' && mode === 'reps' ? 'Target reps in one set' : kind === 'lift' && mode === 'time' ? 'Target hold (seconds)' : `Target (${units.weight})`}
             <div className="mt-1 w-28">
@@ -74,7 +78,7 @@ export function GoalSheet({ onClose }: { onClose: () => void }) {
           </label>
         )}
 
-        <button disabled={!valid} onClick={save} className={primaryBtn}>Add goal</button>
+        {kind !== 'cardio' && <button disabled={!valid} onClick={save} className={primaryBtn}>Add goal</button>}
       </Sheet>
 
       {picking && (
