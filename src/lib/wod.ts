@@ -5,13 +5,33 @@ export const WOD_KINDS: { id: WodKind; label: string; blurb: string }[] = [
   { id: 'amrap', label: 'AMRAP', blurb: 'As many rounds as possible in a set time.' },
   { id: 'emom', label: 'EMOM', blurb: 'Every minute on the minute: do the work, rest for what’s left of the minute.' },
   { id: 'fortime', label: 'For time', blurb: 'Finish a set number of rounds as fast as you can (with a time cap).' },
+  { id: 'tabata', label: 'Tabata', blurb: 'Short bursts: 20 seconds all-out, 10 seconds rest, repeated 8 times per movement.' },
 ]
 
 export const emomIntervals = (w: Wod) => Math.max(1, Math.round(w.minutes / (w.interval ?? 1)))
 
+/** Tabata numbers with the classic defaults filled in. */
+export const tabataOf = (w: Wod, movements = 1) => {
+  const work = w.work ?? 20
+  const rest = w.rest ?? 10
+  const rounds = w.rounds ?? 8
+  const gap = w.gap ?? 60
+  const intervals = w.intervals ?? movements * rounds
+  const n = Math.max(1, Math.round(intervals / rounds))
+  const block = rounds * (work + rest)
+  return { work, rest, rounds, gap, intervals, n, block, total: n * block + (n - 1) * gap }
+}
+
+/** A Tabata definition for `n` movements, with its total minutes worked out. */
+export function makeTabata(n: number, opts: { work?: number; rest?: number; rounds?: number; gap?: number } = {}): Wod {
+  const base: Wod = { kind: 'tabata', minutes: 1, work: opts.work ?? 20, rest: opts.rest ?? 10, rounds: opts.rounds ?? 8, gap: opts.gap ?? 60, intervals: n * (opts.rounds ?? 8) }
+  return { ...base, minutes: Math.max(1, Math.ceil(tabataOf(base, n).total / 60)) }
+}
+
 export function wodTitle(w: Wod): string {
   if (w.kind === 'amrap') return `AMRAP ${w.minutes} min`
   if (w.kind === 'emom') return `${(w.interval ?? 1) > 1 ? `E${w.interval}MOM` : 'EMOM'} ${w.minutes} min`
+  if (w.kind === 'tabata') return `Tabata ${w.work ?? 20}s/${w.rest ?? 10}s × ${w.rounds ?? 8}`
   return `${w.rounds ?? 1} round${(w.rounds ?? 1) === 1 ? '' : 's'} for time · ${w.minutes} min cap`
 }
 
@@ -34,7 +54,7 @@ export function buildWodItems(p: { wod: Wod; moves: WodMove[]; block: string; la
   const label = p.label ?? wodTitle(p.wod)
   return p.moves.map((m, i) => ({
     exerciseId: m.exerciseId,
-    sets: p.wod.rounds ?? 1,
+    sets: p.wod.kind === 'tabata' ? 1 : p.wod.rounds ?? 1,
     ...(m.reps ? { reps: m.reps } : {}),
     ...(m.seconds ? { seconds: m.seconds } : {}),
     ...(m.note || p.wod.kind === 'emom' ? { note: [m.note, p.wod.kind === 'emom' ? `${(p.wod.interval ?? 1) > 1 ? 'interval' : 'minute'} ${i + 1} of ${p.moves.length}` : undefined].filter(Boolean).join(' · ') } : {}),
@@ -49,6 +69,7 @@ export function buildWodItems(p: { wod: Wod; moves: WodMove[]; block: string; la
 export function formatResult(t: Pick<TimedLog, 'wod' | 'rounds' | 'reps' | 'intervals' | 'seconds' | 'capped'>): string {
   if (t.wod.kind === 'amrap') return `${t.rounds ?? 0} round${t.rounds === 1 ? '' : 's'}${t.reps ? ` + ${t.reps} reps` : ''}`
   if (t.wod.kind === 'emom') return `${t.intervals ?? 0} of ${emomIntervals(t.wod)} intervals`
+  if (t.wod.kind === 'tabata') return `${t.intervals ?? 0} of ${t.wod.intervals ?? 0} intervals${t.reps ? ` · ${t.reps} reps` : ''}`
   if (t.capped) return `Time cap · ${t.rounds ?? 0} of ${t.wod.rounds ?? 1} rounds`
   return t.seconds != null ? formatSeconds(t.seconds) : '—'
 }
@@ -61,6 +82,7 @@ export function formatResult(t: Pick<TimedLog, 'wod' | 'rounds' | 'reps' | 'inte
 export function derivedLogs(t: TimedLog, items: PlannedExercise[], lookup: (id: string) => Exercise | undefined): ExerciseLog[] {
   const n = items.length || 1
   const rounds = (i: number) => {
+    if (t.wod.kind === 'tabata') return Math.max(0, Math.min(t.wod.rounds ?? 8, (t.intervals ?? 0) - i * (t.wod.rounds ?? 8)))
     if (t.wod.kind === 'emom') {
       const done = t.intervals ?? 0
       return Math.floor(done / n) + (i < done % n ? 1 : 0)
@@ -75,12 +97,14 @@ export function derivedLogs(t: TimedLog, items: PlannedExercise[], lookup: (id: 
     const r = rounds(i)
     const extra = t.wod.kind === 'amrap' && i === 0 ? t.reps ?? 0 : 0
     if (r + extra <= 0) return
+    const workSecs = t.wod.work ?? 20
+    const share = t.wod.kind === 'tabata' && t.reps && (t.intervals ?? 0) > 0 ? Math.round((t.reps * r) / (t.intervals ?? 1)) : 0
     if (ex.kind === 'cardio') {
       out.push({ date: t.date, exerciseId: p.exerciseId, cardio: { distance: null, minutes: Math.max(1, Math.round((p.est ?? t.wod.minutes / n) * (r ? 1 : 0))) } })
     } else if (ex.mode === 'time') {
-      out.push({ date: t.date, exerciseId: p.exerciseId, sets: [{ weight: null, reps: null, seconds: (p.seconds ?? 30) * r }] })
+      out.push({ date: t.date, exerciseId: p.exerciseId, sets: [{ weight: null, reps: null, seconds: (t.wod.kind === 'tabata' ? workSecs : p.seconds ?? 30) * r }] })
     } else {
-      out.push({ date: t.date, exerciseId: p.exerciseId, sets: [{ weight: null, reps: (p.reps ?? 1) * r + extra }] })
+      out.push({ date: t.date, exerciseId: p.exerciseId, sets: [{ weight: null, reps: (p.reps ? p.reps * r : share || r) + extra }] })
     }
   })
   return out

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { describeItem } from '../lib/describe'
-import { derivedLogs, emomIntervals, formatResult, wodOf, wodSignature, wodTitle } from '../lib/wod'
+import { derivedLogs, emomIntervals, formatResult, tabataOf, wodOf, wodSignature, wodTitle } from '../lib/wod'
 import { findExercise, useStore } from '../store'
 import type { PlannedExercise, TimedLog } from '../types'
 import { NumberInput } from './NumberInput'
@@ -32,6 +32,7 @@ export function TimedBlockCard({ items, date, onRemove }: { items: PlannedExerci
   const draft = (): Omit<TimedLog, 'id'> | null => {
     const base = { date, block, wod, title: wodTitle(wod), movements: ids }
     if (wod.kind === 'amrap') return rounds == null && reps == null ? null : { ...base, rounds: rounds ?? 0, ...(reps ? { reps } : {}) }
+    if (wod.kind === 'tabata') return intervals == null ? null : { ...base, intervals: Math.min(intervals, tabataOf(wod, ids.length).intervals), ...(reps ? { reps } : {}) }
     if (wod.kind === 'emom') return intervals == null ? null : { ...base, intervals: Math.min(intervals, emomIntervals(wod)) }
     if (capped) return rounds == null ? null : { ...base, capped: true, rounds: Math.min(rounds, wod.rounds ?? rounds) }
     const s = (mins ?? 0) * 60 + (secs ?? 0)
@@ -85,6 +86,13 @@ export function TimedBlockCard({ items, date, onRemove }: { items: PlannedExerci
                 <button onClick={() => setIntervals(emomIntervals(wod))} className="rounded-xl bg-neutral-100 px-3 text-sm text-neutral-600">All of them</button>
               </div>
             </label>
+          )}
+          {wod.kind === 'tabata' && (
+            <div className="mb-3 flex items-end gap-2">
+              <label className="w-28 text-xs text-neutral-500">Intervals done (of {tabataOf(wod, ids.length).intervals})<NumberInput value={intervals} onChange={setIntervals} /></label>
+              <label className="w-24 text-xs text-neutral-500">Total reps<NumberInput value={reps} onChange={setReps} placeholder="optional" /></label>
+              <button onClick={() => setIntervals(tabataOf(wod, ids.length).intervals)} className="rounded-xl bg-neutral-100 px-3 py-2 text-sm text-neutral-600">All</button>
+            </div>
           )}
           {wod.kind === 'fortime' && (
             <>

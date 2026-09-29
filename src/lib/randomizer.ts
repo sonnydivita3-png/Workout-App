@@ -6,7 +6,7 @@ import { BY_ID, FULL_BODY_GROUPS, isAdvanced, isIsolation, isMainLift, POOL, pic
 export const FOCUS_OPTIONS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Glutes', 'Core', 'Cardio'] as const
 export const LIFT_GROUPS = FOCUS_OPTIONS.filter((g) => g !== 'Cardio')
 
-export type WorkoutStyle = 'standard' | 'strength' | 'supersets' | 'circuit' | 'pha' | 'hyrox' | 'crossfit' | 'amrap' | 'emom' | 'fortime' | 'bodyweight'
+export type WorkoutStyle = 'standard' | 'strength' | 'supersets' | 'circuit' | 'pha' | 'hyrox' | 'crossfit' | 'amrap' | 'emom' | 'fortime' | 'tabata' | 'bodyweight'
 
 export interface StyleInfo {
   id: WorkoutStyle
@@ -27,6 +27,7 @@ export const STYLES: StyleInfo[] = [
   { id: 'amrap', label: 'AMRAP', blurb: 'As many rounds as possible in a set time. Leave body parts empty for full body.', focus: 'optional' },
   { id: 'emom', label: 'EMOM', blurb: 'Every minute on the minute: a movement each minute, rest what’s left of it.', focus: 'optional' },
   { id: 'fortime', label: 'For time', blurb: 'A set number of rounds against the clock, with a time cap.', focus: 'optional' },
+  { id: 'tabata', label: 'Tabata', blurb: '20 seconds all-out, 10 rest, 8 times per movement, then a minute\'s break. Leave body parts empty for full body.', focus: 'optional' },
   { id: 'bodyweight', label: 'Bodyweight', blurb: 'No equipment needed.', focus: 'required' },
 ]
 export const styleInfo = (id: WorkoutStyle) => STYLES.find((s) => s.id === id)!
@@ -349,7 +350,7 @@ export function generateWorkout(focus: string[], minutes: number, opts: Generate
   const { style = 'standard', rng = Math.random, avoid = new Set<string>() } = opts
   if (style === 'hyrox') return generateHyrox(minutes)
   if (style === 'crossfit') return generateCrossfit(minutes, rng, avoid)
-  if (style === 'amrap' || style === 'emom' || style === 'fortime') return generateTimed(style, focus.filter((g) => g !== 'Cardio'), minutes, rng, avoid)
+  if (style === 'amrap' || style === 'emom' || style === 'fortime' || style === 'tabata') return generateTimed(style, focus.filter((g) => g !== 'Cardio'), minutes, rng, avoid)
 
   let lift = focus.filter((g) => g !== 'Cardio')
   const cardio = focus.includes('Cardio')

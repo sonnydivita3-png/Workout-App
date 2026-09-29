@@ -22,7 +22,7 @@ const steps = (social: boolean): Step[] => [
   {
     icon: '✍️', title: 'Log as you go',
     body: 'Open a day and enter what you did. The app shows what you did last time on each exercise.',
-    points: ['Lifting: weight × reps. Bodyweight: reps. Planks and holds: seconds', 'Cardio: distance and time, with pace worked out for you', 'Timed workouts (AMRAP, EMOM, for time) come with a clock and log rounds, intervals or your finish time'],
+    points: ['Lifting: weight × reps. Bodyweight: reps. Planks and holds: seconds', 'Cardio: distance and time, with pace worked out for you', 'Timed workouts (AMRAP, EMOM, Tabata, for time) come with a clock and log rounds, intervals or your finish time'],
   },
   {
     icon: '🏠', title: 'Your Home dashboard',

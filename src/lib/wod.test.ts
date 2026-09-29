@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import type { TimedLog } from '../types'
-import { buildWodItems, derivedLogs, emomIntervals, formatResult, wodOf, wodTitle } from './wod'
+import { buildWodItems, derivedLogs, emomIntervals, formatResult, makeTabata, tabataOf, wodOf, wodTitle } from './wod'
 
 const lookup = (id: string) => BUILTIN_BY_ID.get(id)
 const items = (kind: 'amrap' | 'emom' | 'fortime') =>
@@ -45,5 +45,27 @@ describe('timed workouts', () => {
     const c = derivedLogs(log({ wod: { kind: 'fortime', minutes: 20, rounds: 4 }, capped: true, rounds: 2 }), items('fortime'), lookup)
     expect(c[0].sets![0].reps).toBe(20)
     expect(derivedLogs(log({ wod: { kind: 'amrap', minutes: 12 }, rounds: 0 }), items('amrap'), lookup)).toEqual([])
+  })
+})
+
+describe('tabata', () => {
+  it('works out totals and titles', () => {
+    const w = makeTabata(4)
+    expect(w).toMatchObject({ kind: 'tabata', work: 20, rest: 10, rounds: 8, gap: 60, intervals: 32 })
+    expect(tabataOf(w, 4).total).toBe(4 * 240 + 3 * 60) // 19 minutes
+    expect(w.minutes).toBe(19)
+    expect(wodTitle(w)).toBe('Tabata 20s/10s × 8')
+    expect(wodTitle(makeTabata(2, { work: 40, rest: 20, rounds: 5 }))).toBe('Tabata 40s/20s × 5')
+  })
+  it('logs intervals to movements in order, and counts reps', () => {
+    const w = makeTabata(3)
+    const its = buildWodItems({ wod: w, moves: [{ exerciseId: 'Pushups', reps: 10 }, { exerciseId: 'Bodyweight_Squat' }, { exerciseId: 'Plank' }], block: 'tabata' })
+    expect(formatResult(log({ wod: w, intervals: 20, reps: 180 }))).toBe('20 of 24 intervals · 180 reps')
+    const d = derivedLogs(log({ wod: w, intervals: 20, reps: 180 }), its, lookup)
+    // 8 intervals on the first, 8 on the second, 4 on the third
+    expect(d[0].sets![0].reps).toBe(80) // 10 reps x 8 rounds
+    expect(d[1].sets![0].reps).toBe(Math.round((180 * 8) / 20)) // no target reps: share of the total
+    expect(d[2].sets![0].seconds).toBe(80) // plank: 20s x 4
+    expect(derivedLogs(log({ wod: w, intervals: 0 }), its, lookup)).toEqual([])
   })
 })
