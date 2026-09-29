@@ -36,7 +36,7 @@ npm test         # randomizer unit tests
 ## How the cardio plans are built
 The generator follows widely published training principles rather than reproducing any one plan:
 - **Running:** weekly volume and the long run grow at a capped rate (about 10% a week), with a lighter cutback week every fourth week, then a taper (marathon 3 weeks, half 2, 10K/5K 1). The marathon long run peaks near 20 miles three weeks out, like the classic novice programs. Hard sessions are kept apart from the long run and from each other.
-- **Couch to 5K:** the NHS 9-week run/walk progression, three sessions a week.
+- **Couch to 5K:** modelled on the NHS 9-week run/walk progression (three sessions a week, building to 30 minutes of running). Check the official NHS plan if you want the exact intervals.
 - **Paces:** estimated from a goal time with Jack Daniels' VDOT equations (easy, marathon, tempo, interval).
 - **Cycling:** the longest training ride reaches roughly 70-80% of the event distance at least two weeks out, with a 1-2 week taper; intensity is described by effort and, if you enter an FTP, by Coggan power zones (endurance 55-75%, tempo 76-87%, sweet spot 88-94%, threshold 95-105%, VO2 106-120%).
 
