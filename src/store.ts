@@ -2,9 +2,11 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { BUILTIN_BY_ID } from './data/exercises'
 import { parseISO, weekdayIndex } from './lib/dates'
+import { toPlanned, type CardioDay } from './lib/cardioPlan'
 import { dayPlanOf } from './lib/plan'
+import { activePrograms, clearRange, removeProgramDays } from './lib/programs'
 import type {
-  AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Routine, StrengthSet, Units, WeekPlan,
+  AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Program, Routine, Sport, StrengthSet, Units, WeekPlan,
 } from './types'
 
 export type SocialChoice = 'unset' | 'enabled' | 'declined'
@@ -31,6 +33,19 @@ interface State extends Data {
   /** Add dated exercises (e.g. from a friend's shared plan). They join what's planned unless `replace`. */
   applyDays: (days: Record<string, PlannedExercise[]>, replace: boolean) => void
   addCustomExercises: (list: Exercise[]) => void
+  /** Plans added in one go (a week/month program or a run/bike plan), so they can be stopped or replaced. */
+  programs: Program[]
+  /** Add a random week/month program. Any earlier program still running is stopped first. */
+  startProgram: (days: PlanOverrides, title: string, today: string) => void
+  /**
+   * Add a run/bike training plan. `stopSame` first stops any plan still running for the same sport, so a new plan
+   * replaces it instead of piling on top.
+   */
+  startCardioProgram: (p: { sessions: CardioDay[]; sport: Sport; title: string; goalId?: string; replace: boolean; stopSame: boolean; today: string }) => void
+  /** Remove a program's upcoming days (today on). Logged days stay. Returns how many days changed. */
+  stopProgram: (id: string, today: string) => number
+  /** Clear planned days in a range back to the weekly plan, keeping logged days. Returns how many days changed. */
+  clearPlan: (from: string, to: string) => number
   notifications: AppNotification[]
   notifPrefs: NotifPrefs
   pushNotifications: (items: Omit<AppNotification, 'ts' | 'read'>[]) => AppNotification[]
@@ -66,7 +81,7 @@ interface State extends Data {
   saveRoutine: (name: string, items: PlannedExercise[]) => void
   deleteRoutine: (id: string) => void
   loadRoutine: (date: string, id: string) => void
-  addGoal: (goal: NewGoal) => void
+  addGoal: (goal: NewGoal) => string
   deleteGoal: (id: string) => void
   importData: (d: Data) => void
 }
@@ -103,6 +118,7 @@ const defaults = () => ({
   goals: [] as Goal[],
   notifications: [] as AppNotification[],
   notifPrefs: { system: false, goals: true, pbs: true, daily: true, reminderTime: '17:00' } as NotifPrefs,
+  programs: [] as Program[],
   socialChoice: 'unset' as SocialChoice,
   tourDone: false,
 })
@@ -205,6 +221,50 @@ export const useStore = create<State>()(
           }
           return { overrides: next }
         }),
+      startProgram: (days, title, today) =>
+        set((s) => {
+          let overrides = s.overrides
+          const stopped = new Set<string>()
+          for (const p of activePrograms(s.programs, today).filter((x) => x.kind === 'program')) {
+            overrides = removeProgramDays(p, overrides, s.logs, today).overrides
+            stopped.add(p.id)
+          }
+          const program: Program = { id: `pr-${Date.now().toString(36)}`, kind: 'program', title, createdAt: new Date().toISOString(), entries: Object.keys(days).map((date) => ({ date })) }
+          return { overrides: { ...overrides, ...days }, programs: [...s.programs.filter((p) => !stopped.has(p.id)), program] }
+        }),
+      startCardioProgram: ({ sessions, sport, title, goalId, replace, stopSame, today }) =>
+        set((s) => {
+          let overrides = s.overrides
+          const stopped = new Set<string>()
+          if (stopSame) {
+            for (const p of activePrograms(s.programs, today).filter((x) => x.kind === 'cardio' && x.sport === sport)) {
+              overrides = removeProgramDays(p, overrides, s.logs, today).overrides
+              stopped.add(p.id)
+            }
+          }
+          const items = Object.fromEntries(sessions.map((d) => [d.date, toPlanned(d, sport)!]))
+          for (const [date, item] of Object.entries(items)) {
+            const existing = dayPlanOf(s.plan, overrides, date)
+            overrides = { ...overrides, [date]: replace ? [item] : [...existing.filter((p) => p.exerciseId !== item.exerciseId), item] }
+          }
+          const exerciseId = sport === 'run' ? 'running' : 'cycling'
+          const program: Program = { id: `pr-${Date.now().toString(36)}`, kind: 'cardio', title, sport, goalId, createdAt: new Date().toISOString(), entries: sessions.map((d) => ({ date: d.date, exerciseId })) }
+          return { overrides, programs: [...s.programs.filter((p) => !stopped.has(p.id)), program] }
+        }),
+      stopProgram: (id, today) => {
+        const s = get()
+        const p = s.programs.find((x) => x.id === id)
+        if (!p) return 0
+        const r = removeProgramDays(p, s.overrides, s.logs, today)
+        set({ overrides: r.overrides, programs: s.programs.filter((x) => x.id !== id) })
+        return r.count
+      },
+      clearPlan: (from, to) => {
+        const s = get()
+        const r = clearRange(s.overrides, s.logs, from, to)
+        set({ overrides: r.overrides })
+        return r.count
+      },
       setRestDay: (date) => set((s) => ({ overrides: { ...s.overrides, [date]: [] } })),
       resetDay: (date) =>
         set((s) => {
@@ -222,12 +282,16 @@ export const useStore = create<State>()(
           const r = s.routines.find((x) => x.id === id)
           return r ? editDay(s, date, (d) => appendMissing(d, r.items)) : s
         }),
-      addGoal: (goal) => set((s) => ({ goals: [...s.goals, { ...goal, id: `g-${Date.now().toString(36)}` } as Goal] })),
+      addGoal: (goal) => {
+        const id = `g-${Date.now().toString(36)}`
+        set((s) => ({ goals: [...s.goals, { ...goal, id } as Goal] }))
+        return id
+      },
       deleteGoal: (id) => set((s) => ({ goals: s.goals.filter((g) => g.id !== id) })),
       importData: (d) =>
         set({
           plan: d.plan, overrides: d.overrides ?? {}, logs: d.logs, custom: d.custom ?? [], units: d.units,
-          name: d.name ?? '', bodyweight: d.bodyweight ?? [], routines: d.routines ?? [], goals: d.goals ?? [],
+          name: d.name ?? '', bodyweight: d.bodyweight ?? [], routines: d.routines ?? [], goals: d.goals ?? [], programs: [],
         }),
     }),
     { name: 'workout-app-v1', version: 1 },

@@ -1,5 +1,10 @@
 import { useState } from 'react'
 import { goalEventsFor } from '../lib/cardioEvents'
+import { generateCardioPlan, type PlanLevel } from '../lib/cardioPlan'
+import { addDays, fmtShort, mondayOf, parseISO, toISO } from '../lib/dates'
+import { activePrograms } from '../lib/programs'
+import { cardioWeekdays } from '../lib/program'
+import { useToday } from '../lib/useToday'
 import { distanceFactor, showDistance, storeDistance } from '../lib/units'
 import { useStore } from '../store'
 import type { CardioSport, GoalPeriod, NewGoal, Sport } from '../types'
@@ -18,7 +23,8 @@ const SUBS: { id: Sub; label: string }[] = [
 const chip = (on: boolean) => `rounded-full px-3 py-1 text-sm ${on ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'}`
 
 export function CardioGoalForm({ onDone }: { onDone: () => void }) {
-  const { units, addGoal } = useStore()
+  const { units, addGoal, programs, startCardioProgram } = useStore()
+  const today = useToday()
   const [sub, setSub] = useState<Sub>('distance')
   const [sport, setSport] = useState<CardioSport>('run')
   const [period, setPeriod] = useState<GoalPeriod>('week')
@@ -29,6 +35,9 @@ export function CardioGoalForm({ onDone }: { onDone: () => void }) {
   const [speed, setSpeed] = useState<number | null>(null)
   const [eventIdx, setEventIdx] = useState(0)
   const [date, setDate] = useState('')
+  const [buildPlan, setBuildPlan] = useState(true)
+  const [level, setLevel] = useState<PlanLevel>('beginner')
+  const [perWeek, setPerWeek] = useState(4)
 
   const dUnit = units.distance
   const factor = distanceFactor(units) // units per mile
@@ -50,6 +59,34 @@ export function CardioGoalForm({ onDone }: { onDone: () => void }) {
     return ev ? { type: 'race', sport: specific, label: ev.label, distance: ev.miles!, ...(date ? { date } : {}) } : null
   }
   const goal = build()
+
+  // An event goal comes with a training plan that leads up to it (on by default).
+  const raceGoal = sub === 'event' && !!ev
+  const planPreview = (() => {
+    if (!raceGoal || !buildPlan || !ev) return null
+    const trainDays = cardioWeekdays(perWeek)
+    const monday = mondayOf(parseISO(today))
+    const nextMonday = toISO(addDays(monday, 7))
+    const soon = !!date && date < toISO(addDays(parseISO(nextMonday), 35))
+    const anchorMonday = soon ? toISO(monday) : nextMonday
+    const fromDate = soon ? today : nextMonday
+    if (date && date < fromDate) return { error: 'That date is too soon to train for. Pick a later date, or turn off the training plan.', sessions: [] }
+    const plan = generateCardioPlan({
+      eventId: ev.id, level, trainWeekdays: trainDays, longDay: trainDays.includes(5) ? 5 : trainDays.at(-1)!, anchorMonday, fromDate,
+      weeks: ev.weeks[Math.floor(ev.weeks.length / 2)], raceDate: date || undefined, units,
+    })
+    const sessions = plan.days.filter((d) => d.role)
+    return { error: sessions.length === 0 ? plan.warnings[0] ?? 'Couldn’t build a plan for that date.' : null, sessions, weeks: plan.weeks.length, start: sessions[0]?.date }
+  })()
+  const runningPlan = activePrograms(programs, today).find((p) => p.kind === 'cardio' && p.sport === specific)
+
+  const save = () => {
+    const goalId = addGoal(goal!)
+    if (planPreview && planPreview.sessions.length > 0) {
+      startCardioProgram({ sessions: planPreview.sessions, sport: specific, title: `${ev.label} plan`, goalId, replace: false, stopSame: true, today })
+    }
+    onDone()
+  }
 
   const sports: [CardioSport, string][] = sub === 'pace' || sub === 'event'
     ? [['run', 'Running'], ['bike', 'Cycling']]
@@ -125,10 +162,38 @@ export function CardioGoalForm({ onDone }: { onDone: () => void }) {
           <p className="mb-4 text-xs text-neutral-400">
             Counts as reached once you log a single {specific === 'run' ? 'run' : 'ride'} of {ev && showDistance(ev.miles!, units)} {dUnit} or more.
           </p>
+
+          <label className="mb-3 flex items-center gap-3 text-sm">
+            <input type="checkbox" checked={buildPlan} onChange={(e) => setBuildPlan(e.target.checked)} className="h-4 w-4" />
+            Build a training plan for this {specific === 'run' ? 'race' : 'ride'}
+          </label>
+          {buildPlan && (
+            <div className="mb-4 rounded-2xl bg-neutral-50 p-3">
+              <p className="mb-1.5 text-xs uppercase tracking-wide text-neutral-400">Your level</p>
+              <div className="mb-3 flex flex-wrap gap-2">
+                {(['beginner', 'intermediate', 'advanced'] as const).map((l) => <button key={l} onClick={() => setLevel(l)} className={chip(l === level)}>{l[0].toUpperCase() + l.slice(1)}</button>)}
+              </div>
+              <p className="mb-1.5 text-xs uppercase tracking-wide text-neutral-400">Days a week</p>
+              <div className="mb-3 flex gap-2">
+                {[3, 4, 5, 6].map((n) => <button key={n} onClick={() => setPerWeek(n)} className={chip(n === perWeek)}>{n}</button>)}
+              </div>
+              {planPreview?.error ? (
+                <p className="text-xs text-amber-700">{planPreview.error}</p>
+              ) : planPreview ? (
+                <p className="text-xs text-neutral-500">
+                  {planPreview.weeks} weeks, {planPreview.sessions.length} {specific === 'run' ? 'runs' : 'rides'}, starting {fmtShort(planPreview.start!)}
+                  {date ? ` and building to your event on ${fmtShort(date)}` : ''}. It fills your calendar automatically. Fine-tune it any time with Training plan on the Plan tab.
+                  {runningPlan ? ` This replaces your current ${runningPlan.title}.` : ''}
+                </p>
+              ) : null}
+            </div>
+          )}
         </>
       )}
 
-      <button disabled={!goal} onClick={() => { addGoal(goal!); onDone() }} className={primaryBtn}>Add goal</button>
+      <button disabled={!goal || (raceGoal && buildPlan && !!planPreview?.error)} onClick={save} className={primaryBtn}>
+        {raceGoal && buildPlan ? 'Add goal and build plan' : 'Add goal'}
+      </button>
     </>
   )
 }

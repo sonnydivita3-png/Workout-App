@@ -3,6 +3,7 @@ import { parseISO, toISO, weekDates, weekdayIndex } from '../lib/dates'
 import { groupByBlock } from '../lib/describe'
 import { dayPlanOf, isRestDay } from '../lib/plan'
 import { findExercise, selectLastLog, useStore } from '../store'
+import { ProgramsCard } from './ProgramsCard'
 import { CardioPlanSheet } from './CardioPlanSheet'
 import { ProgramSheet } from './ProgramSheet'
 import { RandomizerSheet } from './RandomizerSheet'
@@ -47,10 +48,15 @@ export function PlanView() {
         <button onClick={() => setGenerator('one')} className="rounded-full bg-neutral-900 px-3 py-1 text-sm text-white">
           Randomize
         </button>
+        <button onClick={() => setGenerator('cardio')} className="rounded-full bg-neutral-900 px-3 py-1 text-sm text-white">
+          Training plan
+        </button>
         <button onClick={() => setDayMenu(true)} className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-600">
           Day options
         </button>
       </div>
+
+      <ProgramsCard onReplace={(kind) => setGenerator(kind === 'cardio' ? 'cardio' : 'program')} />
 
       <section className="mt-3 space-y-3">
         {planned.length === 0 && rest && (
@@ -123,7 +129,6 @@ export function PlanView() {
       {generator === 'cardio' && (
         <CardioPlanSheet
           onClose={() => setGenerator(null)}
-          onSwitchMode={setGenerator}
           onApplied={(first) => { setAnchor(parseISO(first)); setDay(weekdayIndex(parseISO(first))) }}
         />
       )}

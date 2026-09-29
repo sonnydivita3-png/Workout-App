@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react'
 import { eventsFor, findEvent } from '../lib/cardioEvents'
-import { generateCardioPlan, toPlanned, type CardioPlan, type PlanLevel } from '../lib/cardioPlan'
+import { generateCardioPlan, type CardioPlan, type PlanLevel } from '../lib/cardioPlan'
 import { addDays, fmtShort, mondayOf, parseISO, toISO, weekdayIndex } from '../lib/dates'
 import { cardioWeekdays } from '../lib/program'
+import { activePrograms } from '../lib/programs'
 import { dayPlanOf } from '../lib/plan'
 import { distanceFactor, formatMinutes, formatPace, showDistance, speedUnit, storeDistance } from '../lib/units'
 import { useToday } from '../lib/useToday'
 import { useStore } from '../store'
 import type { Sport } from '../types'
-import { ModeSwitch, type GeneratorMode } from './ModeSwitch'
 import { NumberInput } from './NumberInput'
 import { primaryBtn, Sheet } from './Sheet'
 import { WeeklyVolumeChart } from './WeeklyVolumeChart'
@@ -26,12 +26,11 @@ const h3 = 'mb-2 text-xs uppercase tracking-wide text-neutral-400'
 
 interface Props {
   onClose: () => void
-  onSwitchMode: (m: GeneratorMode) => void
   onApplied: (firstDate: string) => void
 }
 
-export function CardioPlanSheet({ onClose, onSwitchMode, onApplied }: Props) {
-  const { units, plan: weeklyPlan, overrides, goals, applyCardioPlan, addGoal } = useStore()
+export function CardioPlanSheet({ onClose, onApplied }: Props) {
+  const { units, plan: weeklyPlan, overrides, goals, programs, startCardioProgram, addGoal } = useStore()
   const today = useToday()
   const [sport, setSport] = useState<Sport>('run')
   const [eventId, setEventId] = useState('10k')
@@ -49,6 +48,7 @@ export function CardioPlanSheet({ onClose, onSwitchMode, onApplied }: Props) {
   const [result, setResult] = useState<CardioPlan | null>(null)
   const [addRaceGoal, setAddRaceGoal] = useState(true)
   const [replace, setReplace] = useState(false)
+  const [stopOld, setStopOld] = useState(true)
   const [openWeek, setOpenWeek] = useState<number | null>(0)
   const [openDay, setOpenDay] = useState<string | null>(null)
 
@@ -106,8 +106,8 @@ export function CardioPlanSheet({ onClose, onSwitchMode, onApplied }: Props) {
   // ---------------------------------------------------------------- form
   if (!result) {
     return (
-      <Sheet title="Randomize" onClose={onClose} closeLabel="Cancel">
-        <ModeSwitch mode="cardio" onChange={onSwitchMode} />
+      <Sheet title="Training plan" onClose={onClose} closeLabel="Cancel">
+        <p className="mb-4 text-sm text-neutral-500">Build a run or bike plan for a goal or race. It’s added to your calendar and can be stopped or replaced any time.</p>
 
         <div className="mb-4 flex gap-2">
           <button onClick={() => pickSport('run')} className={chip(sport === 'run')}>Running</button>
@@ -222,13 +222,15 @@ export function CardioPlanSheet({ onClose, onSwitchMode, onApplied }: Props) {
   const byWeek = (i: number) => sessions.filter((d) => d.weekIndex === i)
   const clashes = new Set(sessions.filter((d) => dayPlanOf(weeklyPlan, overrides, d.date).length > 0).map((d) => d.date)).size
   const lastDate = sessions.at(-1)?.date
+  const running = activePrograms(programs, today).filter((p) => p.kind === 'cardio' && p.sport === sport)
   const goalLabel = c25k ? '5K' : ev.label
   const goalDate = result.raceDate ?? (c25k ? lastDate : undefined)
   const goalExists = goals.some((g) => g.type === 'race' && g.label === goalLabel && g.date === goalDate)
 
   const apply = () => {
-    applyCardioPlan(Object.fromEntries(sessions.map((d) => [d.date, toPlanned(d, sport)!])), replace)
-    if (addRaceGoal && ev.miles && !goalExists) addGoal({ type: 'race', sport, label: goalLabel, distance: c25k ? 3.107 : ev.miles, ...(goalDate ? { date: goalDate } : {}) })
+    let goalId = goals.find((g) => g.type === 'race' && g.label === goalLabel && g.date === goalDate)?.id
+    if (addRaceGoal && ev.miles && !goalExists) goalId = addGoal({ type: 'race', sport, label: goalLabel, distance: c25k ? 3.107 : ev.miles, ...(goalDate ? { date: goalDate } : {}) })
+    startCardioProgram({ sessions, sport, title: `${ev.label} plan`, goalId, replace, stopSame: stopOld && running.length > 0, today })
     onApplied(sessions[0].date)
     onClose()
   }
@@ -299,6 +301,12 @@ export function CardioPlanSheet({ onClose, onSwitchMode, onApplied }: Props) {
             <label className="mb-2 flex items-center gap-3 text-sm">
               <input type="checkbox" checked={addRaceGoal && !goalExists} disabled={goalExists} onChange={(e) => setAddRaceGoal(e.target.checked)} className="h-4 w-4" />
               {goalExists ? 'You already have a goal for this event' : `Add “${goalLabel}${goalDate ? ' · ' + fmtShort(goalDate) : ''}” to my goals`}
+            </label>
+          )}
+          {running.length > 0 && (
+            <label className="mb-2 flex items-center gap-3 text-sm">
+              <input type="checkbox" checked={stopOld} onChange={(e) => setStopOld(e.target.checked)} className="h-4 w-4" />
+              Stop my current {running[0].title} and replace it
             </label>
           )}
           <label className="mb-3 flex items-center gap-3 text-sm">
