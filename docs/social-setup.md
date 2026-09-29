@@ -24,7 +24,7 @@ For local development, put the same two values in `.env.local` as `VITE_SUPABASE
 - People are found by **exact handle only**. There is no list of users and email addresses are never in the public schema.
 - Being friends shares **nothing**. Each person grants five permissions per friend, all off by default: see my progress, send me workouts, ask me for workouts, challenge me, send me emoji. The grant is chosen by the person accepting the request and can be changed any time.
 - Messages are one of 12 emoji. There is no free text except a short optional note on a workout request and titles of things you share.
-- Body weight and goals are never shared.
+- Body weight and goals are never shared. Avatars are an emoji, a letter, or a photo shrunk to about 96px (the database rejects anything larger or any non-image data).
 - Friend-sent workouts are validated and clamped on the receiving device before anything touches the calendar, and a friend's custom exercises are imported under new ids so they can't overwrite your own.
 - Sending is rate limited, blocking removes the friendship, and "Delete my social account" removes everything server-side.
 

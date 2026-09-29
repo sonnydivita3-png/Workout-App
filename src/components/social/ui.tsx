@@ -1,9 +1,21 @@
 import type { ReactNode } from 'react'
-import type { Profile } from '../../social/types'
+import { avatarKind, PHOTO_RE, type Profile } from '../../social/types'
 
 export function Avatar({ profile, size = 'md' }: { profile: Pick<Profile, 'avatar'>; size?: 'sm' | 'md' | 'lg' }) {
   const cls = size === 'lg' ? 'h-14 w-14 text-3xl' : size === 'sm' ? 'h-8 w-8 text-base' : 'h-10 w-10 text-xl'
-  return <span className={`flex shrink-0 items-center justify-center rounded-full bg-neutral-100 ${cls}`} aria-hidden>{profile.avatar}</span>
+  return <AvatarView avatar={profile.avatar} className={cls} />
+}
+
+/** Render an avatar string: a photo, a letter on a colour, or an emoji. */
+export function AvatarView({ avatar, className = 'h-10 w-10 text-xl' }: { avatar: string; className?: string }) {
+  const kind = avatarKind(avatar)
+  const base = `flex shrink-0 items-center justify-center overflow-hidden rounded-full ${className}`
+  if (kind === 'photo' && PHOTO_RE.test(avatar)) return <img src={avatar} alt="" className={`${base} object-cover`} />
+  if (kind === 'letter') {
+    const l = avatar.slice(-1)
+    return <span className={`${base} bg-neutral-900 font-semibold text-white`} aria-hidden>{l}</span>
+  }
+  return <span className={`${base} bg-neutral-100`} aria-hidden>{avatar}</span>
 }
 
 export function ErrorNote({ children }: { children: ReactNode }) {

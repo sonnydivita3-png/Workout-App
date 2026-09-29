@@ -17,7 +17,11 @@ create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   handle text not null unique check (handle ~ '^[a-z0-9_]{3,20}$'),
   display_name text not null check (char_length(display_name) between 1 and 40),
-  avatar text not null default '💪' check (char_length(avatar) between 1 and 8),
+  -- An emoji, 'letter:A', or a small photo as a data URL (the app shrinks it to about 96px first).
+  avatar text not null default '💪' check (
+    char_length(avatar) between 1 and 8
+    or (char_length(avatar) <= 12000 and avatar ~ '^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$')
+  ),
   created_at timestamptz not null default now()
 );
 

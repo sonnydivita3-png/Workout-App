@@ -1,7 +1,7 @@
 import type { PlannedExercise } from '../types'
 import type { FriendRequests, SessionUser, SocialBackend } from './backend'
 import {
-  ALL_PERMS, EMOJI, HANDLE_RE, NO_PERMS, SocialError, normalizeHandle,
+  ALL_PERMS, EMOJI, HANDLE_RE, NO_PERMS, SocialError, isValidAvatar, normalizeHandle,
   type Challenge, type ChallengeSpec, type Emoji, type EmojiMessage, type FriendEntry, type PermKey, type Perms,
   type Profile, type ProgressSnapshot, type Scope, type SharedPayload, type SharedWorkout, type WorkoutRequest,
 } from './types'
@@ -205,6 +205,7 @@ export class DemoBackend implements SocialBackend {
     if (name.length < 1 || name.length > 40) throw new SocialError('not_allowed', 'Display name must be 1–40 characters.')
     if (this.s.profiles.some((x) => x.handle === handle)) throw new SocialError('handle_taken')
     if (this.s.profiles.some((x) => x.id === me)) throw new SocialError('already_exists')
+    if (p.avatar && !isValidAvatar(p.avatar)) throw new SocialError('not_allowed', 'That avatar isn’t valid.')
     const profile: Profile = { id: me, handle, displayName: name, avatar: p.avatar || '💪' }
     this.s.profiles.push(profile)
     // Give a first-time demo user something to act on: two people have already asked to be friends.
@@ -219,7 +220,10 @@ export class DemoBackend implements SocialBackend {
       if (n.length < 1 || n.length > 40) throw new SocialError('not_allowed')
       me.displayName = n
     }
-    if (p.avatar) me.avatar = p.avatar
+    if (p.avatar) {
+      if (!isValidAvatar(p.avatar)) throw new SocialError('not_allowed', 'That avatar isn’t valid.')
+      me.avatar = p.avatar
+    }
     this.save()
     return me
   }

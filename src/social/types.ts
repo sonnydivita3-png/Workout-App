@@ -4,6 +4,20 @@ import type { Exercise, PlannedExercise } from '../types'
 export const EMOJI = ['💪', '🔥', '👏', '🎉', '😅', '🏃', '🚴', '❤️', '👀', '🙌', '💯', '😴'] as const
 export type Emoji = (typeof EMOJI)[number]
 
+/** An avatar is an emoji, a letter ('letter:A'), or a small photo stored as an image data URL. */
+export type AvatarKind = 'emoji' | 'letter' | 'photo'
+export const PHOTO_RE = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/
+export const MAX_PHOTO_CHARS = 12000
+export const letterAvatar = (l: string) => `letter:${l.trim().charAt(0).toUpperCase() || 'A'}`
+export function avatarKind(a: string): AvatarKind {
+  if (a.startsWith('data:image/')) return 'photo'
+  if (/^letter:[A-Z0-9]$/.test(a)) return 'letter'
+  return 'emoji'
+}
+/** Anything else (long text, other data types) is not a valid avatar. */
+export const isValidAvatar = (a: unknown): a is string =>
+  typeof a === 'string' && (a.length >= 1 && a.length <= 8 ? true : a.length <= MAX_PHOTO_CHARS && PHOTO_RE.test(a))
+
 export const AVATARS = ['💪', '🏃', '🚴', '🏋️', '🧘', '⚡', '🔥', '🦾', '🐺', '🦅', '🐻', '🌟']
 
 /** What a person can let a friend do. All are off until the person agrees. */

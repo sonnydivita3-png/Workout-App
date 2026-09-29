@@ -85,6 +85,14 @@ describe('profiles', () => {
     await expect(as(dupe, `insert into public.profiles (id, handle, display_name) values ($1, $2, 'x')`, [dupe, handle])).rejects.toThrow(/unique/)
   })
 
+  it('accepts an emoji, letter or small photo as an avatar and rejects anything else', async () => {
+    const a = await user()
+    const photo = 'data:image/jpeg;base64,' + 'A'.repeat(4000)
+    for (const ok of ['🔥', 'letter:Q', photo]) await as(a, 'update public.profiles set avatar = $2 where id = $1', [a, ok])
+    const bad = ['data:image/svg+xml;base64,AAAA', 'data:text/html;base64,AAAA', 'data:image/jpeg;base64,' + 'A'.repeat(12100), 'data:image/jpeg;base64,<script>', 'not an avatar at all']
+    for (const b of bad) await expect(as(a, 'update public.profiles set avatar = $2 where id = $1', [a, b]), b.slice(0, 30)).rejects.toThrow(/check constraint/)
+  })
+
   it('keeps handles fixed but lets you rename yourself', async () => {
     const a = await user()
     await as(a, `update public.profiles set display_name = 'New Name', avatar = '🔥' where id = $1`, [a])
