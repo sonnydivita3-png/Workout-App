@@ -26,6 +26,7 @@ interface State extends Data {
   setUnits: (u: Partial<Units>) => void
   setName: (name: string) => void
   logBodyweight: (date: string, lb: number) => void
+  addPlanned: (day: number, items: PlannedExercise[]) => void
   copyDay: (from: number, to: number[]) => void
   saveRoutine: (name: string, items: PlannedExercise[]) => void
   deleteRoutine: (id: string) => void
@@ -93,6 +94,12 @@ export const useStore = create<State>()(
         set((s) => ({
           bodyweight: [...s.bodyweight.filter((b) => b.date !== date), { date, lb }].sort((a, b) =>
             a.date.localeCompare(b.date),
+          ),
+        })),
+      addPlanned: (day, items) =>
+        set((s) => ({
+          plan: s.plan.map((d, i) =>
+            i === day ? [...d, ...items.filter((p) => !d.some((q) => q.exerciseId === p.exerciseId)).map((p) => ({ ...p }))] : d,
           ),
         })),
       copyDay: (from, to) =>

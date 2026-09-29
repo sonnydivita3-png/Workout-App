@@ -101,7 +101,7 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
                   <li key={ex.id} className="flex items-baseline justify-between gap-3 py-2">
                     <span className="min-w-0 truncate">{ex.name}</span>
                     <span className="shrink-0 text-xs tabular-nums text-neutral-400">
-                      {ex.kind === 'strength' ? `${p.sets} sets` : 'cardio'}
+                      {ex.kind === 'strength' ? (p.reps ? `${p.sets} × ${p.reps}` : `${p.sets} sets`) : p.minutes ? `${p.minutes} min` : 'cardio'}
                       {last && hasData(last) ? ` · last ${summary(last, units).split(' · ').at(-1)}` : ''}
                     </span>
                   </li>
