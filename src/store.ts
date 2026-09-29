@@ -7,6 +7,8 @@ import type {
   AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Routine, StrengthSet, Units, WeekPlan,
 } from './types'
 
+export type SocialChoice = 'unset' | 'enabled' | 'declined'
+
 export interface Data {
   plan: WeekPlan
   overrides: PlanOverrides
@@ -20,6 +22,12 @@ export interface Data {
 }
 
 interface State extends Data {
+  /** Whether the person opted in to social features, opted out, or hasn't been asked yet. */
+  socialChoice: SocialChoice
+  setSocialChoice: (c: SocialChoice) => void
+  /** Add dated exercises (e.g. from a friend's shared plan). They join what's planned unless `replace`. */
+  applyDays: (days: Record<string, PlannedExercise[]>, replace: boolean) => void
+  addCustomExercises: (list: Exercise[]) => void
   notifications: AppNotification[]
   notifPrefs: NotifPrefs
   pushNotifications: (items: Omit<AppNotification, 'ts' | 'read'>[]) => AppNotification[]
@@ -92,6 +100,7 @@ const defaults = () => ({
   goals: [] as Goal[],
   notifications: [] as AppNotification[],
   notifPrefs: { system: false, goals: true, pbs: true, daily: true, reminderTime: '17:00' } as NotifPrefs,
+  socialChoice: 'unset' as SocialChoice,
 })
 
 export const useStore = create<State>()(
@@ -101,7 +110,7 @@ export const useStore = create<State>()(
       resetAll: (keepProfile) =>
         set((s) => ({
           ...defaults(),
-          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs } : {}),
+          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice } : {}),
         })),
       pushNotifications: (items) => {
         const existing = new Map(get().notifications.map((n) => [n.id, n]))
@@ -170,6 +179,18 @@ export const useStore = create<State>()(
           return next
         }),
       applyProgram: (days) => set((s) => ({ overrides: { ...s.overrides, ...days } })),
+      setSocialChoice: (socialChoice) => set({ socialChoice }),
+      addCustomExercises: (list) =>
+        set((s) => ({ custom: [...s.custom, ...list.filter((e) => !s.custom.some((c) => c.id === e.id))] })),
+      applyDays: (days, replace) =>
+        set((s) => {
+          const next = { ...s.overrides }
+          for (const [date, items] of Object.entries(days)) {
+            const existing = dayPlanOf(s.plan, s.overrides, date)
+            next[date] = replace ? items.map((p) => ({ ...p })) : appendMissing(existing, items)
+          }
+          return { overrides: next }
+        }),
       applyCardioPlan: (items, replace) =>
         set((s) => {
           const next = { ...s.overrides }

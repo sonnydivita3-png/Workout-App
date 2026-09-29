@@ -3,13 +3,15 @@ import { DAY_LABELS, parseISO, weekdayIndex } from '../lib/dates'
 import { dayPlanOf, isRestDay } from '../lib/plan'
 import { useStore } from '../store'
 import { primaryBtn, rowBtn, Sheet } from './Sheet'
+import { ShareSheet } from './social/ShareSheet'
 
-type Mode = 'menu' | 'copy' | 'save' | 'load'
+type Mode = 'menu' | 'copy' | 'save' | 'load' | 'share'
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 /** `weekDates` are the 7 ISO dates (Mon–Sun) of the week being viewed. */
 export function DaySheet({ date, weekDates, onClose }: { date: string; weekDates: string[]; onClose: () => void }) {
+  const social = useStore((st) => st.socialChoice === 'enabled')
   const { plan, overrides, routines, copyDay, saveRoutine, deleteRoutine, loadRoutine, resetDay, setRestDay } = useStore()
   const [mode, setMode] = useState<Mode>('menu')
   const [targets, setTargets] = useState<number[]>([])
@@ -21,6 +23,8 @@ export function DaySheet({ date, weekDates, onClose }: { date: string; weekDates
   const rest = isRestDay(overrides, date)
 
   const toggle = (i: number) => setTargets((t) => (t.includes(i) ? t.filter((x) => x !== i) : [...t, i]))
+
+  if (mode === 'share') return <ShareSheet date={date} onClose={onClose} />
 
   if (mode === 'copy') {
     return (
@@ -106,6 +110,11 @@ export function DaySheet({ date, weekDates, onClose }: { date: string; weekDates
       <button disabled={empty} onClick={() => setMode('copy')} className={rowBtn}>
         <span>Copy this day to other days</span><span className="text-neutral-300">›</span>
       </button>
+      {social && (
+        <button onClick={() => setMode('share')} className={rowBtn}>
+          <span>Share with a friend…</span><span className="text-neutral-300">›</span>
+        </button>
+      )}
       <button disabled={empty} onClick={() => setMode('save')} className={rowBtn}>
         <span>Save as routine</span><span className="text-neutral-300">›</span>
       </button>

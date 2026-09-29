@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store'
 import { Sheet } from './Sheet'
+import { SocialSettings } from './social/SocialSettings'
 
 interface InstallEvent extends Event {
   prompt: () => Promise<void>
@@ -198,6 +199,8 @@ export function SettingsView() {
           </button>
         </Sheet>
       )}
+
+      <SocialSettings />
 
       {!standalone && (
         <>
