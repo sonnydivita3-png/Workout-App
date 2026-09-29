@@ -20,6 +20,8 @@ export function mapError(e: unknown): SocialError {
   const err = (e ?? {}) as { code?: string; message?: string; status?: number }
   const msg = err.message ?? ''
   if (/invalid.*(token|otp|code)|token has expired|expired.*token/i.test(msg)) return new SocialError('invalid_code')
+  if (/already.*registered|email_exists/i.test(msg)) return new SocialError('already_exists', 'That email is already used by another account.')
+  if (/anonymous sign-?ins? (are )?disabled/i.test(msg)) return new SocialError('unavailable', 'Sign-up without an email isn’t turned on for this app yet.')
   if (/^rate_limited$/.test(msg)) return new SocialError('rate_limited')
   if (/^not_found$/.test(msg)) return new SocialError('not_found')
   if (/^expired$/.test(msg)) return new SocialError('expired')
@@ -58,7 +60,7 @@ export class SupabaseBackend implements SocialBackend {
     const c = await this.db()
     const { data } = await c.auth.getSession()
     const u = data.session?.user
-    return u ? { id: u.id, email: u.email ?? undefined } : null
+    return u ? { id: u.id, email: u.email || undefined, anonymous: !!u.is_anonymous } : null
   }
   async sendCode(email: string) {
     const c = await this.db()
@@ -69,7 +71,24 @@ export class SupabaseBackend implements SocialBackend {
     const c = await this.db()
     const { data, error } = await c.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' })
     if (error || !data.user) throw mapError(error ?? new Error('invalid code'))
-    return { id: data.user.id, email: data.user.email ?? undefined }
+    return { id: data.user.id, email: data.user.email ?? undefined, anonymous: !!data.user.is_anonymous }
+  }
+  async signInAnonymously(): Promise<SessionUser> {
+    const c = await this.db()
+    const { data, error } = await c.auth.signInAnonymously()
+    if (error || !data.user) throw mapError(error ?? new Error('unavailable'))
+    return { id: data.user.id, anonymous: true }
+  }
+  async addEmail(email: string) {
+    const c = await this.db()
+    const { error } = await c.auth.updateUser({ email: email.trim() })
+    if (error) throw mapError(error)
+  }
+  async confirmEmail(email: string, code: string): Promise<SessionUser> {
+    const c = await this.db()
+    const { data, error } = await c.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email_change' })
+    if (error || !data.user) throw mapError(error ?? new Error('invalid code'))
+    return { id: data.user.id, email: data.user.email || undefined, anonymous: false }
   }
   async signOut() {
     const c = await this.db()

@@ -45,6 +45,8 @@ describe('mapError', () => {
     expect(mapError({ code: '23505', message: 'duplicate key' }).code).toBe('already_exists')
     expect(mapError({ message: 'Token has expired or is invalid' }).code).toBe('invalid_code')
     expect(mapError(new SocialError('not_signed_in')).code).toBe('not_signed_in')
+    expect(mapError({ message: 'A user with this email address has already been registered' }).code).toBe('already_exists')
+    expect(mapError({ message: 'Anonymous sign-ins are disabled' }).code).toBe('unavailable')
     expect(mapError(undefined).code).toBe('unavailable')
   })
 })

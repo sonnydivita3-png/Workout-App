@@ -6,7 +6,8 @@ The app ships with social features in **preview mode**: friends are simulated on
 1. Create a new Supabase project (free tier is fine).
 2. **SQL editor** → paste the whole contents of `supabase/migrations/20260930000000_social.sql` → Run.
 3. **Authentication → Providers → Email**: enable it. Turn **Confirm email** on and make sure the email template contains the `{{ .Token }}` (6-digit code) rather than only a link. The app signs people in with the code; there are no passwords.
-4. **Authentication → URL configuration**: set the Site URL to your app URL.
+4. **Authentication → Sign In / Providers → Allow anonymous sign-ins**: turn this on. It lets people use social **without an email** (their account then lives on their phone). Also set the "Change email" template to include `{{ .Token }}` so people can add an email later. Consider enabling CAPTCHA (Authentication → Attack Protection), since anonymous sign-ups are easier to abuse.
+5. **Authentication → URL configuration**: set the Site URL to your app URL.
 
 ## 2. Point the app at it
 In the GitHub repo: **Settings → Secrets and variables → Actions → Variables**, add:
@@ -19,6 +20,9 @@ In the GitHub repo: **Settings → Secrets and variables → Actions → Variabl
 Push to `main` (or re-run the deploy workflow). The anon key is meant to be public; all protection comes from row-level security in the migration. **Never** put the `service_role` key in the app or in these variables.
 
 For local development, put the same two values in `.env.local` as `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+
+## Email is optional
+At sign-up people can continue without an email. Their account is then tied to that phone's browser storage: clearing the app or changing phones loses it, and the app warns about this. In Settings they can add an email at any time (a code is sent to confirm), after which they can sign in anywhere. Turning social off keeps them signed in; signing out of an email-less account asks for confirmation.
 
 ## Privacy model (enforced in the database, not the UI)
 - People are found by **exact handle only**. There is no list of users and email addresses are never in the public schema.

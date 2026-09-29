@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useSocial } from '../../social/store'
 import { useStore } from '../../store'
 import { Sheet } from '../Sheet'
+import { AddEmailSheet } from './AddEmailSheet'
 import { SocialSetup } from './SocialSetup'
 import { AvatarPicker } from './AvatarPicker'
 import { Avatar, ErrorNote } from './ui'
@@ -12,15 +13,18 @@ const btn = 'w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm
 /** Settings block: turn social on later, see your handle, sign out, or delete the social account. */
 export function SocialSettings() {
   const { socialChoice, setSocialChoice } = useStore()
-  const { profile, backend, status, signOut, reset, act, updateProfile } = useSocial()
+  const { profile, user, backend, status, signOut, reset, act, updateProfile } = useSocial()
+  const [addEmail, setAddEmail] = useState(false)
+  const anonymous = !!user?.anonymous
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [setup, setSetup] = useState(false)
-  const [confirm, setConfirm] = useState<'off' | 'delete' | null>(null)
+  const [confirm, setConfirm] = useState<'off' | 'delete' | 'signout' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const enabled = socialChoice === 'enabled'
 
-  const turnOff = () => { void signOut(); setSocialChoice('declined'); reset(); setConfirm(null) }
+  // Turning off keeps you signed in, so turning it back on later picks up the same account and friends.
+  const turnOff = () => { setSocialChoice('declined'); reset(); setConfirm(null) }
   const del = async () => {
     const r = await act((b) => b.deleteAccount())
     if (!r.ok) { setError(r.error); return }
@@ -42,15 +46,35 @@ export function SocialSettings() {
             <span>Handle</span>
             <span className="flex items-center gap-2 text-neutral-500">{profile && <Avatar profile={profile} size="sm" />}{profile ? `@${profile.handle}` : status === 'loading' ? '…' : 'Not signed in'}</span>
           </div>
+          {profile && (
+            <div className={row}>
+              <span>Email</span>
+              <span className="text-neutral-500">{user?.email ?? 'None (this phone only)'}</span>
+            </div>
+          )}
+          {profile && anonymous && (
+            <button onClick={() => setAddEmail(true)} className={btn}>
+              Add an email to recover your account
+              <span className="block text-xs text-neutral-400">Without one, you’d lose your account and friends if you clear the app or change phones.</span>
+            </button>
+          )}
           {profile && <button onClick={() => { setDraft(profile.avatar); setError(null); setEditing(true) }} className={btn}>Change avatar</button>}
           {profile && <div className={row}><span>Display name</span><span className="text-neutral-500">{profile.displayName}</span></div>}
           {!profile && <button onClick={() => setSetup(true)} className={btn}>Sign in or finish setup</button>}
-          {profile && <button onClick={() => void signOut()} className={btn}>Sign out</button>}
+          {profile && <button onClick={() => (anonymous ? setConfirm('signout') : void signOut())} className={btn}>Sign out</button>}
           <button onClick={() => setConfirm('off')} className={btn}>Turn off social features</button>
           {profile && <button onClick={() => setConfirm('delete')} className={`${btn} text-red-600`}>Delete my social account</button>}
         </>
       )}
       {setup && <SocialSetup variant="sheet" onDone={() => setSetup(false)} onCancel={() => setSetup(false)} />}
+      {addEmail && <AddEmailSheet onClose={() => setAddEmail(false)} />}
+      {confirm === 'signout' && (
+        <Sheet title="Sign out?" onClose={() => setConfirm(null)} closeLabel="Cancel">
+          <p className="mb-4 text-sm text-neutral-600">Your account has no email, so signing out means you can’t get back into it, and you’d lose your handle and friends. Add an email first if you want to keep it.</p>
+          <button onClick={() => { setConfirm(null); setAddEmail(true) }} className="mb-2 w-full rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent">Add an email first</button>
+          <button onClick={() => { setConfirm(null); void signOut() }} className="w-full rounded-2xl bg-red-600 py-3 text-sm font-medium text-white">Sign out and lose the account</button>
+        </Sheet>
+      )}
       {editing && profile && (
         <Sheet title="Your avatar" onClose={() => setEditing(false)} closeLabel="Cancel">
           <AvatarPicker value={draft} onChange={setDraft} name={profile.displayName} />
@@ -65,7 +89,7 @@ export function SocialSettings() {
       )}
       {confirm === 'off' && (
         <Sheet title="Turn off social?" onClose={() => setConfirm(null)} closeLabel="Cancel">
-          <p className="mb-4 text-sm text-neutral-600">You’ll be signed out on this device. Your account and friends stay on the server, so you can sign back in later. Your workouts are not affected.</p>
+          <p className="mb-4 text-sm text-neutral-600">Social tabs and notifications go away. Your account and friends stay on the server and you stay signed in, so turning it back on later picks up right where you left off. Your workouts are not affected.</p>
           <button onClick={turnOff} className="w-full rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent">Turn off</button>
         </Sheet>
       )}
