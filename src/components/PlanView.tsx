@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { toISO, weekDates, weekdayIndex } from '../lib/dates'
 import { findExercise, selectLastLog, useStore } from '../store'
+import { RandomizerSheet } from './RandomizerSheet'
 import { DaySheet } from './DaySheet'
 import { CardioCard } from './CardioCard'
 import { ExercisePicker } from './ExercisePicker'
@@ -13,6 +14,7 @@ export function PlanView() {
   const [today] = useState(() => toISO(new Date()))
   const [picking, setPicking] = useState(false)
   const [dayMenu, setDayMenu] = useState(false)
+  const [randomizing, setRandomizing] = useState(false)
   const s = useStore()
 
   const dates = useMemo(() => weekDates(anchor), [anchor])
@@ -35,7 +37,10 @@ export function PlanView() {
 
       <WeekStrip dates={dates} selected={day} counts={s.plan.map((d) => d.length)} today={today} onSelect={setDay} />
 
-      <div className="mt-4 flex justify-end">
+      <div className="mt-4 flex justify-end gap-2">
+        <button onClick={() => setRandomizing(true)} className="rounded-full bg-neutral-900 px-3 py-1 text-sm text-white">
+          Randomize
+        </button>
         <button onClick={() => setDayMenu(true)} className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-600">
           Day options
         </button>
@@ -43,7 +48,7 @@ export function PlanView() {
 
       <section className="mt-3 space-y-3">
         {planned.length === 0 && (
-          <p className="py-12 text-center text-neutral-400">Rest day. Add exercises to plan a workout.</p>
+          <p className="py-12 text-center text-neutral-400">Rest day. Add exercises, or tap Randomize for a ready-made workout.</p>
         )}
         {planned.map((p) => {
           const ex = findExercise(s.custom, p.exerciseId)
@@ -55,6 +60,7 @@ export function PlanView() {
               key={ex.id}
               exercise={ex}
               setCount={p.sets}
+              targetReps={p.reps}
               current={current}
               last={last}
               onSetCount={(n) => s.setSetCount(day, ex.id, n)}
@@ -67,6 +73,7 @@ export function PlanView() {
               exercise={ex}
               current={current}
               last={last}
+              targetMinutes={p.minutes}
               onChange={(c) => s.saveCardio(date, ex.id, c)}
               onRemove={() => s.removeExercise(day, ex.id)}
             />
@@ -81,6 +88,7 @@ export function PlanView() {
         + Add exercise
       </button>
 
+      {randomizing && <RandomizerSheet day={day} onClose={() => setRandomizing(false)} />}
       {dayMenu && <DaySheet day={day} onClose={() => setDayMenu(false)} />}
 
       {picking && (

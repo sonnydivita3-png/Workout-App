@@ -6,6 +6,7 @@ import { NumberInput } from './NumberInput'
 interface Props {
   exercise: Exercise
   setCount: number
+  targetReps?: number
   current?: ExerciseLog
   last?: ExerciseLog
   onSetCount: (n: number) => void
@@ -13,7 +14,7 @@ interface Props {
   onRemove: () => void
 }
 
-export function StrengthCard({ exercise, setCount, current, last, onSetCount, onChange, onRemove }: Props) {
+export function StrengthCard({ exercise, setCount, targetReps, current, last, onSetCount, onChange, onRemove }: Props) {
   const units = useStore((s) => s.units)
   const sets = Array.from({ length: setCount }, (_, i) => current?.sets?.[i] ?? { weight: null, reps: null })
 
@@ -25,7 +26,7 @@ export function StrengthCard({ exercise, setCount, current, last, onSetCount, on
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="font-semibold">{exercise.name}</h3>
-          <p className="text-xs text-neutral-400">{exercise.group}</p>
+          <p className="text-xs text-neutral-400">{exercise.group}{targetReps ? ` · target ${setCount} × ${targetReps}` : ''}</p>
         </div>
         <div className="flex shrink-0 items-center gap-3 text-neutral-400">
           <div className="flex items-center gap-1 text-sm">
@@ -47,7 +48,7 @@ export function StrengthCard({ exercise, setCount, current, last, onSetCount, on
             <div key={i} className="grid grid-cols-[1.5rem_1fr_1fr_5rem] items-center gap-2">
               <span className="text-sm text-neutral-400">{i + 1}</span>
               <NumberInput value={showWeight(s.weight, units)} step={units.weight === 'kg' ? 1 : 2.5} placeholder={showWeight(prev?.weight ?? null, units)?.toString() ?? '–'} onChange={(v) => update(i, { weight: storeWeight(v, units) })} />
-              <NumberInput value={s.reps} placeholder={prev?.reps?.toString() ?? '–'} onChange={(v) => update(i, { reps: v })} />
+              <NumberInput value={s.reps} placeholder={(prev?.reps ?? targetReps)?.toString() ?? '–'} onChange={(v) => update(i, { reps: v })} />
               <span className="text-right text-xs text-neutral-400 tabular-nums">
                 {prev?.weight != null ? `${showWeight(prev.weight, units)} × ${prev.reps ?? '–'}` : '—'}
               </span>

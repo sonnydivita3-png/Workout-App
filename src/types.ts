@@ -7,6 +7,7 @@ export interface Exercise {
   group: string // muscle group (strength) or "Cardio"
   equipment?: string
   custom?: boolean
+  suggest?: boolean // sensible for the randomizer to pick
 }
 
 /** All weights are stored in pounds and distances in miles; units only affect display. */
@@ -24,6 +25,8 @@ export interface CardioEntry {
 export interface PlannedExercise {
   exerciseId: string
   sets: number // ignored for cardio
+  reps?: number // target reps per set (lifting)
+  minutes?: number // target duration (cardio)
 }
 
 /** Plan is a weekly template: 0 = Monday ... 6 = Sunday. */

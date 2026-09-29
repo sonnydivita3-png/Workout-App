@@ -47,7 +47,7 @@ export function SettingsView() {
     const blob = new Blob([JSON.stringify({ app: 'workout', plan, logs, custom, units, name, bodyweight, routines, goals }, null, 2)], { type: 'application/json' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `workout-backup-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `ez-workout-backup-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(a.href)
   }

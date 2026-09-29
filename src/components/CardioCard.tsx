@@ -7,11 +7,12 @@ interface Props {
   exercise: Exercise
   current?: ExerciseLog
   last?: ExerciseLog
+  targetMinutes?: number
   onChange: (c: CardioEntry) => void
   onRemove: () => void
 }
 
-export function CardioCard({ exercise, current, last, onChange, onRemove }: Props) {
+export function CardioCard({ exercise, current, last, targetMinutes, onChange, onRemove }: Props) {
   const units = useStore((s) => s.units)
   const c = current?.cardio ?? { distance: null, minutes: null }
   const prev = last?.cardio
@@ -20,7 +21,7 @@ export function CardioCard({ exercise, current, last, onChange, onRemove }: Prop
       <div className="mb-3 flex items-start justify-between">
         <div>
           <h3 className="font-semibold">{exercise.name}</h3>
-          <p className="text-xs text-neutral-400">Cardio</p>
+          <p className="text-xs text-neutral-400">Cardio{targetMinutes ? ` · target ${targetMinutes} min` : ''}</p>
         </div>
         <button onClick={onRemove} aria-label="Remove" className="text-lg leading-none text-neutral-400">×</button>
       </div>
@@ -31,7 +32,7 @@ export function CardioCard({ exercise, current, last, onChange, onRemove }: Prop
         </label>
         <label className="text-[11px] uppercase tracking-wide text-neutral-400">
           Minutes
-          <NumberInput value={c.minutes} step={0.5} placeholder={prev?.minutes?.toString() ?? '–'} onChange={(v) => onChange({ ...c, minutes: v })} />
+          <NumberInput value={c.minutes} step={0.5} placeholder={(prev?.minutes ?? targetMinutes)?.toString() ?? '–'} onChange={(v) => onChange({ ...c, minutes: v })} />
         </label>
         <div className="text-[11px] uppercase tracking-wide text-neutral-400">
           Pace
