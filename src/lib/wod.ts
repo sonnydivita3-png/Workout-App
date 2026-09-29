@@ -109,3 +109,36 @@ export function derivedLogs(t: TimedLog, items: PlannedExercise[], lookup: (id: 
   })
   return out
 }
+
+export interface Segment {
+  phase: 'work' | 'rest'
+  seconds: number
+  /** What to do or what's next, e.g. "Burpees" or "Next: Squats". */
+  label: string
+  detail?: string
+}
+
+/** Work/rest timing for a HIIT circuit block, read back from how the randomizer describes it. */
+export function parseCircuit(label: string | undefined, items: PlannedExercise[]): { rounds: number; work: number; rest: number; roundRest: number } | null {
+  if (!label?.startsWith('HIIT circuit') || items.length === 0) return null
+  const t = /(\d+)s on \/ (\d+)s off/.exec(items[0].note ?? '') ?? /(\d+)s on \/ (\d+)s off/.exec(label)
+  if (!t) return null
+  const rr = /(\d+(?:\.\d+)?) min rest/.exec(label)
+  return { rounds: Math.max(1, items[0].sets), work: Number(t[1]), rest: Number(t[2]), roundRest: rr ? Math.round(Number(rr[1]) * 60) : 0 }
+}
+
+/** The whole circuit as a list of timed segments: work and rest per movement, a longer break between rounds. */
+export function circuitSegments(names: string[], c: { rounds: number; work: number; rest: number; roundRest: number }): Segment[] {
+  const out: Segment[] = []
+  for (let r = 0; r < c.rounds; r++) {
+    names.forEach((name, i) => {
+      out.push({ phase: 'work', seconds: c.work, label: name, detail: `Round ${r + 1} of ${c.rounds} · move ${i + 1} of ${names.length}` })
+      const lastMove = i === names.length - 1
+      const lastRound = r === c.rounds - 1
+      if (lastMove && lastRound) return
+      if (lastMove) out.push({ phase: 'rest', seconds: c.roundRest || c.rest, label: 'Round break', detail: `Next: ${names[0]}` })
+      else if (c.rest > 0) out.push({ phase: 'rest', seconds: c.rest, label: 'Rest', detail: `Next: ${names[i + 1]}` })
+    })
+  }
+  return out
+}

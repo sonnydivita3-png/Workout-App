@@ -244,3 +244,33 @@ describe('tabata', () => {
     }
   })
 })
+
+describe('several styles in one workout', () => {
+  const mixed = (styles: WorkoutStyle[], focus: string[], minutes: number, seed: number) =>
+    generateWorkout(focus, minutes, { styles, style: styles[0], rng: mulberry32(seed) })
+  it('runs them in order (lifting, then conditioning), with cardio last and no repeats', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const w = mixed(['circuit', 'strength'], ['Chest', 'Back', 'Legs', 'Cardio'], 60, seed)
+      const ids = w.map((p) => p.exerciseId)
+      expect(new Set(ids).size).toBe(ids.length)
+      const firstCircuit = w.findIndex((p) => p.block?.startsWith('circuit-'))
+      const lastStrength = w.map((p) => !p.block && ex(p).kind === 'strength').lastIndexOf(true)
+      expect(w.some((p) => !p.block && ex(p).mode === 'weight')).toBe(true) // strength lifts
+      expect(firstCircuit).toBeGreaterThan(-1)
+      expect(lastStrength).toBeLessThan(firstCircuit)
+      const cardioAt = w.map((p) => ex(p).kind).lastIndexOf('strength')
+      expect(ex(w.at(-1)!).kind, `seed ${seed}`).toBe('cardio')
+      expect(cardioAt).toBeLessThan(w.length - 1)
+      expect(minutesFor(w)).toBeLessThanOrEqual(60 + 10)
+    }
+  })
+  it('keeps timed blocks from different styles separate', () => {
+    const w = mixed(['amrap', 'emom'], [], 40, 3)
+    const kinds = new Set(w.map((p) => `${p.block}|${p.wod?.kind}`))
+    for (const k of kinds) { const [b, kind] = k.split('|'); expect(b.startsWith(kind)).toBe(true) }
+    expect(new Set(w.map((p) => p.wod?.kind))).toEqual(new Set(['amrap', 'emom']))
+  })
+  it('a single-item list behaves like that style', () => {
+    expect(mixed(['strength'], ['Chest', 'Legs'], 45, 5)).toEqual(gen('strength', ['Chest', 'Legs'], 45, 5))
+  })
+})

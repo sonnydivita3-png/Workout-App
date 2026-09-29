@@ -1,6 +1,8 @@
 import { formatSeconds, showWeight, storeWeight } from '../lib/units'
 import { useStore } from '../store'
 import type { Exercise, ExerciseLog, StrengthSet } from '../types'
+import { useState } from 'react'
+import { HoldTimerSheet } from './IntervalTimerSheet'
 import { NumberInput } from './NumberInput'
 
 interface Props {
@@ -19,6 +21,7 @@ interface Props {
 export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, note, current, last, onSetCount, onChange, onRemove }: Props) {
   const units = useStore((s) => s.units)
   const mode = exercise.mode ?? 'weight'
+  const [timing, setTiming] = useState<number | null>(null)
   const sets = Array.from({ length: setCount }, (_, i) => current?.sets?.[i] ?? { weight: null, reps: null, seconds: null })
 
   const update = (i: number, patch: Partial<StrengthSet>) =>
@@ -76,7 +79,10 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, no
                 />
               )}
               {mode === 'time' ? (
-                <NumberInput value={s.seconds ?? null} step={5} placeholder={(prev?.seconds ?? targetSeconds)?.toString() ?? '–'} onChange={(v) => update(i, { seconds: v })} />
+                <div className="flex items-center gap-1">
+                  <NumberInput value={s.seconds ?? null} step={5} placeholder={(prev?.seconds ?? targetSeconds)?.toString() ?? '–'} onChange={(v) => update(i, { seconds: v })} />
+                  <button onClick={() => setTiming(i)} aria-label={`Time set ${i + 1}`} title="Time this hold" className="h-9 w-9 shrink-0 rounded-lg bg-neutral-100 text-base">⏱</button>
+                </div>
               ) : (
                 <NumberInput value={s.reps} placeholder={(prev?.reps ?? targetReps)?.toString() ?? '–'} onChange={(v) => update(i, { reps: v })} />
               )}
@@ -85,6 +91,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, no
           )
         })}
       </div>
+      {timing !== null && <HoldTimerSheet name={`${exercise.name} · set ${timing + 1}`} target={targetSeconds} onUse={(secs) => { update(timing, { seconds: secs }); setTiming(null) }} onClose={() => setTiming(null)} />}
     </div>
   )
 }

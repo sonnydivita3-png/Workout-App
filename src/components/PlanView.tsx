@@ -3,6 +3,8 @@ import { parseISO, toISO, weekDates, weekdayIndex } from '../lib/dates'
 import { groupByBlock } from '../lib/describe'
 import { dayPlanOf, isRestDay } from '../lib/plan'
 import { findExercise, selectLastLog, useStore } from '../store'
+import { IntervalTimerSheet } from './IntervalTimerSheet'
+import { circuitSegments, parseCircuit } from '../lib/wod'
 import { TimedBlockCard } from './TimedBlockCard'
 import { WodBuilderSheet } from './WodBuilderSheet'
 import { ProgramsCard } from './ProgramsCard'
@@ -24,6 +26,7 @@ export function PlanView() {
   const [picking, setPicking] = useState(false)
   const [addMenu, setAddMenu] = useState(false)
   const [wodBuilder, setWodBuilder] = useState(false)
+  const [circuitTimer, setCircuitTimer] = useState<{ title: string; segments: ReturnType<typeof circuitSegments> } | null>(null)
   const [dayMenu, setDayMenu] = useState(false)
   const [generator, setGenerator] = useState<GeneratorMode | null>(null)
   const s = useStore()
@@ -75,6 +78,12 @@ export function PlanView() {
         ) : (
           <div key={gi} className={g.block ? 'space-y-2 rounded-3xl bg-neutral-200/50 p-2' : 'contents'}>
             {g.block && g.label && <p className="px-2 pt-1 text-[11px] uppercase tracking-wide text-neutral-500">{g.label}</p>}
+            {(() => {
+              const c = parseCircuit(g.label, g.items.map((x) => x.item))
+              if (!c) return null
+              const names = g.items.map((x) => findExercise(s.custom, x.item.exerciseId)?.name ?? 'Exercise')
+              return <button onClick={() => setCircuitTimer({ title: 'HIIT circuit', segments: circuitSegments(names, c) })} className="mx-2 rounded-full bg-surface px-3 py-1 text-xs text-neutral-600 ring-1 ring-neutral-200/70">⏱ Start circuit timer</button>
+            })()}
             {g.items.map(({ item: p }) => {
               const ex = findExercise(s.custom, p.exerciseId)
               if (!ex) return null
@@ -134,6 +143,7 @@ export function PlanView() {
           ))}
         </Sheet>
       )}
+      {circuitTimer && <IntervalTimerSheet title={circuitTimer.title} segments={circuitTimer.segments} onClose={() => setCircuitTimer(null)} />}
       {wodBuilder && <WodBuilderSheet date={date} onClose={() => setWodBuilder(false)} />}
       {generator === 'one' && <RandomizerSheet date={date} onClose={() => setGenerator(null)} onSwitchMode={setGenerator} />}
       {generator === 'program' && (
