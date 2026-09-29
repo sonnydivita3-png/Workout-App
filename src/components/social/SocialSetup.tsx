@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useStore } from '../../store'
 import { useSocial, describeError } from '../../social/store'
 import { AVATARS, HANDLE_RE, normalizeHandle } from '../../social/types'
@@ -34,6 +34,17 @@ export function SocialSetup({ variant, onDone, onCancel }: Props) {
     try { await fn() } catch (e) { setError(describeError(e)) } finally { setBusy(false) }
   }
 
+  // Already signed in on this device (e.g. after turning social off and on again): pick up where we left off.
+  useEffect(() => {
+    if (variant !== 'sheet') return
+    void (async () => {
+      const u = await backend.currentUser().catch(() => null)
+      if (!u) return
+      if (await backend.myProfile().catch(() => null)) { setSocialChoice('enabled'); await init(); onDone() } else setStep('profile')
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const skip = () => { setSocialChoice('declined'); onDone() }
 
   const cleanHandle = normalizeHandle(handle)
@@ -61,8 +72,8 @@ export function SocialSetup({ variant, onDone, onCancel }: Props) {
 
       {step === 'email' && (
         <>
-          <h1 className="mb-1 text-2xl font-semibold tracking-tight">Sign in with your email</h1>
-          <p className="mb-5 text-sm text-neutral-500">We’ll send a 6-digit code. No password. Your email is only used to sign in and is never shown to other people.</p>
+          <h1 className="mb-1 text-2xl font-semibold tracking-tight">Add your email <span className="text-base font-normal text-neutral-400">(optional)</span></h1>
+          <p className="mb-5 text-sm text-neutral-500">We’ll send a 6-digit code. No password. Your email is only used to sign in and recover your account, and is never shown to other people.</p>
           {demo && <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">Preview mode: no email is sent. Use the code <b>123456</b>.</p>}
           {error && <ErrorNote>{error}</ErrorNote>}
           <label className={`${label} block`}>Email</label>
@@ -70,6 +81,10 @@ export function SocialSetup({ variant, onDone, onCancel }: Props) {
           <button disabled={busy || !email.includes('@')} onClick={() => run(async () => { await backend.sendCode(email); setStep('code') })} className={primary}>
             {busy ? 'Sending…' : 'Send code'}
           </button>
+          <button disabled={busy} onClick={() => run(async () => { await backend.signInAnonymously(); setStep('profile') })} className={`${secondary} mt-2`}>
+            Continue without email
+          </button>
+          <p className="mt-2 text-xs text-neutral-400">Without an email your account stays on this phone. If you delete the app or clear its data you’ll lose it (and your friends). You can add an email later in Settings.</p>
         </>
       )}
 

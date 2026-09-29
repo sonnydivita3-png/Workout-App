@@ -30,7 +30,7 @@ describe('sign-in and profile', () => {
     await be.sendCode('a@x.com')
     await denied(be.verifyCode('a@x.com', '000000'), 'invalid_code')
     const user = await be.verifyCode('a@x.com', '123456')
-    expect(await be.currentUser()).toEqual(user)
+    expect(await be.currentUser()).toMatchObject({ id: user.id, email: user.email, anonymous: false })
     await denied(be.createProfile({ handle: 'no', displayName: 'A', avatar: '💪' }), 'invalid_handle')
     await denied(be.createProfile({ handle: 'has space', displayName: 'A', avatar: '💪' }), 'invalid_handle')
     await denied(be.createProfile({ handle: 'alex', displayName: 'A', avatar: '💪' }), 'handle_taken') // a simulated friend has it
@@ -50,6 +50,31 @@ describe('sign-in and profile', () => {
     await w.as(a).blockUser(b)
     expect(await w.as(a).findByHandle('findable_bob')).toBeNull()
     expect(await w.as(b).findByHandle('finder')).toBeNull()
+  })
+})
+
+describe('accounts without an email', () => {
+  it('lets someone sign up with no email, then add one later', async () => {
+    const be = new DemoBackend(mem())
+    const u = await be.signInAnonymously()
+    expect(u.anonymous).toBe(true)
+    await be.createProfile({ handle: 'noemail', displayName: 'No Email', avatar: '💪' })
+    expect(await be.currentUser()).toMatchObject({ id: u.id, anonymous: true })
+    expect((await be.findByHandle('alex'))?.handle).toBe('alex')
+    await expect(be.addEmail('nope')).rejects.toThrow()
+    await be.addEmail('me@example.com')
+    await expect(be.confirmEmail('me@example.com', '000000')).rejects.toThrow()
+    expect(await be.confirmEmail('me@example.com', '123456')).toMatchObject({ email: 'me@example.com', anonymous: false })
+    await be.signOut()
+    await be.sendCode('me@example.com')
+    expect((await be.verifyCode('me@example.com', '123456')).id).toBe(u.id) // same account, same profile
+    expect((await be.myProfile())?.handle).toBe('noemail')
+  })
+  it('will not attach an email that belongs to another account', async () => {
+    const be = new DemoBackend(mem())
+    await be.sendCode('taken@example.com'); await be.verifyCode('taken@example.com', '123456'); await be.signOut()
+    await be.signInAnonymously()
+    await expect(be.addEmail('taken@example.com')).rejects.toThrow()
   })
 })
 

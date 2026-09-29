@@ -16,7 +16,7 @@ const DEMO_CODE = '123456'
 
 interface Row { id: string; createdAt: string }
 interface Store {
-  users: { id: string; email?: string; bot?: boolean }[]
+  users: { id: string; email?: string; bot?: boolean; anon?: boolean }[]
   profiles: Profile[]
   requests: (Row & { fromId: string; toId: string; status: 'pending' | 'accepted' | 'declined' })[]
   friends: { userId: string; friendId: string }[]
@@ -158,7 +158,7 @@ export class DemoBackend implements SocialBackend {
   // ------------------------------------------------------------------ account
   async currentUser(): Promise<SessionUser | null> {
     const u = this.s.users.find((x) => x.id === this.s.meId)
-    return u ? { id: u.id, email: u.email } : null
+    return u ? { id: u.id, email: u.email, anonymous: !u.email } : null
   }
   async sendCode(email: string) {
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) throw new SocialError('invalid_code', 'Enter a valid email address.')
@@ -174,6 +174,32 @@ export class DemoBackend implements SocialBackend {
     this.s.code = undefined
     this.save()
     return { id: user.id, email: user.email }
+  }
+  async signInAnonymously(): Promise<SessionUser> {
+    const user = { id: uuid(), anon: true }
+    this.s.users.push(user)
+    this.s.meId = user.id
+    this.save()
+    return { id: user.id, anonymous: true }
+  }
+  async addEmail(email: string) {
+    const me = this.me()
+    const e = email.trim().toLowerCase()
+    if (!/^\S+@\S+\.\S+$/.test(e)) throw new SocialError('invalid_code', 'Enter a valid email address.')
+    if (this.s.users.some((u) => u.email === e && u.id !== me)) throw new SocialError('already_exists', 'That email is already used by another account.')
+    this.s.code = { email: e, code: DEMO_CODE }
+    this.save()
+  }
+  async confirmEmail(email: string, code: string): Promise<SessionUser> {
+    const me = this.me()
+    const e = email.trim().toLowerCase()
+    if (!this.s.code || this.s.code.email !== e || code.trim() !== this.s.code.code) throw new SocialError('invalid_code')
+    const u = this.s.users.find((x) => x.id === me)!
+    u.email = e
+    delete u.anon
+    this.s.code = undefined
+    this.save()
+    return { id: u.id, email: e, anonymous: false }
   }
   async signOut() { this.s.meId = null; this.save() }
   async deleteAccount() {

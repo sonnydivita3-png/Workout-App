@@ -6,6 +6,8 @@ import type {
 export interface SessionUser {
   id: string
   email?: string
+  /** Signed in without an email. The account lives on this device unless an email is added. */
+  anonymous?: boolean
 }
 
 export interface FriendRequests {
@@ -25,6 +27,11 @@ export interface SocialBackend {
   currentUser(): Promise<SessionUser | null>
   sendCode(email: string): Promise<void>
   verifyCode(email: string, code: string): Promise<SessionUser>
+  /** Start an account without an email. It lives on this device until an email is added. */
+  signInAnonymously(): Promise<SessionUser>
+  /** Attach an email to the current account (sends a code) so it can be recovered on another device. */
+  addEmail(email: string): Promise<void>
+  confirmEmail(email: string, code: string): Promise<SessionUser>
   signOut(): Promise<void>
   /** Deletes the social account and all its server data. Local workouts are untouched. */
   deleteAccount(): Promise<void>
