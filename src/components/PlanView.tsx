@@ -9,6 +9,7 @@ import { ProgramSheet } from './ProgramSheet'
 import { RandomizerSheet } from './RandomizerSheet'
 import type { GeneratorMode } from './ModeSwitch'
 import { DaySheet } from './DaySheet'
+import { rowBtn, Sheet } from './Sheet'
 import { CardioCard } from './CardioCard'
 import { ExercisePicker } from './ExercisePicker'
 import { StrengthCard } from './StrengthCard'
@@ -19,6 +20,7 @@ export function PlanView() {
   const [day, setDay] = useState(() => weekdayIndex(new Date()))
   const [today] = useState(() => toISO(new Date()))
   const [picking, setPicking] = useState(false)
+  const [addMenu, setAddMenu] = useState(false)
   const [dayMenu, setDayMenu] = useState(false)
   const [generator, setGenerator] = useState<GeneratorMode | null>(null)
   const s = useStore()
@@ -45,12 +47,6 @@ export function PlanView() {
       <WeekStrip dates={dates} selected={day} counts={dates.map((d) => dayPlanOf(s.plan, s.overrides, toISO(d)).length)} rest={dates.map((d) => isRestDay(s.overrides, toISO(d)))} today={today} onSelect={setDay} />
 
       <div className="mt-4 flex justify-end gap-2">
-        <button onClick={() => setGenerator('one')} className="rounded-full bg-accent px-3 py-1 text-sm text-on-accent">
-          Randomize
-        </button>
-        <button onClick={() => setGenerator('cardio')} className="rounded-full bg-accent px-3 py-1 text-sm text-on-accent">
-          Training plan
-        </button>
         <button onClick={() => setDayMenu(true)} className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-600">
           Day options
         </button>
@@ -112,12 +108,26 @@ export function PlanView() {
       </section>
 
       <button
-        onClick={() => setPicking(true)}
+        onClick={() => setAddMenu(true)}
         className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-1/2 z-10 -translate-x-1/2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-on-accent shadow-lg"
       >
-        + Add exercise
+        + Add
       </button>
 
+      {addMenu && (
+        <Sheet title="Add to this day" onClose={() => setAddMenu(false)}>
+          {([
+            ['Add an exercise', 'Pick from 750+ exercises', () => setPicking(true)],
+            ['Randomize a workout', 'Muscles, style and time, or a random week/month', () => setGenerator('one')],
+            ['Start a training plan', 'Run or bike plan for a goal or race', () => setGenerator('cardio')],
+          ] as const).map(([title, hint, go]) => (
+            <button key={title} onClick={() => { setAddMenu(false); go() }} className={rowBtn}>
+              <span><span className="block text-sm font-medium">{title}</span><span className="block text-xs text-neutral-400">{hint}</span></span>
+              <span className="text-neutral-300">›</span>
+            </button>
+          ))}
+        </Sheet>
+      )}
       {generator === 'one' && <RandomizerSheet date={date} onClose={() => setGenerator(null)} onSwitchMode={setGenerator} />}
       {generator === 'program' && (
         <ProgramSheet
