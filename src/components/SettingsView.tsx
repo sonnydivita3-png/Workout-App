@@ -45,7 +45,7 @@ const Row = ({ title, children }: { title: string; children: React.ReactNode }) 
 )
 
 export function SettingsView() {
-  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, plan, overrides, logs, custom, name, setName, bodyweight, routines, goals, importData } = useStore()
+  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, plan, overrides, logs, custom, name, setName, bodyweight, routines, goals, importData, setTourDone } = useStore()
   const [installEvt, setInstallEvt] = useState<InstallEvent | null>(null)
   const [msg, setMsg] = useState('')
   const [erasing, setErasing] = useState(false)
@@ -201,6 +201,9 @@ export function SettingsView() {
       )}
 
       <SocialSettings />
+
+      <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Help</h2>
+      <button onClick={() => setTourDone(false)} className="w-full rounded-2xl bg-white px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70">Replay the app walkthrough</button>
 
       {!standalone && (
         <>
