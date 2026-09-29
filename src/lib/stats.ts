@@ -75,12 +75,12 @@ export function weekStats(logs: ExerciseLog[], today: string): WeekStats {
   const volume = (offset: number) => {
     const [from, to] = range(offset)
     return logs
-      .filter((l) => inRange(l.date, from, to))
+      .filter((l) => inRange(l.date, from, to) && l.date <= today) // anything dated in the future doesn't count yet
       .reduce((a, l) => a + (l.sets ?? []).reduce((b, s) => b + (s.weight ?? 0) * (s.reps ?? 0), 0), 0)
   }
   const count = (offset: number) => {
     const [from, to] = range(offset)
-    return [...dates].filter((d) => inRange(d, from, to)).length
+    return [...dates].filter((d) => inRange(d, from, to) && d <= today).length
   }
   // The current week doesn't break a streak until it's over.
   let streak = 0

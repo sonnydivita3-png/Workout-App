@@ -18,7 +18,8 @@ npm test         # randomizer unit tests
 - Three ways to log lifting: weight × reps, bodyweight reps only, and timed holds (planks) in seconds; goals, history, and personal bests follow the same measure
 - Randomizer: Back/Forward through every version you've generated, random swap per exercise, or pick any exercise yourself
 - Weekly plan by weekday, per-set logging, "last time" reminders
-- Duplicate a day to other days; save a day as a named routine and load it onto any day
+- Duplicate a day to other days; save a day as a named routine and load it onto any day; mark any day as a rest day
+- "Last workout" on Home only shows real, logged workouts from today or earlier, never a future date or a rest day
 - Body weight chart with 30D/90D/1Y/All ranges, goal line, backdated entries
 - Notifications: goal progress/completion, new personal bests, daily workout reminder — in-app feed, banners, optional system alerts (checked while the app is open)
 - Goals: workouts per week, body weight target, lift target

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { parseISO, toISO, weekDates, weekdayIndex } from '../lib/dates'
 import { groupByBlock } from '../lib/describe'
-import { dayPlanOf } from '../lib/plan'
+import { dayPlanOf, isRestDay } from '../lib/plan'
 import { findExercise, selectLastLog, useStore } from '../store'
 import { ProgramSheet } from './ProgramSheet'
 import { RandomizerSheet } from './RandomizerSheet'
@@ -24,6 +24,7 @@ export function PlanView() {
   const dates = useMemo(() => weekDates(anchor), [anchor])
   const date = toISO(dates[day])
   const planned = dayPlanOf(s.plan, s.overrides, date)
+  const rest = isRestDay(s.overrides, date)
   const shiftWeek = (n: number) => setAnchor((a) => new Date(a.getFullYear(), a.getMonth(), a.getDate() + 7 * n))
 
   return (
@@ -39,7 +40,7 @@ export function PlanView() {
         </div>
       </header>
 
-      <WeekStrip dates={dates} selected={day} counts={dates.map((d) => dayPlanOf(s.plan, s.overrides, toISO(d)).length)} today={today} onSelect={setDay} />
+      <WeekStrip dates={dates} selected={day} counts={dates.map((d) => dayPlanOf(s.plan, s.overrides, toISO(d)).length)} rest={dates.map((d) => isRestDay(s.overrides, toISO(d)))} today={today} onSelect={setDay} />
 
       <div className="mt-4 flex justify-end gap-2">
         <button onClick={() => setGenerator('one')} className="rounded-full bg-neutral-900 px-3 py-1 text-sm text-white">
@@ -51,8 +52,17 @@ export function PlanView() {
       </div>
 
       <section className="mt-3 space-y-3">
-        {planned.length === 0 && (
-          <p className="py-12 text-center text-neutral-400">Rest day. Add exercises, or tap Randomize for a ready-made workout.</p>
+        {planned.length === 0 && rest && (
+          <div className="rounded-2xl bg-white px-4 py-10 text-center shadow-sm ring-1 ring-neutral-200/70">
+            <p className="text-lg font-semibold">Rest day</p>
+            <p className="mt-1 text-sm text-neutral-400">Recovery is part of the plan.</p>
+            <button onClick={() => s.resetDay(date)} className="mt-4 rounded-full bg-neutral-100 px-4 py-1.5 text-sm text-neutral-600">
+              Cancel rest day
+            </button>
+          </div>
+        )}
+        {planned.length === 0 && !rest && (
+          <p className="py-12 text-center text-neutral-400">Nothing planned. Add exercises, tap Randomize, or make it a rest day in Day options.</p>
         )}
         {groupByBlock(planned).map((g, gi) => (
           <div key={gi} className={g.block ? 'space-y-2 rounded-3xl bg-neutral-200/50 p-2' : 'contents'}>

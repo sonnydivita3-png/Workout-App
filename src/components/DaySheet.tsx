@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { DAY_LABELS, parseISO, weekdayIndex } from '../lib/dates'
-import { dayPlanOf } from '../lib/plan'
+import { dayPlanOf, isRestDay } from '../lib/plan'
 import { useStore } from '../store'
 import { primaryBtn, rowBtn, Sheet } from './Sheet'
 
@@ -10,7 +10,7 @@ const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satu
 
 /** `weekDates` are the 7 ISO dates (Mon–Sun) of the week being viewed. */
 export function DaySheet({ date, weekDates, onClose }: { date: string; weekDates: string[]; onClose: () => void }) {
-  const { plan, overrides, routines, copyDay, saveRoutine, deleteRoutine, loadRoutine, resetDay } = useStore()
+  const { plan, overrides, routines, copyDay, saveRoutine, deleteRoutine, loadRoutine, resetDay, setRestDay } = useStore()
   const [mode, setMode] = useState<Mode>('menu')
   const [targets, setTargets] = useState<number[]>([])
   const [name, setName] = useState('')
@@ -18,6 +18,7 @@ export function DaySheet({ date, weekDates, onClose }: { date: string; weekDates
   const planned = dayPlanOf(plan, overrides, date)
   const planOf = (i: number) => dayPlanOf(plan, overrides, weekDates[i])
   const empty = planned.length === 0
+  const rest = isRestDay(overrides, date)
 
   const toggle = (i: number) => setTargets((t) => (t.includes(i) ? t.filter((x) => x !== i) : [...t, i]))
 
@@ -112,7 +113,25 @@ export function DaySheet({ date, weekDates, onClose }: { date: string; weekDates
         <span>Load a routine</span>
         <span className="text-xs text-neutral-400">{routines.length ? `${routines.length} saved` : 'None saved yet'}</span>
       </button>
-      {overrides[date] && (
+      {rest ? (
+        <button onClick={() => { resetDay(date); onClose() }} className={rowBtn}>
+          <span>Cancel rest day</span>
+          <span className="text-xs text-neutral-400">Go back to the weekly plan</span>
+        </button>
+      ) : (
+        <button
+          onClick={() => {
+            if (planned.length > 0 && !confirm(`Make this a rest day? This clears the ${planned.length} planned exercise${planned.length === 1 ? '' : 's'} for this date.`)) return
+            setRestDay(date)
+            onClose()
+          }}
+          className={rowBtn}
+        >
+          <span>Make this a rest day</span>
+          <span className="text-xs text-neutral-400">This date only</span>
+        </button>
+      )}
+      {overrides[date] && !rest && (
         <button onClick={() => { resetDay(date); onClose() }} className={rowBtn}>
           <span>Reset to weekly plan</span>
           <span className="text-xs text-neutral-400">Undo generated plan for this day</span>
