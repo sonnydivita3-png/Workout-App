@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { fmtLong, fmtShort, weekdayIndex, parseISO } from '../lib/dates'
+import { addDays, fmtLong, fmtShort, parseISO, toISO, weekdayIndex } from '../lib/dates'
+import { goalPct, goalTitle } from '../lib/goals'
 import { bestLift, hasData, weekStats } from '../lib/stats'
 import { formatPace, showDistance, showWeight, storeWeight } from '../lib/units'
 import { useToday } from '../lib/useToday'
 import { findExercise, selectLastLog, useStore } from '../store'
 import type { ExerciseLog, Goal, Units } from '../types'
 import { GoalSheet } from './GoalSheet'
+import { NotificationsSheet } from './NotificationsSheet'
 import { LineChart } from './LineChart'
 import { NumberInput } from './NumberInput'
 import type { Tab } from './TabBar'
@@ -30,7 +32,7 @@ function summary(l: ExerciseLog, u: Units): string {
   const sets = (l.sets ?? []).filter((s) => s.weight && s.reps)
   if (sets.length === 0) return '—'
   const top = sets.reduce((a, s) => (s.weight! > a.weight! ? s : a))
-  return `${sets.length} sets · top ${showWeight(top.weight, u)} × ${top.reps}`
+  return `${sets.length} set${sets.length === 1 ? "" : "s"} · top ${showWeight(top.weight, u)} × ${top.reps}`
 }
 
 export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
@@ -38,6 +40,8 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   const today = useToday()
   const [hour] = useState(() => new Date().getHours())
   const [goalSheet, setGoalSheet] = useState(false)
+  const [notifSheet, setNotifSheet] = useState(false)
+  const unread = useStore((st) => st.notifications.filter((n) => !n.read).length)
   const [nameDraft, setNameDraft] = useState('')
   const { units, logs, custom, plan } = s
 
@@ -58,7 +62,21 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
 
   return (
     <div className="space-y-3">
-      <header className="mb-4">
+      <header className="relative mb-4">
+        <button
+          onClick={() => setNotifSheet(true)}
+          aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
+          className="absolute right-0 top-0 flex h-9 w-9 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-200/60"
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 9a6 6 0 1112 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9M10 20a2 2 0 004 0" />
+          </svg>
+          {unread > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-neutral-900 px-1 text-[10px] font-medium text-white">
+              {unread}
+            </span>
+          )}
+        </button>
         <p className="text-sm text-neutral-400">{fmtLong(today)}</p>
         {s.name ? (
           <h1 className="text-2xl font-semibold tracking-tight">{greeting}, {s.name}</h1>
@@ -155,6 +173,7 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
       </Card>
 
       {goalSheet && <GoalSheet onClose={() => setGoalSheet(false)} />}
+      {notifSheet && <NotificationsSheet onClose={() => setNotifSheet(false)} />}
     </div>
   )
 }
@@ -169,39 +188,108 @@ function Tile({ label, value, sub }: { label: string; value: string; sub?: strin
   )
 }
 
+const RANGES = [
+  { id: '30', label: '30D', days: 30 },
+  { id: '90', label: '90D', days: 90 },
+  { id: '365', label: '1Y', days: 365 },
+  { id: 'all', label: 'All', days: Infinity },
+] as const
+
 function BodyweightCard({ today }: { today: string }) {
-  const { bodyweight, units, logBodyweight } = useStore()
+  const { bodyweight, goals, units, logBodyweight, deleteBodyweight } = useStore()
   const [draft, setDraft] = useState<number | null>(null)
+  const [date, setDate] = useState(today)
+  const [range, setRange] = useState<(typeof RANGES)[number]['id']>('90')
+  const [showEntries, setShowEntries] = useState(false)
+
+  const days = RANGES.find((r) => r.id === range)!.days
+  const cutoff = days === Infinity ? '' : toISO(addDays(parseISO(today), -days))
+  const inRange = bodyweight.filter((b) => b.date >= cutoff)
+  const points = inRange.map((b) => ({ date: b.date, y: showWeight(b.lb, units)! }))
+  const format = (v: number) => `${Math.round(v * 10) / 10} ${units.weight}`
+
   const latest = bodyweight.at(-1)
-  const prev = bodyweight.at(-2)
-  const delta = latest && prev ? showWeight(latest.lb - prev.lb, units)! : null
-  const points = bodyweight.slice(-60).map((b) => ({ date: b.date, y: showWeight(b.lb, units)! }))
-  const format = (v: number) => `${(Math.round(v * 10) / 10).toString()} ${units.weight}`
+  const first = inRange[0]
+  const change = latest && first && inRange.length > 1 ? showWeight(latest.lb - first.lb, units)! : null
+  const goal = goals.find((g) => g.type === 'bodyweight')
+  const target = goal?.type === 'bodyweight' ? showWeight(goal.target, units)! : null
 
   return (
     <Card title="Body weight">
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
           <div className="text-2xl font-semibold tabular-nums">{latest ? format(showWeight(latest.lb, units)!) : '—'}</div>
-          {latest && (
-            <div className="text-xs text-neutral-400">
-              {fmtShort(latest.date)}
-              {delta != null && ` · ${delta > 0 ? '+' : ''}${Math.round(delta * 10) / 10} since ${fmtShort(prev!.date)}`}
-            </div>
+          <div className="text-xs text-neutral-400">
+            {latest ? fmtShort(latest.date) : 'Log your first weigh-in'}
+            {change != null && ` · ${change > 0 ? '+' : ''}${Math.round(change * 10) / 10} ${units.weight} since ${fmtShort(first.date)}`}
+          </div>
+        </div>
+      </div>
+
+      <form
+        className="mb-4 flex items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (draft && date) { logBodyweight(date, storeWeight(draft, units)!); setDraft(null); setDate(today) }
+        }}
+      >
+        <input
+          type="date"
+          value={date}
+          max={today}
+          onChange={(e) => setDate(e.target.value || today)}
+          aria-label="Weigh-in date"
+          className="min-w-0 flex-1 rounded-lg bg-neutral-100 px-2 py-2 text-sm outline-none"
+        />
+        <div className="w-20"><NumberInput value={draft} step={0.1} placeholder={units.weight} onChange={setDraft} /></div>
+        <button disabled={!draft} className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-white disabled:opacity-30">Log</button>
+      </form>
+
+      {points.length > 0 ? (
+        <>
+          <div className="mb-2 flex gap-1.5">
+            {RANGES.map((r) => (
+              <button
+                key={r.id}
+                onClick={() => setRange(r.id)}
+                className={`rounded-full px-3 py-1 text-xs ${r.id === range ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-500'}`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          <LineChart
+            points={points}
+            format={format}
+            label="Body weight"
+            refLine={target != null ? { y: target, label: `Goal ${target}` } : undefined}
+          />
+          {points.length === 1 && <p className="mt-1 text-xs text-neutral-400">Log another weigh-in to see your trend.</p>}
+        </>
+      ) : (
+        bodyweight.length > 0 && <p className="text-sm text-neutral-400">No weigh-ins in this range.</p>
+      )}
+
+      {bodyweight.length > 0 && (
+        <div className="mt-3 border-t border-neutral-100 pt-2">
+          <button onClick={() => setShowEntries(!showEntries)} className="text-xs text-neutral-400">
+            {showEntries ? 'Hide entries' : `All entries (${bodyweight.length})`}
+          </button>
+          {showEntries && (
+            <ul className="mt-1 max-h-48 divide-y divide-neutral-100 overflow-y-auto text-sm">
+              {[...bodyweight].reverse().map((b) => (
+                <li key={b.date} className="flex items-center justify-between py-1.5">
+                  <span className="text-neutral-500">{fmtShort(b.date)}</span>
+                  <span className="flex items-center gap-3 tabular-nums">
+                    {format(showWeight(b.lb, units)!)}
+                    <button onClick={() => deleteBodyweight(b.date)} aria-label={`Delete ${b.date}`} className="text-lg leading-none text-neutral-300">×</button>
+                  </span>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
-        <form
-          className="flex items-center gap-2"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (draft) { logBodyweight(today, storeWeight(draft, units)!); setDraft(null) }
-          }}
-        >
-          <div className="w-20"><NumberInput value={draft} step={0.1} placeholder={units.weight} onChange={setDraft} /></div>
-          <button disabled={!draft} className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-white disabled:opacity-30">Log</button>
-        </form>
-      </div>
-      {points.length > 1 && <LineChart points={points} format={format} label="Body weight" />}
+      )}
     </Card>
   )
 }
@@ -209,29 +297,20 @@ function BodyweightCard({ today }: { today: string }) {
 function GoalRow({ goal }: { goal: Goal }) {
   const { logs, custom, units, bodyweight, deleteGoal } = useStore()
   const today = useToday()
-  let title = ''
+  const title = goalTitle(goal, units, (id) => findExercise(custom, id)?.name)
+  const pct = goalPct(goal, logs, bodyweight, today)
+  const done = pct >= 1
   let detail = ''
-  let pct = 0
 
   if (goal.type === 'workouts') {
-    const n = weekStats(logs, today).workouts
-    title = `${goal.perWeek} workouts a week`
-    detail = `${n} / ${goal.perWeek} this week`
-    pct = n / goal.perWeek
+    detail = `${weekStats(logs, today).workouts} / ${goal.perWeek} this week`
   } else if (goal.type === 'bodyweight') {
     const now = bodyweight.at(-1)?.lb ?? null
-    const start = goal.start ?? bodyweight[0]?.lb ?? null
-    title = `Body weight → ${showWeight(goal.target, units)} ${units.weight}`
     detail = now == null ? 'Log your weight to start' : `Now ${showWeight(now, units)} ${units.weight}`
-    if (now != null && start != null) pct = start === goal.target ? 1 : (start - now) / (start - goal.target)
   } else {
     const best = bestLift(logs, goal.exerciseId)
-    title = `${findExercise(custom, goal.exerciseId)?.name ?? 'Lift'} → ${showWeight(goal.target, units)} ${units.weight}`
     detail = best ? `Best ${showWeight(best, units)} ${units.weight}` : 'Not logged yet'
-    pct = best / goal.target
   }
-  pct = Math.max(0, Math.min(1, pct))
-  const done = pct >= 1
 
   return (
     <li>

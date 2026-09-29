@@ -16,6 +16,8 @@ npm test         # randomizer unit tests
 - Workout randomizer: pick body parts and/or cardio plus a time, get a balanced workout with sets, reps and cardio minutes; swap or remove exercises, reroll, add to the day or save as a routine
 - Weekly plan by weekday, per-set logging, "last time" reminders
 - Duplicate a day to other days; save a day as a named routine and load it onto any day
+- Body weight chart with 30D/90D/1Y/All ranges, goal line, backdated entries
+- Notifications: goal progress/completion, new personal bests, daily workout reminder — in-app feed, banners, optional system alerts (checked while the app is open)
 - Goals: workouts per week, body weight target, lift target
 - Exercise library from [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (public domain) + custom exercises
 - History: est. 1RM / top weight / volume charts (lifting), pace / distance / time (cardio), PR badges

@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { BUILTIN_BY_ID } from './data/exercises'
 import type {
-  BodyweightEntry, CardioEntry, Exercise, ExerciseKind, ExerciseLog, Goal, NewGoal, PlannedExercise, Routine, StrengthSet, Units, WeekPlan,
+  AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, Goal, NewGoal, PlannedExercise, Routine, StrengthSet, Units, WeekPlan,
 } from './types'
 
 export interface Data {
@@ -17,6 +17,13 @@ export interface Data {
 }
 
 interface State extends Data {
+  notifications: AppNotification[]
+  notifPrefs: NotifPrefs
+  pushNotifications: (items: Omit<AppNotification, 'ts' | 'read'>[]) => AppNotification[]
+  markAllRead: () => void
+  clearNotifications: () => void
+  setNotifPrefs: (p: Partial<NotifPrefs>) => void
+  deleteBodyweight: (date: string) => void
   addExercise: (day: number, exerciseId: string, kind: ExerciseKind) => void
   removeExercise: (day: number, exerciseId: string) => void
   setSetCount: (day: number, exerciseId: string, sets: number) => void
@@ -54,6 +61,36 @@ export const useStore = create<State>()(
       bodyweight: [],
       routines: [],
       goals: [],
+      notifications: [],
+      notifPrefs: { system: false, goals: true, pbs: true, daily: true, reminderTime: '17:00' },
+      pushNotifications: (items) => {
+        const existing = new Map(get().notifications.map((n) => [n.id, n]))
+        const created: AppNotification[] = []
+        const updated = new Map<string, Omit<AppNotification, 'ts' | 'read'>>()
+        for (const it of items) {
+          if (existing.has(it.id)) {
+            const cur = existing.get(it.id)!
+            if (cur.title !== it.title || cur.body !== it.body) updated.set(it.id, it)
+          } else {
+            created.push({ ...it, ts: Date.now(), read: false })
+          }
+        }
+        if (created.length || updated.size) {
+          set((s) => ({
+            notifications: [
+              ...created,
+              ...s.notifications.map((n) => (updated.has(n.id) ? { ...n, ...updated.get(n.id)! } : n)),
+            ]
+              .sort((a, b) => b.ts - a.ts)
+              .slice(0, 50),
+          }))
+        }
+        return created
+      },
+      markAllRead: () => set((s) => ({ notifications: s.notifications.map((n) => (n.read ? n : { ...n, read: true })) })),
+      clearNotifications: () => set({ notifications: [] }),
+      setNotifPrefs: (p) => set((s) => ({ notifPrefs: { ...s.notifPrefs, ...p } })),
+      deleteBodyweight: (date) => set((s) => ({ bodyweight: s.bodyweight.filter((b) => b.date !== date) })),
       addExercise: (day, exerciseId, kind) =>
         set((s) => ({
           plan: s.plan.map((d, i) =>

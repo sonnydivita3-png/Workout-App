@@ -29,7 +29,7 @@ export default defineConfig({
           { src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: { globPatterns: ['**/*.{js,css,html,svg,png,json}'] },
+      workbox: { importScripts: ['sw-notify.js'], globPatterns: ['**/*.{js,css,html,svg,png,json}'] },
     }),
   ],
 })
