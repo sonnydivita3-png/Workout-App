@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { PlannedExercise } from '../types'
 import { addDays, fmtShort, mondayOf, parseISO, toISO, weekdayIndex } from '../lib/dates'
 import { dayPlanOf } from '../lib/plan'
 import {
@@ -22,12 +23,14 @@ interface Props {
   onSwitchMode: (m: GeneratorMode) => void
   /** Called with the first planned date after the plan is applied, so the Plan tab can jump to it. */
   onApplied: (firstDate: string) => void
+  /** Use the plan for something else (e.g. sending to a friend) instead of adding it to the calendar. */
+  onUse?: (days: { offset: number; items: PlannedExercise[] }[], weeks: 1 | 4) => void
 }
 
-export function ProgramSheet({ onClose, onSwitchMode, onApplied }: Props) {
+export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props) {
   const { logs, custom, plan, overrides, programs, startProgram } = useStore()
   const today = useToday()
-  const [when, setWhen] = useState<'this' | 'next'>('this')
+  const [when, setWhen] = useState<'this' | 'next'>(onUse ? 'next' : 'this')
   const [weeks, setWeeks] = useState<1 | 4>(1)
   const [goal, setGoal] = useState<ProgramGoal>('muscle')
   const [days, setDays] = useState<number[]>(defaultWeekdays(3))
@@ -127,6 +130,11 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied }: Props) {
     setResult((r) => r && r.map((d, i) => (d.date === date ? rerollDay(d, minutes, weeks, recentIds(i)) : d)))
 
   const apply = () => {
+    if (onUse) {
+      const t0 = parseISO(anchorMonday).getTime()
+      onUse(result.map((d) => ({ offset: Math.round((parseISO(d.date).getTime() - t0) / 86400000), items: d.items })), weeks)
+      return
+    }
     startProgram(Object.fromEntries(result.map((d) => [d.date, d.items])), `Random ${weeks === 4 ? 'month' : 'week'} plan`, today)
     onApplied(result[0].date)
     onClose()
@@ -182,17 +190,17 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied }: Props) {
         ))}
       </div>
 
-      {existing > 0 && (
+      {!onUse && existing > 0 && (
         <p className="mt-4 text-xs text-neutral-500">
           This replaces the plan on {existing} day{existing === 1 ? '' : 's'} that already have exercises. Your logged workouts are not affected.
         </p>
       )}
-      {runningProgram && <p className="mt-2 text-xs text-neutral-500">Your current program “{runningProgram.title}” will be stopped and replaced.</p>}
+      {!onUse && runningProgram && <p className="mt-2 text-xs text-neutral-500">Your current program “{runningProgram.title}” will be stopped and replaced.</p>}
       <div className="mt-4 flex gap-2">
         <button onClick={build} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium">Regenerate</button>
         <button onClick={() => setResult(null)} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium">Change settings</button>
       </div>
-      <button onClick={apply} className={`${primaryBtn} mt-2`}>Apply to my plan</button>
+      <button onClick={apply} className={`${primaryBtn} mt-2`}>{onUse ? 'Use this plan' : 'Apply to my plan'}</button>
     </Sheet>
   )
 }

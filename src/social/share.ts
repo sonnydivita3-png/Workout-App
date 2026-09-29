@@ -161,3 +161,10 @@ export function completedWorkout(date: string, logs: ExerciseLog[], lookup: (id:
   const used = new Set(items.map((i) => i.exerciseId))
   return { version: 1, scope: 'day', days: [{ offset: 0, rest: false, items }], custom: custom.filter((c) => used.has(c.id)).map((c) => clone(c)), results }
 }
+
+/** A shareable plan built from days you made on the spot (a saved routine, a random workout, or one you built). */
+export function payloadFromDays(days: { offset: number; items: PlannedExercise[] }[], scope: Scope, allCustom: Exercise[]): SharedPayload {
+  const out = days.map((d) => ({ offset: d.offset, rest: d.items.length === 0, items: clone(d.items) }))
+  const used = new Set(out.flatMap((d) => d.items.map((i) => i.exerciseId)))
+  return { version: 1, scope, days: out, custom: allCustom.filter((c) => used.has(c.id)).map((c) => clone(c)) }
+}
