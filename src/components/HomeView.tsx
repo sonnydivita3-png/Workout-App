@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { addDays, fmtLong, fmtShort, parseISO, toISO, weekdayIndex } from '../lib/dates'
+import { addDays, fmtLong, fmtShort, parseISO, toISO } from '../lib/dates'
 import { goalPct, goalTitle } from '../lib/goals'
+import { dayPlanOf } from '../lib/plan'
 import { bestLift, hasData, weekStats } from '../lib/stats'
 import { formatPace, formatSeconds, showDistance, showWeight, storeWeight } from '../lib/units'
 import { useToday } from '../lib/useToday'
@@ -50,10 +51,10 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   const [notifSheet, setNotifSheet] = useState(false)
   const unread = useStore((st) => st.notifications.filter((n) => !n.read).length)
   const [nameDraft, setNameDraft] = useState('')
-  const { units, logs, custom, plan } = s
+  const { units, logs, custom, plan, overrides } = s
 
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
-  const planned = plan[weekdayIndex(parseISO(today))]
+  const planned = dayPlanOf(plan, overrides, today)
   const todays = new Map(logs.filter((l) => l.date === today && hasData(l)).map((l) => [l.exerciseId, l]))
   const upcoming = planned.filter((p) => !todays.has(p.exerciseId))
 

@@ -1,0 +1,195 @@
+import { useState } from 'react'
+import { addDays, fmtShort, mondayOf, parseISO, toISO, weekdayIndex } from '../lib/dates'
+import { dayPlanOf } from '../lib/plan'
+import {
+  defaultWeekdays, generateProgram, goalInfo, majorGroupsLogged, PROGRAM_GOALS, rerollDay, type ProgramDay, type ProgramGoal,
+} from '../lib/program'
+import { minutesFor, styleInfo } from '../lib/randomizer'
+import { useToday } from '../lib/useToday'
+import { findExercise, useStore } from '../store'
+import { ModeSwitch, type GeneratorMode } from './ModeSwitch'
+import { primaryBtn, Sheet } from './Sheet'
+import { WorkoutList } from './WorkoutList'
+
+const DURATIONS = [30, 45, 60, 75, 90]
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'}`
+
+interface Props {
+  onClose: () => void
+  onSwitchMode: (m: GeneratorMode) => void
+  /** Called with the first planned date after the plan is applied, so the Plan tab can jump to it. */
+  onApplied: (firstDate: string) => void
+}
+
+export function ProgramSheet({ onClose, onSwitchMode, onApplied }: Props) {
+  const { logs, custom, plan, overrides, applyProgram } = useStore()
+  const today = useToday()
+  const [when, setWhen] = useState<'this' | 'next'>('this')
+  const [weeks, setWeeks] = useState<1 | 4>(1)
+  const [goal, setGoal] = useState<ProgramGoal>('muscle')
+  const [days, setDays] = useState<number[]>(defaultWeekdays(3))
+  const [minutes, setMinutes] = useState(45)
+  const [result, setResult] = useState<ProgramDay[] | null>(null)
+  const [open, setOpen] = useState<string | null>(null)
+
+  const monday = mondayOf(parseISO(today))
+  const anchorMonday = toISO(when === 'this' ? monday : addDays(monday, 7))
+  const fromDate = when === 'this' ? today : anchorMonday
+
+  const build = () => {
+    const first = fromDate
+    const prev = toISO(addDays(parseISO(first), -1))
+    setResult(
+      generateProgram({
+        anchorMonday, weeks, fromDate, trainWeekdays: days, goal, minutes,
+        prevDayGroups: majorGroupsLogged(logs, prev, (id) => findExercise(custom, id)),
+      }),
+    )
+    setOpen(null)
+  }
+
+  const toggleDay = (i: number) => setDays((d) => (d.includes(i) ? d.filter((x) => x !== i) : [...d, i].sort()))
+
+  if (!result) {
+    return (
+      <Sheet title="Randomize" onClose={onClose} closeLabel="Cancel">
+        <ModeSwitch mode="program" onChange={onSwitchMode} />
+
+        <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Plan for</h3>
+        <div className="mb-2 flex flex-wrap gap-2">
+          <button onClick={() => setWhen('this')} className={chip(when === 'this')}>This week</button>
+          <button onClick={() => setWhen('next')} className={chip(when === 'next')}>Next week</button>
+          <span className="mx-1 w-px bg-neutral-200" />
+          <button onClick={() => setWeeks(1)} className={chip(weeks === 1)}>1 week</button>
+          <button onClick={() => setWeeks(4)} className={chip(weeks === 4)}>Month (4 weeks)</button>
+        </div>
+        {when === 'this' && <p className="mb-5 text-xs text-neutral-400">Days that have already passed this week are left alone.</p>}
+        {when === 'next' && <div className="mb-5" />}
+
+        <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Goal</h3>
+        <div className="mb-1 flex flex-wrap gap-2">
+          {PROGRAM_GOALS.map((g) => (
+            <button key={g.id} onClick={() => setGoal(g.id)} className={chip(g.id === goal)}>{g.label}</button>
+          ))}
+        </div>
+        <p className="mb-5 text-xs text-neutral-400">{goalInfo(goal).blurb}</p>
+
+        <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Training days</h3>
+        <div className="mb-2 flex flex-wrap gap-2">
+          {[2, 3, 4, 5, 6].map((n) => (
+            <button key={n} onClick={() => setDays(defaultWeekdays(n))} className={chip(days.length === n && days.join() === defaultWeekdays(n).join())}>
+              {n} days
+            </button>
+          ))}
+        </div>
+        <div className="mb-1 grid grid-cols-7 gap-1.5">
+          {DAY_NAMES.map((l, i) => (
+            <button
+              key={l}
+              onClick={() => toggleDay(i)}
+              aria-pressed={days.includes(i)}
+              className={`rounded-xl py-2 text-sm ${days.includes(i) ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-500'}`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+        <p className="mb-5 text-xs text-neutral-400">
+          {days.length} training day{days.length === 1 ? '' : 's'}, {7 - days.length} rest day{7 - days.length === 1 ? '' : 's'} a week. Tap days to customize.
+        </p>
+
+        <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Session length</h3>
+        <div className="mb-5 flex flex-wrap gap-2">
+          {DURATIONS.map((m) => (
+            <button key={m} onClick={() => setMinutes(m)} className={chip(m === minutes)}>{m} min</button>
+          ))}
+        </div>
+
+        <p className="mb-4 text-xs text-neutral-400">
+          No major muscle group (chest, back, shoulders, legs, glutes) is trained two days in a row. Arms, core and cardio can overlap.
+          {weeks === 4 && ' Week 3 adds a set to lifts and week 4 is a lighter deload.'}
+        </p>
+        <button disabled={days.length === 0} onClick={build} className={primaryBtn}>Build my plan</button>
+      </Sheet>
+    )
+  }
+
+  const workouts = result.filter((d) => !d.rest)
+  const existing = result.filter((d) => dayPlanOf(plan, overrides, d.date).length > 0).length
+  const byWeek = [...new Set(result.map((d) => d.weekIndex))].map((w) => result.filter((d) => d.weekIndex === w))
+  const recentIds = (i: number) => new Set(result.slice(Math.max(0, i - 3), i + 4).flatMap((d) => d.items.map((p) => p.exerciseId)))
+
+  const reroll = (date: string) =>
+    setResult((r) => r && r.map((d, i) => (d.date === date ? rerollDay(d, minutes, weeks, recentIds(i)) : d)))
+
+  const apply = () => {
+    applyProgram(Object.fromEntries(result.map((d) => [d.date, d.items])))
+    onApplied(result[0].date)
+    onClose()
+  }
+
+  return (
+    <Sheet title="Your plan" onClose={onClose} closeLabel="Close">
+      <p className="mb-1 text-sm text-neutral-500">
+        {goalInfo(goal).label} · {workouts.length} workout{workouts.length === 1 ? '' : 's'} · {result.length - workouts.length} rest day{result.length - workouts.length === 1 ? '' : 's'}
+      </p>
+      <p className="mb-4 text-xs text-neutral-400">Tap a day to see the exercises or reroll just that day.</p>
+
+      <div className="space-y-4">
+        {byWeek.map((week, wi) => (
+          <div key={wi}>
+            <h3 className="mb-1 text-xs uppercase tracking-wide text-neutral-400">
+              Week {week[0].weekIndex + 1} · {fmtShort(week[0].date)} – {fmtShort(week.at(-1)!.date)}
+            </h3>
+            <ul className="divide-y divide-neutral-100 rounded-2xl bg-neutral-50 px-3">
+              {week.map((d) => {
+                const label = `${DAY_NAMES[weekdayIndex(parseISO(d.date))]} ${parseISO(d.date).getDate()}`
+                if (d.rest) {
+                  return (
+                    <li key={d.date} className="flex items-center justify-between py-2.5 text-sm text-neutral-400">
+                      <span>{label}</span><span>Rest</span>
+                    </li>
+                  )
+                }
+                const isOpen = open === d.date
+                return (
+                  <li key={d.date} className="py-2.5">
+                    <button onClick={() => setOpen(isOpen ? null : d.date)} className="flex w-full items-center justify-between gap-2 text-left" aria-expanded={isOpen}>
+                      <span className="min-w-0">
+                        <span className="text-sm text-neutral-500">{label}</span>
+                        <span className="ml-3 font-medium">{d.name}</span>
+                        {d.style && d.style !== 'standard' && d.style !== 'strength' && (
+                          <span className="ml-2 text-xs text-neutral-400">{styleInfo(d.style).label}</span>
+                        )}
+                      </span>
+                      <span className="shrink-0 text-xs text-neutral-400">~{Math.round(minutesFor(d.items))} min {isOpen ? '⌃' : '⌄'}</span>
+                    </button>
+                    {isOpen && (
+                      <div className="mt-2">
+                        <WorkoutList items={d.items} />
+                        <button onClick={() => reroll(d.date)} className="mt-2 rounded-full bg-white px-3 py-1 text-sm shadow-sm ring-1 ring-neutral-200">Reroll this day</button>
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+      {existing > 0 && (
+        <p className="mt-4 text-xs text-neutral-500">
+          This replaces the plan on {existing} day{existing === 1 ? '' : 's'} that already have exercises. Your logged workouts are not affected.
+        </p>
+      )}
+      <div className="mt-4 flex gap-2">
+        <button onClick={build} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium">Regenerate</button>
+        <button onClick={() => setResult(null)} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium">Change settings</button>
+      </div>
+      <button onClick={apply} className={`${primaryBtn} mt-2`}>Apply to my plan</button>
+    </Sheet>
+  )
+}

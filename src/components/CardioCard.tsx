@@ -8,11 +8,12 @@ interface Props {
   current?: ExerciseLog
   last?: ExerciseLog
   targetMinutes?: number
+  note?: string
   onChange: (c: CardioEntry) => void
   onRemove: () => void
 }
 
-export function CardioCard({ exercise, current, last, targetMinutes, onChange, onRemove }: Props) {
+export function CardioCard({ exercise, current, last, targetMinutes, note, onChange, onRemove }: Props) {
   const units = useStore((s) => s.units)
   const c = current?.cardio ?? { distance: null, minutes: null }
   const prev = last?.cardio
@@ -21,7 +22,7 @@ export function CardioCard({ exercise, current, last, targetMinutes, onChange, o
       <div className="mb-3 flex items-start justify-between">
         <div>
           <h3 className="font-semibold">{exercise.name}</h3>
-          <p className="text-xs text-neutral-400">Cardio{targetMinutes ? ` · target ${targetMinutes} min` : ''}</p>
+          <p className="text-xs text-neutral-400">Cardio{targetMinutes ? ` · target ${targetMinutes} min` : ''}{note ? ` · ${note}` : ''}</p>
         </div>
         <button onClick={onRemove} aria-label="Remove" className="text-lg leading-none text-neutral-400">×</button>
       </div>

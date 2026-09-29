@@ -1,7 +1,11 @@
 import { useMemo, useState } from 'react'
-import { toISO, weekDates, weekdayIndex } from '../lib/dates'
+import { parseISO, toISO, weekDates, weekdayIndex } from '../lib/dates'
+import { groupByBlock } from '../lib/describe'
+import { dayPlanOf } from '../lib/plan'
 import { findExercise, selectLastLog, useStore } from '../store'
+import { ProgramSheet } from './ProgramSheet'
 import { RandomizerSheet } from './RandomizerSheet'
+import type { GeneratorMode } from './ModeSwitch'
 import { DaySheet } from './DaySheet'
 import { CardioCard } from './CardioCard'
 import { ExercisePicker } from './ExercisePicker'
@@ -14,12 +18,12 @@ export function PlanView() {
   const [today] = useState(() => toISO(new Date()))
   const [picking, setPicking] = useState(false)
   const [dayMenu, setDayMenu] = useState(false)
-  const [randomizing, setRandomizing] = useState(false)
+  const [generator, setGenerator] = useState<GeneratorMode | null>(null)
   const s = useStore()
 
   const dates = useMemo(() => weekDates(anchor), [anchor])
   const date = toISO(dates[day])
-  const planned = s.plan[day]
+  const planned = dayPlanOf(s.plan, s.overrides, date)
   const shiftWeek = (n: number) => setAnchor((a) => new Date(a.getFullYear(), a.getMonth(), a.getDate() + 7 * n))
 
   return (
@@ -35,10 +39,10 @@ export function PlanView() {
         </div>
       </header>
 
-      <WeekStrip dates={dates} selected={day} counts={s.plan.map((d) => d.length)} today={today} onSelect={setDay} />
+      <WeekStrip dates={dates} selected={day} counts={dates.map((d) => dayPlanOf(s.plan, s.overrides, toISO(d)).length)} today={today} onSelect={setDay} />
 
       <div className="mt-4 flex justify-end gap-2">
-        <button onClick={() => setRandomizing(true)} className="rounded-full bg-neutral-900 px-3 py-1 text-sm text-white">
+        <button onClick={() => setGenerator('one')} className="rounded-full bg-neutral-900 px-3 py-1 text-sm text-white">
           Randomize
         </button>
         <button onClick={() => setDayMenu(true)} className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-600">
@@ -50,36 +54,43 @@ export function PlanView() {
         {planned.length === 0 && (
           <p className="py-12 text-center text-neutral-400">Rest day. Add exercises, or tap Randomize for a ready-made workout.</p>
         )}
-        {planned.map((p) => {
-          const ex = findExercise(s.custom, p.exerciseId)
-          if (!ex) return null
-          const current = s.logs.find((l) => l.date === date && l.exerciseId === ex.id)
-          const last = selectLastLog(s.logs, ex.id, date)
-          return ex.kind === 'strength' ? (
-            <StrengthCard
-              key={ex.id}
-              exercise={ex}
-              setCount={p.sets}
-              targetReps={p.reps}
-              targetSeconds={p.seconds}
-              current={current}
-              last={last}
-              onSetCount={(n) => s.setSetCount(day, ex.id, n)}
-              onChange={(sets) => s.saveStrength(date, ex.id, sets)}
-              onRemove={() => s.removeExercise(day, ex.id)}
-            />
-          ) : (
-            <CardioCard
-              key={ex.id}
-              exercise={ex}
-              current={current}
-              last={last}
-              targetMinutes={p.minutes}
-              onChange={(c) => s.saveCardio(date, ex.id, c)}
-              onRemove={() => s.removeExercise(day, ex.id)}
-            />
-          )
-        })}
+        {groupByBlock(planned).map((g, gi) => (
+          <div key={gi} className={g.block ? 'space-y-2 rounded-3xl bg-neutral-200/50 p-2' : 'contents'}>
+            {g.block && g.label && <p className="px-2 pt-1 text-[11px] uppercase tracking-wide text-neutral-500">{g.label}</p>}
+            {g.items.map(({ item: p }) => {
+              const ex = findExercise(s.custom, p.exerciseId)
+              if (!ex) return null
+              const current = s.logs.find((l) => l.date === date && l.exerciseId === ex.id)
+              const last = selectLastLog(s.logs, ex.id, date)
+              return ex.kind === 'strength' ? (
+                <StrengthCard
+                  key={ex.id}
+                  exercise={ex}
+                  setCount={p.sets}
+                  targetReps={p.reps}
+                  targetSeconds={p.seconds}
+                  note={p.note}
+                  current={current}
+                  last={last}
+                  onSetCount={(n) => s.setSetCount(date, ex.id, n)}
+                  onChange={(sets) => s.saveStrength(date, ex.id, sets)}
+                  onRemove={() => s.removeExercise(date, ex.id)}
+                />
+              ) : (
+                <CardioCard
+                  key={ex.id}
+                  exercise={ex}
+                  current={current}
+                  last={last}
+                  targetMinutes={p.minutes}
+                  note={p.note}
+                  onChange={(c) => s.saveCardio(date, ex.id, c)}
+                  onRemove={() => s.removeExercise(date, ex.id)}
+                />
+              )
+            })}
+          </div>
+        ))}
       </section>
 
       <button
@@ -89,13 +100,20 @@ export function PlanView() {
         + Add exercise
       </button>
 
-      {randomizing && <RandomizerSheet day={day} onClose={() => setRandomizing(false)} />}
-      {dayMenu && <DaySheet day={day} onClose={() => setDayMenu(false)} />}
+      {generator === 'one' && <RandomizerSheet date={date} onClose={() => setGenerator(null)} onSwitchMode={setGenerator} />}
+      {generator === 'program' && (
+        <ProgramSheet
+          onClose={() => setGenerator(null)}
+          onSwitchMode={setGenerator}
+          onApplied={(first) => { setAnchor(parseISO(first)); setDay(weekdayIndex(parseISO(first))) }}
+        />
+      )}
+      {dayMenu && <DaySheet date={date} weekDates={dates.map(toISO)} onClose={() => setDayMenu(false)} />}
 
       {picking && (
         <ExercisePicker
           taken={new Set(planned.map((p) => p.exerciseId))}
-          onPick={(e) => s.addExercise(day, e.id, e.kind)}
+          onPick={(e) => s.addExercise(date, e.id, e.kind)}
           onClose={() => setPicking(false)}
         />
       )}

@@ -1,0 +1,225 @@
+import type { Exercise, ExerciseLog, PlannedExercise } from '../types'
+import { addDays, parseISO, toISO, weekdayIndex } from './dates'
+import { generateWorkout, styleInfo, type WorkoutStyle } from './randomizer'
+import { FULL_BODY_GROUPS, type Rng } from './randomUtil'
+import { hasData } from './stats'
+
+export type ProgramGoal = 'muscle' | 'strength' | 'fatloss' | 'fitness' | 'functional'
+
+export const PROGRAM_GOALS: { id: ProgramGoal; label: string; blurb: string }[] = [
+  { id: 'muscle', label: 'Build muscle', blurb: 'Body-part splits with straight sets and supersets, 8–12 reps.' },
+  { id: 'strength', label: 'Get stronger', blurb: 'Heavy compound lifts, low reps, and enough rest between sessions.' },
+  { id: 'fatloss', label: 'Lose fat', blurb: 'HIIT, circuits and PHA, plus cardio, with some lifting to keep muscle.' },
+  { id: 'fitness', label: 'General fitness', blurb: 'A balanced mix of lifting, bodyweight, circuits and cardio.' },
+  { id: 'functional', label: 'Hyrox / CrossFit', blurb: 'Hyrox-style and CrossFit-style sessions with strength work and running.' },
+]
+
+/**
+ * Big muscle groups. Two days in a row never share one of these. Arms, core and cardio are
+ * left out on purpose: they recover fast and show up in most sessions.
+ */
+export const MAJOR_GROUPS = ['Chest', 'Back', 'Shoulders', 'Legs', 'Glutes']
+
+interface DayType {
+  name: string
+  groups: string[] // muscle groups worked (used for recovery and, unless `generic`, as the workout focus)
+  style: WorkoutStyle
+  weight: number
+  /** Full-body formats: generate with no body-part focus. */
+  generic?: boolean
+}
+
+const FULL = FULL_BODY_GROUPS
+const UPPER_BODY = ['Chest', 'Back', 'Shoulders', 'Arms']
+const LOWER_BODY = ['Legs', 'Glutes', 'Core']
+const CARDIO: DayType = { name: 'Cardio', groups: [], style: 'standard', weight: 0.35 }
+
+/**
+ * Day types available for a goal. Full-body sessions touch every major muscle, so the next day can only be cardio:
+ * favour them when there are few training days and split (upper/lower, body-part) sessions when there are many.
+ */
+function dayTypes(goal: ProgramGoal, daysPerWeek: number): DayType[] {
+  const fullWeight = daysPerWeek <= 3 ? 3 : daysPerWeek === 4 ? 0.6 : 0.3
+  const fw = (w: number) => w * (daysPerWeek <= 3 ? 1.6 : daysPerWeek === 4 ? 0.6 : 0.3)
+  const cardio = (w: number): DayType => ({ ...CARDIO, weight: w })
+  switch (goal) {
+    case 'muscle':
+      return [
+        { name: 'Chest & arms', groups: ['Chest', 'Arms'], style: 'standard', weight: 1 },
+        { name: 'Back & core', groups: ['Back', 'Core'], style: 'standard', weight: 1 },
+        { name: 'Shoulders & arms', groups: ['Shoulders', 'Arms'], style: 'supersets', weight: 1 },
+        { name: 'Legs & glutes', groups: ['Legs', 'Glutes', 'Core'], style: 'standard', weight: 1.2 },
+        { name: 'Push (supersets)', groups: ['Chest', 'Shoulders', 'Arms'], style: 'supersets', weight: 0.8 },
+        { name: 'Pull', groups: ['Back', 'Arms', 'Core'], style: 'standard', weight: 0.8 },
+        { name: 'Upper body', groups: UPPER_BODY, style: 'standard', weight: 1 },
+        { name: 'Lower body', groups: LOWER_BODY, style: 'standard', weight: 1 },
+        { name: 'Full body', groups: FULL, style: 'standard', weight: fullWeight },
+        cardio(0.35),
+      ]
+    case 'strength':
+      return [
+        { name: 'Full-body strength', groups: ['Chest', 'Back', 'Shoulders', 'Legs'], style: 'strength', weight: fullWeight },
+        { name: 'Upper strength', groups: ['Chest', 'Back', 'Shoulders'], style: 'strength', weight: 1 },
+        { name: 'Lower strength', groups: LOWER_BODY, style: 'strength', weight: 1.1 },
+        { name: 'Push strength', groups: ['Chest', 'Shoulders'], style: 'strength', weight: 0.7 },
+        { name: 'Pull strength', groups: ['Back', 'Arms'], style: 'strength', weight: 0.7 },
+        cardio(0.35),
+      ]
+    case 'fatloss':
+      return [
+        { name: 'Full-body HIIT', groups: FULL, style: 'circuit', weight: fw(1.2), generic: true },
+        { name: 'Upper-body circuit', groups: [...UPPER_BODY, 'Core'], style: 'circuit', weight: 1 },
+        { name: 'Lower-body circuit', groups: LOWER_BODY, style: 'circuit', weight: 1 },
+        { name: 'PHA full body', groups: FULL, style: 'pha', weight: fw(0.9), generic: true },
+        { name: 'Upper-body PHA', groups: [...UPPER_BODY, 'Core'], style: 'pha', weight: 0.7 },
+        { name: 'Full-body supersets', groups: FULL, style: 'supersets', weight: fw(0.8) },
+        { name: 'Upper body', groups: UPPER_BODY, style: 'standard', weight: 0.6 },
+        { name: 'Lower body', groups: LOWER_BODY, style: 'standard', weight: 0.6 },
+        cardio(1.1),
+      ]
+    case 'fitness':
+      return [
+        { name: 'Full body', groups: FULL, style: 'standard', weight: fw(1.2) },
+        { name: 'Upper body', groups: UPPER_BODY, style: 'standard', weight: 1 },
+        { name: 'Lower body', groups: LOWER_BODY, style: 'standard', weight: 1 },
+        { name: 'Full-body circuit', groups: FULL, style: 'circuit', weight: fw(0.7), generic: true },
+        { name: 'Bodyweight', groups: ['Chest', 'Back', 'Legs', 'Core'], style: 'bodyweight', weight: 0.7 },
+        cardio(0.9),
+      ]
+    case 'functional':
+      return [
+        { name: 'Hyrox-style', groups: FULL, style: 'hyrox', weight: fw(1.6), generic: true },
+        { name: 'CrossFit-style', groups: FULL, style: 'crossfit', weight: fw(1.6), generic: true },
+        { name: 'Lower strength', groups: LOWER_BODY, style: 'strength', weight: 0.9 },
+        { name: 'Upper strength', groups: ['Chest', 'Back', 'Shoulders'], style: 'strength', weight: 0.9 },
+        { name: 'Full-body HIIT', groups: FULL, style: 'circuit', weight: fw(0.7), generic: true },
+        { name: 'Bodyweight', groups: ['Chest', 'Back', 'Legs', 'Core'], style: 'bodyweight', weight: 0.5 },
+        { name: 'Run / cardio', groups: [], style: 'standard', weight: 0.8 },
+      ]
+  }
+}
+
+const majorsOf = (t: DayType) => t.groups.filter((g) => MAJOR_GROUPS.includes(g))
+const isCardioDay = (t: DayType) => t.groups.length === 0
+
+export interface ProgramInput {
+  /** Monday the program's first week starts on. */
+  anchorMonday: string
+  weeks: number
+  /** Skip dates before this (e.g. today, when planning the current week). Defaults to the anchor. */
+  fromDate?: string
+  /** Weekdays to train, 0 = Monday … 6 = Sunday. Every other day is a rest day. */
+  trainWeekdays: number[]
+  goal: ProgramGoal
+  minutes: number
+  /** Major muscle groups trained the day before the first date, so the plan doesn't start with a repeat. */
+  prevDayGroups?: string[]
+  rng?: Rng
+}
+
+export interface ProgramDay {
+  date: string
+  rest: boolean
+  /** Session name, e.g. "Push (supersets)". */
+  name?: string
+  style?: WorkoutStyle
+  /** Focus used to generate the workout (empty for full-body formats and cardio days). */
+  focus: string[]
+  /** Muscle groups worked, for recovery checks. */
+  groups: string[]
+  weekIndex: number
+  items: PlannedExercise[]
+}
+
+const DAY_MS = 86400000
+const daysBetween = (a: string, b: string) => Math.round((parseISO(b).getTime() - parseISO(a).getTime()) / DAY_MS)
+
+/** Progressive overload for a 4-week block: one extra set in week 3, a lighter deload in week 4. */
+export function applyProgression(items: PlannedExercise[], weekIndex: number, weeks: number): PlannedExercise[] {
+  if (weeks !== 4 || weekIndex < 2) return items
+  const delta = weekIndex === 2 ? 1 : -1
+  return items.map((p) => {
+    if (p.block || p.minutes || p.sets <= 1 || (p.seconds === undefined && p.reps === undefined)) return p
+    const sets = Math.max(2, Math.min(5, p.sets + delta))
+    return sets === p.sets ? p : { ...p, sets, est: p.est == null ? undefined : p.est + (sets - p.sets) * 2.5 }
+  })
+}
+
+export function generateProgram(input: ProgramInput): ProgramDay[] {
+  const { anchorMonday, weeks, trainWeekdays, goal, minutes, rng = Math.random } = input
+  const first = input.fromDate && input.fromDate > anchorMonday ? input.fromDate : anchorMonday
+  const total = weeks * 7
+  const dpw = new Set(trainWeekdays).size
+  const types = dayTypes(goal, dpw)
+
+  const lastTrained = new Map<string, number>() // group -> day offset it was last trained
+  const firstOffset = daysBetween(anchorMonday, first)
+  let prevMajors = new Set((input.prevDayGroups ?? []).filter((g) => MAJOR_GROUPS.includes(g)))
+  for (const g of prevMajors) lastTrained.set(g, firstOffset - 1)
+  const recentTypes: string[] = [] // names of the last few session types
+  const recent: string[][] = []
+  const out: ProgramDay[] = []
+
+  for (let offset = firstOffset; offset < total; offset++) {
+    const date = toISO(addDays(parseISO(anchorMonday), offset))
+    const weekIndex = Math.floor(offset / 7)
+    if (!trainWeekdays.includes(weekdayIndex(parseISO(date)))) {
+      out.push({ date, rest: true, focus: [], groups: [], weekIndex, items: [] })
+      prevMajors = new Set()
+      continue
+    }
+
+    // Never repeat a major muscle group from yesterday. Cardio days have none, so a choice always exists.
+    const allowed = types.filter((t) => !majorsOf(t).some((g) => prevMajors.has(g)))
+    const stale = (t: DayType) => {
+      const m = majorsOf(t)
+      if (m.length === 0) return 3
+      return m.reduce((a, g) => a + Math.min(offset - (lastTrained.get(g) ?? -99), 7), 0) / m.length
+    }
+    const scored = allowed.map((t) => ({ t, s: t.weight * stale(t) * (0.85 + rng() * 0.3) * 0.5 ** recentTypes.filter((n) => n === t.name).length }))
+    const type = scored.reduce((a, b) => (b.s > a.s ? b : a)).t
+
+    const focus = isCardioDay(type) ? ['Cardio'] : type.generic ? [] : type.groups
+    const avoid = new Set(recent.flat())
+    let items = generateWorkout(focus, minutes, { style: type.style, rng, avoid })
+    items = applyProgression(items, weekIndex, weeks)
+    recent.push(items.map((p) => p.exerciseId))
+    if (recent.length > 6) recent.shift()
+
+    for (const g of majorsOf(type)) lastTrained.set(g, offset)
+    prevMajors = new Set(majorsOf(type))
+    recentTypes.push(type.name)
+    if (recentTypes.length > 3) recentTypes.shift()
+    out.push({ date, rest: items.length === 0, name: type.name, style: type.style, focus, groups: type.groups, weekIndex, items })
+  }
+  return out
+}
+
+/** Regenerate one day with the same session type (used by "reroll this day"). */
+export function rerollDay(day: ProgramDay, minutes: number, weeks: number, avoidIds: Set<string>, rng: Rng = Math.random): ProgramDay {
+  if (day.rest || !day.style) return day
+  const items = applyProgression(generateWorkout(day.focus, minutes, { style: day.style, rng, avoid: avoidIds }), day.weekIndex, weeks)
+  return { ...day, items }
+}
+
+/** Major muscle groups logged on a date, for recovery-aware planning. */
+export function majorGroupsLogged(logs: ExerciseLog[], date: string, lookup: (id: string) => Exercise | undefined): string[] {
+  const groups = new Set<string>()
+  for (const l of logs) {
+    if (l.date !== date || !hasData(l)) continue
+    const g = lookup(l.exerciseId)?.group
+    if (g && MAJOR_GROUPS.includes(g)) groups.add(g)
+  }
+  return [...groups]
+}
+
+export const goalInfo = (id: ProgramGoal) => PROGRAM_GOALS.find((g) => g.id === id)!
+export const styleLabel = (s?: WorkoutStyle) => (s ? styleInfo(s).label : '')
+
+/** Sensible default training days for N days a week, spread out so rest days land between sessions. */
+export function defaultWeekdays(n: number): number[] {
+  const presets: Record<number, number[]> = {
+    1: [2], 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 3, 4, 5], 6: [0, 1, 2, 3, 4, 5], 7: [0, 1, 2, 3, 4, 5, 6],
+  }
+  return presets[Math.min(7, Math.max(1, n))]
+}
