@@ -1,7 +1,9 @@
 export type GeneratorMode = 'one' | 'program' | 'cardio'
 
+/** The randomizer's two modes; run/bike plans have their own button and sheet. */
+
 export function ModeSwitch({ mode, onChange }: { mode: GeneratorMode; onChange: (m: GeneratorMode) => void }) {
-  const opts: [GeneratorMode, string][] = [['one', 'One workout'], ['program', 'Week / month'], ['cardio', 'Run / bike']]
+  const opts: [GeneratorMode, string][] = [['one', 'One workout'], ['program', 'Week / month']]
   return (
     <div className="mb-4 flex rounded-full bg-neutral-100 p-0.5 text-sm">
       {opts.map(([id, label]) => (

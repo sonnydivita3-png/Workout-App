@@ -7,6 +7,7 @@ import {
 import { minutesFor, styleInfo } from '../lib/randomizer'
 import { useToday } from '../lib/useToday'
 import { findExercise, useStore } from '../store'
+import { activePrograms } from '../lib/programs'
 import { ModeSwitch, type GeneratorMode } from './ModeSwitch'
 import { primaryBtn, Sheet } from './Sheet'
 import { WorkoutList } from './WorkoutList'
@@ -24,7 +25,7 @@ interface Props {
 }
 
 export function ProgramSheet({ onClose, onSwitchMode, onApplied }: Props) {
-  const { logs, custom, plan, overrides, applyProgram } = useStore()
+  const { logs, custom, plan, overrides, programs, startProgram } = useStore()
   const today = useToday()
   const [when, setWhen] = useState<'this' | 'next'>('this')
   const [weeks, setWeeks] = useState<1 | 4>(1)
@@ -116,6 +117,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied }: Props) {
     )
   }
 
+  const runningProgram = activePrograms(programs, today).find((p) => p.kind === 'program')
   const workouts = result.filter((d) => !d.rest)
   const existing = result.filter((d) => dayPlanOf(plan, overrides, d.date).length > 0).length
   const byWeek = [...new Set(result.map((d) => d.weekIndex))].map((w) => result.filter((d) => d.weekIndex === w))
@@ -125,7 +127,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied }: Props) {
     setResult((r) => r && r.map((d, i) => (d.date === date ? rerollDay(d, minutes, weeks, recentIds(i)) : d)))
 
   const apply = () => {
-    applyProgram(Object.fromEntries(result.map((d) => [d.date, d.items])))
+    startProgram(Object.fromEntries(result.map((d) => [d.date, d.items])), `Random ${weeks === 4 ? 'month' : 'week'} plan`, today)
     onApplied(result[0].date)
     onClose()
   }
@@ -185,6 +187,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied }: Props) {
           This replaces the plan on {existing} day{existing === 1 ? '' : 's'} that already have exercises. Your logged workouts are not affected.
         </p>
       )}
+      {runningProgram && <p className="mt-2 text-xs text-neutral-500">Your current program “{runningProgram.title}” will be stopped and replaced.</p>}
       <div className="mt-4 flex gap-2">
         <button onClick={build} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium">Regenerate</button>
         <button onClick={() => setResult(null)} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium">Change settings</button>

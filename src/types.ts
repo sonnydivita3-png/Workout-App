@@ -87,6 +87,19 @@ export type Goal =
   | { id: string; type: 'cardio-pace'; sport: Sport; minDistance: number; target: number }
   | { id: string; type: 'race'; sport: Sport; label: string; distance: number; date?: string }
 
+/** A plan that was added to the calendar in one go, so it can be stopped or replaced as a unit. */
+export interface Program {
+  id: string
+  kind: 'cardio' | 'program'
+  title: string
+  sport?: Sport
+  /** The race goal this plan trains for, if any. */
+  goalId?: string
+  createdAt: string
+  /** The dates it wrote. Cardio entries name the exercise (running/cycling) so only that is removed. */
+  entries: { date: string; exerciseId?: string }[]
+}
+
 export type NewGoal = Goal extends infer G ? (G extends Goal ? Omit<G, 'id'> : never) : never
 
 export type NotificationType = 'goal-reached' | 'goal-close' | 'pr' | 'planned'

@@ -17,7 +17,7 @@ const steps = (social: boolean): Step[] => [
   {
     icon: '🎲', title: 'Let the randomizer build it',
     body: 'Tap Randomize on the Plan tab. Choose muscles or cardio, how long you have, and a style.',
-    points: ['Styles: standard, strength, supersets, HIIT, PHA, Hyrox, CrossFit, bodyweight', 'Swap or pick any exercise, step back through versions, then add it or save as a routine', 'Switch to Week / Month for a full program with rest days, or Run / bike for a race plan'],
+    points: ['Styles: standard, strength, supersets, HIIT, PHA, Hyrox, CrossFit, bodyweight', 'Swap or pick any exercise, step back through versions, then add it or save as a routine', 'Switch to Week / month for a random program with rest days', 'Training plan (next to Randomize) builds a run or bike plan for a race; stop or replace any program from the Plan tab'],
   },
   {
     icon: '✍️', title: 'Log as you go',
