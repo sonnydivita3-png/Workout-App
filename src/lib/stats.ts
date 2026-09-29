@@ -1,4 +1,5 @@
 import type { ExerciseLog } from '../types'
+import { addDays, mondayOf, parseISO, toISO } from './dates'
 
 export interface StrengthSession {
   date: string
@@ -51,3 +52,42 @@ export function isPR(values: number[]): boolean {
   const last = values[values.length - 1]
   return last > 0 && last > Math.max(...values.slice(0, -1))
 }
+
+export const hasData = (l: ExerciseLog) =>
+  !!l.sets?.some((s) => s.weight || s.reps) || !!(l.cardio?.distance || l.cardio?.minutes)
+
+/** Dates (YYYY-MM-DD) with at least one logged exercise. */
+export const workoutDates = (logs: ExerciseLog[]) => new Set(logs.filter(hasData).map((l) => l.date))
+
+const inRange = (date: string, from: string, to: string) => date >= from && date <= to
+
+export interface WeekStats {
+  workouts: number
+  volume: number // lb
+  lastVolume: number
+  streak: number // consecutive weeks with a workout
+}
+
+export function weekStats(logs: ExerciseLog[], today: string): WeekStats {
+  const monday = mondayOf(parseISO(today))
+  const range = (offset: number) => [toISO(addDays(monday, offset * 7)), toISO(addDays(monday, offset * 7 + 6))] as const
+  const dates = workoutDates(logs)
+  const volume = (offset: number) => {
+    const [from, to] = range(offset)
+    return logs
+      .filter((l) => inRange(l.date, from, to))
+      .reduce((a, l) => a + (l.sets ?? []).reduce((b, s) => b + (s.weight ?? 0) * (s.reps ?? 0), 0), 0)
+  }
+  const count = (offset: number) => {
+    const [from, to] = range(offset)
+    return [...dates].filter((d) => inRange(d, from, to)).length
+  }
+  // The current week doesn't break a streak until it's over.
+  let streak = 0
+  for (let w = count(0) > 0 ? 0 : -1; count(w) > 0 && w > -520; w--) streak++
+  return { workouts: count(0), volume: volume(0), lastVolume: volume(-1), streak }
+}
+
+/** Best top-set weight (lb) ever logged for a lift. */
+export const bestLift = (logs: ExerciseLog[], exerciseId: string) =>
+  Math.max(0, ...strengthSessions(logs, exerciseId).map((s) => s.topWeight))

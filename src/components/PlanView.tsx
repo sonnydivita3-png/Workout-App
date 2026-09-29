@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { toISO, weekDates, weekdayIndex } from '../lib/dates'
 import { findExercise, selectLastLog, useStore } from '../store'
+import { DaySheet } from './DaySheet'
 import { CardioCard } from './CardioCard'
 import { ExercisePicker } from './ExercisePicker'
 import { StrengthCard } from './StrengthCard'
@@ -11,6 +12,7 @@ export function PlanView() {
   const [day, setDay] = useState(() => weekdayIndex(new Date()))
   const [today] = useState(() => toISO(new Date()))
   const [picking, setPicking] = useState(false)
+  const [dayMenu, setDayMenu] = useState(false)
   const s = useStore()
 
   const dates = useMemo(() => weekDates(anchor), [anchor])
@@ -33,7 +35,13 @@ export function PlanView() {
 
       <WeekStrip dates={dates} selected={day} counts={s.plan.map((d) => d.length)} today={today} onSelect={setDay} />
 
-      <section className="mt-6 space-y-3">
+      <div className="mt-4 flex justify-end">
+        <button onClick={() => setDayMenu(true)} className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-600">
+          Day options
+        </button>
+      </div>
+
+      <section className="mt-3 space-y-3">
         {planned.length === 0 && (
           <p className="py-12 text-center text-neutral-400">Rest day. Add exercises to plan a workout.</p>
         )}
@@ -72,6 +80,8 @@ export function PlanView() {
       >
         + Add exercise
       </button>
+
+      {dayMenu && <DaySheet day={day} onClose={() => setDayMenu(false)} />}
 
       {picking && (
         <ExercisePicker

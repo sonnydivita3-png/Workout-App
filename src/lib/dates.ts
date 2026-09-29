@@ -15,3 +15,15 @@ export function weekDates(anchor: Date): Date[] {
     return d
   })
 }
+
+export const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)
+
+export const parseISO = (iso: string) => new Date(iso + 'T00:00:00')
+
+export const mondayOf = (d: Date) => addDays(d, -weekdayIndex(d))
+
+export const fmtShort = (iso: string) =>
+  parseISO(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+
+export const fmtLong = (iso: string) =>
+  parseISO(iso).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })

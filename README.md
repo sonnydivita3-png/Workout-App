@@ -11,7 +11,10 @@ npm run build    # production build (outputs dist/)
 ```
 
 ## Features
+- Home dashboard: greeting, today's upcoming exercises, last workout, body weight log + chart, weekly stats, goals
 - Weekly plan by weekday, per-set logging, "last time" reminders
+- Duplicate a day to other days; save a day as a named routine and load it onto any day
+- Goals: workouts per week, body weight target, lift target
 - Exercise library from [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (public domain) + custom exercises
 - History: est. 1RM / top weight / volume charts (lifting), pace / distance / time (cardio), PR badges
 - lb/kg and mi/km (stored as lb/mi, converted for display)
