@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store'
+import { Sheet } from './Sheet'
 
 interface InstallEvent extends Event {
   prompt: () => Promise<void>
@@ -43,9 +44,13 @@ const Row = ({ title, children }: { title: string; children: React.ReactNode }) 
 )
 
 export function SettingsView() {
-  const { notifPrefs, setNotifPrefs, units, setUnits, plan, logs, custom, name, setName, bodyweight, routines, goals, importData } = useStore()
+  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, plan, logs, custom, name, setName, bodyweight, routines, goals, importData } = useStore()
   const [installEvt, setInstallEvt] = useState<InstallEvent | null>(null)
   const [msg, setMsg] = useState('')
+  const [erasing, setErasing] = useState(false)
+  const [keepProfile, setKeepProfile] = useState(true)
+  const [confirmText, setConfirmText] = useState('')
+  const [backedUp, setBackedUp] = useState(false)
   const file = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -75,7 +80,10 @@ export function SettingsView() {
     a.download = `ez-workout-backup-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(a.href)
+    setBackedUp(true)
   }
+
+  const closeErase = () => { setErasing(false); setConfirmText(''); setBackedUp(false) }
 
   const onImport = async (f: File) => {
     try {
@@ -147,6 +155,49 @@ export function SettingsView() {
         <input ref={file} type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && onImport(e.target.files[0])} />
       </div>
       {msg && <p className="text-sm text-neutral-500">{msg}</p>}
+
+      <button
+        onClick={() => setErasing(true)}
+        className="w-full rounded-2xl bg-white py-3 text-sm font-medium text-red-600 shadow-sm ring-1 ring-red-200"
+      >
+        Erase all data and start over
+      </button>
+
+      {erasing && (
+        <Sheet title="Erase all data?" onClose={closeErase} closeLabel="Cancel">
+          <p className="mb-3 text-sm text-neutral-600">
+            This permanently deletes your workout history, weekly plan, routines, goals, body weight entries, custom
+            exercises and notifications from this device. It can’t be undone.
+          </p>
+          <button
+            onClick={exportData}
+            className="mb-4 w-full rounded-2xl bg-neutral-100 py-3 text-sm font-medium"
+          >
+            {backedUp ? 'Backup downloaded ✓' : 'Export a backup first'}
+          </button>
+          <label className="mb-4 flex items-center gap-3 text-sm">
+            <input type="checkbox" checked={keepProfile} onChange={(e) => setKeepProfile(e.target.checked)} className="h-4 w-4" />
+            Keep my name, units and notification settings
+          </label>
+          <label className="mb-4 block text-sm text-neutral-500">
+            Type ERASE to confirm
+            <input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              autoCapitalize="characters"
+              autoComplete="off"
+              className="mt-1 w-full rounded-xl bg-neutral-100 px-4 py-2.5 text-neutral-900 outline-none"
+            />
+          </label>
+          <button
+            disabled={confirmText.trim().toUpperCase() !== 'ERASE'}
+            onClick={() => { resetAll(keepProfile); closeErase(); setMsg('All data erased. You’re starting fresh.') }}
+            className="w-full rounded-2xl bg-red-600 py-3 text-sm font-medium text-white disabled:opacity-30"
+          >
+            Erase everything
+          </button>
+        </Sheet>
+      )}
 
       {!standalone && (
         <>
