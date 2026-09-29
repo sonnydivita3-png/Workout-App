@@ -8,7 +8,7 @@ Minimal weekly workout tracker, installable as a phone app (PWA). Plan exercises
 npm install
 npm run dev      # local dev
 npm run build    # production build (outputs dist/)
-npm test         # randomizer unit tests
+npm test         # unit tests, including database privacy rules run against a real Postgres (PGlite)
 ```
 
 ## Features
@@ -28,6 +28,7 @@ npm test         # randomizer unit tests
 - History: est. 1RM / top weight / volume charts (lifting), pace / distance / time (cardio), PR badges
 - lb/kg and mi/km (stored as lb/mi, converted for display)
 - JSON backup export/import, and an Erase all data option (with confirmation) to start over
+- Social (optional, opt-in at first launch or later in Settings): friends by exact handle, share a day/week/4 weeks that a friend adds to their calendar, ask a friend to make you a workout, push-up/pull-up/plank/run/ride challenges (or "beat the workout I did"), and a fixed set of 12 emoji instead of chat. Everyone chooses per friend what that friend may see or send, and nothing is shared by default. See [docs/social-setup.md](docs/social-setup.md)
 - Offline-capable, installable
 
 ## Deploy (GitHub Pages)

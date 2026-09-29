@@ -12,6 +12,9 @@ import { NotificationsSheet } from './NotificationsSheet'
 import { LineChart } from './LineChart'
 import { NumberInput } from './NumberInput'
 import type { Tab } from './TabBar'
+import { ChallengeSheet } from './social/ChallengeSheet'
+import { ShareSheet } from './social/ShareSheet'
+import { completedWorkout } from '../social/share'
 
 const Card = ({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) => (
   <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200/70">
@@ -51,6 +54,8 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   const [notifSheet, setNotifSheet] = useState(false)
   const unread = useStore((st) => st.notifications.filter((n) => !n.read).length)
   const [nameDraft, setNameDraft] = useState('')
+  const social = useStore((st) => st.socialChoice === 'enabled')
+  const [lastShare, setLastShare] = useState<'share' | 'challenge' | null>(null)
   const { units, logs, custom, plan, overrides } = s
 
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
@@ -155,7 +160,22 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
             ))}
           </ul>
         )}
+        {social && lastDate && lastLogs.length > 0 && (
+          <div className="mt-3 flex gap-2">
+            <button onClick={() => setLastShare('share')} className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-600">Share</button>
+            <button onClick={() => setLastShare('challenge')} className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-600">Challenge a friend</button>
+          </div>
+        )}
       </Card>
+      {lastShare === 'share' && lastDate && (
+        <ShareSheet
+          date={lastDate}
+          payloadOverride={completedWorkout(lastDate, logs, (id) => findExercise(custom, id), custom) ?? undefined}
+          titleOverride={`My workout, ${fmtLong(lastDate)}`}
+          onClose={() => setLastShare(null)}
+        />
+      )}
+      {lastShare === 'challenge' && lastDate && <ChallengeSheet fromDate={lastDate} onClose={() => setLastShare(null)} />}
 
       <BodyweightCard today={today} />
 

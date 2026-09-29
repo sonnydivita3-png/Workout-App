@@ -1,0 +1,26 @@
+import type { ReactNode } from 'react'
+import type { Profile } from '../../social/types'
+
+export function Avatar({ profile, size = 'md' }: { profile: Pick<Profile, 'avatar'>; size?: 'sm' | 'md' | 'lg' }) {
+  const cls = size === 'lg' ? 'h-14 w-14 text-3xl' : size === 'sm' ? 'h-8 w-8 text-base' : 'h-10 w-10 text-xl'
+  return <span className={`flex shrink-0 items-center justify-center rounded-full bg-neutral-100 ${cls}`} aria-hidden>{profile.avatar}</span>
+}
+
+export function ErrorNote({ children }: { children: ReactNode }) {
+  return <p role="alert" className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{children}</p>
+}
+
+export function Card({ title, action, children }: { title?: string; action?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200/70">
+      {(title || action) && (
+        <div className="mb-3 flex items-center justify-between">
+          {title && <h2 className="text-xs uppercase tracking-wide text-neutral-400">{title}</h2>}
+          {action}
+        </div>
+      )}
+      {children}
+    </section>
+  )
+}
+
