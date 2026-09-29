@@ -1,4 +1,5 @@
-import { pace } from '../lib/dates'
+import { formatPace, showDistance, storeDistance } from '../lib/units'
+import { useStore } from '../store'
 import type { CardioEntry, Exercise, ExerciseLog } from '../types'
 import { NumberInput } from './NumberInput'
 
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function CardioCard({ exercise, current, last, onChange, onRemove }: Props) {
+  const units = useStore((s) => s.units)
   const c = current?.cardio ?? { distance: null, minutes: null }
   const prev = last?.cardio
   return (
@@ -24,8 +26,8 @@ export function CardioCard({ exercise, current, last, onChange, onRemove }: Prop
       </div>
       <div className="grid grid-cols-3 items-end gap-3">
         <label className="text-[11px] uppercase tracking-wide text-neutral-400">
-          Miles
-          <NumberInput value={c.distance} step={0.1} placeholder={prev?.distance?.toString() ?? '–'} onChange={(v) => onChange({ ...c, distance: v })} />
+          {units.distance === 'km' ? 'Km' : 'Miles'}
+          <NumberInput value={showDistance(c.distance, units)} step={0.1} placeholder={showDistance(prev?.distance ?? null, units)?.toString() ?? '–'} onChange={(v) => onChange({ ...c, distance: storeDistance(v, units) })} />
         </label>
         <label className="text-[11px] uppercase tracking-wide text-neutral-400">
           Minutes
@@ -33,12 +35,12 @@ export function CardioCard({ exercise, current, last, onChange, onRemove }: Prop
         </label>
         <div className="text-[11px] uppercase tracking-wide text-neutral-400">
           Pace
-          <div className="py-2 text-center text-base normal-case tabular-nums text-neutral-900">{pace(c.distance, c.minutes) ?? '–'}</div>
+          <div className="py-2 text-center text-base normal-case tabular-nums text-neutral-900">{formatPace(c.distance, c.minutes, units) ?? '–'}</div>
         </div>
       </div>
       {prev && (
         <p className="mt-2 text-xs text-neutral-400">
-          Last time: {prev.distance ?? '–'} mi · {prev.minutes ?? '–'} min · {pace(prev.distance, prev.minutes) ?? '–'}
+          Last time: {showDistance(prev.distance, units) ?? '–'} {units.distance} · {prev.minutes ?? '–'} min · {formatPace(prev.distance, prev.minutes, units) ?? '–'}
         </p>
       )}
     </div>

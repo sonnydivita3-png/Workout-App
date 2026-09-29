@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { EXERCISES } from '../data/exercises'
+import { useStore } from '../store'
 import type { Exercise } from '../types'
 
 interface Props {
@@ -8,44 +9,49 @@ interface Props {
   onClose: () => void
 }
 
-const GROUPS = ['All', ...Array.from(new Set(EXERCISES.map((e) => e.group)))]
+const GROUPS = ['All', 'Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Glutes', 'Core', 'Cardio', 'Other']
+const PAGE = 50
 
 export function ExercisePicker({ taken, onPick, onClose }: Props) {
+  const custom = useStore((s) => s.custom)
+  const createCustom = useStore((s) => s.createCustom)
   const [q, setQ] = useState('')
   const [group, setGroup] = useState('All')
+  const [limit, setLimit] = useState(PAGE)
 
+  const query = q.trim().toLowerCase()
   const results = useMemo(
     () =>
-      EXERCISES.filter(
+      [...custom, ...EXERCISES].filter(
         (e) =>
           (group === 'All' || e.group === group) &&
-          e.name.toLowerCase().includes(q.trim().toLowerCase()),
+          query.split(/\s+/).every((w) => e.name.toLowerCase().includes(w)),
       ),
-    [q, group],
+    [custom, query, group],
   )
+  const exact = results.some((e) => e.name.toLowerCase() === query)
 
   return (
-    <div className="fixed inset-0 z-10 flex items-end bg-black/30 sm:items-center sm:justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-20 flex items-end bg-black/30 sm:items-center sm:justify-center" onClick={onClose}>
       <div
-        className="flex max-h-[85vh] w-full flex-col rounded-t-3xl bg-white p-4 sm:max-w-md sm:rounded-3xl"
+        className="flex max-h-[85vh] w-full flex-col rounded-t-3xl bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:max-w-md sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex shrink-0 items-center justify-between">
           <h2 className="text-lg font-semibold">Add exercise</h2>
           <button onClick={onClose} className="text-sm text-neutral-500">Done</button>
         </div>
         <input
-          autoFocus
           value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search exercises"
+          onChange={(e) => { setQ(e.target.value); setLimit(PAGE) }}
+          placeholder={`Search ${EXERCISES.length}+ exercises`}
           className="mb-3 w-full shrink-0 rounded-xl bg-neutral-100 px-4 py-2.5 outline-none"
         />
         <div className="mb-3 flex shrink-0 gap-2 overflow-x-auto pb-1">
           {GROUPS.map((g) => (
             <button
               key={g}
-              onClick={() => setGroup(g)}
+              onClick={() => { setGroup(g); setLimit(PAGE) }}
               className={`shrink-0 rounded-full px-3 py-1 text-sm ${
                 g === group ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'
               }`}
@@ -55,19 +61,42 @@ export function ExercisePicker({ taken, onPick, onClose }: Props) {
           ))}
         </div>
         <ul className="-mx-1 overflow-y-auto">
-          {results.map((e) => (
+          {q.trim() && !exact && (
+            <li className="flex items-center justify-between rounded-xl bg-neutral-50 px-3 py-2.5">
+              <span className="truncate pr-2 text-sm">Create “{q.trim()}”</span>
+              <span className="flex shrink-0 gap-2 text-xs">
+                {(['strength', 'cardio'] as const).map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => { onPick(createCustom(q, k)); setQ('') }}
+                    className="rounded-full bg-neutral-900 px-3 py-1 text-white"
+                  >
+                    {k === 'strength' ? 'Lifting' : 'Cardio'}
+                  </button>
+                ))}
+              </span>
+            </li>
+          )}
+          {results.slice(0, limit).map((e) => (
             <li key={e.id}>
               <button
                 disabled={taken.has(e.id)}
                 onClick={() => onPick(e)}
-                className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left hover:bg-neutral-50 disabled:opacity-40"
+                className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-neutral-50 disabled:opacity-40"
               >
                 <span>{e.name}</span>
-                <span className="text-xs text-neutral-400">{taken.has(e.id) ? 'Added' : e.equipment}</span>
+                <span className="shrink-0 text-xs text-neutral-400">{taken.has(e.id) ? 'Added' : e.equipment}</span>
               </button>
             </li>
           ))}
-          {results.length === 0 && <li className="px-3 py-6 text-center text-neutral-400">No matches</li>}
+          {results.length > limit && (
+            <li>
+              <button onClick={() => setLimit(limit + PAGE)} className="w-full py-3 text-sm text-neutral-500">
+                Show more ({results.length - limit})
+              </button>
+            </li>
+          )}
+          {results.length === 0 && !q.trim() && <li className="px-3 py-6 text-center text-neutral-400">No matches</li>}
         </ul>
       </div>
     </div>

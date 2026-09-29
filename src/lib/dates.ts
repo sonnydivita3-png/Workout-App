@@ -15,11 +15,3 @@ export function weekDates(anchor: Date): Date[] {
     return d
   })
 }
-
-export function pace(distance: number | null, minutes: number | null): string | null {
-  if (!distance || !minutes) return null
-  const p = minutes / distance
-  const m = Math.floor(p)
-  const s = Math.round((p - m) * 60)
-  return `${m}:${String(s === 60 ? 0 : s).padStart(2, '0')} /mi`
-}

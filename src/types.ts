@@ -4,17 +4,19 @@ export interface Exercise {
   id: string
   name: string
   kind: ExerciseKind
-  group: string // muscle group (strength) or modality (cardio)
+  group: string // muscle group (strength) or "Cardio"
   equipment?: string
+  custom?: boolean
 }
 
+/** All weights are stored in pounds and distances in miles; units only affect display. */
 export interface StrengthSet {
   weight: number | null
   reps: number | null
 }
 
 export interface CardioEntry {
-  distance: number | null // miles
+  distance: number | null
   minutes: number | null
 }
 
@@ -32,4 +34,9 @@ export interface ExerciseLog {
   date: string // YYYY-MM-DD
   sets?: StrengthSet[]
   cardio?: CardioEntry
+}
+
+export interface Units {
+  weight: 'lb' | 'kg'
+  distance: 'mi' | 'km'
 }
