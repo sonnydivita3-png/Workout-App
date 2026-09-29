@@ -21,6 +21,20 @@ function Segmented<T extends string>({ value, options, onChange }: { value: T; o
   )
 }
 
+function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <button
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      onClick={() => onChange(!on)}
+      className={`relative h-6 w-11 rounded-full transition ${on ? 'bg-neutral-900' : 'bg-neutral-200'}`}
+    >
+      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${on ? 'left-[1.375rem]' : 'left-0.5'}`} />
+    </button>
+  )
+}
+
 const Row = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200/70">
     <span>{title}</span>
@@ -29,7 +43,7 @@ const Row = ({ title, children }: { title: string; children: React.ReactNode }) 
 )
 
 export function SettingsView() {
-  const { units, setUnits, plan, logs, custom, name, setName, bodyweight, routines, goals, importData } = useStore()
+  const { notifPrefs, setNotifPrefs, units, setUnits, plan, logs, custom, name, setName, bodyweight, routines, goals, importData } = useStore()
   const [installEvt, setInstallEvt] = useState<InstallEvent | null>(null)
   const [msg, setMsg] = useState('')
   const file = useRef<HTMLInputElement>(null)
@@ -39,6 +53,17 @@ export function SettingsView() {
     window.addEventListener('beforeinstallprompt', h)
     return () => window.removeEventListener('beforeinstallprompt', h)
   }, [])
+
+  const [perm, setPerm] = useState<'granted' | 'denied' | 'default' | 'unsupported'>(() =>
+    typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
+  )
+  const enableSystem = async (on: boolean) => {
+    if (!on) return setNotifPrefs({ system: false })
+    if (typeof Notification === 'undefined') return
+    const result = perm === 'granted' ? 'granted' : await Notification.requestPermission()
+    setPerm(result)
+    setNotifPrefs({ system: result === 'granted' })
+  }
 
   const standalone = window.matchMedia('(display-mode: standalone)').matches
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent)
@@ -84,6 +109,33 @@ export function SettingsView() {
       <Row title="Distance">
         <Segmented value={units.distance} options={['mi', 'km']} onChange={(distance) => setUnits({ distance })} />
       </Row>
+
+      <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Notifications</h2>
+      <Row title="Goals"><Toggle on={notifPrefs.goals} onChange={(goals) => setNotifPrefs({ goals })} label="Goal notifications" /></Row>
+      <Row title="Personal bests"><Toggle on={notifPrefs.pbs} onChange={(pbs) => setNotifPrefs({ pbs })} label="Personal best notifications" /></Row>
+      <Row title="Daily workout reminder"><Toggle on={notifPrefs.daily} onChange={(daily) => setNotifPrefs({ daily })} label="Daily reminder" /></Row>
+      {notifPrefs.daily && (
+        <Row title="Remind me at">
+          <input
+            type="time"
+            value={notifPrefs.reminderTime}
+            onChange={(e) => e.target.value && setNotifPrefs({ reminderTime: e.target.value })}
+            className="rounded-lg bg-neutral-100 px-3 py-1.5 outline-none"
+          />
+        </Row>
+      )}
+      <Row title="Phone / system alerts">
+        <Toggle on={notifPrefs.system && perm === 'granted'} onChange={enableSystem} label="System alerts" />
+      </Row>
+      {perm === 'denied' && (
+        <p className="text-sm text-neutral-500">Notifications are blocked for this app. Turn them on in your browser or phone settings, then come back.</p>
+      )}
+      {perm === 'unsupported' && <p className="text-sm text-neutral-500">This browser doesn’t support system notifications. You’ll still see them in the app.</p>}
+      <p className="text-xs text-neutral-400">
+        Notifications are checked while the app is open (including in the background). A web app can’t wake a fully closed phone
+        without a push server, so a reminder that comes due while the app is closed shows up the next time you open it.
+        {ios && !standalone && ' On iPhone, system alerts only work after you add the app to your Home Screen.'}
+      </p>
 
       <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Your data</h2>
       <p className="text-sm text-neutral-500">

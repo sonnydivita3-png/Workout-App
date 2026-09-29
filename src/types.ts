@@ -62,3 +62,22 @@ export type Goal =
   | { id: string; type: 'lift'; exerciseId: string; target: number }
 
 export type NewGoal = Goal extends infer G ? (G extends Goal ? Omit<G, 'id'> : never) : never
+
+export type NotificationType = 'goal-reached' | 'goal-close' | 'pr' | 'planned'
+
+export interface AppNotification {
+  id: string // deterministic, so the same event is never announced twice
+  type: NotificationType
+  title: string
+  body: string
+  ts: number
+  read: boolean
+}
+
+export interface NotifPrefs {
+  system: boolean // also send OS-level notifications (needs browser permission)
+  goals: boolean
+  pbs: boolean
+  daily: boolean
+  reminderTime: string // HH:MM, local
+}

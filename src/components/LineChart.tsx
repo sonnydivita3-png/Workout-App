@@ -9,6 +9,7 @@ interface Props {
   points: Point[]
   format: (y: number) => string
   label: string
+  refLine?: { y: number; label: string } // e.g. a goal
 }
 
 const W = 320
@@ -18,7 +19,7 @@ const PAD = { l: 44, r: 14, t: 12, b: 24 }
 const fmtDate = (iso: string) =>
   new Date(iso + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 
-export function LineChart({ points, format, label }: Props) {
+export function LineChart({ points, format, label, refLine }: Props) {
   const ref = useRef<SVGSVGElement>(null)
   const [hover, setHover] = useState<number | null>(null)
   if (points.length === 0) return null
@@ -27,7 +28,7 @@ export function LineChart({ points, format, label }: Props) {
   const t = points.map((p) => new Date(p.date + 'T00:00:00').getTime())
   const t0 = t[0]
   const span = t[t.length - 1] - t0
-  const ys = points.map((p) => p.y)
+  const ys = [...points.map((p) => p.y), ...(refLine ? [refLine.y] : [])]
   let lo = Math.min(...ys)
   let hi = Math.max(...ys)
   if (lo === hi) { lo -= 1; hi += 1 }
@@ -79,6 +80,12 @@ export function LineChart({ points, format, label }: Props) {
           <text x={W - PAD.r} y={H - 6} textAnchor="end" className="fill-neutral-400 text-[9px]">
             {fmtDate(points[points.length - 1].date)}
           </text>
+        )}
+        {refLine && (
+          <g>
+            <line x1={PAD.l} x2={W - PAD.r} y1={y(refLine.y)} y2={y(refLine.y)} className="stroke-neutral-400" strokeWidth={1} strokeDasharray="4 3" />
+            <text x={W - PAD.r} y={y(refLine.y) - 4} textAnchor="end" className="fill-neutral-500 text-[9px]">{refLine.label}</text>
+          </g>
         )}
         <line x1={ax} x2={ax} y1={PAD.t} y2={H - PAD.b} className="stroke-neutral-300" strokeWidth={1} />
         {points.length > 1 && <path d={path} fill="none" className="stroke-neutral-900" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />}
