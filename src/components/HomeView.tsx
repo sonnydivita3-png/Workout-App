@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { addDays, fmtLong, fmtShort, parseISO, toISO, weekdayIndex } from '../lib/dates'
 import { goalPct, goalTitle } from '../lib/goals'
 import { bestLift, hasData, weekStats } from '../lib/stats'
-import { formatPace, showDistance, showWeight, storeWeight } from '../lib/units'
+import { formatPace, formatSeconds, showDistance, showWeight, storeWeight } from '../lib/units'
 import { useToday } from '../lib/useToday'
 import { findExercise, selectLastLog, useStore } from '../store'
 import type { ExerciseLog, Goal, Units } from '../types'
@@ -29,10 +29,17 @@ function summary(l: ExerciseLog, u: Units): string {
     return [distance ? `${showDistance(distance, u)} ${u.distance}` : null, minutes ? `${minutes} min` : null, formatPace(distance, minutes, u)]
       .filter(Boolean).join(' · ')
   }
-  const sets = (l.sets ?? []).filter((s) => s.weight && s.reps)
-  if (sets.length === 0) return '—'
-  const top = sets.reduce((a, s) => (s.weight! > a.weight! ? s : a))
-  return `${sets.length} set${sets.length === 1 ? "" : "s"} · top ${showWeight(top.weight, u)} × ${top.reps}`
+  const all = l.sets ?? []
+  const sets = all.filter((s) => s.weight && s.reps)
+  if (sets.length > 0) {
+    const top = sets.reduce((a, s) => (s.weight! > a.weight! ? s : a))
+    return `${sets.length} set${sets.length === 1 ? '' : 's'} · top ${showWeight(top.weight, u)} × ${top.reps}`
+  }
+  const timed = all.filter((s) => s.seconds)
+  if (timed.length > 0) return `${timed.length} set${timed.length === 1 ? '' : 's'} · best ${formatSeconds(Math.max(...timed.map((s) => s.seconds!)))}`
+  const reps = all.filter((s) => s.reps)
+  if (reps.length > 0) return `${reps.length} set${reps.length === 1 ? '' : 's'} · best ${Math.max(...reps.map((s) => s.reps!))} reps`
+  return '—'
 }
 
 export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
@@ -119,7 +126,7 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
                   <li key={ex.id} className="flex items-baseline justify-between gap-3 py-2">
                     <span className="min-w-0 truncate">{ex.name}</span>
                     <span className="shrink-0 text-xs tabular-nums text-neutral-400">
-                      {ex.kind === 'strength' ? (p.reps ? `${p.sets} × ${p.reps}` : `${p.sets} sets`) : p.minutes ? `${p.minutes} min` : 'cardio'}
+                      {ex.kind === 'strength' ? (p.seconds ? `${p.sets} × ${p.seconds}s` : p.reps ? `${p.sets} × ${p.reps}` : `${p.sets} sets`) : p.minutes ? `${p.minutes} min` : 'cardio'}
                       {last && hasData(last) ? ` · last ${summary(last, units).split(' · ').at(-1)}` : ''}
                     </span>
                   </li>
@@ -308,8 +315,9 @@ function GoalRow({ goal }: { goal: Goal }) {
     const now = bodyweight.at(-1)?.lb ?? null
     detail = now == null ? 'Log your weight to start' : `Now ${showWeight(now, units)} ${units.weight}`
   } else {
-    const best = bestLift(logs, goal.exerciseId)
-    detail = best ? `Best ${showWeight(best, units)} ${units.weight}` : 'Not logged yet'
+    const best = bestLift(logs, goal.exerciseId, goal.mode)
+    const shown = goal.mode === 'reps' ? `${best} reps` : goal.mode === 'time' ? formatSeconds(best) : `${showWeight(best, units)} ${units.weight}`
+    detail = best ? `Best ${shown}` : 'Not logged yet'
   }
 
   return (

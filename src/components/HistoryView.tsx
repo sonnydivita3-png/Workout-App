@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { formatPace, showDistance, showWeight } from '../lib/units'
-import { cardioSessions, isPR, strengthSessions } from '../lib/stats'
+import { formatPace, formatSeconds, showDistance, showWeight } from '../lib/units'
+import { cardioSessions, hasData, isPR, setSessions, strengthSessions } from '../lib/stats'
 import { findExercise, useStore } from '../store'
 import type { Exercise } from '../types'
 import { LineChart } from './LineChart'
@@ -16,8 +16,7 @@ export function HistoryView() {
     const latest = new Map<string, string>()
     const count = new Map<string, number>()
     for (const l of logs) {
-      const has = l.sets?.some((s) => s.weight && s.reps) || l.cardio?.distance || l.cardio?.minutes
-      if (!has) continue
+      if (!hasData(l)) continue
       count.set(l.exerciseId, (count.get(l.exerciseId) ?? 0) + 1)
       if ((latest.get(l.exerciseId) ?? '') < l.date) latest.set(l.exerciseId, l.date)
     }
@@ -57,18 +56,24 @@ export function HistoryView() {
   )
 }
 
-type Metric = 'e1rm' | 'top' | 'volume' | 'pace' | 'distance' | 'time'
+type Metric = 'e1rm' | 'top' | 'volume' | 'pace' | 'distance' | 'time' | 'best' | 'total'
 
 function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }) {
   const { logs, units } = useStore()
   const isStrength = exercise.kind === 'strength'
-  const [metric, setMetric] = useState<Metric>(isStrength ? 'e1rm' : 'pace')
+  const mode = exercise.mode ?? 'weight'
+  const [metric, setMetric] = useState<Metric>(!isStrength ? 'pace' : mode === 'weight' ? 'e1rm' : 'best')
 
-  const strength = useMemo(() => strengthSessions(logs, exercise.id), [logs, exercise.id])
+  const strength = useMemo(() => (mode === 'weight' ? strengthSessions(logs, exercise.id) : []), [logs, exercise.id, mode])
+  const counted = useMemo(() => (mode === 'weight' ? [] : setSessions(logs, exercise.id, mode)), [logs, exercise.id, mode])
   const cardio = useMemo(() => cardioSessions(logs, exercise.id), [logs, exercise.id])
 
   const metrics: { id: Metric; label: string }[] = isStrength
-    ? [{ id: 'e1rm', label: 'Est. 1RM' }, { id: 'top', label: 'Top weight' }, { id: 'volume', label: 'Volume' }]
+    ? mode === 'weight'
+      ? [{ id: 'e1rm', label: 'Est. 1RM' }, { id: 'top', label: 'Top weight' }, { id: 'volume', label: 'Volume' }]
+      : mode === 'reps'
+        ? [{ id: 'best', label: 'Best set' }, { id: 'total', label: 'Total reps' }]
+        : [{ id: 'best', label: 'Longest hold' }, { id: 'total', label: 'Total time' }]
     : [{ id: 'pace', label: 'Pace' }, { id: 'distance', label: 'Distance' }, { id: 'time', label: 'Time' }]
 
   const w = (lb: number) => showWeight(lb, units)!
@@ -76,7 +81,10 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
   let format = (v: number) => String(Math.round(v * 10) / 10)
   let higherIsBetter = true
 
-  if (isStrength) {
+  if (isStrength && mode !== 'weight') {
+    points = counted.map((s) => ({ date: s.date, y: metric === 'best' ? s.best : s.total }))
+    format = (v) => (mode === 'time' ? formatSeconds(v) : `${Math.round(v)} reps`)
+  } else if (isStrength) {
     const pick = (s: (typeof strength)[number]) => (metric === 'e1rm' ? w(s.e1rm) : metric === 'top' ? w(s.topWeight) : w(s.volume))
     points = strength.map((s) => ({ date: s.date, y: pick(s) }))
     format = (v) => `${Math.round(v).toLocaleString()} ${units.weight}`
@@ -134,10 +142,16 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
 
       <h2 className="mb-2 mt-6 text-xs uppercase tracking-wide text-neutral-400">Sessions</h2>
       <ul className="space-y-2">
-        {(isStrength ? [...strength].reverse() : [...cardio].reverse()).map((s) => (
+        {(isStrength ? (mode === 'weight' ? [...strength] : [...counted]).reverse() : [...cardio].reverse()).map((s) => (
           <li key={s.date} className="rounded-2xl bg-white p-4 text-sm shadow-sm ring-1 ring-neutral-200/70">
             <div className="mb-1 font-medium">{fmtLong(s.date)}</div>
-            {'sets' in s ? (
+            {'values' in s ? (
+              <div className="tabular-nums text-neutral-500">
+                {s.values.map((v, i) => (
+                  <span key={i} className="mr-3 inline-block">{mode === 'time' ? formatSeconds(v) : `${v} reps`}</span>
+                ))}
+              </div>
+            ) : 'sets' in s ? (
               <div className="tabular-nums text-neutral-500">
                 {s.sets.map((x, i) => (
                   <span key={i} className="mr-3 inline-block">{w(x.weight)} × {x.reps}</span>

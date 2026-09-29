@@ -10,7 +10,7 @@ type Kind = 'workouts' | 'bodyweight' | 'lift'
 const KINDS: { id: Kind; label: string }[] = [
   { id: 'workouts', label: 'Workouts / week' },
   { id: 'bodyweight', label: 'Body weight' },
-  { id: 'lift', label: 'Lift' },
+  { id: 'lift', label: 'Exercise' },
 ]
 
 export function GoalSheet({ onClose }: { onClose: () => void }) {
@@ -22,13 +22,14 @@ export function GoalSheet({ onClose }: { onClose: () => void }) {
   const [picking, setPicking] = useState(false)
 
   const exercise = exerciseId ? findExercise(custom, exerciseId) : undefined
+  const mode = exercise?.mode ?? 'weight'
   const valid = kind === 'workouts' ? !!perWeek && perWeek >= 1 && perWeek <= 7 : !!target && (kind === 'bodyweight' || !!exercise)
 
   const save = () => {
     if (kind === 'workouts') addGoal({ type: 'workouts', perWeek: perWeek! })
     else if (kind === 'bodyweight')
       addGoal({ type: 'bodyweight', target: storeWeight(target, units)!, start: bodyweight.at(-1)?.lb ?? null })
-    else addGoal({ type: 'lift', exerciseId: exerciseId!, target: storeWeight(target, units)! })
+    else addGoal({ type: 'lift', exerciseId: exerciseId!, mode, target: mode === 'weight' ? storeWeight(target, units)! : target! })
     onClose()
   }
 
@@ -66,8 +67,10 @@ export function GoalSheet({ onClose }: { onClose: () => void }) {
 
         {kind !== 'workouts' && (
           <label className="mb-4 block text-sm text-neutral-500">
-            Target ({units.weight})
-            <div className="mt-1 w-28"><NumberInput value={target} step={kind === 'lift' ? 2.5 : 0.5} onChange={setTarget} /></div>
+            {kind === 'lift' && mode === 'reps' ? 'Target reps in one set' : kind === 'lift' && mode === 'time' ? 'Target hold (seconds)' : `Target (${units.weight})`}
+            <div className="mt-1 w-28">
+              <NumberInput value={target} step={kind === 'lift' && mode !== 'weight' ? 1 : kind === 'lift' ? 2.5 : 0.5} onChange={setTarget} />
+            </div>
           </label>
         )}
 

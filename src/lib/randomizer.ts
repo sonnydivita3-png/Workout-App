@@ -30,10 +30,22 @@ const equipmentRank = (e: Exercise) =>
 /** Rep target by exercise style: heavy barbell work low, accessories higher. */
 export function repsFor(e: Exercise, rng: Rng = Math.random): number {
   if (e.group === 'Core') return 15
+  if (e.mode === 'reps') return [10, 12, 15][Math.floor(rng() * 3)]
   const r = equipmentRank(e)
   if (r === 0) return rng() < 0.5 ? 6 : 8
   if (r <= 2) return rng() < 0.5 ? 10 : 12
   return 12
+}
+
+/** Reps for weights and bodyweight moves, a hold time in seconds for timed ones. */
+export function targetsFor(e: Exercise, rng: Rng = Math.random): Pick<PlannedExercise, 'reps' | 'seconds'> {
+  return e.mode === 'time' ? { seconds: [30, 45, 60][Math.floor(rng() * 3)] } : { reps: repsFor(e, rng) }
+}
+
+/** A plan entry for `ex`, borrowing the previous entry's sets/minutes when replacing one. */
+export function plannedFor(ex: Exercise, prev?: PlannedExercise, rng: Rng = Math.random): PlannedExercise {
+  if (ex.kind === 'cardio') return { exerciseId: ex.id, sets: 1, minutes: prev?.minutes ?? 15 }
+  return { exerciseId: ex.id, sets: Math.max(MIN_SETS, prev?.sets ?? 3), ...targetsFor(ex, rng) }
 }
 
 export const minutesFor = (items: PlannedExercise[]) =>
@@ -85,7 +97,7 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
   const items: PlannedExercise[] = []
   for (const g of order) {
     const exs = picked.get(g)!.sort((a, b) => equipmentRank(a) - equipmentRank(b))
-    for (const e of exs) items.push({ exerciseId: e.id, sets, reps: repsFor(e, rng) })
+    for (const e of exs) items.push({ exerciseId: e.id, sets, ...targetsFor(e, rng) })
   }
 
   // Use leftover time by adding sets, one exercise at a time, up to MAX_SETS.
@@ -111,15 +123,17 @@ export function generateWorkout(focus: string[], minutes: number, rng: Rng = Mat
   return [...pickLifts(lift, minutes - cardioMin, rng, avoid), ...pickCardio(cardioMin, rng, avoid)]
 }
 
-/** Swap one item for a different exercise from the same group (keeps sets/minutes). */
+/** Swap one item for a different random exercise from the same group (keeps sets/minutes). */
 export function swapExercise(items: PlannedExercise[], index: number, rng: Rng = Math.random): PlannedExercise[] {
   const cur = BY_ID.get(items[index].exerciseId)
   if (!cur) return items
   const used = new Set(items.map((p) => p.exerciseId))
   const options = POOL.filter((e) => e.kind === cur.kind && e.group === cur.group && !used.has(e.id))
   if (options.length === 0) return items
-  const next = options[Math.floor(rng() * options.length)]
-  return items.map((p, i) =>
-    i !== index ? p : cur.kind === 'cardio' ? { ...p, exerciseId: next.id } : { ...p, exerciseId: next.id, reps: repsFor(next, rng) },
-  )
+  return replaceExercise(items, index, options[Math.floor(rng() * options.length)], rng)
+}
+
+/** Put a specific exercise in slot `index`, keeping its position, sets and minutes. */
+export function replaceExercise(items: PlannedExercise[], index: number, ex: Exercise, rng: Rng = Math.random): PlannedExercise[] {
+  return items.map((p, i) => (i === index ? plannedFor(ex, p, rng) : p))
 }

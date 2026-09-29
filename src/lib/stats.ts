@@ -1,4 +1,4 @@
-import type { ExerciseLog } from '../types'
+import type { ExerciseLog, ExerciseMode } from '../types'
 import { addDays, mondayOf, parseISO, toISO } from './dates'
 
 export interface StrengthSession {
@@ -54,7 +54,7 @@ export function isPR(values: number[]): boolean {
 }
 
 export const hasData = (l: ExerciseLog) =>
-  !!l.sets?.some((s) => s.weight || s.reps) || !!(l.cardio?.distance || l.cardio?.minutes)
+  !!l.sets?.some((s) => s.weight || s.reps || s.seconds) || !!(l.cardio?.distance || l.cardio?.minutes)
 
 /** Dates (YYYY-MM-DD) with at least one logged exercise. */
 export const workoutDates = (logs: ExerciseLog[]) => new Set(logs.filter(hasData).map((l) => l.date))
@@ -88,6 +88,27 @@ export function weekStats(logs: ExerciseLog[], today: string): WeekStats {
   return { workouts: count(0), volume: volume(0), lastVolume: volume(-1), streak }
 }
 
-/** Best top-set weight (lb) ever logged for a lift. */
-export const bestLift = (logs: ExerciseLog[], exerciseId: string) =>
-  Math.max(0, ...strengthSessions(logs, exerciseId).map((s) => s.topWeight))
+/** Sessions for reps-only or timed exercises; `values` are reps or seconds per set. */
+export interface SetSession {
+  date: string
+  values: number[]
+  best: number
+  total: number
+}
+
+export function setSessions(logs: ExerciseLog[], exerciseId: string, mode: 'reps' | 'time'): SetSession[] {
+  return logs
+    .filter((l) => l.exerciseId === exerciseId && l.sets)
+    .map((l) => {
+      const values = l.sets!.map((s) => (mode === 'time' ? s.seconds : s.reps)).filter((v): v is number => !!v)
+      return { date: l.date, values, best: Math.max(0, ...values), total: values.reduce((a, v) => a + v, 0) }
+    })
+    .filter((s) => s.values.length > 0)
+    .sort((a, b) => a.date.localeCompare(b.date))
+}
+
+/** Best ever for a lift: top weight (lb), most reps in a set, or longest hold (seconds). */
+export function bestLift(logs: ExerciseLog[], exerciseId: string, mode: ExerciseMode = 'weight') {
+  if (mode === 'weight') return Math.max(0, ...strengthSessions(logs, exerciseId).map((s) => s.topWeight))
+  return Math.max(0, ...setSessions(logs, exerciseId, mode).map((s) => s.best))
+}

@@ -51,6 +51,33 @@ describe('personal bests', () => {
   })
 })
 
+describe('reps-only and timed exercises', () => {
+  const PLANK = 'Plank'
+  const PUSHUPS = 'Pushups'
+  const timed = (secs: number, date: string): ExerciseLog => ({ date, exerciseId: PLANK, sets: [{ weight: null, reps: null, seconds: secs }] })
+  const reps = (n: number, date: string): ExerciseLog => ({ date, exerciseId: PUSHUPS, sets: [{ weight: null, reps: n }] })
+
+  it('announces a longer plank hold', () => {
+    const n = run({ logs: [timed(45, '2026-09-20'), timed(60, today)] })
+    expect(n).toHaveLength(1)
+    expect(n[0].body).toContain('60s hold')
+    expect(n[0].body).toContain('45s')
+  })
+  it('announces more push-ups in a set, but not fewer', () => {
+    expect(run({ logs: [reps(20, '2026-09-20'), reps(25, today)] })[0].body).toContain('25 reps')
+    expect(run({ logs: [reps(20, '2026-09-20'), reps(15, today)] })).toHaveLength(0)
+  })
+  it('goals use reps / seconds, not weight', () => {
+    const repGoal: Goal = { id: 'r', type: 'lift', exerciseId: PUSHUPS, mode: 'reps', target: 30 }
+    const holdGoal: Goal = { id: 'h', type: 'lift', exerciseId: PLANK, mode: 'time', target: 120 }
+    const n = run({ goals: [repGoal, holdGoal], logs: [reps(27, '2026-09-20'), timed(120, '2026-09-21')] })
+    const byId = Object.fromEntries(n.map((x) => [x.id, x]))
+    expect(byId['goal-close:r'].body).toContain('30 reps')
+    expect(byId['goal-close:r'].body).not.toContain('lb')
+    expect(byId['goal-done:h'].body).toContain('2:00 hold')
+  })
+})
+
 describe('goals', () => {
   const lift: Goal = { id: 'g1', type: 'lift', exerciseId: BP, target: 200 }
   it('says close at 85%+ and reached at 100%', () => {

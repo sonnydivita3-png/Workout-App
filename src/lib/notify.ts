@@ -1,8 +1,8 @@
 import type { BodyweightEntry, Exercise, ExerciseLog, Goal, NotifPrefs, NotificationType, Units, WeekPlan } from '../types'
 import { addDays, mondayOf, parseISO, toISO, weekdayIndex } from './dates'
 import { goalPct, goalTitle } from './goals'
-import { cardioSessions, hasData, strengthSessions } from './stats'
-import { formatPace, showDistance, showWeight } from './units'
+import { cardioSessions, hasData, setSessions, strengthSessions } from './stats'
+import { formatPace, formatSeconds, showDistance, showWeight } from './units'
 
 export interface Candidate {
   id: string
@@ -60,7 +60,23 @@ export function computeNotifications(i: Input): Candidate[] {
     for (const id of todays) {
       const ex = i.exerciseName(id)
       if (!ex) continue
-      if (ex.kind === 'strength') {
+      if (ex.kind === 'strength' && ex.mode && ex.mode !== 'weight') {
+        const s = setSessions(i.logs, id, ex.mode)
+        const last = s.at(-1)
+        if (!last || last.date !== today || s.length < 2) continue
+        const prior = Math.max(...s.slice(0, -1).map((x) => x.best))
+        if (last.best > prior) {
+          out.push({
+            id: `pr:${id}:${today}:${ex.mode}`,
+            type: 'pr',
+            title: 'New personal best',
+            body:
+              ex.mode === 'time'
+                ? `${ex.name}: ${formatSeconds(last.best)} hold (was ${formatSeconds(prior)})`
+                : `${ex.name}: ${last.best} reps in a set (was ${prior})`,
+          })
+        }
+      } else if (ex.kind === 'strength') {
         const s = strengthSessions(i.logs, id)
         const last = s.at(-1)
         if (!last || last.date !== today || s.length < 2) continue

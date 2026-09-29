@@ -1,9 +1,13 @@
 export type ExerciseKind = 'strength' | 'cardio'
 
+/** How a lifting exercise is measured: weight × reps, reps only (bodyweight), or a timed hold. */
+export type ExerciseMode = 'weight' | 'reps' | 'time'
+
 export interface Exercise {
   id: string
   name: string
   kind: ExerciseKind
+  mode?: ExerciseMode // lifting only; missing means 'weight'
   group: string // muscle group (strength) or "Cardio"
   equipment?: string
   custom?: boolean
@@ -14,6 +18,7 @@ export interface Exercise {
 export interface StrengthSet {
   weight: number | null
   reps: number | null
+  seconds?: number | null // timed exercises
 }
 
 export interface CardioEntry {
@@ -25,7 +30,8 @@ export interface CardioEntry {
 export interface PlannedExercise {
   exerciseId: string
   sets: number // ignored for cardio
-  reps?: number // target reps per set (lifting)
+  reps?: number // target reps per set (weights / bodyweight)
+  seconds?: number // target hold per set (timed exercises)
   minutes?: number // target duration (cardio)
 }
 
@@ -59,7 +65,8 @@ export interface Routine {
 export type Goal =
   | { id: string; type: 'workouts'; perWeek: number }
   | { id: string; type: 'bodyweight'; target: number; start: number | null }
-  | { id: string; type: 'lift'; exerciseId: string; target: number }
+  // target is pounds for 'weight', a rep count for 'reps', seconds for 'time'
+  | { id: string; type: 'lift'; exerciseId: string; target: number; mode?: ExerciseMode }
 
 export type NewGoal = Goal extends infer G ? (G extends Goal ? Omit<G, 'id'> : never) : never
 

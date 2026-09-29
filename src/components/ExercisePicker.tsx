@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { EXERCISES } from '../data/exercises'
 import { useStore } from '../store'
-import type { Exercise } from '../types'
+import type { Exercise, ExerciseMode } from '../types'
 
 interface Props {
   taken: Set<string>
@@ -11,6 +11,12 @@ interface Props {
 
 const GROUPS = ['All', 'Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Glutes', 'Core', 'Cardio', 'Other']
 const PAGE = 50
+const CREATE_AS: [string, 'strength' | 'cardio', ExerciseMode | undefined][] = [
+  ['Weights', 'strength', 'weight'],
+  ['Bodyweight reps', 'strength', 'reps'],
+  ['Timed hold', 'strength', 'time'],
+  ['Cardio', 'cardio', undefined],
+]
 
 export function ExercisePicker({ taken, onPick, onClose }: Props) {
   const custom = useStore((s) => s.custom)
@@ -62,16 +68,16 @@ export function ExercisePicker({ taken, onPick, onClose }: Props) {
         </div>
         <ul className="-mx-1 overflow-y-auto">
           {q.trim() && !exact && (
-            <li className="flex items-center justify-between rounded-xl bg-neutral-50 px-3 py-2.5">
-              <span className="truncate pr-2 text-sm">Create “{q.trim()}”</span>
-              <span className="flex shrink-0 gap-2 text-xs">
-                {(['strength', 'cardio'] as const).map((k) => (
+            <li className="mb-1 rounded-xl bg-neutral-50 px-3 py-2.5">
+              <span className="mb-2 block truncate text-sm">Create “{q.trim()}” as</span>
+              <span className="flex flex-wrap gap-2 text-xs">
+                {CREATE_AS.map(([label, kind, mode]) => (
                   <button
-                    key={k}
-                    onClick={() => { onPick(createCustom(q, k)); setQ('') }}
+                    key={label}
+                    onClick={() => { onPick(createCustom(q, kind, mode)); setQ('') }}
                     className="rounded-full bg-neutral-900 px-3 py-1 text-white"
                   >
-                    {k === 'strength' ? 'Lifting' : 'Cardio'}
+                    {label}
                   </button>
                 ))}
               </span>

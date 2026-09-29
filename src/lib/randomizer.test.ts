@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
-import { FOCUS_OPTIONS, generateWorkout, minutesFor, swapExercise } from './randomizer'
+import { FOCUS_OPTIONS, generateWorkout, minutesFor, plannedFor, replaceExercise, swapExercise, targetsFor } from './randomizer'
 
 const groupsOf = (items: { exerciseId: string }[]) => new Set(items.map((p) => BUILTIN_BY_ID.get(p.exerciseId)!.group))
 
@@ -36,11 +36,20 @@ describe('generateWorkout', () => {
     expect(mixed.some((p) => BUILTIN_BY_ID.get(p.exerciseId)!.kind === 'strength')).toBe(true)
   })
 
-  it('gives every lift sets and reps', () => {
-    for (const p of generateWorkout(['Legs', 'Arms', 'Core'], 60)) {
-      expect(p.sets).toBeGreaterThanOrEqual(2)
-      expect(p.sets).toBeLessThanOrEqual(4)
-      expect(p.reps).toBeGreaterThan(0)
+  it('gives every lift sets plus reps (or seconds for timed holds)', () => {
+    for (let run = 0; run < 100; run++) {
+      for (const p of generateWorkout(['Legs', 'Arms', 'Core'], 60)) {
+        expect(p.sets).toBeGreaterThanOrEqual(2)
+        expect(p.sets).toBeLessThanOrEqual(4)
+        const mode = BUILTIN_BY_ID.get(p.exerciseId)!.mode
+        if (mode === 'time') {
+          expect(p.seconds).toBeGreaterThan(0)
+          expect(p.reps).toBeUndefined()
+        } else {
+          expect(p.reps).toBeGreaterThan(0)
+          expect(p.seconds).toBeUndefined()
+        }
+      }
     }
   })
 
@@ -62,5 +71,47 @@ describe('swapExercise', () => {
     expect(s[0].exerciseId).not.toBe(w[0].exerciseId)
     expect(BUILTIN_BY_ID.get(s[0].exerciseId)!.group).toBe('Chest')
     expect(s[0].sets).toBe(w[0].sets)
+  })
+})
+
+describe('exercise modes', () => {
+  it('classifies timed and bodyweight moves from the library', () => {
+    expect(BUILTIN_BY_ID.get('Plank')!.mode).toBe('time')
+    expect(BUILTIN_BY_ID.get('Barbell_Bench_Press_-_Medium_Grip')!.mode).toBe('weight')
+    const pushups = [...BUILTIN_BY_ID.values()].find((e) => e.name === 'Pushups')
+    expect(pushups?.mode).toBe('reps')
+  })
+
+  it('timed exercises get hold seconds, never reps', () => {
+    const plank = BUILTIN_BY_ID.get('Plank')!
+    for (let i = 0; i < 50; i++) {
+      const t = targetsFor(plank)
+      expect([30, 45, 60]).toContain(t.seconds)
+      expect(t.reps).toBeUndefined()
+    }
+  })
+})
+
+describe('replaceExercise', () => {
+  it('keeps the slot, sets and order while swapping in a chosen exercise', () => {
+    const w = generateWorkout(['Chest', 'Back'], 45)
+    const plank = BUILTIN_BY_ID.get('Plank')!
+    const r = replaceExercise(w, 1, plank)
+    expect(r).toHaveLength(w.length)
+    expect(r[1].exerciseId).toBe('Plank')
+    expect(r[1].sets).toBe(w[1].sets)
+    expect(r[1].seconds).toBeGreaterThan(0)
+    expect(r[0]).toBe(w[0]) // untouched rows are the same objects
+    expect(w[1].exerciseId).not.toBe('Plank') // original array not mutated
+  })
+
+  it('converts between lifting and cardio', () => {
+    const run = BUILTIN_BY_ID.get('running')!
+    const lift = plannedFor(run, { exerciseId: 'x', sets: 4, reps: 8 })
+    expect(lift).toEqual({ exerciseId: 'running', sets: 1, minutes: 15 })
+    const back = plannedFor(BUILTIN_BY_ID.get('Barbell_Bench_Press_-_Medium_Grip')!, { exerciseId: 'running', sets: 1, minutes: 30 })
+    expect(back.sets).toBeGreaterThanOrEqual(2)
+    expect(back.reps).toBeGreaterThan(0)
+    expect(back.minutes).toBeUndefined()
   })
 })

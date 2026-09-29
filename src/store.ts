@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { BUILTIN_BY_ID } from './data/exercises'
 import type {
-  AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, Goal, NewGoal, PlannedExercise, Routine, StrengthSet, Units, WeekPlan,
+  AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlannedExercise, Routine, StrengthSet, Units, WeekPlan,
 } from './types'
 
 export interface Data {
@@ -31,7 +31,7 @@ interface State extends Data {
   setSetCount: (day: number, exerciseId: string, sets: number) => void
   saveStrength: (date: string, exerciseId: string, sets: StrengthSet[]) => void
   saveCardio: (date: string, exerciseId: string, cardio: CardioEntry) => void
-  createCustom: (name: string, kind: ExerciseKind) => Exercise
+  createCustom: (name: string, kind: ExerciseKind, mode?: ExerciseMode) => Exercise
   setUnits: (u: Partial<Units>) => void
   setName: (name: string) => void
   logBodyweight: (date: string, lb: number) => void
@@ -125,11 +125,12 @@ export const useStore = create<State>()(
         set((s) => ({ logs: upsertLog(s.logs, { date, exerciseId, sets }) })),
       saveCardio: (date, exerciseId, cardio) =>
         set((s) => ({ logs: upsertLog(s.logs, { date, exerciseId, cardio }) })),
-      createCustom: (name, kind) => {
+      createCustom: (name, kind, mode) => {
         const ex: Exercise = {
           id: `custom-${Date.now().toString(36)}`,
           name: name.trim(),
           kind,
+          mode: kind === 'strength' ? (mode ?? 'weight') : undefined,
           group: kind === 'cardio' ? 'Cardio' : 'Other',
           equipment: 'Custom',
           custom: true,

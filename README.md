@@ -14,6 +14,8 @@ npm test         # randomizer unit tests
 ## Features
 - Home dashboard: greeting, today's upcoming exercises, last workout, body weight log + chart, weekly stats, goals
 - Workout randomizer: pick body parts and/or cardio plus a time, get a balanced workout with sets, reps and cardio minutes; swap or remove exercises, reroll, add to the day or save as a routine
+- Three ways to log lifting: weight × reps, bodyweight reps only, and timed holds (planks) in seconds; goals, history, and personal bests follow the same measure
+- Randomizer: Back/Forward through every version you've generated, random swap per exercise, or pick any exercise yourself
 - Weekly plan by weekday, per-set logging, "last time" reminders
 - Duplicate a day to other days; save a day as a named routine and load it onto any day
 - Body weight chart with 30D/90D/1Y/All ranges, goal line, backdated entries
