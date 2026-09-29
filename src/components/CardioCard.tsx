@@ -8,28 +8,37 @@ interface Props {
   current?: ExerciseLog
   last?: ExerciseLog
   targetMinutes?: number
+  /** Target distance in miles. */
+  targetDistance?: number
   note?: string
   onChange: (c: CardioEntry) => void
   onRemove: () => void
 }
 
-export function CardioCard({ exercise, current, last, targetMinutes, note, onChange, onRemove }: Props) {
+export function CardioCard({ exercise, current, last, targetMinutes, targetDistance, note, onChange, onRemove }: Props) {
   const units = useStore((s) => s.units)
   const c = current?.cardio ?? { distance: null, minutes: null }
   const prev = last?.cardio
+  const target = [targetDistance ? `${showDistance(targetDistance, units)} ${units.distance}` : '', targetMinutes ? `${targetMinutes} min` : ''].filter(Boolean).join(' · ')
   return (
     <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200/70">
       <div className="mb-3 flex items-start justify-between">
         <div>
           <h3 className="font-semibold">{exercise.name}</h3>
-          <p className="text-xs text-neutral-400">Cardio{targetMinutes ? ` · target ${targetMinutes} min` : ''}{note ? ` · ${note}` : ''}</p>
+          <p className="text-xs text-neutral-400">Cardio{target ? ` · target ${target}` : ''}</p>
         </div>
         <button onClick={onRemove} aria-label="Remove" className="text-lg leading-none text-neutral-400">×</button>
       </div>
+      {note && <p className="mb-3 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-neutral-600">{note}</p>}
       <div className="grid grid-cols-3 items-end gap-3">
         <label className="text-[11px] uppercase tracking-wide text-neutral-400">
           {units.distance === 'km' ? 'Km' : 'Miles'}
-          <NumberInput value={showDistance(c.distance, units)} step={0.1} placeholder={showDistance(prev?.distance ?? null, units)?.toString() ?? '–'} onChange={(v) => onChange({ ...c, distance: storeDistance(v, units) })} />
+          <NumberInput
+            value={showDistance(c.distance, units)}
+            step={0.1}
+            placeholder={showDistance(prev?.distance ?? targetDistance ?? null, units)?.toString() ?? '–'}
+            onChange={(v) => onChange({ ...c, distance: storeDistance(v, units) })}
+          />
         </label>
         <label className="text-[11px] uppercase tracking-wide text-neutral-400">
           Minutes

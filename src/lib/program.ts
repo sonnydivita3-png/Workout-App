@@ -223,3 +223,11 @@ export function defaultWeekdays(n: number): number[] {
   }
   return presets[Math.min(7, Math.max(1, n))]
 }
+
+/** Training days for endurance plans: a weekend long session, with the hard midweek session well away from it. */
+export function cardioWeekdays(n: number): number[] {
+  const presets: Record<number, number[]> = {
+    2: [3, 5], 3: [1, 3, 5], 4: [1, 2, 3, 5], 5: [0, 1, 3, 4, 5], 6: [0, 1, 2, 3, 4, 5],
+  }
+  return presets[Math.min(6, Math.max(2, n))]
+}

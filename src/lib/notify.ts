@@ -1,6 +1,6 @@
 import type { BodyweightEntry, Exercise, ExerciseLog, Goal, NotifPrefs, NotificationType, PlanOverrides, Units, WeekPlan } from '../types'
-import { addDays, mondayOf, parseISO, toISO } from './dates'
-import { goalPct, goalTitle } from './goals'
+import { addDays } from './dates'
+import { goalPeriodKey, goalPct, goalTitle } from './goals'
 import { dayPlanOf } from './plan'
 import { cardioSessions, hasData, setSessions, strengthSessions } from './stats'
 import { formatPace, formatSeconds, showDistance, showWeight } from './units'
@@ -39,10 +39,10 @@ export function computeNotifications(i: Input): Candidate[] {
   const { units, today } = i
 
   if (i.prefs.goals) {
-    const weekKey = toISO(mondayOf(parseISO(today)))
     for (const g of i.goals) {
-      const pct = goalPct(g, i.logs, i.bodyweight, today)
-      const key = g.type === 'workouts' ? `${g.id}:${weekKey}` : g.id
+      const pct = goalPct(g, i.logs, i.bodyweight, today, i.exerciseName)
+      const period = goalPeriodKey(g, today) // weekly/monthly goals can be reached again next period
+      const key = period ? `${g.id}:${period}` : g.id
       const title = goalTitle(g, units, (id) => i.exerciseName(id)?.name)
       if (pct >= 1) {
         out.push({ id: `goal-done:${key}`, type: 'goal-reached', title: 'Goal reached', body: title })

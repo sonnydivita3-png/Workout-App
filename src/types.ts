@@ -39,6 +39,7 @@ export interface PlannedExercise {
   blockLabel?: string // e.g. "Superset 1" or "Circuit · 4 rounds · 40s on / 20s off"
   note?: string // extra instruction, e.g. "50 m" or "40s on / 20s off"
   est?: number // estimated minutes for this item, when the standard sets formula doesn't apply
+  distance?: number // target distance in miles (cardio)
 }
 
 /** Plan is a weekly template: 0 = Monday ... 6 = Sunday. */
@@ -46,6 +47,10 @@ export type WeekPlan = PlannedExercise[][]
 
 /** Specific dates (YYYY-MM-DD) that override the weekly template, e.g. from a generated program. An empty array is a rest day. */
 export type PlanOverrides = Record<string, PlannedExercise[]>
+
+export type Sport = 'run' | 'bike'
+export type CardioSport = Sport | 'any'
+export type GoalPeriod = 'week' | 'month'
 
 export interface ExerciseLog {
   exerciseId: string
@@ -76,6 +81,11 @@ export type Goal =
   | { id: string; type: 'bodyweight'; target: number; start: number | null }
   // target is pounds for 'weight', a rep count for 'reps', seconds for 'time'
   | { id: string; type: 'lift'; exerciseId: string; target: number; mode?: ExerciseMode }
+  // Cardio goals. Distances are miles, times are minutes, run pace is minutes per mile, bike speed is mph.
+  | { id: string; type: 'cardio-distance'; sport: CardioSport; period: GoalPeriod; target: number }
+  | { id: string; type: 'cardio-time'; sport: CardioSport; period: GoalPeriod; target: number }
+  | { id: string; type: 'cardio-pace'; sport: Sport; minDistance: number; target: number }
+  | { id: string; type: 'race'; sport: Sport; label: string; distance: number; date?: string }
 
 export type NewGoal = Goal extends infer G ? (G extends Goal ? Omit<G, 'id'> : never) : never
 

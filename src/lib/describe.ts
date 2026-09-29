@@ -1,9 +1,11 @@
-import type { Exercise, PlannedExercise } from '../types'
+import type { Exercise, PlannedExercise, Units } from '../types'
+import { showDistance } from './units'
 
 /** One-line target for a planned exercise, e.g. "3 × 12", "3 × 45s", "20 min", "4 rounds · 40s on / 20s off". */
-export function describeItem(p: PlannedExercise, ex: Exercise): string {
+export function describeItem(p: PlannedExercise, ex: Exercise, units: Units = { weight: 'lb', distance: 'mi' }): string {
   const parts: string[] = []
   if (ex.kind === 'cardio') {
+    if (p.distance) parts.push(`${showDistance(p.distance, units)} ${units.distance}`)
     if (p.minutes) parts.push(`${p.minutes} min`)
   } else if (p.seconds) parts.push(`${p.sets} × ${p.seconds}s`)
   else if (p.reps) parts.push(`${p.sets} × ${p.reps}`)

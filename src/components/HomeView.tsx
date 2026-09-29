@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { addDays, fmtLong, fmtShort, parseISO, toISO } from '../lib/dates'
-import { goalPct, goalTitle } from '../lib/goals'
+import { goalDetail, goalPct, goalTitle } from '../lib/goals'
 import { dayPlanOf, isRestDay, lastWorkout } from '../lib/plan'
-import { bestLift, hasData, weekStats } from '../lib/stats'
+import { hasData, weekStats } from '../lib/stats'
 import { formatPace, formatSeconds, showDistance, showWeight, storeWeight } from '../lib/units'
 import { useToday } from '../lib/useToday'
 import { findExercise, selectLastLog, useStore } from '../store'
@@ -309,21 +309,11 @@ function BodyweightCard({ today }: { today: string }) {
 function GoalRow({ goal }: { goal: Goal }) {
   const { logs, custom, units, bodyweight, deleteGoal } = useStore()
   const today = useToday()
-  const title = goalTitle(goal, units, (id) => findExercise(custom, id)?.name)
-  const pct = goalPct(goal, logs, bodyweight, today)
+  const lookup = (id: string) => findExercise(custom, id)
+  const title = goalTitle(goal, units, (id) => lookup(id)?.name)
+  const pct = goalPct(goal, logs, bodyweight, today, lookup)
   const done = pct >= 1
-  let detail = ''
-
-  if (goal.type === 'workouts') {
-    detail = `${weekStats(logs, today).workouts} / ${goal.perWeek} this week`
-  } else if (goal.type === 'bodyweight') {
-    const now = bodyweight.at(-1)?.lb ?? null
-    detail = now == null ? 'Log your weight to start' : `Now ${showWeight(now, units)} ${units.weight}`
-  } else {
-    const best = bestLift(logs, goal.exerciseId, goal.mode)
-    const shown = goal.mode === 'reps' ? `${best} reps` : goal.mode === 'time' ? formatSeconds(best) : `${showWeight(best, units)} ${units.weight}`
-    detail = best ? `Best ${shown}` : 'Not logged yet'
-  }
+  const detail = goalDetail(goal, { logs, bodyweight, units, today, lookup })
 
   return (
     <li>
