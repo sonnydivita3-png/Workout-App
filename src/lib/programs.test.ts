@@ -43,3 +43,16 @@ describe('clearRange and activePrograms', () => {
     expect(activePrograms([cardio], '2026-10-06')).toHaveLength(0)
   })
 })
+
+describe('deleteLogs', () => {
+  it('removes one session or all sessions of an exercise, nothing else', async () => {
+    const { useStore } = await import('../store')
+    const set = (l: ExerciseLog[]) => useStore.setState({ logs: l })
+    const mk = (date: string, exerciseId: string): ExerciseLog => ({ date, exerciseId, sets: [{ weight: 100, reps: 5 }] })
+    set([mk('2026-09-01', 'a'), mk('2026-09-02', 'a'), mk('2026-09-02', 'b')])
+    useStore.getState().deleteLogs('a', '2026-09-01')
+    expect(useStore.getState().logs.map((l) => l.date + l.exerciseId)).toEqual(['2026-09-02a', '2026-09-02b'])
+    useStore.getState().deleteLogs('a')
+    expect(useStore.getState().logs.map((l) => l.exerciseId)).toEqual(['b'])
+  })
+})
