@@ -30,7 +30,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const dayName = DAY_NAMES[weekdayIndex(parseISO(date))]
   const [focus, setFocus] = useState<string[]>([])
   const [minutes, setMinutes] = useState(45)
-  const [style, setStyle] = useState<WorkoutStyle>('standard')
+  const [styles, setStyles] = useState<WorkoutStyle[]>(['standard'])
   // Every version of the workout, so an accidental reroll or swap can be walked back.
   const [history, setHistory] = useState<{ list: PlannedExercise[][]; at: number }>({ list: [], at: 0 })
   const [pickIndex, setPickIndex] = useState<number | null>(null)
@@ -39,9 +39,12 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const [saved, setSaved] = useState(false)
   const items = history.list[history.at] ?? null
 
-  const info = styleInfo(style)
-  const focusIgnored = info.focus === 'ignored'
-  const canGenerate = info.focus !== 'required' || focus.length > 0
+  const infos = styles.map(styleInfo)
+  const info = infos[0]
+  const focusIgnored = infos.every((i) => i.focus === 'ignored')
+  const canGenerate = !infos.some((i) => i.focus === 'required') || focus.length > 0
+  const styleLabel = infos.map((i) => i.label).join(' + ')
+  const toggleStyle = (id: WorkoutStyle) => setStyles((cur) => (cur.includes(id) ? (cur.length > 1 ? cur.filter((x) => x !== id) : cur) : [...cur, id]))
 
   const commit = (next: PlannedExercise[]) => {
     if (next === items) return // nothing changed (e.g. no alternative to swap in)
@@ -60,35 +63,40 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
 
   const toggle = (g: string) => setFocus((f) => (f.includes(g) ? f.filter((x) => x !== g) : [...f, g]))
   const fullBody = LIFT_GROUPS.every((g) => focus.includes(g))
-  const focusLabel = focusIgnored ? 'Full body' : focus.length === 0 ? 'Full body' : focus.length > 3 ? 'Full body' : focus.join(' + ')
-  const defaultName = `${info.label} · ${focusLabel} · ${minutes} min`
+  const body = focus.filter((g) => g !== 'Cardio')
+  const cardioOnly = !focusIgnored && body.length === 0 && focus.includes('Cardio')
+  const focusLabel = focusIgnored ? 'Full body' : cardioOnly ? 'Cardio' : body.length === 0 ? 'Full body' : body.length > 3 ? 'Full body' : body.join(' + ')
+  const defaultName = `${styleLabel} · ${focusLabel} · ${minutes} min`
 
   const generate = (avoid?: PlannedExercise[]) =>
-    commit(generateWorkout(focus, minutes, { style, avoid: new Set(avoid?.map((p) => p.exerciseId)) }))
+    commit(generateWorkout(focus, minutes, { style: styles[0], styles, avoid: new Set(avoid?.map((p) => p.exerciseId)) }))
 
   if (!items) {
     return (
       <Sheet title="Randomize" onClose={onClose} closeLabel="Cancel">
         <ModeSwitch mode="one" onChange={onSwitchMode} />
 
-        <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Workout style</h3>
+        <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Workout style <span className="normal-case">(pick one or more)</span></h3>
         <div className="mb-1 flex flex-wrap gap-2">
           {STYLES.map((s) => (
-            <button key={s.id} onClick={() => setStyle(s.id)} className={chip(s.id === style)}>{s.label}</button>
+            <button key={s.id} onClick={() => toggleStyle(s.id)} aria-pressed={styles.includes(s.id)} className={chip(styles.includes(s.id))}>{s.label}</button>
           ))}
         </div>
-        <p className="mb-5 text-xs text-neutral-400">{info.blurb}</p>
+        <p className="mb-5 text-xs text-neutral-400">
+          {styles.length > 1 ? `${styleLabel}: the time is split between them, in that order, with cardio last.` : info.blurb}
+        </p>
 
         <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">
-          What are you training?{info.focus === 'optional' && ' (optional)'}
+          What are you training?{infos.every((i) => i.focus !== 'required') && ' (optional)'}
         </h3>
         <div className="mb-2 flex flex-wrap gap-2">
           {FOCUS_OPTIONS.map((g) => (
             <button key={g} disabled={focusIgnored} onClick={() => toggle(g)} className={chip(focus.includes(g), focusIgnored)}>{g}</button>
           ))}
         </div>
+        <p className="mb-2 text-xs text-neutral-400">Tip: add <b className="font-medium">Cardio</b> to finish with a run, ride or row.</p>
         {focusIgnored ? (
-          <p className="mb-5 text-xs text-neutral-400">{info.label} is a full-body format, so body parts aren’t used.</p>
+          <p className="mb-5 text-xs text-neutral-400">{styleLabel} {styles.length > 1 ? 'are full-body formats' : 'is a full-body format'}, so body parts aren’t used.</p>
         ) : (
           <button
             onClick={() => setFocus(fullBody ? focus.filter((g) => g === 'Cardio') : [...LIFT_GROUPS, ...focus.filter((g) => g === 'Cardio')])}
@@ -134,7 +142,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
         </button>
       </div>
       <p className="mb-3 text-sm text-neutral-400">
-        {info.label} · {focusLabel}{focus.includes('Cardio') && !focusIgnored ? ' + Cardio' : ''} · about {Math.round(total)} min
+        {styleLabel} · {focusLabel}{focus.includes('Cardio') && !focusIgnored && !cardioOnly ? ' + Cardio' : ''} · about {Math.round(total)} min
       </p>
       {items.length === 0 ? (
         <p className="py-6 text-center text-neutral-400">Couldn’t build a workout for that. Try another mix.</p>

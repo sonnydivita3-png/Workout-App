@@ -336,6 +336,8 @@ function generatePha(groups: string[], minutes: number, rng: Rng, avoid: Set<str
 
 export interface GenerateOptions {
   style?: WorkoutStyle
+  /** Several styles in one workout, e.g. Strength then HIIT circuit. Cardio (a focus option) always comes last. */
+  styles?: WorkoutStyle[]
   rng?: Rng
   /** Exercises to use only if nothing else fits (e.g. what was in the previous workout). */
   avoid?: Set<string>
@@ -346,8 +348,35 @@ export interface GenerateOptions {
  * Cardio takes ~25% of the time when mixed with lifting, all of it when alone.
  * Hyrox- and CrossFit-style workouts are full-body formats and ignore the body-part focus.
  */
+/** Heavy lifting first, then conditioning, then whole-workout formats. */
+const STYLE_ORDER: WorkoutStyle[] = ['strength', 'standard', 'bodyweight', 'supersets', 'pha', 'circuit', 'amrap', 'emom', 'tabata', 'fortime', 'crossfit', 'hyrox']
+
+/** Several styles back to back, splitting the time between them, with any cardio at the end. */
+function generateMixed(focus: string[], minutes: number, styles: WorkoutStyle[], rng: Rng, avoid: Set<string>): PlannedExercise[] {
+  const cardio = focus.includes('Cardio')
+  const body = focus.filter((g) => g !== 'Cardio')
+  const cardioMin = cardio ? Math.min(30, Math.max(10, roundTo5(minutes * 0.25))) : 0
+  const share = Math.max(10, roundTo5((minutes - cardioMin) / styles.length))
+  const used = new Set<string>()
+  const out: PlannedExercise[] = []
+  for (const style of styles) {
+    const part = generateWorkout(body, share, { style, rng, avoid: new Set([...avoid, ...used]) })
+    for (const p of part) {
+      if (used.has(p.exerciseId)) continue // one entry per exercise across the whole workout
+      used.add(p.exerciseId)
+      out.push(p.block ? { ...p, block: `${style}-${p.block}` } : p)
+    }
+  }
+  return cardio ? [...out, ...pickCardio(cardioMin, rng, new Set([...avoid, ...used])).filter((p) => !used.has(p.exerciseId))] : out
+}
+
 export function generateWorkout(focus: string[], minutes: number, opts: GenerateOptions = {}): PlannedExercise[] {
   const { style = 'standard', rng = Math.random, avoid = new Set<string>() } = opts
+  if (opts.styles && new Set(opts.styles).size > 1) {
+    const list = [...new Set(opts.styles)].sort((a, b) => STYLE_ORDER.indexOf(a) - STYLE_ORDER.indexOf(b))
+    return generateMixed(focus, minutes, list, rng, avoid)
+  }
+  if (opts.styles?.length === 1) return generateWorkout(focus, minutes, { style: opts.styles[0], rng, avoid })
   if (style === 'hyrox') return generateHyrox(minutes)
   if (style === 'crossfit') return generateCrossfit(minutes, rng, avoid)
   if (style === 'amrap' || style === 'emom' || style === 'fortime' || style === 'tabata') return generateTimed(style, focus.filter((g) => g !== 'Cardio'), minutes, rng, avoid)

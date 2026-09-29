@@ -17,6 +17,8 @@ npm test         # unit tests, including database privacy rules run against a re
 - Week or month planner: pick a goal, training days and session length; builds dated workouts with rest days, never trains the same major muscle group two days in a row, varies exercises, and adds a set in week 3 and a deload in week 4 of a month plan
 - Three ways to log lifting: weight × reps, bodyweight reps only, and timed holds (planks) in seconds; goals, history, and personal bests follow the same measure
 - Randomizer: Back/Forward through every version you've generated, random swap per exercise, or pick any exercise yourself
+- Randomizer: pick several styles at once (e.g. Strength + HIIT circuit) plus body parts and Cardio; time is split between styles in a sensible order with cardio at the end
+- Clocks: countdown/interval timers for AMRAP, EMOM, Tabata, for time and HIIT circuits, plus a stopwatch for timed holds (plank etc.)
 - Timed workouts: AMRAP, EMOM (E2MOM, E3MOM), Tabata (20s on / 10s off × 8, or your own timing) and for-time, from the randomizer (optionally by body part) or a builder (+ Add → Build a timed workout). Each has a built-in clock, a place to log rounds / intervals / finish time, and shows last time's result. Results also count toward each exercise's history, streaks and daily progress
 - Weekly plan by weekday, per-set logging, "last time" reminders
 - Duplicate a day to other days; save a day as a named routine and load it onto any day; mark any day as a rest day

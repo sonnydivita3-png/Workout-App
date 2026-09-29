@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import type { TimedLog } from '../types'
-import { buildWodItems, derivedLogs, emomIntervals, formatResult, makeTabata, tabataOf, wodOf, wodTitle } from './wod'
+import { buildWodItems, circuitSegments, derivedLogs, emomIntervals, formatResult, makeTabata, parseCircuit, tabataOf, wodOf, wodTitle } from './wod'
 
 const lookup = (id: string) => BUILTIN_BY_ID.get(id)
 const items = (kind: 'amrap' | 'emom' | 'fortime') =>
@@ -67,5 +67,17 @@ describe('tabata', () => {
     expect(d[1].sets![0].reps).toBe(Math.round((180 * 8) / 20)) // no target reps: share of the total
     expect(d[2].sets![0].seconds).toBe(80) // plank: 20s x 4
     expect(derivedLogs(log({ wod: w, intervals: 0 }), its, lookup)).toEqual([])
+  })
+})
+
+describe('circuit timer', () => {
+  it('reads the randomizer’s circuit description and lays out work/rest segments', () => {
+    const its = [{ exerciseId: 'a', sets: 3, note: '40s on / 20s off', block: 'circuit', blockLabel: 'HIIT circuit · 3 rounds · 40s on / 20s off · 1 min rest between rounds' }, { exerciseId: 'b', sets: 3, note: '40s on / 20s off' }]
+    const c = parseCircuit(its[0].blockLabel, its)!
+    expect(c).toEqual({ rounds: 3, work: 40, rest: 20, roundRest: 60 })
+    const seg = circuitSegments(['A', 'B'], c)
+    expect(seg.map((s) => `${s.phase}:${s.seconds}`)).toEqual(['work:40', 'rest:20', 'work:40', 'rest:60', 'work:40', 'rest:20', 'work:40', 'rest:60', 'work:40', 'rest:20', 'work:40'])
+    expect(seg.reduce((a, s) => a + s.seconds, 0)).toBe(3 * 2 * 40 + 3 * 20 + 2 * 60)
+    expect(parseCircuit('Superset 1', its)).toBeNull()
   })
 })
