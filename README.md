@@ -22,7 +22,7 @@ npm test         # randomizer unit tests
 - Exercise library from [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (public domain) + custom exercises
 - History: est. 1RM / top weight / volume charts (lifting), pace / distance / time (cardio), PR badges
 - lb/kg and mi/km (stored as lb/mi, converted for display)
-- JSON backup export/import
+- JSON backup export/import, and an Erase all data option (with confirmation) to start over
 - Offline-capable, installable
 
 ## Deploy (GitHub Pages)

@@ -23,6 +23,8 @@ interface State extends Data {
   markAllRead: () => void
   clearNotifications: () => void
   setNotifPrefs: (p: Partial<NotifPrefs>) => void
+  /** Wipe everything back to a fresh install, optionally keeping name, units and notification settings. */
+  resetAll: (keepProfile: boolean) => void
   deleteBodyweight: (date: string) => void
   addExercise: (day: number, exerciseId: string, kind: ExerciseKind) => void
   removeExercise: (day: number, exerciseId: string) => void
@@ -50,19 +52,29 @@ const upsertLog = (logs: ExerciseLog[], next: ExerciseLog) => [
   next,
 ]
 
+/** A fresh install's data. */
+const defaults = () => ({
+  plan: emptyPlan(),
+  logs: [] as ExerciseLog[],
+  custom: [] as Exercise[],
+  units: { weight: 'lb', distance: 'mi' } as Units,
+  name: '',
+  bodyweight: [] as BodyweightEntry[],
+  routines: [] as Routine[],
+  goals: [] as Goal[],
+  notifications: [] as AppNotification[],
+  notifPrefs: { system: false, goals: true, pbs: true, daily: true, reminderTime: '17:00' } as NotifPrefs,
+})
+
 export const useStore = create<State>()(
   persist(
     (set, get) => ({
-      plan: emptyPlan(),
-      logs: [],
-      custom: [],
-      units: { weight: 'lb', distance: 'mi' },
-      name: '',
-      bodyweight: [],
-      routines: [],
-      goals: [],
-      notifications: [],
-      notifPrefs: { system: false, goals: true, pbs: true, daily: true, reminderTime: '17:00' },
+      ...defaults(),
+      resetAll: (keepProfile) =>
+        set((s) => ({
+          ...defaults(),
+          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs } : {}),
+        })),
       pushNotifications: (items) => {
         const existing = new Map(get().notifications.map((n) => [n.id, n]))
         const created: AppNotification[] = []
