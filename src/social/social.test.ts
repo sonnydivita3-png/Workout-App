@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import type { AppNotification, Exercise, ExerciseLog, PlanOverrides, WeekPlan } from '../types'
 import { challengeProgress } from './challengeProgress'
-import { buildPayload, completedWorkout, datesFor, defaultTitle, describePayload, planFromPayload, sanitizePayload, startFor } from './share'
+import { buildPayload, completedWorkout, datesFor, defaultTitle, describePayload, payloadFromDays, planFromPayload, sanitizePayload, startFor } from './share'
 import { buildSnapshot } from './snapshot'
 import type { ChallengeSpec, SharedPayload } from './types'
 
@@ -194,5 +194,19 @@ describe('progress snapshot', () => {
   it('contains nothing private: no body weight, goals, or exact sets', () => {
     const json = JSON.stringify(buildSnapshot({ logs, today: TODAY, lookup, now, notifications: [] }))
     expect(json).not.toMatch(/weight|goal|reps|lb|email/i)
+  })
+})
+
+describe('payloadFromDays', () => {
+  it('builds a shareable plan from made-on-the-spot days and carries only the custom exercises used', () => {
+    const custom = [
+      { id: 'custom-a', name: 'Sled push', kind: 'strength' as const, group: 'Other', equipment: 'Custom', custom: true },
+      { id: 'custom-b', name: 'Unused', kind: 'strength' as const, group: 'Other', equipment: 'Custom', custom: true },
+    ]
+    const p = payloadFromDays([{ offset: 0, items: [{ exerciseId: 'custom-a', sets: 3 }] }, { offset: 2, items: [] }], 'week', custom)
+    expect(p.scope).toBe('week')
+    expect(p.days).toEqual([{ offset: 0, rest: false, items: [{ exerciseId: 'custom-a', sets: 3 }] }, { offset: 2, rest: true, items: [] }])
+    expect(p.custom.map((c) => c.id)).toEqual(['custom-a'])
+    expect(sanitizePayload(p)).not.toBeNull()
   })
 })

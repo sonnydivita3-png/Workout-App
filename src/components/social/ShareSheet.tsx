@@ -81,7 +81,7 @@ export function ShareSheet({ date, friendId, scope: initialScope, requestId, pay
           <p className="mb-4 text-xs text-neutral-400">{SCOPES.find((s) => s.id === scope)!.blurb}</p>
         </>
       )}
-      {requestId && (
+      {requestId && !payloadOverride && (
         <div className="mb-4">
           <p className={label}>Send as</p>
           <div className="flex flex-wrap gap-2">

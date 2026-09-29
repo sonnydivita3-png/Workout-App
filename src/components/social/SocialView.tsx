@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatAmount } from '../../social/challengeProgress'
 import { describePayload } from '../../social/share'
 import { describeError, pendingCount, useSocial } from '../../social/store'
 import { normalizeHandle, type Challenge, type FriendRequest, type Profile, type SharedWorkout, type WorkoutRequest } from '../../social/types'
@@ -7,29 +8,23 @@ import { AcceptFriendSheet } from './AcceptFriendSheet'
 import { AddSharedSheet } from './AddSharedSheet'
 import { ChallengeSheet } from './ChallengeSheet'
 import { FriendSheet } from './FriendSheet'
-import { ShareSheet } from './ShareSheet'
 import { SocialSetup } from './SocialSetup'
 import { ago, chip, input, primary, secondary } from './styles'
 import { Avatar, Card, ErrorNote } from './ui'
-import { useToday } from '../../lib/useToday'
+import type { Tab } from '../TabBar'
+import { ChallengeDetailSheet } from './ChallengeDetailSheet'
+import { MakeForFriendSheet } from './MakeForFriendSheet'
 
 type Section = 'inbox' | 'friends' | 'challenges'
 
 const pct = (c: Challenge) => Math.min(100, Math.round((c.progress / Math.max(c.target, 1)) * 100))
 
-function ChallengeRow({ c, onCancel }: { c: Challenge; onCancel?: () => void }) {
+function ChallengeRow({ c, onOpen, onCancel }: { c: Challenge; onOpen: () => void; onCancel?: () => void }) {
   const other = c.mine ? c.to : c.from
   const { units } = useStore()
-  const fmt = (n: number) => {
-    const m = c.spec.metric
-    if (m === 'distance') return `${Math.round((units.distance === 'km' ? n * 1.609344 : n) * 10) / 10} ${units.distance}`
-    if (m === 'weight') return `${Math.round(units.weight === 'kg' ? n / 2.20462262 : n)} ${units.weight}`
-    if (m === 'exercises') return `${n} of ${c.target}`
-    return `${Math.round(n)}`
-  }
   return (
-    <li className="py-3">
-      <div className="flex items-start gap-3">
+    <li className="flex items-start gap-2 py-3">
+      <button onClick={onOpen} className="flex min-w-0 flex-1 items-start gap-3 text-left">
         <Avatar profile={other} size="sm" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">{c.emoji} {c.title}</p>
@@ -37,19 +32,18 @@ function ChallengeRow({ c, onCancel }: { c: Challenge; onCancel?: () => void }) 
           {(c.status === 'active' || c.status === 'completed') && (
             <>
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-100"><div className="h-full rounded-full bg-neutral-900" style={{ width: `${pct(c)}%` }} /></div>
-              <p className="mt-1 text-xs text-neutral-500">{c.done ? '🎉 Done' : `${fmt(c.progress)} / ${fmt(c.target)}`}</p>
+              <p className="mt-1 text-xs text-neutral-500">{c.done ? '🎉 Done' : `${formatAmount(c, c.progress, units)} / ${formatAmount({ ...c, spec: c.spec }, c.target, units)}`}</p>
             </>
           )}
-          {c.spec.senderResults && c.spec.senderResults.length > 0 && <p className="mt-1 text-xs text-neutral-400">Beat: {c.spec.senderResults.join(' · ')}</p>}
         </div>
-        {onCancel && <button onClick={onCancel} className="text-xs text-neutral-400 underline">Cancel</button>}
-      </div>
+        <span className="mt-1 text-neutral-300">›</span>
+      </button>
+      {onCancel && <button onClick={onCancel} className="mt-1 text-xs text-neutral-400 underline">Cancel</button>}
     </li>
   )
 }
 
-export function SocialView() {
-  const today = useToday()
+export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   const { socialChoice } = useStore()
   const s = useSocial()
   const { status, profile, friends, requests, shares, workoutRequests, challenges, emoji, act, backend } = s
@@ -57,9 +51,10 @@ export function SocialView() {
   const [setup, setSetup] = useState(false)
   const [accepting, setAccepting] = useState<FriendRequest | null>(null)
   const [adding, setAdding] = useState<SharedWorkout | null>(null)
-  const [making, setMaking] = useState<WorkoutRequest | null>(null)
   const [friendId, setFriendId] = useState<string | null>(null)
   const [newChallenge, setNewChallenge] = useState(false)
+  const [openChallenge, setOpenChallenge] = useState<string | null>(null)
+  const [making, setMaking] = useState<WorkoutRequest | null>(null)
   const [handle, setHandle] = useState('')
   const [found, setFound] = useState<Profile | null | 'none'>(null)
   const [error, setError] = useState<string | null>(null)
@@ -191,8 +186,7 @@ export function SocialView() {
               <ul className="divide-y divide-neutral-100">
                 {incomingChallenges.map((c) => (
                   <li key={c.id} className="py-2">
-                    <p className="text-sm font-medium">{c.emoji} {c.title}</p>
-                    <p className="text-xs text-neutral-400">from {c.from.displayName}</p>
+                    <button onClick={() => setOpenChallenge(c.id)} className="block text-left"><span className="block text-sm font-medium">{c.emoji} {c.title}</span><span className="block text-xs text-neutral-400">from {c.from.displayName} · tap for details</span></button>
                     <div className="mt-2 flex gap-2">
                       <button onClick={() => run((b) => b.respondChallenge(c.id, true))} className="rounded-full bg-neutral-900 px-3 py-1 text-sm text-white">Accept</button>
                       <button onClick={() => run((b) => b.respondChallenge(c.id, false))} className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-600">Decline</button>
@@ -266,15 +260,16 @@ export function SocialView() {
         <div className="space-y-3">
           <button disabled={friends.length === 0} onClick={() => setNewChallenge(true)} className={primary}>New challenge</button>
           {friends.length === 0 && <p className="text-center text-xs text-neutral-400">Add a friend first.</p>}
-          {activeChallenges.length > 0 && <Card title="Active"><ul className="divide-y divide-neutral-100">{activeChallenges.map((c) => <ChallengeRow key={c.id} c={c} />)}</ul></Card>}
-          {waitingChallenges.length > 0 && <Card title="Waiting for a reply"><ul className="divide-y divide-neutral-100">{waitingChallenges.map((c) => <ChallengeRow key={c.id} c={c} onCancel={() => run((b) => b.cancelChallenge(c.id))} />)}</ul></Card>}
-          {pastChallenges.length > 0 && <Card title="Past"><ul className="divide-y divide-neutral-100">{pastChallenges.map((c) => <ChallengeRow key={c.id} c={c} />)}</ul></Card>}
+          {activeChallenges.length > 0 && <Card title="Active"><ul className="divide-y divide-neutral-100">{activeChallenges.map((c) => <ChallengeRow key={c.id} c={c} onOpen={() => setOpenChallenge(c.id)} />)}</ul></Card>}
+          {waitingChallenges.length > 0 && <Card title="Waiting for a reply"><ul className="divide-y divide-neutral-100">{waitingChallenges.map((c) => <ChallengeRow key={c.id} c={c} onOpen={() => setOpenChallenge(c.id)} onCancel={() => run((b) => b.cancelChallenge(c.id))} />)}</ul></Card>}
+          {pastChallenges.length > 0 && <Card title="Past"><ul className="divide-y divide-neutral-100">{pastChallenges.map((c) => <ChallengeRow key={c.id} c={c} onOpen={() => setOpenChallenge(c.id)} />)}</ul></Card>}
         </div>
       )}
 
       {accepting && <AcceptFriendSheet request={accepting} onClose={() => setAccepting(null)} />}
       {adding && <AddSharedSheet share={adding} onClose={() => setAdding(null)} />}
-      {making && <ShareSheet date={today} friendId={making.from.id} scope={making.scope} requestId={making.id} onClose={() => setMaking(null)} />}
+      {making && <MakeForFriendSheet request={making} onClose={() => setMaking(null)} />}
+      {openChallenge && <ChallengeDetailSheet id={openChallenge} onNavigate={(t) => { setOpenChallenge(null); onNavigate(t) }} onClose={() => setOpenChallenge(null)} />}
       {friendId && <FriendSheet friendId={friendId} onClose={() => setFriendId(null)} />}
       {newChallenge && <ChallengeSheet onClose={() => setNewChallenge(false)} />}
     </>

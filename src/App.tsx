@@ -31,7 +31,7 @@ export default function App() {
         {tab === 'home' && <HomeView onNavigate={setTab} />}
         {tab === 'plan' && <PlanView />}
         {tab === 'history' && <HistoryView />}
-        {tab === 'social' && <SocialView />}
+        {tab === 'social' && <SocialView onNavigate={setTab} />}
         {tab === 'settings' && <SettingsView />}
       </main>
       <TabBar tab={tab} onChange={setTab} />

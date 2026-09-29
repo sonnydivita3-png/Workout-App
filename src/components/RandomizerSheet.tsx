@@ -21,9 +21,11 @@ interface Props {
   date: string
   onClose: () => void
   onSwitchMode: (m: GeneratorMode) => void
+  /** Use the workout for something else (e.g. sending to a friend) instead of adding it to the day. */
+  onUse?: (items: PlannedExercise[]) => void
 }
 
-export function RandomizerSheet({ date, onClose, onSwitchMode }: Props) {
+export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const { addPlanned, saveRoutine } = useStore()
   const dayName = DAY_NAMES[weekdayIndex(parseISO(date))]
   const [focus, setFocus] = useState<string[]>([])
@@ -178,10 +180,10 @@ export function RandomizerSheet({ date, onClose, onSwitchMode }: Props) {
 
       <button
         disabled={items.length === 0}
-        onClick={() => { addPlanned(date, items); onClose() }}
+        onClick={() => { if (onUse) onUse(items); else { addPlanned(date, items); onClose() } }}
         className={primaryBtn}
       >
-        Add to {dayName}
+        {onUse ? 'Use this workout' : `Add to ${dayName}`}
       </button>
       {pickIndex !== null && (
         <ExercisePicker

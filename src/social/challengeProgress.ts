@@ -1,4 +1,5 @@
-import type { Exercise, ExerciseLog } from '../types'
+import type { Exercise, ExerciseLog, Units } from '../types'
+import { showDistance, showWeight } from '../lib/units'
 import { hasData } from '../lib/stats'
 import { cardioSessions, matchesSport } from '../lib/cardio'
 import type { Challenge, ChallengeSpec } from './types'
@@ -46,4 +47,16 @@ export function challengeProgress(
   }
   progress = Math.round(progress * 100) / 100
   return { progress, done: progress >= c.target }
+}
+
+/** A challenge amount for display, in the person's units (stored as pounds and miles). */
+export function formatAmount(c: Pick<Challenge, 'spec' | 'target'>, n: number, units: Units): string {
+  switch (c.spec.metric) {
+    case 'distance': return `${showDistance(n, units)} ${units.distance}`
+    case 'weight': return `${showWeight(n, units)} ${units.weight}`
+    case 'minutes': return `${Math.round(n)} min`
+    case 'seconds': return `${Math.round(n)} sec`
+    case 'exercises': return `${Math.round(n)} of ${Math.round(c.target)}`
+    default: return `${Math.round(n)}`
+  }
 }
