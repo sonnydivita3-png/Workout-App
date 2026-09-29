@@ -26,7 +26,7 @@ npm test         # unit tests, including database privacy rules run against a re
 - Training plans (Plan → + Add → Start a training plan, separate from the randomizer): Couch to 5K, 5K, 10K, half marathon, marathon or a mileage build for running; 25 / 50 mile, metric century, century, 200K or a fitness build for cycling. Progressive weekly plans with a long run/ride, quality sessions, cutback weeks, a taper, and an optional event date; personal training paces from a goal time. Adding a race goal (Goals → Cardio → event) builds and fills in its plan automatically
 - Stop or replace a running program from the Plan tab, or clear a stretch of days (logged days are always kept)
 - Exercise library from [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (public domain) + custom exercises
-- History: est. 1RM / top weight / volume charts (lifting), pace / distance / time (cardio), PR badges
+- History: delete a single session or all history for an exercise; est. 1RM / top weight / volume charts (lifting), pace / distance / time (cardio), PR badges
 - lb/kg and mi/km (stored as lb/mi, converted for display)
 - JSON backup export/import, and an Erase all data option (with confirmation) to start over
 - Social (optional, opt-in at first launch or later in Settings): friends by exact handle, share a day/week/4 weeks that a friend adds to their calendar, ask a friend to make you a workout, push-up/pull-up/plank/run/ride challenges (or "beat the workout I did"), and a fixed set of 12 emoji instead of chat. Everyone chooses per friend what that friend may see or send, and nothing is shared by default. See [docs/social-setup.md](docs/social-setup.md)

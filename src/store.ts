@@ -69,6 +69,8 @@ interface State extends Data {
   setSetCount: (date: string, exerciseId: string, sets: number) => void
   saveStrength: (date: string, exerciseId: string, sets: StrengthSet[]) => void
   saveCardio: (date: string, exerciseId: string, cardio: CardioEntry) => void
+  /** Delete one logged session, or every session of an exercise when no date is given. */
+  deleteLogs: (exerciseId: string, date?: string) => void
   createCustom: (name: string, kind: ExerciseKind, mode?: ExerciseMode) => Exercise
   setUnits: (u: Partial<Units>) => void
   setName: (name: string) => void
@@ -181,6 +183,8 @@ export const useStore = create<State>()(
         set((s) => ({ logs: upsertLog(s.logs, { date, exerciseId, sets }) })),
       saveCardio: (date, exerciseId, cardio) =>
         set((s) => ({ logs: upsertLog(s.logs, { date, exerciseId, cardio }) })),
+      deleteLogs: (exerciseId, date) =>
+        set((s) => ({ logs: s.logs.filter((l) => !(l.exerciseId === exerciseId && (date === undefined || l.date === date))) })),
       createCustom: (name, kind, mode) => {
         const ex: Exercise = {
           id: `custom-${Date.now().toString(36)}`,

@@ -27,7 +27,7 @@ export function HistoryView() {
   }, [logs, custom])
 
   const ex = openId ? findExercise(custom, openId) : undefined
-  if (ex) return <Detail exercise={ex} onBack={() => setOpenId(null)} />
+  if (ex && rows.some((r) => r.ex.id === ex.id)) return <Detail exercise={ex} onBack={() => setOpenId(null)} />
 
   return (
     <section>
@@ -59,7 +59,7 @@ export function HistoryView() {
 type Metric = 'e1rm' | 'top' | 'volume' | 'pace' | 'distance' | 'time' | 'best' | 'total'
 
 function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }) {
-  const { logs, units } = useStore()
+  const { logs, units, deleteLogs } = useStore()
   const isStrength = exercise.kind === 'strength'
   const mode = exercise.mode ?? 'weight'
   const [metric, setMetric] = useState<Metric>(!isStrength ? 'pace' : mode === 'weight' ? 'e1rm' : 'best')
@@ -144,7 +144,16 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
       <ul className="space-y-2">
         {(isStrength ? (mode === 'weight' ? [...strength] : [...counted]).reverse() : [...cardio].reverse()).map((s) => (
           <li key={s.date} className="rounded-2xl bg-surface p-4 text-sm shadow-sm ring-1 ring-neutral-200/70">
-            <div className="mb-1 font-medium">{fmtLong(s.date)}</div>
+            <div className="mb-1 flex items-center justify-between">
+              <span className="font-medium">{fmtLong(s.date)}</span>
+              <button
+                onClick={() => confirm(`Delete ${exercise.name} on ${fmtLong(s.date)}? This can’t be undone.`) && deleteLogs(exercise.id, s.date)}
+                aria-label={`Delete ${fmtLong(s.date)}`}
+                className="text-xs text-red-600"
+              >
+                Delete
+              </button>
+            </div>
             {'values' in s ? (
               <div className="tabular-nums text-neutral-500">
                 {s.values.map((v, i) => (
@@ -165,6 +174,12 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
           </li>
         ))}
       </ul>
+      <button
+        onClick={() => { if (confirm(`Delete all ${exercise.name} history? This can’t be undone.`)) { deleteLogs(exercise.id); onBack() } }}
+        className="mt-6 w-full py-2 text-sm text-red-600"
+      >
+        Delete all {exercise.name} history
+      </button>
     </section>
   )
 }
