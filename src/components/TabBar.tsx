@@ -1,6 +1,7 @@
-export type Tab = 'plan' | 'history' | 'settings'
+export type Tab = 'home' | 'plan' | 'history' | 'settings'
 
 const TABS: { id: Tab; label: string; d: string }[] = [
+  { id: 'home', label: 'Home', d: 'M3 11l9-8 9 8M5 10v10h14V10' },
   { id: 'plan', label: 'Plan', d: 'M6 4v16M18 4v16M3 8v8M21 8v8M6 12h12' },
   { id: 'history', label: 'History', d: 'M4 19V9M10 19V5M16 19v-7M22 19H2' },
   { id: 'settings', label: 'Settings', d: 'M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6' },

@@ -1,13 +1,19 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { BUILTIN_BY_ID } from './data/exercises'
-import type { CardioEntry, Exercise, ExerciseKind, ExerciseLog, StrengthSet, Units, WeekPlan } from './types'
+import type {
+  BodyweightEntry, CardioEntry, Exercise, ExerciseKind, ExerciseLog, Goal, NewGoal, PlannedExercise, Routine, StrengthSet, Units, WeekPlan,
+} from './types'
 
-interface Data {
+export interface Data {
   plan: WeekPlan
   logs: ExerciseLog[]
   custom: Exercise[]
   units: Units
+  name: string
+  bodyweight: BodyweightEntry[]
+  routines: Routine[]
+  goals: Goal[]
 }
 
 interface State extends Data {
@@ -18,6 +24,14 @@ interface State extends Data {
   saveCardio: (date: string, exerciseId: string, cardio: CardioEntry) => void
   createCustom: (name: string, kind: ExerciseKind) => Exercise
   setUnits: (u: Partial<Units>) => void
+  setName: (name: string) => void
+  logBodyweight: (date: string, lb: number) => void
+  copyDay: (from: number, to: number[]) => void
+  saveRoutine: (name: string, items: PlannedExercise[]) => void
+  deleteRoutine: (id: string) => void
+  loadRoutine: (day: number, id: string) => void
+  addGoal: (goal: NewGoal) => void
+  deleteGoal: (id: string) => void
   importData: (d: Data) => void
 }
 
@@ -35,6 +49,10 @@ export const useStore = create<State>()(
       logs: [],
       custom: [],
       units: { weight: 'lb', distance: 'mi' },
+      name: '',
+      bodyweight: [],
+      routines: [],
+      goals: [],
       addExercise: (day, exerciseId, kind) =>
         set((s) => ({
           plan: s.plan.map((d, i) =>
@@ -70,7 +88,39 @@ export const useStore = create<State>()(
         return ex
       },
       setUnits: (u) => set((s) => ({ units: { ...s.units, ...u } })),
-      importData: (d) => set({ plan: d.plan, logs: d.logs, custom: d.custom ?? [], units: d.units }),
+      setName: (name) => set({ name }),
+      logBodyweight: (date, lb) =>
+        set((s) => ({
+          bodyweight: [...s.bodyweight.filter((b) => b.date !== date), { date, lb }].sort((a, b) =>
+            a.date.localeCompare(b.date),
+          ),
+        })),
+      copyDay: (from, to) =>
+        set((s) => ({
+          plan: s.plan.map((d, i) => (to.includes(i) && i !== from ? s.plan[from].map((p) => ({ ...p })) : d)),
+        })),
+      saveRoutine: (name, items) =>
+        set((s) => ({
+          routines: [...s.routines, { id: `r-${Date.now().toString(36)}`, name: name.trim(), items: items.map((p) => ({ ...p })) }],
+        })),
+      deleteRoutine: (id) => set((s) => ({ routines: s.routines.filter((r) => r.id !== id) })),
+      loadRoutine: (day, id) =>
+        set((s) => {
+          const r = s.routines.find((x) => x.id === id)
+          if (!r) return s
+          return {
+            plan: s.plan.map((d, i) =>
+              i === day ? [...d, ...r.items.filter((p) => !d.some((q) => q.exerciseId === p.exerciseId)).map((p) => ({ ...p }))] : d,
+            ),
+          }
+        }),
+      addGoal: (goal) => set((s) => ({ goals: [...s.goals, { ...goal, id: `g-${Date.now().toString(36)}` } as Goal] })),
+      deleteGoal: (id) => set((s) => ({ goals: s.goals.filter((g) => g.id !== id) })),
+      importData: (d) =>
+        set({
+          plan: d.plan, logs: d.logs, custom: d.custom ?? [], units: d.units,
+          name: d.name ?? '', bodyweight: d.bodyweight ?? [], routines: d.routines ?? [], goals: d.goals ?? [],
+        }),
     }),
     { name: 'workout-app-v1', version: 1 },
   ),

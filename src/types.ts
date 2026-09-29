@@ -40,3 +40,22 @@ export interface Units {
   weight: 'lb' | 'kg'
   distance: 'mi' | 'km'
 }
+
+export interface BodyweightEntry {
+  date: string
+  lb: number
+}
+
+export interface Routine {
+  id: string
+  name: string
+  items: PlannedExercise[]
+}
+
+/** Weights are stored in pounds, like everything else. */
+export type Goal =
+  | { id: string; type: 'workouts'; perWeek: number }
+  | { id: string; type: 'bodyweight'; target: number; start: number | null }
+  | { id: string; type: 'lift'; exerciseId: string; target: number }
+
+export type NewGoal = Goal extends infer G ? (G extends Goal ? Omit<G, 'id'> : never) : never
