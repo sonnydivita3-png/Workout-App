@@ -40,7 +40,7 @@ export function ExercisePicker({ taken, onPick, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-20 flex items-end bg-black/30 sm:items-center sm:justify-center" onClick={onClose}>
       <div
-        className="flex max-h-[85vh] w-full flex-col rounded-t-3xl bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:max-w-md sm:rounded-3xl"
+        className="flex max-h-[85vh] w-full flex-col rounded-t-3xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:max-w-md sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex shrink-0 items-center justify-between">
@@ -59,7 +59,7 @@ export function ExercisePicker({ taken, onPick, onClose }: Props) {
               key={g}
               onClick={() => { setGroup(g); setLimit(PAGE) }}
               className={`shrink-0 rounded-full px-3 py-1 text-sm ${
-                g === group ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'
+                g === group ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'
               }`}
             >
               {g}
@@ -75,7 +75,7 @@ export function ExercisePicker({ taken, onPick, onClose }: Props) {
                   <button
                     key={label}
                     onClick={() => { onPick(createCustom(q, kind, mode)); setQ('') }}
-                    className="rounded-full bg-neutral-900 px-3 py-1 text-white"
+                    className="rounded-full bg-accent px-3 py-1 text-on-accent"
                   >
                     {label}
                   </button>

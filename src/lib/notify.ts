@@ -45,12 +45,12 @@ export function computeNotifications(i: Input): Candidate[] {
       const key = period ? `${g.id}:${period}` : g.id
       const title = goalTitle(g, units, (id) => i.exerciseName(id)?.name)
       if (pct >= 1) {
-        out.push({ id: `goal-done:${key}`, type: 'goal-reached', title: 'Goal reached', body: title })
+        out.push({ id: `goal-done:${key}`, type: 'goal-reached', title: 'Goal reached 🎯', body: title })
       } else if (g.type === 'workouts' ? g.perWeek >= 2 && pct >= (g.perWeek - 1) / g.perWeek : pct >= 0.85) {
         out.push({
           id: `goal-close:${key}`,
           type: 'goal-close',
-          title: g.type === 'workouts' ? 'One workout to go' : 'Almost there',
+          title: g.type === 'workouts' ? 'One workout to go 👀' : 'Almost there 🔥',
           body: g.type === 'workouts' ? `${title} — one more this week` : `${title} — ${Math.round(pct * 100)}% of the way`,
         })
       }
@@ -71,7 +71,7 @@ export function computeNotifications(i: Input): Candidate[] {
           out.push({
             id: `pr:${id}:${today}:${ex.mode}`,
             type: 'pr',
-            title: 'New personal best',
+            title: 'New PR 🔥',
             body:
               ex.mode === 'time'
                 ? `${ex.name}: ${formatSeconds(last.best)} hold (was ${formatSeconds(prior)})`
@@ -87,7 +87,7 @@ export function computeNotifications(i: Input): Candidate[] {
           out.push({
             id: `pr:${id}:${today}:weight`,
             type: 'pr',
-            title: 'New personal best',
+            title: 'New PR 🔥',
             body: `${ex.name}: ${showWeight(last.topWeight, units)} ${units.weight} (was ${showWeight(prior, units)})`,
           })
         }
@@ -101,7 +101,7 @@ export function computeNotifications(i: Input): Candidate[] {
           out.push({
             id: `pr:${id}:${today}:distance`,
             type: 'pr',
-            title: 'New personal best',
+            title: 'New PR 🔥',
             body: `${ex.name}: longest yet at ${showDistance(last.distance, units)} ${units.distance}`,
           })
         }
@@ -110,7 +110,7 @@ export function computeNotifications(i: Input): Candidate[] {
           out.push({
             id: `pr:${id}:${today}:pace`,
             type: 'pr',
-            title: 'New personal best',
+            title: 'New PR 🔥',
             body: `${ex.name}: fastest pace yet, ${formatPace(last.distance, last.minutes, units)}`,
           })
         }
@@ -127,7 +127,7 @@ export function computeNotifications(i: Input): Candidate[] {
       out.push({
         id: `planned:${today}`,
         type: 'planned',
-        title: done.size ? `${left.length} exercise${left.length > 1 ? 's' : ''} left today` : 'Workout planned today',
+        title: done.size ? `${left.length} exercise${left.length > 1 ? 's' : ''} left today` : 'Today’s workout is up 💪',
         body: names.slice(0, 3).join(', ') + (names.length > 3 ? ` +${names.length - 3} more` : ''),
       })
     }

@@ -37,7 +37,7 @@ export function DaySheet({ date, weekDates, onClose }: { date: string; weekDates
               <button
                 key={l}
                 onClick={() => toggle(i)}
-                className={`rounded-xl py-2 text-sm ${targets.includes(i) ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'}`}
+                className={`rounded-xl py-2 text-sm ${targets.includes(i) ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`}
               >
                 {l}
                 {planOf(i).length > 0 && <span className="block text-[10px] opacity-60">{planOf(i).length} ex</span>}

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { useStore } from '../store'
+import { useStore, type Accent } from '../store'
 import { Sheet } from './Sheet'
 import { SocialSettings } from './social/SocialSettings'
+
+const ACCENTS: [Accent, string][] = [['lime', '#c8ff3e'], ['pink', '#ff5cae'], ['violet', '#a78bfa'], ['orange', '#ff9f45'], ['blue', '#5eb1ff']]
 
 interface InstallEvent extends Event {
   prompt: () => Promise<void>
@@ -14,7 +16,7 @@ function Segmented<T extends string>({ value, options, onChange }: { value: T; o
         <button
           key={o}
           onClick={() => onChange(o)}
-          className={`rounded-full px-4 py-1 text-sm ${o === value ? 'bg-white shadow-sm' : 'text-neutral-500'}`}
+          className={`rounded-full px-4 py-1 text-sm capitalize ${o === value ? 'bg-surface shadow-sm' : 'text-neutral-500'}`}
         >
           {o}
         </button>
@@ -30,7 +32,7 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
       aria-checked={on}
       aria-label={label}
       onClick={() => onChange(!on)}
-      className={`relative h-6 w-11 rounded-full transition ${on ? 'bg-neutral-900' : 'bg-neutral-200'}`}
+      className={`relative h-6 w-11 rounded-full transition ${on ? 'bg-accent' : 'bg-neutral-200'}`}
     >
       <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${on ? 'left-[1.375rem]' : 'left-0.5'}`} />
     </button>
@@ -38,14 +40,14 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
 }
 
 const Row = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200/70">
+  <div className="flex items-center justify-between rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
     <span>{title}</span>
     {children}
   </div>
 )
 
 export function SettingsView() {
-  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, plan, overrides, logs, custom, name, setName, bodyweight, routines, goals, importData, setTourDone } = useStore()
+  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, plan, overrides, logs, custom, name, setName, bodyweight, routines, goals, importData, setTourDone, theme, setTheme, accent, setAccent } = useStore()
   const [installEvt, setInstallEvt] = useState<InstallEvent | null>(null)
   const [msg, setMsg] = useState('')
   const [erasing, setErasing] = useState(false)
@@ -119,6 +121,26 @@ export function SettingsView() {
         <Segmented value={units.distance} options={['mi', 'km']} onChange={(distance) => setUnits({ distance })} />
       </Row>
 
+      <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Look</h2>
+      <Row title="Theme">
+        <Segmented value={theme} options={['dark', 'light', 'auto']} onChange={setTheme} />
+      </Row>
+      <Row title="Vibe">
+        <div className="flex gap-2" role="radiogroup" aria-label="Accent colour">
+          {ACCENTS.map(([id, color]) => (
+            <button
+              key={id}
+              role="radio"
+              aria-checked={accent === id}
+              aria-label={id}
+              onClick={() => setAccent(id)}
+              style={{ backgroundColor: color }}
+              className={`h-7 w-7 rounded-full ${accent === id ? 'ring-2 ring-neutral-900 ring-offset-2 ring-offset-surface' : ''}`}
+            />
+          ))}
+        </div>
+      </Row>
+
       <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Notifications</h2>
       <Row title="Goals"><Toggle on={notifPrefs.goals} onChange={(goals) => setNotifPrefs({ goals })} label="Goal notifications" /></Row>
       <Row title="Personal bests"><Toggle on={notifPrefs.pbs} onChange={(pbs) => setNotifPrefs({ pbs })} label="Personal best notifications" /></Row>
@@ -151,15 +173,15 @@ export function SettingsView() {
         Everything lives on this device only. Export a backup now and then — clearing browser data erases it.
       </p>
       <div className="flex gap-2">
-        <button onClick={exportData} className="flex-1 rounded-2xl bg-neutral-900 py-3 text-sm font-medium text-white">Export backup</button>
-        <button onClick={() => file.current?.click()} className="flex-1 rounded-2xl bg-white py-3 text-sm font-medium shadow-sm ring-1 ring-neutral-200/70">Import backup</button>
+        <button onClick={exportData} className="flex-1 rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent">Export backup</button>
+        <button onClick={() => file.current?.click()} className="flex-1 rounded-2xl bg-surface py-3 text-sm font-medium shadow-sm ring-1 ring-neutral-200/70">Import backup</button>
         <input ref={file} type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && onImport(e.target.files[0])} />
       </div>
       {msg && <p className="text-sm text-neutral-500">{msg}</p>}
 
       <button
         onClick={() => setErasing(true)}
-        className="w-full rounded-2xl bg-white py-3 text-sm font-medium text-red-600 shadow-sm ring-1 ring-red-200"
+        className="w-full rounded-2xl bg-surface py-3 text-sm font-medium text-red-600 shadow-sm ring-1 ring-red-200"
       >
         Erase all data and start over
       </button>
@@ -203,13 +225,13 @@ export function SettingsView() {
       <SocialSettings />
 
       <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Help</h2>
-      <button onClick={() => setTourDone(false)} className="w-full rounded-2xl bg-white px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70">Replay the app walkthrough</button>
+      <button onClick={() => setTourDone(false)} className="w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70">Replay the app walkthrough</button>
 
       {!standalone && (
         <>
           <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Install</h2>
           {installEvt ? (
-            <button onClick={() => installEvt.prompt()} className="w-full rounded-2xl bg-neutral-900 py-3 text-sm font-medium text-white">Add to home screen</button>
+            <button onClick={() => installEvt.prompt()} className="w-full rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent">Add to home screen</button>
           ) : (
             <p className="text-sm text-neutral-500">
               {ios

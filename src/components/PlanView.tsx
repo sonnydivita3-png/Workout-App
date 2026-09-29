@@ -45,10 +45,10 @@ export function PlanView() {
       <WeekStrip dates={dates} selected={day} counts={dates.map((d) => dayPlanOf(s.plan, s.overrides, toISO(d)).length)} rest={dates.map((d) => isRestDay(s.overrides, toISO(d)))} today={today} onSelect={setDay} />
 
       <div className="mt-4 flex justify-end gap-2">
-        <button onClick={() => setGenerator('one')} className="rounded-full bg-neutral-900 px-3 py-1 text-sm text-white">
+        <button onClick={() => setGenerator('one')} className="rounded-full bg-accent px-3 py-1 text-sm text-on-accent">
           Randomize
         </button>
-        <button onClick={() => setGenerator('cardio')} className="rounded-full bg-neutral-900 px-3 py-1 text-sm text-white">
+        <button onClick={() => setGenerator('cardio')} className="rounded-full bg-accent px-3 py-1 text-sm text-on-accent">
           Training plan
         </button>
         <button onClick={() => setDayMenu(true)} className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-600">
@@ -60,16 +60,16 @@ export function PlanView() {
 
       <section className="mt-3 space-y-3">
         {planned.length === 0 && rest && (
-          <div className="rounded-2xl bg-white px-4 py-10 text-center shadow-sm ring-1 ring-neutral-200/70">
+          <div className="rounded-2xl bg-surface px-4 py-10 text-center shadow-sm ring-1 ring-neutral-200/70">
             <p className="text-lg font-semibold">Rest day</p>
-            <p className="mt-1 text-sm text-neutral-400">Recovery is part of the plan.</p>
+            <p className="mt-1 text-sm text-neutral-400">Recovery is part of the plan 😴</p>
             <button onClick={() => s.resetDay(date)} className="mt-4 rounded-full bg-neutral-100 px-4 py-1.5 text-sm text-neutral-600">
               Cancel rest day
             </button>
           </div>
         )}
         {planned.length === 0 && !rest && (
-          <p className="py-12 text-center text-neutral-400">Nothing planned. Add exercises, tap Randomize, or make it a rest day in Day options.</p>
+          <p className="py-12 text-center text-neutral-400">Nothing planned yet. Add a move, hit Randomize, or call it a rest day 😴</p>
         )}
         {groupByBlock(planned).map((g, gi) => (
           <div key={gi} className={g.block ? 'space-y-2 rounded-3xl bg-neutral-200/50 p-2' : 'contents'}>
@@ -113,7 +113,7 @@ export function PlanView() {
 
       <button
         onClick={() => setPicking(true)}
-        className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-1/2 z-10 -translate-x-1/2 rounded-full bg-neutral-900 px-6 py-3 text-sm font-medium text-white shadow-lg"
+        className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-1/2 z-10 -translate-x-1/2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-on-accent shadow-lg"
       >
         + Add exercise
       </button>

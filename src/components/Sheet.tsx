@@ -9,7 +9,7 @@ export function Sheet({ title, onClose, children, closeLabel = 'Close' }: Props)
   return (
     <div className="fixed inset-0 z-20 flex items-end bg-black/30 sm:items-center sm:justify-center" onClick={onClose}>
       <div
-        className="flex max-h-[85vh] w-full flex-col rounded-t-3xl bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:max-w-md sm:rounded-3xl"
+        className="flex max-h-[85vh] w-full flex-col rounded-t-3xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:max-w-md sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex shrink-0 items-center justify-between">
@@ -22,5 +22,5 @@ export function Sheet({ title, onClose, children, closeLabel = 'Close' }: Props)
   )
 }
 
-export const primaryBtn = 'w-full rounded-2xl bg-neutral-900 py-3 text-sm font-medium text-white disabled:opacity-30'
+export const primaryBtn = 'w-full rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent disabled:opacity-30'
 export const rowBtn = 'flex w-full items-center justify-between rounded-xl px-3 py-3 text-left hover:bg-neutral-50 disabled:opacity-40'

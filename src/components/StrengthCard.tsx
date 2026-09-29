@@ -34,7 +34,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, no
   }
 
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200/70">
+    <div className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="font-semibold">{exercise.name}</h3>

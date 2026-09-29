@@ -15,7 +15,7 @@ export function PermissionToggles({ value, onChange }: { value: Perms; onChange:
             aria-checked={value[p.key]}
             aria-label={p.label}
             onClick={() => onChange(p.key, !value[p.key])}
-            className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition ${value[p.key] ? 'bg-neutral-900' : 'bg-neutral-200'}`}
+            className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition ${value[p.key] ? 'bg-accent' : 'bg-neutral-200'}`}
           >
             <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${value[p.key] ? 'left-[1.375rem]' : 'left-0.5'}`} />
           </button>

@@ -6,8 +6,8 @@ import { SocialSetup } from './SocialSetup'
 import { AvatarPicker } from './AvatarPicker'
 import { Avatar, ErrorNote } from './ui'
 
-const row = 'flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-neutral-200/70'
-const btn = 'w-full rounded-2xl bg-white px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70'
+const row = 'flex items-center justify-between rounded-2xl bg-surface px-4 py-3 shadow-sm ring-1 ring-neutral-200/70'
+const btn = 'w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70'
 
 /** Settings block: turn social on later, see your handle, sign out, or delete the social account. */
 export function SocialSettings() {
@@ -34,7 +34,7 @@ export function SocialSettings() {
       {!enabled ? (
         <>
           <p className="text-sm text-neutral-500">Social is {socialChoice === 'declined' ? 'off' : 'not set up'}. Turn it on to share workouts and send challenges to friends. You choose what each friend can do.</p>
-          <button onClick={() => setSetup(true)} className="w-full rounded-2xl bg-neutral-900 py-3 text-sm font-medium text-white">Set up social features</button>
+          <button onClick={() => setSetup(true)} className="w-full rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent">Set up social features</button>
         </>
       ) : (
         <>
@@ -57,7 +57,7 @@ export function SocialSettings() {
           {error && <div className="mt-3"><ErrorNote>{error}</ErrorNote></div>}
           <button
             onClick={async () => { const e = await updateProfile({ avatar: draft }); if (e) setError(e); else setEditing(false) }}
-            className="mt-4 w-full rounded-2xl bg-neutral-900 py-3 text-sm font-medium text-white"
+            className="mt-4 w-full rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent"
           >
             Save
           </button>
@@ -66,7 +66,7 @@ export function SocialSettings() {
       {confirm === 'off' && (
         <Sheet title="Turn off social?" onClose={() => setConfirm(null)} closeLabel="Cancel">
           <p className="mb-4 text-sm text-neutral-600">You’ll be signed out on this device. Your account and friends stay on the server, so you can sign back in later. Your workouts are not affected.</p>
-          <button onClick={turnOff} className="w-full rounded-2xl bg-neutral-900 py-3 text-sm font-medium text-white">Turn off</button>
+          <button onClick={turnOff} className="w-full rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent">Turn off</button>
         </Sheet>
       )}
       {confirm === 'delete' && (

@@ -21,7 +21,7 @@ async function showSystem(n: AppNotification) {
 function deliver(created: AppNotification[]) {
   const { notifPrefs } = useStore.getState()
   for (const n of created) {
-    if (document.visibilityState === 'visible') useToasts.getState().push({ id: n.id, title: n.title, body: n.body })
+    if (document.visibilityState === 'visible') useToasts.getState().push({ id: n.id, title: n.title, body: n.body, celebrate: n.type === 'pr' || n.type === 'goal-reached' })
     else if (notifPrefs.system && canSystemNotify()) void showSystem(n)
   }
 }

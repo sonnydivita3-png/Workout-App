@@ -32,6 +32,7 @@ npm test         # unit tests, including database privacy rules run against a re
 - Social (optional, opt-in at first launch or later in Settings): friends by exact handle, share a day/week/4 weeks that a friend adds to their calendar, ask a friend to make you a workout, push-up/pull-up/plank/run/ride challenges (or "beat the workout I did"), and a fixed set of 12 emoji instead of chat. Everyone chooses per friend what that friend may see or send, and nothing is shared by default. See [docs/social-setup.md](docs/social-setup.md)
 - First-run walkthrough of every feature (skippable, replay from Settings → Help)
 - Avatars: pick an emoji, a letter, or upload a photo (shrunk on your device to a tiny square before it is stored)
+- Look: dark-first neon theme (or light, or follow your phone) with five accent "vibes", chunky rounded UI, confetti on PRs, goals and finished challenges
 - Offline-capable, installable
 
 ## Deploy (GitHub Pages)

@@ -13,7 +13,7 @@ export function AvatarView({ avatar, className = 'h-10 w-10 text-xl' }: { avatar
   if (kind === 'photo' && PHOTO_RE.test(avatar)) return <img src={avatar} alt="" className={`${base} object-cover`} />
   if (kind === 'letter') {
     const l = avatar.slice(-1)
-    return <span className={`${base} bg-neutral-900 font-semibold text-white`} aria-hidden>{l}</span>
+    return <span className={`${base} bg-accent font-semibold text-on-accent`} aria-hidden>{l}</span>
   }
   return <span className={`${base} bg-neutral-100`} aria-hidden>{avatar}</span>
 }
@@ -24,7 +24,7 @@ export function ErrorNote({ children }: { children: ReactNode }) {
 
 export function Card({ title, action, children }: { title?: string; action?: ReactNode; children: ReactNode }) {
   return (
-    <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200/70">
+    <section className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
       {(title || action) && (
         <div className="mb-3 flex items-center justify-between">
           {title && <h2 className="text-xs uppercase tracking-wide text-neutral-400">{title}</h2>}

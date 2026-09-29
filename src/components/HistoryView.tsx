@@ -33,14 +33,14 @@ export function HistoryView() {
     <section>
       <h1 className="mb-4 text-2xl font-semibold tracking-tight">History</h1>
       {rows.length === 0 ? (
-        <p className="py-16 text-center text-neutral-400">Nothing logged yet. Your progress shows up here.</p>
+        <p className="py-16 text-center text-neutral-400">Nothing logged yet. Log a workout and your glow-up shows up here 📈</p>
       ) : (
         <ul className="space-y-2">
           {rows.map(({ ex, date, n }) => (
             <li key={ex.id}>
               <button
                 onClick={() => setOpenId(ex.id)}
-                className="flex w-full items-center justify-between rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-neutral-200/70"
+                className="flex w-full items-center justify-between rounded-2xl bg-surface p-4 text-left shadow-sm ring-1 ring-neutral-200/70"
               >
                 <span>
                   <span className="block font-medium">{ex.name}</span>
@@ -116,14 +116,14 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
           <button
             key={m.id}
             onClick={() => setMetric(m.id)}
-            className={`rounded-full px-3 py-1 text-sm ${m.id === metric ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'}`}
+            className={`rounded-full px-3 py-1 text-sm ${m.id === metric ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`}
           >
             {m.label}
           </button>
         ))}
       </div>
 
-      <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200/70">
+      <div className="mt-4 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
         {points.length === 0 ? (
           <p className="py-8 text-center text-sm text-neutral-400">No data for this metric yet.</p>
         ) : (
@@ -132,7 +132,7 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
               <span className="text-xs uppercase tracking-wide text-neutral-400">Best</span>
               <span className="tabular-nums text-lg font-semibold">
                 {format(best!)}
-                {pr && <span className="ml-2 rounded-full bg-neutral-900 px-2 py-0.5 text-[10px] font-medium uppercase text-white">New PR</span>}
+                {pr && <span className="ml-2 rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium uppercase text-on-accent">New PR</span>}
               </span>
             </div>
             <LineChart points={points} format={format} label={metrics.find((m) => m.id === metric)!.label} />
@@ -143,7 +143,7 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
       <h2 className="mb-2 mt-6 text-xs uppercase tracking-wide text-neutral-400">Sessions</h2>
       <ul className="space-y-2">
         {(isStrength ? (mode === 'weight' ? [...strength] : [...counted]).reverse() : [...cardio].reverse()).map((s) => (
-          <li key={s.date} className="rounded-2xl bg-white p-4 text-sm shadow-sm ring-1 ring-neutral-200/70">
+          <li key={s.date} className="rounded-2xl bg-surface p-4 text-sm shadow-sm ring-1 ring-neutral-200/70">
             <div className="mb-1 font-medium">{fmtLong(s.date)}</div>
             {'values' in s ? (
               <div className="tabular-nums text-neutral-500">

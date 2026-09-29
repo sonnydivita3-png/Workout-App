@@ -43,7 +43,7 @@ export function GoalSheet({ onClose }: { onClose: () => void }) {
             <button
               key={k.id}
               onClick={() => setKind(k.id)}
-              className={`rounded-full px-3 py-1 text-sm ${k.id === kind ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'}`}
+              className={`rounded-full px-3 py-1 text-sm ${k.id === kind ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`}
             >
               {k.label}
             </button>

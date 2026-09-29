@@ -189,7 +189,7 @@ export function ChallengeSheet({ friendId, fromDate, onClose }: Props) {
           {friends.filter((f) => !friendId || f.profile.id === friendId).map((f) => {
             const ok = f.theyGrant.challenges
             return (
-              <button key={f.profile.id} disabled={!ok} onClick={() => setTo(f.profile.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left ${to === f.profile.id ? 'bg-neutral-900 text-white' : 'bg-neutral-50'} disabled:opacity-50`}>
+              <button key={f.profile.id} disabled={!ok} onClick={() => setTo(f.profile.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left ${to === f.profile.id ? 'bg-accent text-on-accent' : 'bg-neutral-50'} disabled:opacity-50`}>
                 <Avatar profile={f.profile} size="sm" />
                 <span className="min-w-0 flex-1 truncate text-sm font-medium">{f.profile.displayName}</span>
                 {!ok && <span className="text-xs text-neutral-400">hasn’t allowed challenges</span>}
@@ -200,7 +200,7 @@ export function ChallengeSheet({ friendId, fromDate, onClose }: Props) {
 
         <p className={label}>Add an emoji</p>
         <div className="mb-5 flex flex-wrap gap-1.5">
-          {EMOJI.map((e) => <button key={e} onClick={() => setEmoji(emoji === e ? undefined : e)} className={`h-9 w-9 rounded-full text-lg ${emoji === e ? 'bg-neutral-900' : 'bg-neutral-100'}`}>{e}</button>)}
+          {EMOJI.map((e) => <button key={e} onClick={() => setEmoji(emoji === e ? undefined : e)} className={`h-9 w-9 rounded-full text-lg ${emoji === e ? 'bg-accent' : 'bg-neutral-100'}`}>{e}</button>)}
         </div>
 
         {spec && <p className="mb-3 rounded-xl bg-neutral-50 px-3 py-2 text-sm">{emoji} {spec.title}</p>}

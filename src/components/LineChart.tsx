@@ -88,9 +88,9 @@ export function LineChart({ points, format, label, refLine }: Props) {
           </g>
         )}
         <line x1={ax} x2={ax} y1={PAD.t} y2={H - PAD.b} className="stroke-neutral-300" strokeWidth={1} />
-        {points.length > 1 && <path d={path} fill="none" className="stroke-neutral-900" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />}
+        {points.length > 1 && <path d={path} fill="none" className="stroke-accent" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />}
         {points.map((_, i) => (
-          <circle key={i} cx={x(i)} cy={y(points[i].y)} r={i === active ? 5 : 4} className="fill-neutral-900 stroke-white" strokeWidth={2} />
+          <circle key={i} cx={x(i)} cy={y(points[i].y)} r={i === active ? 5 : 4} className="fill-accent stroke-surface" strokeWidth={2} />
         ))}
       </svg>
     </div>

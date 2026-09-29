@@ -31,7 +31,7 @@ function ChallengeRow({ c, onOpen, onCancel }: { c: Challenge; onOpen: () => voi
           <p className="text-xs text-neutral-400">{c.mine ? `to ${other.displayName}` : `from ${other.displayName}`} · {c.status}</p>
           {(c.status === 'active' || c.status === 'completed') && (
             <>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-100"><div className="h-full rounded-full bg-neutral-900" style={{ width: `${pct(c)}%` }} /></div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-100"><div className="h-full rounded-full bg-accent" style={{ width: `${pct(c)}%` }} /></div>
               <p className="mt-1 text-xs text-neutral-500">{c.done ? '🎉 Done' : `${formatAmount(c, c.progress, units)} / ${formatAmount({ ...c, spec: c.spec }, c.target, units)}`}</p>
             </>
           )}
@@ -146,7 +146,7 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
                 {requests.incoming.map((r) => (
                   <li key={r.id} className="flex items-center gap-3 py-2">
                     <Avatar profile={r.from} /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{r.from.displayName}</span><span className="block text-xs text-neutral-400">@{r.from.handle}</span></span>
-                    <button onClick={() => setAccepting(r)} className="rounded-full bg-neutral-900 px-3 py-1 text-sm text-white">Review</button>
+                    <button onClick={() => setAccepting(r)} className="rounded-full bg-accent px-3 py-1 text-sm text-on-accent">Review</button>
                   </li>
                 ))}
               </ul>
@@ -159,7 +159,7 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
                   <li key={x.id} className="flex items-center gap-3 py-2">
                     <Avatar profile={x.from} size="sm" />
                     <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{x.emoji} {x.title}</span><span className="block text-xs text-neutral-400">{x.from.displayName} · {describePayload(x.payload)}</span></span>
-                    <button onClick={() => setAdding(x)} className="rounded-full bg-neutral-900 px-3 py-1 text-sm text-white">View</button>
+                    <button onClick={() => setAdding(x)} className="rounded-full bg-accent px-3 py-1 text-sm text-on-accent">View</button>
                   </li>
                 ))}
               </ul>
@@ -173,7 +173,7 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
                     <p className="text-sm"><b className="font-medium">{x.from.displayName}</b> wants a {x.scope === 'day' ? 'day' : x.scope === 'week' ? 'week' : '4 weeks'} of workouts.</p>
                     {x.note && <p className="text-xs text-neutral-500">“{x.note}”</p>}
                     <div className="mt-2 flex gap-2">
-                      <button onClick={() => setMaking(x)} className="rounded-full bg-neutral-900 px-3 py-1 text-sm text-white">Make one</button>
+                      <button onClick={() => setMaking(x)} className="rounded-full bg-accent px-3 py-1 text-sm text-on-accent">Make one</button>
                       <button onClick={() => run((b) => b.respondWorkoutRequest(x.id, 'decline'))} className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-600">Not now</button>
                     </div>
                   </li>
@@ -188,7 +188,7 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
                   <li key={c.id} className="py-2">
                     <button onClick={() => setOpenChallenge(c.id)} className="block text-left"><span className="block text-sm font-medium">{c.emoji} {c.title}</span><span className="block text-xs text-neutral-400">from {c.from.displayName} · tap for details</span></button>
                     <div className="mt-2 flex gap-2">
-                      <button onClick={() => run((b) => b.respondChallenge(c.id, true))} className="rounded-full bg-neutral-900 px-3 py-1 text-sm text-white">Accept</button>
+                      <button onClick={() => run((b) => b.respondChallenge(c.id, true))} className="rounded-full bg-accent px-3 py-1 text-sm text-on-accent">Accept</button>
                       <button onClick={() => run((b) => b.respondChallenge(c.id, false))} className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-600">Decline</button>
                     </div>
                   </li>
@@ -214,13 +214,13 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
             <p className="mb-2 text-xs text-neutral-400">Type their exact handle. There’s no searching, so people only get found by someone who already knows their handle.</p>
             <div className="flex gap-2">
               <input value={handle} onChange={(e) => { setHandle(e.target.value); setFound(null) }} placeholder="@handle" autoCapitalize="none" autoCorrect="off" className={input} />
-              <button disabled={busy || handle.trim().length < 3} onClick={lookup} className="shrink-0 rounded-xl bg-neutral-900 px-4 text-sm text-white disabled:opacity-30">Find</button>
+              <button disabled={busy || handle.trim().length < 3} onClick={lookup} className="shrink-0 rounded-xl bg-accent px-4 text-sm text-on-accent disabled:opacity-30">Find</button>
             </div>
             {found === 'none' && <p className="mt-2 text-sm text-neutral-500">No one with that handle.</p>}
             {found && found !== 'none' && (
               <div className="mt-3 flex items-center gap-3">
                 <Avatar profile={found} /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{found.displayName}</span><span className="block text-xs text-neutral-400">@{found.handle}</span></span>
-                <button disabled={!!alreadyFriend || !!alreadyAsked} onClick={() => run(async (b) => { await b.sendFriendRequest(found.id); setFound(null); setHandle('') })} className="rounded-full bg-neutral-900 px-3 py-1 text-sm text-white disabled:opacity-40">
+                <button disabled={!!alreadyFriend || !!alreadyAsked} onClick={() => run(async (b) => { await b.sendFriendRequest(found.id); setFound(null); setHandle('') })} className="rounded-full bg-accent px-3 py-1 text-sm text-on-accent disabled:opacity-40">
                   {alreadyFriend ? 'Friends' : alreadyAsked ? 'Requested' : 'Add'}
                 </button>
               </div>

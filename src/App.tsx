@@ -7,6 +7,7 @@ import { Tour } from './components/Tour'
 import { Toasts } from './components/Toasts'
 import { SocialSetup } from './components/social/SocialSetup'
 import { SocialView } from './components/social/SocialView'
+import { useTheme } from './lib/useTheme'
 import { useSocialSync } from './social/useSocialSync'
 import { useStore } from './store'
 import { useNotificationEngine } from './lib/useNotificationEngine'
@@ -18,9 +19,10 @@ export default function App() {
   const tourDone = useStore((s) => s.tourDone)
   useNotificationEngine()
   useSocialSync()
+  useTheme()
   if (choice === 'unset') {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-surface">
         <SocialSetup variant="gate" onDone={() => undefined} />
       </div>
     )

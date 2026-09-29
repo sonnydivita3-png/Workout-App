@@ -16,7 +16,7 @@ import { WorkoutList } from './WorkoutList'
 const DURATIONS = [30, 45, 60, 75, 90]
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
-const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'}`
+const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
 
 interface Props {
   onClose: () => void
@@ -94,7 +94,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
               key={l}
               onClick={() => toggleDay(i)}
               aria-pressed={days.includes(i)}
-              className={`rounded-xl py-2 text-sm ${days.includes(i) ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-500'}`}
+              className={`rounded-xl py-2 text-sm ${days.includes(i) ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-500'}`}
             >
               {l}
             </button>
@@ -179,7 +179,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
                     {isOpen && (
                       <div className="mt-2">
                         <WorkoutList items={d.items} />
-                        <button onClick={() => reroll(d.date)} className="mt-2 rounded-full bg-white px-3 py-1 text-sm shadow-sm ring-1 ring-neutral-200">Reroll this day</button>
+                        <button onClick={() => reroll(d.date)} className="mt-2 rounded-full bg-surface px-3 py-1 text-sm shadow-sm ring-1 ring-neutral-200">Reroll this day</button>
                       </div>
                     )}
                   </li>
