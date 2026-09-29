@@ -6,7 +6,7 @@ import { EMOJI, type Scope, type SharedPayload } from '../../social/types'
 import { findExercise, useStore } from '../../store'
 import { Sheet } from '../Sheet'
 import { chip, input, label, primary } from './styles'
-import { ErrorNote } from './ui'
+import { Avatar, ErrorNote } from './ui'
 
 const SCOPES: { id: Scope; label: string; blurb: string }[] = [
   { id: 'day', label: 'This day', blurb: 'Just this one workout.' },
@@ -105,7 +105,7 @@ export function ShareSheet({ date, friendId, scope: initialScope, requestId, pay
           const ok = f.theyGrant.workouts
           return (
             <button key={f.profile.id} disabled={!ok} onClick={() => setTo(f.profile.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left ${to === f.profile.id ? 'bg-neutral-900 text-white' : 'bg-neutral-50'} disabled:opacity-50`}>
-              <span className="text-xl">{f.profile.avatar}</span>
+              <Avatar profile={f.profile} size="sm" />
               <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{f.profile.displayName}</span><span className={`block text-xs ${to === f.profile.id ? 'text-neutral-300' : 'text-neutral-400'}`}>@{f.profile.handle}</span></span>
               {!ok && <span className="text-xs text-neutral-400">hasn’t allowed workouts</span>}
             </button>

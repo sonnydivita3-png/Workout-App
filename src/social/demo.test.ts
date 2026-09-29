@@ -53,6 +53,20 @@ describe('sign-in and profile', () => {
   })
 })
 
+describe('avatars', () => {
+  it('accepts emoji, letter and small photo avatars and rejects anything else', async () => {
+    const be = new DemoBackend(mem())
+    await be.sendCode('a@b.co')
+    await be.verifyCode('a@b.co', '123456')
+    await be.createProfile({ handle: 'avy', displayName: 'Avy', avatar: 'letter:A' })
+    expect((await be.updateProfile({ avatar: '🔥' })).avatar).toBe('🔥')
+    const photo = 'data:image/jpeg;base64,' + 'A'.repeat(500)
+    expect((await be.updateProfile({ avatar: photo })).avatar).toBe(photo)
+    await expect(be.updateProfile({ avatar: 'data:image/svg+xml;base64,AAAA' })).rejects.toThrow()
+    await expect(be.updateProfile({ avatar: 'data:image/jpeg;base64,' + 'A'.repeat(13000) })).rejects.toThrow()
+  })
+})
+
 describe('friend requests', () => {
   it('reject duplicates in either direction, self, friends, and blocked people', async () => {
     const w = world(); const a = w.add('a_one'); const b = w.add('b_two'); const c = w.add('c_three')

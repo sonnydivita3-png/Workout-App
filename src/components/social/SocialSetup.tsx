@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useStore } from '../../store'
 import { useSocial, describeError } from '../../social/store'
 import { AVATARS, HANDLE_RE, normalizeHandle } from '../../social/types'
-import { chip, input, label, primary, secondary } from './styles'
+import { AvatarPicker } from './AvatarPicker'
+import { input, label, primary, secondary } from './styles'
 import { ErrorNote } from './ui'
 
 type Step = 'intro' | 'email' | 'code' | 'profile'
@@ -106,9 +107,7 @@ export function SocialSetup({ variant, onDone, onCancel }: Props) {
           <label className={`${label} block`}>Display name</label>
           <input value={displayName} maxLength={40} onChange={(e) => setDisplayName(e.target.value)} placeholder="What friends see" className={`${input} mb-4`} />
           <p className={label}>Avatar</p>
-          <div className="mb-5 flex flex-wrap gap-2">
-            {AVATARS.map((a) => <button key={a} onClick={() => setAvatar(a)} aria-label={`Avatar ${a}`} className={`${chip(a === avatar)} text-lg`}>{a}</button>)}
-          </div>
+          <div className="mb-5"><AvatarPicker value={avatar} onChange={setAvatar} name={displayName} /></div>
           <label className="mb-5 flex items-start gap-3 text-sm text-neutral-600">
             <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-4 w-4" />
             <span>I agree that my handle and display name are visible to people who look up my exact handle. I decide what each friend can see or send me, and I can turn social features off any time.</span>

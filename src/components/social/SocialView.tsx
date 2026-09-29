@@ -128,7 +128,7 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
     <>
       <header className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Social</h1>
-        {profile && <span className="text-sm text-neutral-400">{profile.avatar} @{profile.handle}</span>}
+        {profile && <span className="flex items-center gap-2 text-sm text-neutral-400"><Avatar profile={profile} size="sm" />@{profile.handle}</span>}
       </header>
       <div className="mb-4 flex gap-2">
         <button onClick={() => setSection('inbox')} className={chip(section === 'inbox')}>Inbox{pending > 0 ? ` (${pending})` : ''}</button>

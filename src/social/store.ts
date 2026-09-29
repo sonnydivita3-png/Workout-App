@@ -25,6 +25,8 @@ interface SocialState {
   refresh: () => Promise<void>
   /** Run an action against the server, then reload. Returns an error message instead of throwing. */
   act: <T>(fn: (b: SocialBackend) => Promise<T>) => Promise<{ ok: true; value: T } | { ok: false; error: string }>
+  /** Change display name or avatar. Returns an error message instead of throwing. */
+  updateProfile: (p: { displayName?: string; avatar?: string }) => Promise<string | null>
   signOut: () => Promise<void>
   reset: () => void
 }
@@ -87,6 +89,16 @@ export const useSocial = create<SocialState>()((set, get) => ({
       return { ok: true, value }
     } catch (e) {
       return { ok: false, error: describeError(e) }
+    }
+  },
+
+  updateProfile: async (p) => {
+    try {
+      const profile = await get().backend.updateProfile(p)
+      set({ profile })
+      return null
+    } catch (e) {
+      return describeError(e)
     }
   },
 
