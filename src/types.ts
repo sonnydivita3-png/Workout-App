@@ -27,6 +27,40 @@ export interface CardioEntry {
   minutes: number | null
 }
 
+/** Time-based workout formats: as many rounds as possible, every minute on the minute, or a fixed amount of work against the clock. */
+export type WodKind = 'amrap' | 'emom' | 'fortime'
+
+export interface Wod {
+  kind: WodKind
+  /** AMRAP: the time cap. EMOM: total minutes. For time: the time cap. */
+  minutes: number
+  /** EMOM: minutes per interval (1 = every minute on the minute). */
+  interval?: number
+  /** For time: how many rounds to finish. */
+  rounds?: number
+}
+
+/** A logged result for a whole timed block (the exercises in it are also logged, so history and streaks keep working). */
+export interface TimedLog {
+  id: string
+  date: string
+  block: string
+  wod: Wod
+  title: string
+  /** Exercise ids in the block, in order. */
+  movements: string[]
+  /** AMRAP: full rounds. For time: rounds completed. */
+  rounds?: number
+  /** AMRAP: extra reps on top of the last full round. */
+  reps?: number
+  /** EMOM: intervals completed. */
+  intervals?: number
+  /** For time: finishing time in seconds. */
+  seconds?: number
+  /** For time: stopped by the time cap instead of finishing. */
+  capped?: boolean
+}
+
 /** One planned exercise on a weekday template. */
 export interface PlannedExercise {
   exerciseId: string
@@ -40,6 +74,8 @@ export interface PlannedExercise {
   note?: string // extra instruction, e.g. "50 m" or "40s on / 20s off"
   est?: number // estimated minutes for this item, when the standard sets formula doesn't apply
   distance?: number // target distance in miles (cardio)
+  /** Set on every item of a timed block (AMRAP / EMOM / for time). `reps` or `seconds` is per round. */
+  wod?: Wod
 }
 
 /** Plan is a weekly template: 0 = Monday ... 6 = Sunday. */

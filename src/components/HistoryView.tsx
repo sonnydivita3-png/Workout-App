@@ -3,13 +3,14 @@ import { formatPace, formatSeconds, showDistance, showWeight } from '../lib/unit
 import { cardioSessions, hasData, isPR, setSessions, strengthSessions } from '../lib/stats'
 import { findExercise, useStore } from '../store'
 import type { Exercise } from '../types'
+import { formatResult } from '../lib/wod'
 import { LineChart } from './LineChart'
 
 const fmtLong = (iso: string) =>
   new Date(iso + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
 
 export function HistoryView() {
-  const { logs, custom } = useStore()
+  const { logs, custom, timedLogs, deleteTimed } = useStore()
   const [openId, setOpenId] = useState<string | null>(null)
 
   const rows = useMemo(() => {
@@ -32,9 +33,30 @@ export function HistoryView() {
   return (
     <section>
       <h1 className="mb-4 text-2xl font-semibold tracking-tight">History</h1>
-      {rows.length === 0 ? (
+      {rows.length === 0 && timedLogs.length === 0 ? (
         <p className="py-16 text-center text-neutral-400">Nothing logged yet. Log a workout and your glow-up shows up here 📈</p>
       ) : (
+        <>
+        {timedLogs.length > 0 && (
+          <div className="mb-5">
+            <h2 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Timed workouts</h2>
+            <ul className="space-y-2">
+              {[...timedLogs].sort((a, b) => b.date.localeCompare(a.date)).map((t) => (
+                <li key={t.id} className="flex items-center justify-between gap-3 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
+                  <span className="min-w-0">
+                    <span className="block font-medium">{t.title}</span>
+                    <span className="block truncate text-xs text-neutral-400">{fmtLong(t.date)} · {t.movements.map((id) => findExercise(custom, id)?.name).filter(Boolean).join(', ')}</span>
+                  </span>
+                  <span className="flex shrink-0 flex-col items-end gap-1">
+                    <b className="tabular-nums">{formatResult(t)}</b>
+                    <button onClick={() => confirm(`Delete this ${t.title} result? Its exercise history for that day goes too.`) && deleteTimed(t.id)} className="text-xs text-red-600">Delete</button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {rows.length > 0 && <h2 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Exercises</h2>}
         <ul className="space-y-2">
           {rows.map(({ ex, date, n }) => (
             <li key={ex.id}>
@@ -51,6 +73,7 @@ export function HistoryView() {
             </li>
           ))}
         </ul>
+        </>
       )}
     </section>
   )

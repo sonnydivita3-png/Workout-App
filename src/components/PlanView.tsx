@@ -3,6 +3,8 @@ import { parseISO, toISO, weekDates, weekdayIndex } from '../lib/dates'
 import { groupByBlock } from '../lib/describe'
 import { dayPlanOf, isRestDay } from '../lib/plan'
 import { findExercise, selectLastLog, useStore } from '../store'
+import { TimedBlockCard } from './TimedBlockCard'
+import { WodBuilderSheet } from './WodBuilderSheet'
 import { ProgramsCard } from './ProgramsCard'
 import { CardioPlanSheet } from './CardioPlanSheet'
 import { ProgramSheet } from './ProgramSheet'
@@ -21,6 +23,7 @@ export function PlanView() {
   const [today] = useState(() => toISO(new Date()))
   const [picking, setPicking] = useState(false)
   const [addMenu, setAddMenu] = useState(false)
+  const [wodBuilder, setWodBuilder] = useState(false)
   const [dayMenu, setDayMenu] = useState(false)
   const [generator, setGenerator] = useState<GeneratorMode | null>(null)
   const s = useStore()
@@ -67,7 +70,9 @@ export function PlanView() {
         {planned.length === 0 && !rest && (
           <p className="py-12 text-center text-neutral-400">Nothing planned yet. Add a move, hit Randomize, or call it a rest day 😴</p>
         )}
-        {groupByBlock(planned).map((g, gi) => (
+        {groupByBlock(planned).map((g, gi) => g.items[0].item.wod ? (
+          <TimedBlockCard key={g.block ?? gi} items={g.items.map((x) => x.item)} date={date} onRemove={() => g.items.forEach((x) => s.removeExercise(date, x.item.exerciseId))} />
+        ) : (
           <div key={gi} className={g.block ? 'space-y-2 rounded-3xl bg-neutral-200/50 p-2' : 'contents'}>
             {g.block && g.label && <p className="px-2 pt-1 text-[11px] uppercase tracking-wide text-neutral-500">{g.label}</p>}
             {g.items.map(({ item: p }) => {
@@ -119,6 +124,7 @@ export function PlanView() {
           {([
             ['Add an exercise', 'Pick from 750+ exercises', () => setPicking(true)],
             ['Randomize a workout', 'Muscles, style and time, or a random week/month', () => setGenerator('one')],
+            ['Build a timed workout', 'AMRAP, EMOM or for time, with a built-in clock', () => setWodBuilder(true)],
             ['Start a training plan', 'Run or bike plan for a goal or race', () => setGenerator('cardio')],
           ] as const).map(([title, hint, go]) => (
             <button key={title} onClick={() => { setAddMenu(false); go() }} className={rowBtn}>
@@ -128,6 +134,7 @@ export function PlanView() {
           ))}
         </Sheet>
       )}
+      {wodBuilder && <WodBuilderSheet date={date} onClose={() => setWodBuilder(false)} />}
       {generator === 'one' && <RandomizerSheet date={date} onClose={() => setGenerator(null)} onSwitchMode={setGenerator} />}
       {generator === 'program' && (
         <ProgramSheet

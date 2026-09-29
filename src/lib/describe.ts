@@ -7,6 +7,9 @@ export function describeItem(p: PlannedExercise, ex: Exercise, units: Units = { 
   if (ex.kind === 'cardio') {
     if (p.distance) parts.push(`${showDistance(p.distance, units)} ${units.distance}`)
     if (p.minutes) parts.push(`${p.minutes} min`)
+  } else if (p.wod) {
+    if (p.seconds) parts.push(`${p.seconds}s`)
+    else if (p.reps) parts.push(`${p.reps} reps`)
   } else if (p.seconds) parts.push(`${p.sets} × ${p.seconds}s`)
   else if (p.reps) parts.push(`${p.sets} × ${p.reps}`)
   else if (p.sets > 1) parts.push(`${p.sets} ${p.block ? 'rounds' : 'sets'}`)

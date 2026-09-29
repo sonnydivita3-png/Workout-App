@@ -47,7 +47,7 @@ const Row = ({ title, children }: { title: string; children: React.ReactNode }) 
 )
 
 export function SettingsView() {
-  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, plan, overrides, logs, custom, name, setName, bodyweight, routines, goals, importData, setTourDone, theme, setTheme, accent, setAccent } = useStore()
+  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, plan, overrides, logs, custom, name, setName, bodyweight, routines, goals, timedLogs, importData, setTourDone, theme, setTheme, accent, setAccent } = useStore()
   const [installEvt, setInstallEvt] = useState<InstallEvent | null>(null)
   const [msg, setMsg] = useState('')
   const [erasing, setErasing] = useState(false)
@@ -77,7 +77,7 @@ export function SettingsView() {
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent)
 
   const exportData = () => {
-    const blob = new Blob([JSON.stringify({ app: 'workout', plan, overrides, logs, custom, units, name, bodyweight, routines, goals }, null, 2)], { type: 'application/json' })
+    const blob = new Blob([JSON.stringify({ app: 'workout', plan, overrides, logs, custom, units, name, bodyweight, routines, goals, timedLogs }, null, 2)], { type: 'application/json' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
     a.download = `ez-workout-backup-${new Date().toISOString().slice(0, 10)}.json`
@@ -95,7 +95,7 @@ export function SettingsView() {
       if (!confirm('Replace all current data with this backup?')) return
       importData({
         plan: d.plan, overrides: d.overrides ?? {}, logs: d.logs, custom: d.custom ?? [], units: d.units ?? units,
-        name: d.name ?? '', bodyweight: d.bodyweight ?? [], routines: d.routines ?? [], goals: d.goals ?? [],
+        name: d.name ?? '', bodyweight: d.bodyweight ?? [], routines: d.routines ?? [], goals: d.goals ?? [], timedLogs: Array.isArray(d.timedLogs) ? d.timedLogs : [],
       })
       setMsg('Backup restored.')
     } catch {
