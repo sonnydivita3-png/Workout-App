@@ -45,6 +45,8 @@ interface State extends Data {
   applyProgram: (days: PlanOverrides) => void
   /** Drop a date's override so it follows the weekly template again. */
   resetDay: (date: string) => void
+  /** Mark a date as a rest day: an empty override, whatever the weekly template says. */
+  setRestDay: (date: string) => void
   saveRoutine: (name: string, items: PlannedExercise[]) => void
   deleteRoutine: (id: string) => void
   loadRoutine: (date: string, id: string) => void
@@ -163,6 +165,7 @@ export const useStore = create<State>()(
           return next
         }),
       applyProgram: (days) => set((s) => ({ overrides: { ...s.overrides, ...days } })),
+      setRestDay: (date) => set((s) => ({ overrides: { ...s.overrides, [date]: [] } })),
       resetDay: (date) =>
         set((s) => {
           const { [date]: _dropped, ...rest } = s.overrides

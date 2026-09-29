@@ -4,11 +4,13 @@ interface Props {
   dates: Date[]
   selected: number
   counts: number[]
+  /** Days explicitly marked as rest. */
+  rest?: boolean[]
   today: string
   onSelect: (i: number) => void
 }
 
-export function WeekStrip({ dates, selected, counts, today, onSelect }: Props) {
+export function WeekStrip({ dates, selected, counts, rest, today, onSelect }: Props) {
   return (
     <div className="grid grid-cols-7 gap-1">
       {dates.map((d, i) => {
@@ -25,7 +27,11 @@ export function WeekStrip({ dates, selected, counts, today, onSelect }: Props) {
             <span className={`text-lg font-semibold ${toISO(d) === today && !active ? 'text-neutral-900' : ''}`}>
               {d.getDate()}
             </span>
-            <span className={`mt-0.5 h-1 w-1 rounded-full ${counts[i] ? (active ? 'bg-white' : 'bg-neutral-400') : 'bg-transparent'}`} />
+            {rest?.[i] ? (
+              <span className={`text-[9px] uppercase leading-none ${active ? 'text-neutral-300' : 'text-neutral-400'}`}>rest</span>
+            ) : (
+              <span className={`mt-0.5 h-1 w-1 rounded-full ${counts[i] ? (active ? 'bg-white' : 'bg-neutral-400') : 'bg-transparent'}`} />
+            )}
           </button>
         )
       })}

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { addDays, fmtLong, fmtShort, parseISO, toISO } from '../lib/dates'
 import { goalPct, goalTitle } from '../lib/goals'
-import { dayPlanOf } from '../lib/plan'
+import { dayPlanOf, isRestDay, lastWorkout } from '../lib/plan'
 import { bestLift, hasData, weekStats } from '../lib/stats'
 import { formatPace, formatSeconds, showDistance, showWeight, storeWeight } from '../lib/units'
 import { useToday } from '../lib/useToday'
@@ -58,8 +58,10 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   const todays = new Map(logs.filter((l) => l.date === today && hasData(l)).map((l) => [l.exerciseId, l]))
   const upcoming = planned.filter((p) => !todays.has(p.exerciseId))
 
-  const lastDate = logs.filter(hasData).map((l) => l.date).sort().at(-1)
-  const lastLogs = lastDate ? logs.filter((l) => l.date === lastDate && hasData(l)) : []
+  const latest = lastWorkout(logs, overrides, today)
+  const lastDate = latest?.date
+  const lastLogs = latest?.logs ?? []
+  const restToday = isRestDay(overrides, today)
 
   const stats = weekStats(logs, today)
   const volDelta = stats.lastVolume ? Math.round(((stats.volume - stats.lastVolume) / stats.lastVolume) * 100) : null
@@ -109,10 +111,12 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
 
       <Card
         title="Today"
-        action={<button onClick={() => onNavigate('plan')} className="text-sm text-neutral-500">{planned.length ? 'Open ›' : 'Plan ›'}</button>}
+        action={<button onClick={() => onNavigate('plan')} className="text-sm text-neutral-500">{planned.length || restToday ? 'Open ›' : 'Plan ›'}</button>}
       >
-        {planned.length === 0 ? (
-          <p className="text-neutral-400">Rest day. Nothing planned.</p>
+        {restToday ? (
+          <p className="text-neutral-500">Rest day. Recovery is part of the plan.</p>
+        ) : planned.length === 0 ? (
+          <p className="text-neutral-400">Nothing planned today.</p>
         ) : upcoming.length === 0 ? (
           <p className="text-neutral-500">All {planned.length} done today. Nice work.</p>
         ) : (
