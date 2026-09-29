@@ -25,6 +25,9 @@ interface State extends Data {
   /** Whether the person opted in to social features, opted out, or hasn't been asked yet. */
   socialChoice: SocialChoice
   setSocialChoice: (c: SocialChoice) => void
+  /** Whether the first-run walkthrough has been finished or skipped. */
+  tourDone: boolean
+  setTourDone: (done: boolean) => void
   /** Add dated exercises (e.g. from a friend's shared plan). They join what's planned unless `replace`. */
   applyDays: (days: Record<string, PlannedExercise[]>, replace: boolean) => void
   addCustomExercises: (list: Exercise[]) => void
@@ -101,6 +104,7 @@ const defaults = () => ({
   notifications: [] as AppNotification[],
   notifPrefs: { system: false, goals: true, pbs: true, daily: true, reminderTime: '17:00' } as NotifPrefs,
   socialChoice: 'unset' as SocialChoice,
+  tourDone: false,
 })
 
 export const useStore = create<State>()(
@@ -110,7 +114,7 @@ export const useStore = create<State>()(
       resetAll: (keepProfile) =>
         set((s) => ({
           ...defaults(),
-          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice } : {}),
+          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone } : {}),
         })),
       pushNotifications: (items) => {
         const existing = new Map(get().notifications.map((n) => [n.id, n]))
@@ -180,6 +184,7 @@ export const useStore = create<State>()(
         }),
       applyProgram: (days) => set((s) => ({ overrides: { ...s.overrides, ...days } })),
       setSocialChoice: (socialChoice) => set({ socialChoice }),
+      setTourDone: (tourDone) => set({ tourDone }),
       addCustomExercises: (list) =>
         set((s) => ({ custom: [...s.custom, ...list.filter((e) => !s.custom.some((c) => c.id === e.id))] })),
       applyDays: (days, replace) =>
