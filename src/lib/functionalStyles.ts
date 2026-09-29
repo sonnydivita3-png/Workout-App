@@ -1,5 +1,5 @@
 import { EXERCISES } from '../data/exercises'
-import type { Exercise, PlannedExercise } from '../types'
+import type { Exercise, PlannedExercise, Wod, WodKind } from '../types'
 import { byName, isMainLift, pick, roundTo, roundTo5, softShuffle, type Rng } from './randomUtil'
 
 const RUN = 'running'
@@ -86,8 +86,8 @@ function wodReps(e: Exercise, rng: Rng, hard: boolean): number {
 
 type WodFormat = 'AMRAP' | 'EMOM' | 'FT'
 
-function buildWod(minutes: number, moves: Exercise[], rng: Rng, part: string): PlannedExercise[] {
-  const format: WodFormat = pick(['AMRAP', 'EMOM', 'FT'], rng)
+function buildWod(minutes: number, moves: Exercise[], rng: Rng, part: string, forced?: WodFormat): PlannedExercise[] {
+  const format: WodFormat = forced ?? pick(['AMRAP', 'EMOM', 'FT'], rng)
   const n = moves.length
   const per = minutesOf(minutes / n)
   let label: string
@@ -102,8 +102,9 @@ function buildWod(minutes: number, moves: Exercise[], rng: Rng, part: string): P
     rounds = Math.min(5, Math.max(3, Math.round(minutes / (n * 1.3))))
     label = `${part} · ${rounds} rounds for time`
   }
+  const wod: Wod = format === 'AMRAP' ? { kind: 'amrap', minutes } : format === 'EMOM' ? { kind: 'emom', minutes: rounds * n, interval: 1 } : { kind: 'fortime', minutes, rounds }
   return moves.map((e, i) => {
-    const item: PlannedExercise = { exerciseId: e.id, sets: rounds, est: per, block: part.toLowerCase().replace(/\s+/g, '-'), blockLabel: label }
+    const item: PlannedExercise = { exerciseId: e.id, sets: rounds, est: per, block: part.toLowerCase().replace(/\s+/g, '-'), blockLabel: label, wod }
     if (e.mode === 'time') item.note = e.id === 'x-row-erg' ? '250 m' : '30s'
     else item.reps = wodReps(e, rng, format === 'EMOM')
     if (format === 'EMOM') item.note = `${item.note ? item.note + ' · ' : ''}minute ${i + 1} of ${n}`
@@ -153,3 +154,45 @@ export function generateCrossfit(minutes: number, rng: Rng, avoid: Set<string>):
   return out
 }
 
+
+// ---------------------------------------------------------------------------------------------
+// Timed formats on their own: AMRAP, EMOM, or rounds for time, optionally aimed at body parts.
+// ---------------------------------------------------------------------------------------------
+
+const KIND_TO_FORMAT: Record<WodKind, WodFormat> = { amrap: 'AMRAP', emom: 'EMOM', fortime: 'FT' }
+const HOME_GEAR = ['Bodyweight', 'Dumbbell', 'Kettlebell']
+
+/** Movements that suit a timed piece, limited to the chosen body parts when there are any. */
+function timedPool(focus: string[]): Exercise[] {
+  const base = crossfitPool()
+  if (focus.length === 0) return base
+  const inFocus = (e: Exercise) => focus.includes(e.group)
+  const extra = EXERCISES.filter((e) => e.suggest && e.kind === 'strength' && e.mode !== 'time' && inFocus(e) && HOME_GEAR.includes(e.equipment ?? ''))
+  return [...new Map([...base.filter(inFocus), ...extra].map((e) => [e.id, e])).values()]
+}
+
+/** An AMRAP, EMOM or for-time workout that fits about `minutes`. Long sessions get a second and third part. */
+export function generateTimed(kind: WodKind, focus: string[], minutes: number, rng: Rng, avoid: Set<string>): PlannedExercise[] {
+  const pool = softShuffle(timedPool(focus), avoid, rng)
+  const used = new Set<string>()
+  const out: PlannedExercise[] = []
+  let left = minutes
+  const cap = kind === 'emom' ? 24 : 20
+  for (let part = 0; part < 3 && left >= (part === 0 ? 5 : 12); part++) {
+    const m = part === 0 ? Math.min(left, minutes > 45 ? cap : Math.max(cap, 30)) : Math.min(cap, left - 2)
+    const count = m <= 10 ? 3 : 4
+    const moves: Exercise[] = []
+    for (const e of pool) {
+      if (used.has(e.id)) continue
+      if (e.group === 'Core' && moves.some((x) => x.group === 'Core')) continue
+      if (e.mode === 'time' && moves.some((x) => x.mode === 'time')) continue
+      moves.push(e)
+      if (moves.length === count) break
+    }
+    if (moves.length < 2) break
+    moves.forEach((e) => used.add(e.id))
+    out.push(...buildWod(m, moves, rng, part === 0 ? 'WOD' : `Part ${String.fromCharCode(65 + part)}`, KIND_TO_FORMAT[kind]))
+    left -= m + 2
+  }
+  return out
+}

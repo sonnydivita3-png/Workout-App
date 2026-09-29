@@ -6,7 +6,7 @@ import { toPlanned, type CardioDay } from './lib/cardioPlan'
 import { dayPlanOf } from './lib/plan'
 import { activePrograms, clearRange, removeProgramDays } from './lib/programs'
 import type {
-  AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Program, Routine, Sport, StrengthSet, Units, WeekPlan,
+  AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Program, Routine, Sport, TimedLog, StrengthSet, Units, WeekPlan,
 } from './types'
 
 export type ThemeMode = 'dark' | 'light' | 'auto'
@@ -24,6 +24,7 @@ export interface Data {
   bodyweight: BodyweightEntry[]
   routines: Routine[]
   goals: Goal[]
+  timedLogs?: TimedLog[]
 }
 
 interface State extends Data {
@@ -41,6 +42,11 @@ interface State extends Data {
   /** Add dated exercises (e.g. from a friend's shared plan). They join what's planned unless `replace`. */
   applyDays: (days: Record<string, PlannedExercise[]>, replace: boolean) => void
   addCustomExercises: (list: Exercise[]) => void
+  /** Results of timed blocks (AMRAP / EMOM / for time). */
+  timedLogs: TimedLog[]
+  /** Save a timed result, replacing an earlier one for the same block that day, along with the per-exercise logs it implies. */
+  saveTimed: (log: Omit<TimedLog, 'id'>, derived: ExerciseLog[]) => void
+  deleteTimed: (id: string) => void
   /** Plans added in one go (a week/month program or a run/bike plan), so they can be stopped or replaced. */
   programs: Program[]
   /** Add a random week/month program. Any earlier program still running is stopped first. */
@@ -129,6 +135,7 @@ const defaults = () => ({
   notifications: [] as AppNotification[],
   notifPrefs: { system: false, goals: true, pbs: true, daily: true, reminderTime: '17:00' } as NotifPrefs,
   programs: [] as Program[],
+  timedLogs: [] as TimedLog[],
   theme: 'dark' as ThemeMode,
   accent: 'lime' as Accent,
   socialChoice: 'unset' as SocialChoice,
@@ -183,6 +190,22 @@ export const useStore = create<State>()(
         set((s) => ({ logs: upsertLog(s.logs, { date, exerciseId, sets }) })),
       saveCardio: (date, exerciseId, cardio) =>
         set((s) => ({ logs: upsertLog(s.logs, { date, exerciseId, cardio }) })),
+      saveTimed: (log, derived) =>
+        set((s) => {
+          const prev = s.timedLogs.find((t) => t.date === log.date && t.block === log.block)
+          let logs = s.logs
+          // Drop what the earlier result implied, then add the new one (an empty result clears them).
+          if (prev) logs = logs.filter((l) => !(l.date === prev.date && prev.movements.includes(l.exerciseId)))
+          for (const d of derived) logs = upsertLog(logs, d)
+          const next: TimedLog = { ...log, id: prev?.id ?? `tl-${Date.now().toString(36)}` }
+          return { logs, timedLogs: [...s.timedLogs.filter((t) => t.id !== next.id), next] }
+        }),
+      deleteTimed: (id) =>
+        set((s) => {
+          const t = s.timedLogs.find((x) => x.id === id)
+          if (!t) return s
+          return { timedLogs: s.timedLogs.filter((x) => x.id !== id), logs: s.logs.filter((l) => !(l.date === t.date && t.movements.includes(l.exerciseId))) }
+        }),
       deleteLogs: (exerciseId, date) =>
         set((s) => ({ logs: s.logs.filter((l) => !(l.exerciseId === exerciseId && (date === undefined || l.date === date))) })),
       createCustom: (name, kind, mode) => {
@@ -309,7 +332,7 @@ export const useStore = create<State>()(
       importData: (d) =>
         set({
           plan: d.plan, overrides: d.overrides ?? {}, logs: d.logs, custom: d.custom ?? [], units: d.units,
-          name: d.name ?? '', bodyweight: d.bodyweight ?? [], routines: d.routines ?? [], goals: d.goals ?? [], programs: [],
+          name: d.name ?? '', bodyweight: d.bodyweight ?? [], routines: d.routines ?? [], goals: d.goals ?? [], programs: [], timedLogs: d.timedLogs ?? [],
         }),
     }),
     { name: 'workout-app-v1', version: 1 },

@@ -204,3 +204,29 @@ describe('editing structured workouts', () => {
     expect(s.block).toBe('hyrox')
   })
 })
+
+describe('AMRAP, EMOM and for time', () => {
+  it('produce timed blocks whose items all carry the same format', () => {
+    for (const kind of ['amrap', 'emom', 'fortime'] as const) {
+      for (const minutes of [10, 20, 45, 75]) {
+        for (let seed = 1; seed <= 15; seed++) {
+          const w = gen(kind, [], minutes, seed)
+          expect(w.every((p) => p.wod?.kind === kind), `${kind} ${minutes}`).toBe(true)
+          for (const items of Object.values(blocks(w))) {
+            expect(new Set(items.map((p) => JSON.stringify(p.wod))).size).toBe(1)
+            expect(items.length).toBeGreaterThanOrEqual(2)
+          }
+          if (kind === 'emom') for (const items of Object.values(blocks(w))) expect(items[0].wod!.minutes % items.length).toBe(0)
+          if (kind === 'fortime') expect(w[0].wod!.rounds).toBeGreaterThanOrEqual(3)
+        }
+      }
+    }
+  })
+  it('respects body-part focus when there is one', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const w = gen('amrap', ['Legs'], 20, seed)
+      expect(w.length).toBeGreaterThan(1)
+      for (const p of w) expect(ex(p).group).toBe('Legs')
+    }
+  })
+})

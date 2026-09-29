@@ -1,12 +1,12 @@
 import { EXERCISES } from '../data/exercises'
 import type { Exercise, PlannedExercise } from '../types'
-import { generateCrossfit, generateHyrox } from './functionalStyles'
+import { generateCrossfit, generateHyrox, generateTimed } from './functionalStyles'
 import { BY_ID, FULL_BODY_GROUPS, isAdvanced, isIsolation, isMainLift, POOL, pick, roundTo5, shuffle, softShuffle, type Rng } from './randomUtil'
 
 export const FOCUS_OPTIONS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Glutes', 'Core', 'Cardio'] as const
 export const LIFT_GROUPS = FOCUS_OPTIONS.filter((g) => g !== 'Cardio')
 
-export type WorkoutStyle = 'standard' | 'strength' | 'supersets' | 'circuit' | 'pha' | 'hyrox' | 'crossfit' | 'bodyweight'
+export type WorkoutStyle = 'standard' | 'strength' | 'supersets' | 'circuit' | 'pha' | 'hyrox' | 'crossfit' | 'amrap' | 'emom' | 'fortime' | 'bodyweight'
 
 export interface StyleInfo {
   id: WorkoutStyle
@@ -24,6 +24,9 @@ export const STYLES: StyleInfo[] = [
   { id: 'pha', label: 'PHA', blurb: 'Peripheral heart action: alternate upper- and lower-body moves with almost no rest.', focus: 'optional' },
   { id: 'hyrox', label: 'Hyrox-style', blurb: 'Run plus a station, repeated: SkiErg, sleds, carries, wall balls. Always full body.', focus: 'ignored' },
   { id: 'crossfit', label: 'CrossFit-style', blurb: 'Optional strength primer, then a timed WOD: AMRAP, EMOM, or rounds for time. Full body.', focus: 'ignored' },
+  { id: 'amrap', label: 'AMRAP', blurb: 'As many rounds as possible in a set time. Leave body parts empty for full body.', focus: 'optional' },
+  { id: 'emom', label: 'EMOM', blurb: 'Every minute on the minute: a movement each minute, rest what’s left of it.', focus: 'optional' },
+  { id: 'fortime', label: 'For time', blurb: 'A set number of rounds against the clock, with a time cap.', focus: 'optional' },
   { id: 'bodyweight', label: 'Bodyweight', blurb: 'No equipment needed.', focus: 'required' },
 ]
 export const styleInfo = (id: WorkoutStyle) => STYLES.find((s) => s.id === id)!
@@ -58,7 +61,7 @@ const carriesNote = (label?: string) => !!label && /^(HIIT|PHA)/.test(label)
 /** A plan entry for `ex`, borrowing the previous entry's sets, minutes, and block when replacing one. */
 export function plannedFor(ex: Exercise, prev?: PlannedExercise, rng: Rng = Math.random): PlannedExercise {
   const keep: Partial<PlannedExercise> = prev?.block
-    ? { block: prev.block, blockLabel: prev.blockLabel, est: prev.est, ...(carriesNote(prev.blockLabel) && prev.note ? { note: prev.note } : {}) }
+    ? { block: prev.block, blockLabel: prev.blockLabel, est: prev.est, ...(prev.wod ? { wod: prev.wod } : {}), ...(carriesNote(prev.blockLabel) && prev.note ? { note: prev.note } : {}) }
     : { est: prev?.est }
   if (ex.kind === 'cardio') return { exerciseId: ex.id, sets: 1, minutes: prev?.minutes ?? 15, ...keep }
   const targets = keep.note ? {} : targetsFor(ex, rng)
@@ -346,6 +349,7 @@ export function generateWorkout(focus: string[], minutes: number, opts: Generate
   const { style = 'standard', rng = Math.random, avoid = new Set<string>() } = opts
   if (style === 'hyrox') return generateHyrox(minutes)
   if (style === 'crossfit') return generateCrossfit(minutes, rng, avoid)
+  if (style === 'amrap' || style === 'emom' || style === 'fortime') return generateTimed(style, focus.filter((g) => g !== 'Cardio'), minutes, rng, avoid)
 
   let lift = focus.filter((g) => g !== 'Cardio')
   const cardio = focus.includes('Cardio')
