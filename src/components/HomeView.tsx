@@ -17,7 +17,7 @@ import { ShareSheet } from './social/ShareSheet'
 import { completedWorkout } from '../social/share'
 
 const Card = ({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) => (
-  <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200/70">
+  <section className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
     <div className="mb-3 flex items-center justify-between">
       <h2 className="text-xs uppercase tracking-wide text-neutral-400">{title}</h2>
       {action}
@@ -58,7 +58,7 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   const [lastShare, setLastShare] = useState<'share' | 'challenge' | null>(null)
   const { units, logs, custom, plan, overrides } = s
 
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
+  const greeting = hour < 5 ? 'Night owl mode 🦉' : hour < 12 ? 'gm ☀️' : hour < 18 ? 'Let’s get it 💪' : 'Evening grind 🌙'
   const planned = dayPlanOf(plan, overrides, today)
   const todays = new Map(logs.filter((l) => l.date === today && hasData(l)).map((l) => [l.exerciseId, l]))
   const upcoming = planned.filter((p) => !todays.has(p.exerciseId))
@@ -87,7 +87,7 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
             <path d="M6 9a6 6 0 1112 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9M10 20a2 2 0 004 0" />
           </svg>
           {unread > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-neutral-900 px-1 text-[10px] font-medium text-white">
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-medium text-on-accent">
               {unread}
             </span>
           )}
@@ -108,7 +108,7 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
                 placeholder="What should we call you?"
                 className="min-w-0 flex-1 rounded-xl bg-neutral-100 px-4 py-2 text-sm outline-none"
               />
-              <button className="rounded-xl bg-neutral-900 px-4 text-sm text-white">Save</button>
+              <button className="rounded-xl bg-accent px-4 text-sm text-on-accent">Save</button>
             </form>
           </>
         )}
@@ -119,9 +119,9 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         action={<button onClick={() => onNavigate('plan')} className="text-sm text-neutral-500">{planned.length || restToday ? 'Open ›' : 'Plan ›'}</button>}
       >
         {restToday ? (
-          <p className="text-neutral-500">Rest day. Recovery is part of the plan.</p>
+          <p className="text-neutral-500">Rest day 😴 Recovery is part of the plan.</p>
         ) : planned.length === 0 ? (
-          <p className="text-neutral-400">Nothing planned today.</p>
+          <p className="text-neutral-400">Nothing planned today. Free day or add a move?</p>
         ) : upcoming.length === 0 ? (
           <p className="text-neutral-500">All {planned.length} done today. Nice work.</p>
         ) : (
@@ -149,7 +149,7 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
 
       <Card title="Last workout" action={lastDate && <span className="text-sm text-neutral-400">{fmtLong(lastDate)}</span>}>
         {lastLogs.length === 0 ? (
-          <p className="text-neutral-400">Nothing logged yet.</p>
+          <p className="text-neutral-400">Nothing logged yet. First one’s the hardest 😤</p>
         ) : (
           <ul className="divide-y divide-neutral-100">
             {lastLogs.map((l) => (
@@ -187,7 +187,7 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
             value={fmtVol(stats.volume)}
             sub={volDelta == null ? undefined : `${volDelta >= 0 ? '+' : ''}${volDelta}% vs last wk`}
           />
-          <Tile label="Week streak" value={String(stats.streak)} />
+          <Tile label={stats.streak > 0 ? "🔥 Week streak" : "Week streak"} value={String(stats.streak)} />
         </div>
       </Card>
 
@@ -274,7 +274,7 @@ function BodyweightCard({ today }: { today: string }) {
           className="min-w-0 flex-1 rounded-lg bg-neutral-100 px-2 py-2 text-sm outline-none"
         />
         <div className="w-20"><NumberInput value={draft} step={0.1} placeholder={units.weight} onChange={setDraft} /></div>
-        <button disabled={!draft} className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-white disabled:opacity-30">Log</button>
+        <button disabled={!draft} className="rounded-xl bg-accent px-4 py-2 text-sm text-on-accent disabled:opacity-30">Log</button>
       </form>
 
       {points.length > 0 ? (
@@ -284,7 +284,7 @@ function BodyweightCard({ today }: { today: string }) {
               <button
                 key={r.id}
                 onClick={() => setRange(r.id)}
-                className={`rounded-full px-3 py-1 text-xs ${r.id === range ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-500'}`}
+                className={`rounded-full px-3 py-1 text-xs ${r.id === range ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-500'}`}
               >
                 {r.label}
               </button>
@@ -348,7 +348,7 @@ function GoalRow({ goal }: { goal: Goal }) {
         </button>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-neutral-100">
-        <div className="h-full rounded-full bg-neutral-900" style={{ width: `${pct * 100}%` }} />
+        <div className="h-full rounded-full bg-accent" style={{ width: `${pct * 100}%` }} />
       </div>
       <div className="mt-1 text-xs text-neutral-400">{done ? 'Goal reached ✓' : detail}</div>
     </li>

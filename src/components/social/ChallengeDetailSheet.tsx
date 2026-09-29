@@ -100,7 +100,7 @@ export function ChallengeDetailSheet({ id, onNavigate, onClose }: { id: string; 
 
       {(c.status === 'active' || c.status === 'completed') && (
         <div className="mb-4 rounded-2xl bg-neutral-50 p-3">
-          <div className="h-2 overflow-hidden rounded-full bg-neutral-200"><div className="h-full rounded-full bg-neutral-900 transition-all" style={{ width: `${pct}%` }} /></div>
+          <div className="h-2 overflow-hidden rounded-full bg-neutral-200"><div className="h-full rounded-full bg-accent transition-all" style={{ width: `${pct}%` }} /></div>
           <p className="mt-2 text-sm">{live.done ? '🎉 Done!' : `${formatAmount(c, live.progress, units)} of ${formatAmount(c, c.target, units)}`}<span className="text-neutral-400">{c.mine ? ` · ${other.displayName}’s progress` : ''}</span></p>
         </div>
       )}
@@ -121,7 +121,7 @@ export function ChallengeDetailSheet({ id, onNavigate, onClose }: { id: string; 
             {spec.metric === 'weight' && <label className="w-28 text-xs text-neutral-500">Weight ({units.weight})<NumberInput value={weight} step={2.5} onChange={setWeight} /></label>}
             {(spec.metric === 'reps' || spec.metric === 'weight') && <label className="w-28 text-xs text-neutral-500">Reps<NumberInput value={reps} onChange={setReps} /></label>}
             {spec.metric === 'seconds' && <label className="w-28 text-xs text-neutral-500">Seconds held<NumberInput value={secs} step={5} onChange={setSecs} /></label>}
-            <button onClick={logStrength} disabled={spec.metric === 'reps' ? !reps : spec.metric === 'seconds' ? !secs : !weight || !reps} className="rounded-xl bg-neutral-900 px-4 py-2.5 text-sm text-white disabled:opacity-30">Add</button>
+            <button onClick={logStrength} disabled={spec.metric === 'reps' ? !reps : spec.metric === 'seconds' ? !secs : !weight || !reps} className="rounded-xl bg-accent px-4 py-2.5 text-sm text-on-accent disabled:opacity-30">Add</button>
           </div>
           <p className="mb-1 text-xs text-neutral-400">Adds a set of {ex.name} to today’s log, so it shows in your history too.</p>
         </div>
@@ -133,14 +133,14 @@ export function ChallengeDetailSheet({ id, onNavigate, onClose }: { id: string; 
           {!ex && (
             <div className="mb-3 flex gap-2">
               {(spec.sport === 'bike' ? ['cycling'] as const : spec.sport === 'run' ? ['running'] as const : ['running', 'cycling'] as const).map((s) => (
-                <button key={s} onClick={() => setSport(s)} className={`rounded-full px-3 py-1.5 text-sm ${(spec.sport === 'bike' ? 'cycling' : spec.sport === 'run' ? 'running' : sport) === s ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'}`}>{s === 'running' ? 'Run' : 'Ride'}</button>
+                <button key={s} onClick={() => setSport(s)} className={`rounded-full px-3 py-1.5 text-sm ${(spec.sport === 'bike' ? 'cycling' : spec.sport === 'run' ? 'running' : sport) === s ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`}>{s === 'running' ? 'Run' : 'Ride'}</button>
               ))}
             </div>
           )}
           <div className="mb-3 flex items-end gap-2">
             <label className="w-28 text-xs text-neutral-500">Distance ({units.distance})<NumberInput value={dist} step={0.1} onChange={setDist} /></label>
             <label className="w-28 text-xs text-neutral-500">Minutes<NumberInput value={mins} step={5} onChange={setMins} /></label>
-            <button onClick={logCardio} disabled={spec.metric === 'distance' ? !dist : !mins} className="rounded-xl bg-neutral-900 px-4 py-2.5 text-sm text-white disabled:opacity-30">Add</button>
+            <button onClick={logCardio} disabled={spec.metric === 'distance' ? !dist : !mins} className="rounded-xl bg-accent px-4 py-2.5 text-sm text-on-accent disabled:opacity-30">Add</button>
           </div>
           <p className="mb-1 text-xs text-neutral-400">Added to today’s {exerciseId === 'cycling' ? 'ride' : 'run'} log.</p>
         </div>

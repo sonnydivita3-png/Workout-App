@@ -48,7 +48,7 @@ const steps = (social: boolean): Step[] => [
   {
     icon: '⚙️', title: 'You’re set',
     body: 'Settings has units, notifications, backup, and a way to erase everything and start over.',
-    points: ['Replay this walkthrough any time from Settings → Help', 'Tip: add the app to your home screen so it opens like any other app'],
+    points: ['Replay this walkthrough any time from Settings → Help', 'Make it yours: pick dark or light and an accent colour in Settings → Look', 'Tip: add the app to your home screen so it opens like any other app'],
   },
 ]
 
@@ -77,11 +77,11 @@ export function Tour() {
           </ul>
         </div>
         <div className="mb-4 flex justify-center gap-1.5" aria-hidden>
-          {list.map((_, n) => <span key={n} className={`h-1.5 rounded-full transition-all ${n === i ? 'w-5 bg-neutral-900' : 'w-1.5 bg-neutral-300'}`} />)}
+          {list.map((_, n) => <span key={n} className={`h-1.5 rounded-full transition-all ${n === i ? 'w-5 bg-accent' : 'w-1.5 bg-neutral-300'}`} />)}
         </div>
         <div className="flex gap-2">
           {i > 0 && <button onClick={() => setI(i - 1)} className="w-1/3 rounded-2xl bg-neutral-100 py-3 text-sm font-medium text-neutral-700">Back</button>}
-          <button onClick={() => (last ? setTourDone(true) : setI(i + 1))} className="flex-1 rounded-2xl bg-neutral-900 py-3 text-sm font-medium text-white">{last ? 'Start' : 'Next'}</button>
+          <button onClick={() => (last ? setTourDone(true) : setI(i + 1))} className="flex-1 rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent">{last ? 'Start' : 'Next'}</button>
         </div>
       </div>
     </div>

@@ -15,7 +15,7 @@ const DURATIONS = [20, 30, 45, 60, 75, 90]
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 const chip = (on: boolean, disabled = false) =>
-  `rounded-full px-3 py-1.5 text-sm ${disabled ? 'bg-neutral-100 text-neutral-300' : on ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'}`
+  `rounded-full px-3 py-1.5 text-sm ${disabled ? 'bg-neutral-100 text-neutral-300' : on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
 
 interface Props {
   date: string
@@ -160,7 +160,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
           />
           <button
             onClick={() => { saveRoutine(name.trim() || defaultName, items); setSaved(true); setNaming(false) }}
-            className="rounded-xl bg-neutral-900 px-4 text-sm text-white"
+            className="rounded-xl bg-accent px-4 text-sm text-on-accent"
           >
             Save
           </button>

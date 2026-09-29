@@ -9,6 +9,9 @@ import type {
   AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Program, Routine, Sport, StrengthSet, Units, WeekPlan,
 } from './types'
 
+export type ThemeMode = 'dark' | 'light' | 'auto'
+export type Accent = 'lime' | 'pink' | 'violet' | 'orange' | 'blue'
+
 export type SocialChoice = 'unset' | 'enabled' | 'declined'
 
 export interface Data {
@@ -28,6 +31,11 @@ interface State extends Data {
   socialChoice: SocialChoice
   setSocialChoice: (c: SocialChoice) => void
   /** Whether the first-run walkthrough has been finished or skipped. */
+  /** Look and feel. Kept even when all data is erased. */
+  theme: ThemeMode
+  accent: Accent
+  setTheme: (t: ThemeMode) => void
+  setAccent: (a: Accent) => void
   tourDone: boolean
   setTourDone: (done: boolean) => void
   /** Add dated exercises (e.g. from a friend's shared plan). They join what's planned unless `replace`. */
@@ -119,6 +127,8 @@ const defaults = () => ({
   notifications: [] as AppNotification[],
   notifPrefs: { system: false, goals: true, pbs: true, daily: true, reminderTime: '17:00' } as NotifPrefs,
   programs: [] as Program[],
+  theme: 'dark' as ThemeMode,
+  accent: 'lime' as Accent,
   socialChoice: 'unset' as SocialChoice,
   tourDone: false,
 })
@@ -130,6 +140,8 @@ export const useStore = create<State>()(
       resetAll: (keepProfile) =>
         set((s) => ({
           ...defaults(),
+          theme: s.theme,
+          accent: s.accent,
           ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone } : {}),
         })),
       pushNotifications: (items) => {
@@ -201,6 +213,8 @@ export const useStore = create<State>()(
       applyProgram: (days) => set((s) => ({ overrides: { ...s.overrides, ...days } })),
       setSocialChoice: (socialChoice) => set({ socialChoice }),
       setTourDone: (tourDone) => set({ tourDone }),
+      setTheme: (theme) => set({ theme }),
+      setAccent: (accent) => set({ accent }),
       addCustomExercises: (list) =>
         set((s) => ({ custom: [...s.custom, ...list.filter((e) => !s.custom.some((c) => c.id === e.id))] })),
       applyDays: (days, replace) =>

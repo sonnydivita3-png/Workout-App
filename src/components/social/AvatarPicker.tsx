@@ -43,7 +43,7 @@ export function AvatarPicker({ value, onChange, name = '' }: { value: string; on
       )}
       {tab === 'letter' && (
         <div className="grid grid-cols-9 gap-1.5">
-          {LETTERS.map((l) => <button key={l} onClick={() => onChange(letterAvatar(l))} aria-label={`Letter ${l}`} className={`rounded-lg py-1.5 text-sm ${value === letterAvatar(l) ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'}`}>{l}</button>)}
+          {LETTERS.map((l) => <button key={l} onClick={() => onChange(letterAvatar(l))} aria-label={`Letter ${l}`} className={`rounded-lg py-1.5 text-sm ${value === letterAvatar(l) ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`}>{l}</button>)}
         </div>
       )}
       {tab === 'photo' && (

@@ -13,7 +13,7 @@ const TABS: { id: Tab; label: string; d: string }[] = [
 export function TabBar({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
   const badge = useSocial((s) => pendingCount(s))
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-neutral-200 bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+    <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-neutral-200 bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur">
       <div className="mx-auto flex max-w-md">
         {TABS.map((t) => (
           <button

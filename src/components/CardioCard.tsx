@@ -21,7 +21,7 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
   const prev = last?.cardio
   const target = [targetDistance ? `${showDistance(targetDistance, units)} ${units.distance}` : '', targetMinutes ? `${targetMinutes} min` : ''].filter(Boolean).join(' · ')
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200/70">
+    <div className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
       <div className="mb-3 flex items-start justify-between">
         <div>
           <h3 className="font-semibold">{exercise.name}</h3>

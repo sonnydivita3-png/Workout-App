@@ -10,7 +10,7 @@ export function EmojiBar({ onPick, disabled, selected }: { onPick: (e: Emoji) =>
           disabled={disabled}
           onClick={() => onPick(e)}
           aria-label={`Send ${e}`}
-          className={`h-10 w-10 rounded-full text-xl transition ${selected === e ? 'bg-neutral-900' : 'bg-neutral-100 hover:bg-neutral-200'} disabled:opacity-30`}
+          className={`h-10 w-10 rounded-full text-xl transition ${selected === e ? 'bg-accent' : 'bg-neutral-100 hover:bg-neutral-200'} disabled:opacity-30`}
         >
           {e}
         </button>

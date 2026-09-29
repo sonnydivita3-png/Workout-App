@@ -1,12 +1,88 @@
 @import "tailwindcss";
+@import "@fontsource-variable/bricolage-grotesque/wght.css";
 
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --color-accent: #111827;
+  --font-sans: "Bricolage Grotesque Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --color-surface: #ffffff;
+  --color-accent: #9be31a;
+  --color-on-accent: #10140a;
+  /* Light: lilac-tinted greys instead of flat neutral */
+  --color-neutral-50: #f6f4fb;
+  --color-neutral-100: #edeaf6;
+  --color-neutral-200: #dcd7ec;
+  --color-neutral-300: #bdb6d6;
+  --color-neutral-400: #8f87ab;
+  --color-neutral-500: #6f6789;
+  --color-neutral-600: #544d6e;
+  --color-neutral-700: #3d3753;
+  --color-neutral-800: #2a2540;
+  --color-neutral-900: #17122b;
 }
 
+/* Dark mode flips the grey scale, so every existing bg-/text-neutral-* class works in both themes. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-surface: #171223;
+  --color-neutral-50: #1e1930;
+  --color-neutral-100: #282239;
+  --color-neutral-200: #362e4b;
+  --color-neutral-300: #4e4468;
+  --color-neutral-400: #8f84ad;
+  --color-neutral-500: #a89fc2;
+  --color-neutral-600: #c5bfd9;
+  --color-neutral-700: #ddd8ea;
+  --color-neutral-800: #ece9f5;
+  --color-neutral-900: #f8f6ff;
+  --color-red-50: rgb(255 82 82 / 0.16);
+  --color-red-200: rgb(255 82 82 / 0.4);
+  --color-red-600: #ff5a5f;
+  --color-red-700: #ff8a8e;
+  --color-amber-50: rgb(255 176 32 / 0.14);
+  --color-amber-100: rgb(255 176 32 / 0.22);
+  --color-amber-700: #ffc65c;
+  --color-amber-800: #ffd27f;
+  --color-green-50: rgb(60 220 120 / 0.14);
+  --color-green-600: #4be08a;
+  --color-green-800: #8cf0b5;
+}
+
+/* Accent colours ("vibes"), tuned separately for light and dark backgrounds. */
+:root[data-accent="lime"] { --color-accent: #9be31a; --color-on-accent: #10140a; }
+:root[data-accent="pink"] { --color-accent: #db2777; --color-on-accent: #ffffff; }
+:root[data-accent="violet"] { --color-accent: #7c3aed; --color-on-accent: #ffffff; }
+:root[data-accent="orange"] { --color-accent: #c2410c; --color-on-accent: #ffffff; }
+:root[data-accent="blue"] { --color-accent: #2563eb; --color-on-accent: #ffffff; }
+:root[data-theme="dark"][data-accent="lime"] { --color-accent: #c8ff3e; --color-on-accent: #10140a; }
+:root[data-theme="dark"][data-accent="pink"] { --color-accent: #ff5cae; --color-on-accent: #1c0a14; }
+:root[data-theme="dark"][data-accent="violet"] { --color-accent: #a78bfa; --color-on-accent: #150a2b; }
+:root[data-theme="dark"][data-accent="orange"] { --color-accent: #ff9f45; --color-on-accent: #1c0f04; }
+:root[data-theme="dark"][data-accent="blue"] { --color-accent: #5eb1ff; --color-on-accent: #04121f; }
+
 body {
-  @apply bg-neutral-50 text-neutral-900 antialiased;
+  @apply text-neutral-900 antialiased;
+  background-color: var(--color-neutral-50);
+  background-image: radial-gradient(120% 55% at 50% -12%, color-mix(in srgb, var(--color-accent) 16%, transparent), transparent 65%);
+  background-attachment: fixed;
+  font-feature-settings: "ss01";
+}
+:root[data-theme="dark"] body { background-color: #0d0a15; }
+
+h1, h2 { letter-spacing: -0.02em; }
+h1 { font-weight: 800; }
+
+/* Tactile press on everything tappable. */
+button { transition: transform 0.12s ease, filter 0.12s ease, background-color 0.15s ease; }
+button:not(:disabled):active { transform: scale(0.96); }
+::selection { background: var(--color-accent); color: var(--color-on-accent); }
+
+@keyframes pop-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes confetti-fall { 0% { transform: translateY(-10vh) rotate(0); opacity: 1; } 100% { transform: translateY(105vh) rotate(720deg); opacity: 0; } }
+.pop-in { animation: pop-in 0.25s ease-out both; }
+.confetti { animation: confetti-fall var(--dur, 2.4s) ease-in forwards; }
+@media (prefers-reduced-motion: reduce) {
+  button, .pop-in { transition: none; animation: none; }
+  .confetti { display: none; }
+  button:not(:disabled):active { transform: none; }
 }
 
 input[type="number"]::-webkit-inner-spin-button,

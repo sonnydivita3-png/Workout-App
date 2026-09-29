@@ -30,7 +30,7 @@ export function ProgramsCard({ onReplace }: { onReplace: (kind: Program['kind'])
   const last = (p: Program) => p.entries.map((e) => e.date).sort().at(-1)!
 
   return (
-    <section className="mt-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-neutral-200/70">
+    <section className="mt-3 rounded-2xl bg-surface p-3 shadow-sm ring-1 ring-neutral-200/70">
       <div className="mb-1 flex items-center justify-between">
         <h2 className="text-xs uppercase tracking-wide text-neutral-400">{active.length ? 'My programs' : 'Planned days'}</h2>
         {upcoming > 0 && <button onClick={() => setClearing(true)} className="text-xs text-neutral-500 underline underline-offset-2">Clear days…</button>}
@@ -69,7 +69,7 @@ export function ProgramsCard({ onReplace }: { onReplace: (kind: Program['kind'])
           <p className="mb-3 text-sm text-neutral-600">Removes generated plans and rest days you’ve set, so those days follow your weekly plan again. Days with anything logged are kept.</p>
           <div className="mb-4 space-y-1.5">
             {RANGES.map((r) => (
-              <button key={r.id} onClick={() => setRange(r.id)} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm ${range === r.id ? 'bg-neutral-900 text-white' : 'bg-neutral-50'}`}>
+              <button key={r.id} onClick={() => setRange(r.id)} className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm ${range === r.id ? 'bg-accent text-on-accent' : 'bg-neutral-50'}`}>
                 <span>{r.label}</span>
               </button>
             ))}

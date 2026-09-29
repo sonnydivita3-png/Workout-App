@@ -57,6 +57,7 @@ export function useSocialSync() {
       for (const c of soc.challenges) {
         if (c.mine || c.status !== 'active') continue
         const p = challengeProgress(c, st.logs, today, lookup)
+        if (p.done && !c.done) useToasts.getState().push({ id: `done-${c.id}`, title: 'Challenge crushed 🏆', body: c.title, celebrate: true })
         if (p.progress !== c.progress || p.done !== c.done) soc.backend.reportProgress(c.id, p.progress, p.done).then(() => soc.refresh()).catch(() => undefined)
       }
       if (soc.friends.some((f) => f.iGrant.progress)) {

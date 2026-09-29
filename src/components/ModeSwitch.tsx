@@ -10,7 +10,7 @@ export function ModeSwitch({ mode, onChange }: { mode: GeneratorMode; onChange: 
         <button
           key={id}
           onClick={() => onChange(id)}
-          className={`flex-1 rounded-full py-1.5 text-[13px] ${id === mode ? 'bg-white font-medium shadow-sm' : 'text-neutral-500'}`}
+          className={`flex-1 rounded-full py-1.5 text-[13px] ${id === mode ? 'bg-surface font-medium shadow-sm' : 'text-neutral-500'}`}
         >
           {label}
         </button>

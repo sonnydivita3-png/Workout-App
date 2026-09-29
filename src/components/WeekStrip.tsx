@@ -20,7 +20,7 @@ export function WeekStrip({ dates, selected, counts, rest, today, onSelect }: Pr
             key={i}
             onClick={() => onSelect(i)}
             className={`flex flex-col items-center rounded-xl py-2 transition ${
-              active ? 'bg-neutral-900 text-white' : 'text-neutral-500 hover:bg-neutral-200/60'
+              active ? 'bg-accent text-on-accent' : 'text-neutral-500 hover:bg-neutral-200/60'
             }`}
           >
             <span className="text-[11px] uppercase tracking-wide">{DAY_LABELS[i]}</span>
@@ -30,7 +30,7 @@ export function WeekStrip({ dates, selected, counts, rest, today, onSelect }: Pr
             {rest?.[i] ? (
               <span className={`text-[9px] uppercase leading-none ${active ? 'text-neutral-300' : 'text-neutral-400'}`}>rest</span>
             ) : (
-              <span className={`mt-0.5 h-1 w-1 rounded-full ${counts[i] ? (active ? 'bg-white' : 'bg-neutral-400') : 'bg-transparent'}`} />
+              <span className={`mt-0.5 h-1 w-1 rounded-full ${counts[i] ? (active ? 'bg-surface' : 'bg-neutral-400') : 'bg-transparent'}`} />
             )}
           </button>
         )

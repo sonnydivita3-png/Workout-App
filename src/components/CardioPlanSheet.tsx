@@ -21,7 +21,7 @@ const LEVELS: { id: PlanLevel; label: string; blurb: Record<Sport, string> }[] =
   { id: 'advanced', label: 'Advanced', blurb: { run: 'Experienced, 35+ miles a week.', bike: 'Experienced, 8+ hours a week.' } },
 ]
 
-const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'}`
+const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
 const h3 = 'mb-2 text-xs uppercase tracking-wide text-neutral-400'
 
 interface Props {
@@ -163,7 +163,7 @@ export function CardioPlanSheet({ onClose, onApplied }: Props) {
         )}
         <div className="mb-2 grid grid-cols-7 gap-1.5">
           {DAY_NAMES.map((l, i) => (
-            <button key={l} onClick={() => toggleDay(i)} aria-pressed={days.includes(i)} className={`rounded-xl py-2 text-sm ${days.includes(i) ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-500'}`}>{l}</button>
+            <button key={l} onClick={() => toggleDay(i)} aria-pressed={days.includes(i)} className={`rounded-xl py-2 text-sm ${days.includes(i) ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-500'}`}>{l}</button>
           ))}
         </div>
         {!c25k && days.length > 1 && (
@@ -286,7 +286,7 @@ export function CardioPlanSheet({ onClose, onApplied }: Props) {
                               <span className="min-w-0"><span className="text-neutral-400">{DAY_NAMES[weekdayIndex(parseISO(d.date))]} {parseISO(d.date).getDate()}</span><span className="ml-2">{d.title}</span></span>
                               <span className="shrink-0 text-xs tabular-nums text-neutral-400">{d.miles ? `${showDistance(d.miles, units)} ${dUnit} · ` : ''}{formatMinutes(d.minutes)}</span>
                             </button>
-                            {open && <p className="mb-1 rounded-xl bg-white px-3 py-2 text-xs text-neutral-500">{d.note}</p>}
+                            {open && <p className="mb-1 rounded-xl bg-surface px-3 py-2 text-xs text-neutral-500">{d.note}</p>}
                           </li>
                         )
                       })}
@@ -320,7 +320,7 @@ export function CardioPlanSheet({ onClose, onApplied }: Props) {
           </p>
           <div className="flex gap-2">
             <button onClick={() => setResult(null)} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium">Change settings</button>
-            <button onClick={apply} className="flex-1 rounded-2xl bg-neutral-900 py-3 text-sm font-medium text-white">Add to my plan</button>
+            <button onClick={apply} className="flex-1 rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent">Add to my plan</button>
           </div>
         </>
       )}
