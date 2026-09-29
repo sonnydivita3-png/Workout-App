@@ -21,3 +21,7 @@ export function formatPace(mi: number | null, minutes: number | null, u: Units):
   if (s === 60) { m += 1; s = 0 }
   return `${m}:${String(s).padStart(2, '0')} /${u.distance}`
 }
+
+/** 45 -> "45s", 90 -> "1:30". */
+export const formatSeconds = (s: number) =>
+  s < 90 ? `${Math.round(s)}s` : `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`

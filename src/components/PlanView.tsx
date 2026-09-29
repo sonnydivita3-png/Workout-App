@@ -61,6 +61,7 @@ export function PlanView() {
               exercise={ex}
               setCount={p.sets}
               targetReps={p.reps}
+              targetSeconds={p.seconds}
               current={current}
               last={last}
               onSetCount={(n) => s.setSetCount(day, ex.id, n)}
