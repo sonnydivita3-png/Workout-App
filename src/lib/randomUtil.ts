@@ -61,7 +61,18 @@ const STAPLES = new RegExp([
   '\\bcurl', 'pushdown', 'skull ?crusher', 'triceps? extension', 'triceps dip', 'close-grip bench',
   'plank', '\\bcrunch', 'leg raise', 'russian twist', 'dead bug', 'ab roller', 'mountain climber', 'kettlebell swing', 'farmer',
 ].join('|'), 'i')
-export const isStaple = (e: Exercise) => STAPLES.test(`${e.name} ${e.fullName ?? ''}`)
+/** Cache a per-exercise check: generators ask the same question about the same exercise thousands of times. */
+function perExercise<T>(fn: (e: Exercise) => T): (e: Exercise) => T {
+  const cache = new WeakMap<Exercise, T>()
+  return (e) => {
+    if (cache.has(e)) return cache.get(e)!
+    const v = fn(e)
+    cache.set(e, v)
+    return v
+  }
+}
+
+export const isStaple = perExercise((e) => STAPLES.test(`${e.name} ${e.fullName ?? ''}`))
 
 // Movement families, so a workout doesn't repeat the same thing (three squats, three incline presses...).
 const FAMILIES: [string, RegExp][] = [
@@ -72,14 +83,14 @@ const FAMILIES: [string, RegExp][] = [
   ['triceps', /pushdown|triceps? extension|skull|kickback/i], ['calf', /calf/i], ['bridge', /hip thrust|glute bridge|bridge/i],
   ['crunch', /crunch|sit-?up/i], ['plank', /plank/i],
 ]
-export const familyOf = (e: Exercise) => FAMILIES.find(([, re]) => re.test(`${e.name} ${e.fullName ?? ''}`))?.[0]
+export const familyOf = perExercise((e) => FAMILIES.find(([, re]) => re.test(`${e.name} ${e.fullName ?? ''}`))?.[0])
 
 /** Niche or gimmicky moves that make a random workout feel odd. Still available to pick by hand. */
-export const isQuirky = (e: Exercise) =>
-  /\b(bands?|chains?|isometric|around the worlds?|turkish|windmill|get-?up|wipers?|body-up|butt-ups|halo|pass between|otis|london bridges|conan)\b/i.test(e.name)
+export const isQuirky = perExercise((e) =>
+  /\b(bands?|chains?|isometric|around the worlds?|turkish|windmill|get-?up|wipers?|body-up|butt-ups|halo|pass between|otis|london bridges|conan)\b/i.test(e.name))
 
 /** Olympic lifts and their variations: great, but too technical to hand out at random for sets of 6-12. */
-export const isTechnical = (e: Exercise) => /\b(clean|snatch|jerk)\b/i.test(e.name)
+export const isTechnical = perExercise((e) => /\b(clean|snatch|jerk)\b/i.test(e.name))
 
 /** Movements too advanced or awkward to prescribe at random. */
-export const isAdvanced = (e: Exercise) => /single-arm|one-arm|one arm|pistol|handstand|muscle-up|planche|clap|archer|freehand jump|explosive|kipping/i.test(e.name)
+export const isAdvanced = perExercise((e) => /single-arm|one-arm|one arm|pistol|handstand|muscle-up|planche|clap|archer|freehand jump|explosive|kipping/i.test(e.name))
