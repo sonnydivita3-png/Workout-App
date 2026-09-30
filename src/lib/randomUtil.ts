@@ -49,5 +49,8 @@ export const isMainLift = (e: Exercise) =>
   /\b(squat|deadlift|bench press|shoulder press|overhead press|military press|push press|bent over row|barbell row|pull-?up|chin-?up|hip thrust|lunge|dip)\b/i.test(e.name) &&
   !/band|chain|smith|high pull|one arm|single|reverse|box|jump|kettlebell|upright|rear delt|lying|hyperextension/i.test(e.name)
 
+/** Olympic lifts and their variations: great, but too technical to hand out at random for sets of 6-12. */
+export const isTechnical = (e: Exercise) => /\b(clean|snatch|jerk)\b/i.test(e.name)
+
 /** Movements too advanced or awkward to prescribe at random. */
 export const isAdvanced = (e: Exercise) => /single-arm|one-arm|one arm|pistol|handstand|muscle-up|planche|clap|archer|freehand jump|explosive|kipping/i.test(e.name)

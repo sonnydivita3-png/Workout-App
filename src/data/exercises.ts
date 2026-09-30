@@ -40,6 +40,22 @@ const EXTRAS: Extra[] = [
   ['x-toes-to-bar', 'Toes to Bar', 'Core', 'Bodyweight', 'reps', true, ['crossfit']],
   ['x-air-squat', 'Air Squat', 'Legs', 'Bodyweight', 'reps', true, ['hiit', 'crossfit']],
   ['x-goblet-squat', 'Goblet Squat', 'Legs', 'Kettlebell', 'weight', true, ['hiit']],
+  // Dynamic warm-up moves (ids match free-exercise-db so the how-to pictures work). Tag says which half they warm.
+  ['Arm_Circles', 'Arm Circles', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'upper']],
+  ['Shoulder_Circles', 'Shoulder Circles', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'upper']],
+  ['Round_The_World_Shoulder_Stretch', 'Round The World Shoulder Stretch', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'upper']],
+  ['Dynamic_Chest_Stretch', 'Dynamic Chest Stretch', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'upper']],
+  ['Dynamic_Back_Stretch', 'Dynamic Back Stretch', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'upper']],
+  ['Wrist_Circles', 'Wrist Circles', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'upper']],
+  ['Cat_Stretch', 'Cat Stretch (cat-cow)', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'full']],
+  ['Inchworm', 'Inchworm', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'full']],
+  ['Worlds_Greatest_Stretch', "World's Greatest Stretch", 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'full']],
+  ['Standing_Hip_Circles', 'Standing Hip Circles', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'lower']],
+  ['Front_Leg_Raises', 'Leg Swings (front)', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'lower']],
+  ['Side_Leg_Raises', 'Leg Swings (side)', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'lower']],
+  ['Crossover_Reverse_Lunge', 'Crossover Reverse Lunge', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'lower']],
+  ['Knee_Circles', 'Knee Circles', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'lower']],
+  ['Ankle_Circles', 'Ankle Circles', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'lower']],
 ]
 
 EXERCISES.push(

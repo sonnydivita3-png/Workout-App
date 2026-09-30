@@ -6,6 +6,7 @@ import { toPlanned, type CardioDay } from './lib/cardioPlan'
 import { dayPlanOf } from './lib/plan'
 import { repairState, SCHEMA_VERSION } from './lib/migrate'
 import { SYNC_KEYS } from './lib/sync'
+import type { RestPref } from './lib/timing'
 import { activePrograms, clearRange, removeProgramDays } from './lib/programs'
 import type {
   AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Sport, TimedLog, StrengthSet, Units, WeekPlan,
@@ -16,6 +17,8 @@ export type Accent = 'lime' | 'pink' | 'violet' | 'orange' | 'blue'
 
 /** Bump when the walkthrough gains new content, so people who saw an older version see it once more. */
 export const TOUR_VERSION = 2
+
+export type WarmupKind = 'cardio' | 'mobility' | 'sets'
 
 export type SocialChoice = 'unset' | 'enabled' | 'declined'
 
@@ -43,6 +46,9 @@ interface State extends Data {
   accent: Accent
   setTheme: (t: ThemeMode) => void
   setAccent: (a: Accent) => void
+  /** Randomizer choices remembered between uses. */
+  genPrefs: { warmup: WarmupKind[]; rest: RestPref }
+  setGenPrefs: (p: Partial<State['genPrefs']>) => void
   /** Show an RPE (effort) column when logging sets. */
   trackRpe: boolean
   /** Rest timer after each set in workout mode, in seconds. 0 = off. */
@@ -183,6 +189,7 @@ const defaults = () => ({
   tourDone: false,
   tourVersion: 0,
   trackRpe: false,
+  genPrefs: { warmup: [], rest: 'normal' } as State['genPrefs'],
   restSeconds: 0,
   plainCopy: false,
   backendKind: null as 'demo' | 'supabase' | null,
@@ -304,6 +311,7 @@ export const useStore = create<State>()(
       setSocialChoice: (socialChoice) => set({ socialChoice }),
       setTourDone: (tourDone) => set(tourDone ? { tourDone, tourVersion: TOUR_VERSION } : { tourDone }),
       setPrefs: (p) => set(p),
+      setGenPrefs: (p) => set((s) => ({ genPrefs: { ...s.genPrefs, ...p } })),
       startSession: (date) => set({ session: { date, startedAt: Date.now() } }),
       endSession: () => set({ session: null }),
       saveNote: (date, exerciseId, note) =>

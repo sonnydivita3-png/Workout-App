@@ -156,7 +156,7 @@ describe('progression (4-week block)', () => {
     expect(applyProgression(items(), 1, 4)).toEqual(items())
     const w3 = applyProgression(items(), 2, 4)
     expect(w3[0].sets).toBe(4)
-    expect(w3[0].est).toBe(11)
+    expect(w3[0].est).toBeGreaterThan(items()[0].est!) // one more set takes longer
     expect(w3[1]).toEqual(items()[1])
     expect(w3[2]).toEqual(items()[2])
     expect(applyProgression(items(), 3, 4)[0].sets).toBe(2)
@@ -192,5 +192,24 @@ describe('helpers', () => {
     expect(defaultWeekdays(3)).toEqual([0, 2, 4])
     expect(defaultWeekdays(2)).toHaveLength(2)
     for (let n = 1; n <= 7; n++) expect(defaultWeekdays(n)).toHaveLength(n)
+  })
+})
+
+describe('warm-ups and session length in plans', () => {
+  it('lifting days start with the warm-up and fill the session; cardio days skip it', () => {
+    const days = generateProgram(base({ goal: 'muscle', trainWeekdays: [0, 1, 2, 3, 4], weeks: 1, minutes: 45, rng: mulberry32(9), warmup: { cardio: 5, mobility: 4, sets: true } })).filter((d) => !d.rest)
+    for (const d of days) {
+      const cardioDay = d.focus.length === 1 && d.focus[0] === 'Cardio'
+      if (cardioDay) expect(d.items.some((p) => p.warmup)).toBe(false)
+      else {
+        expect(d.items[0].warmup, d.name).toBe(true)
+        const liftDay = d.items.some((p) => p.reps && !p.block)
+        if (liftDay) {
+          const total = minutesFor(d.items)
+          expect(total, `${d.name}: ${total}`).toBeGreaterThan(45 * 0.85)
+          expect(total, `${d.name}: ${total}`).toBeLessThan(45 * 1.15)
+        }
+      }
+    }
   })
 })

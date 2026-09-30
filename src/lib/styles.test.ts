@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import type { PlannedExercise } from '../types'
-import { generateWorkout, minutesFor, plannedFor, STYLES, swapExercise, type WorkoutStyle } from './randomizer'
+import { generateWorkout, liftsMinutes, minutesFor, plannedFor, STYLES, swapExercise, type WorkoutStyle } from './randomizer'
 import { mulberry32 } from './randomUtil'
 
 const ex = (p: PlannedExercise) => BUILTIN_BY_ID.get(p.exerciseId)!
@@ -32,14 +32,82 @@ describe('every style', () => {
 })
 
 describe('strength', () => {
-  it('uses heavy compounds with low reps and 4+ sets', () => {
+  it('starts with heavy main lifts (3-6 reps, 4+ sets), then lighter accessories', () => {
     for (let seed = 1; seed <= 30; seed++) {
       const w = gen('strength', ['Chest', 'Back', 'Legs'], 60, seed)
-      for (const p of w) {
-        expect(p.sets).toBeGreaterThanOrEqual(4)
-        expect(p.reps!).toBeLessThanOrEqual(6)
-        expect(ex(p).mode).toBe('weight')
+      const heavy = w.filter((p) => (p.reps ?? 99) <= 6 && p.sets >= 4)
+      expect(heavy.length, `seed ${seed}`).toBeGreaterThanOrEqual(1)
+      expect(w.indexOf(heavy[0])).toBe(0)
+      for (const p of heavy) expect(ex(p).mode).toBe('weight')
+      for (const p of w.slice(heavy.length)) expect(p.reps ?? 0).toBeGreaterThanOrEqual(6)
+    }
+  })
+})
+
+describe('workouts fill the time you ask for (realistic timing: work + rest + setup)', () => {
+  const focusSets = [['Chest', 'Back', 'Legs'], ['Legs'], ['Chest', 'Arms'], ['Shoulders', 'Core']]
+  for (const style of ['standard', 'strength', 'bodyweight', 'supersets'] as WorkoutStyle[]) {
+    it(style, () => {
+      for (const minutes of [20, 30, 45, 60, 90]) {
+        for (const focus of focusSets) {
+          for (let seed = 1; seed <= 8; seed++) {
+            const w = gen(style, focus, minutes, seed)
+            const real = liftsMinutes(w)
+            const label = `${style} ${focus.join('+')} ${minutes}min seed ${seed}: ${Math.round(real)} min`
+            expect(real, label).toBeGreaterThanOrEqual(minutes * 0.85)
+            expect(real, label).toBeLessThanOrEqual(minutes * 1.1)
+            expect(Math.abs(minutesFor(w) - real), 'estimate matches the model').toBeLessThan(0.6)
+          }
+        }
       }
+    })
+  }
+  it('a 30-minute strength workout is more than two lifts of 4 sets', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const w = gen('strength', ['Chest', 'Legs'], 30, seed)
+      expect(w.reduce((a, p) => a + p.sets, 0), `seed ${seed}`).toBeGreaterThan(8)
+    }
+  })
+  it('shorter rest fits more work into the same time; longer rest fits less', () => {
+    const sets = (rest: 'short' | 'normal' | 'long') => {
+      let n = 0
+      for (let seed = 1; seed <= 20; seed++) n += generateWorkout(['Chest', 'Back', 'Legs'], 45, { style: 'standard', rest, rng: mulberry32(seed) }).reduce((a, p) => a + p.sets, 0)
+      return n
+    }
+    expect(sets('short')).toBeGreaterThan(sets('normal'))
+    expect(sets('normal')).toBeGreaterThan(sets('long'))
+  })
+})
+
+describe('warm-ups', () => {
+  it('easy cardio and mobility come first and their minutes are part of the total', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const w = generateWorkout(['Legs'], 45, { style: 'strength', rng: mulberry32(seed), warmup: { cardio: 5, mobility: 4 } })
+      const warm = w.filter((p) => p.warmup)
+      expect(w.slice(0, warm.length).every((p) => p.warmup)).toBe(true)
+      expect(ex(warm[0]).kind).toBe('cardio')
+      expect(warm[0].minutes).toBe(5)
+      expect(warm.slice(1).every((p) => ex(p).group === 'Mobility' && p.seconds === 30)).toBe(true)
+      expect(minutesFor(warm)).toBeGreaterThan(8)
+      expect(minutesFor(warm)).toBeLessThan(10.5)
+      expect(minutesFor(w)).toBeGreaterThan(45 * 0.85)
+      expect(minutesFor(w)).toBeLessThan(45 * 1.1)
+      expect(new Set(w.map((p) => p.exerciseId)).size).toBe(w.length)
+    }
+  })
+  it('mobility moves match the focus', () => {
+    const upper = generateWorkout(['Chest', 'Shoulders'], 30, { style: 'standard', rng: mulberry32(2), warmup: { mobility: 6 } }).filter((p) => p.warmup)
+    for (const p of upper) expect(ex(p).tags!.some((t) => t === 'upper' || t === 'full')).toBe(true)
+    const lower = generateWorkout(['Legs'], 30, { style: 'standard', rng: mulberry32(2), warmup: { mobility: 6 } }).filter((p) => p.warmup)
+    for (const p of lower) expect(ex(p).tags!.some((t) => t === 'lower' || t === 'full')).toBe(true)
+  })
+  it('warm-up sets ramp into the heavy lifts, most before the first, and count toward the time', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const w = generateWorkout(['Chest', 'Legs'], 45, { style: 'strength', rng: mulberry32(seed), warmup: { sets: true } })
+      expect(w[0].warmupSets, `seed ${seed}`).toBe(3)
+      expect(w.slice(1).every((p) => (p.warmupSets ?? 0) <= 2)).toBe(true)
+      expect(liftsMinutes(w)).toBeGreaterThan(45 * 0.85)
+      expect(liftsMinutes(w)).toBeLessThan(45 * 1.1)
     }
   })
 })
@@ -155,7 +223,10 @@ describe('CrossFit-style', () => {
 describe('strength lifts and primers are classic main lifts', () => {
   it('no isolation or odd variants', () => {
     for (let seed = 1; seed <= 40; seed++) {
-      for (const p of gen('strength', ['Chest', 'Back', 'Legs', 'Shoulders'], 60, seed)) expect(ex(p).name).toMatch(/squat|deadlift|press|row|pull|chin|thrust|lunge|dip/i)
+      const w = gen('strength', ['Chest', 'Back', 'Legs', 'Shoulders'], 60, seed)
+      const mains = w.filter((p) => (p.reps ?? 99) <= 6 && p.sets >= 4)
+      for (const p of mains) expect(ex(p).name).toMatch(/squat|deadlift|press|row|pull|chin|thrust|lunge|dip/i)
+      for (const p of w) expect(ex(p).name, 'strength days stay compound').not.toMatch(/curl|raise|fly|flye|kickback|crossover|pushdown/i)
       const primer = gen('crossfit', [], 60, seed)[0]
       expect(primer.block).toBe('primer')
       expect(ex(primer).name).toMatch(/squat|deadlift|press|row|pull|chin|thrust|lunge|dip/i)

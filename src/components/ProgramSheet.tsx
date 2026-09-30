@@ -10,6 +10,8 @@ import { useToday } from '../lib/useToday'
 import { findExercise, useStore } from '../store'
 import { activePrograms } from '../lib/programs'
 import { ModeSwitch, type GeneratorMode } from './ModeSwitch'
+import { WarmupRestControls } from './WarmupRestControls'
+import { defaultWarmup } from '../lib/randomizer'
 import { primaryBtn, Sheet } from './Sheet'
 import { WorkoutList } from './WorkoutList'
 
@@ -28,7 +30,7 @@ interface Props {
 }
 
 export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props) {
-  const { logs, custom, plan, overrides, programs, startProgram } = useStore()
+  const { logs, custom, plan, overrides, programs, startProgram, genPrefs } = useStore()
   const today = useToday()
   const [when, setWhen] = useState<'this' | 'next'>(onUse ? 'next' : 'this')
   const [weeks, setWeeks] = useState<1 | 4>(1)
@@ -49,6 +51,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
       generateProgram({
         anchorMonday, weeks, fromDate, trainWeekdays: days, goal, minutes,
         prevDayGroups: majorGroupsLogged(logs, prev, (id) => findExercise(custom, id)),
+        warmup: defaultWarmup(genPrefs.warmup, true), rest: genPrefs.rest,
       }),
     )
     setOpen(null)
@@ -104,6 +107,8 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
           {days.length} training day{days.length === 1 ? '' : 's'}, {7 - days.length} rest day{7 - days.length === 1 ? '' : 's'} a week. Tap days to customize.
         </p>
 
+        <WarmupRestControls lifting />
+
         <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Session length</h3>
         <div className="mb-5 flex flex-wrap gap-2">
           {DURATIONS.map((m) => (
@@ -127,7 +132,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
   const recentIds = (i: number) => new Set(result.slice(Math.max(0, i - 3), i + 4).flatMap((d) => d.items.map((p) => p.exerciseId)))
 
   const reroll = (date: string) =>
-    setResult((r) => r && r.map((d, i) => (d.date === date ? rerollDay(d, minutes, weeks, recentIds(i)) : d)))
+    setResult((r) => r && r.map((d, i) => (d.date === date ? rerollDay(d, minutes, weeks, recentIds(i), Math.random, { warmup: defaultWarmup(genPrefs.warmup, true), rest: genPrefs.rest }) : d)))
 
   const apply = () => {
     if (onUse) {

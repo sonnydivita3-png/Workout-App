@@ -7,15 +7,18 @@ import { CardioCard } from './CardioCard'
 import { IntervalTimerSheet } from './IntervalTimerSheet'
 import { StrengthCard } from './StrengthCard'
 import { TimedBlockCard } from './TimedBlockCard'
+import { WarmupCard } from './WarmupCard'
 
 /** The exercises planned for a day, ready to log. Used on the Plan tab and in workout mode. */
-export function DayWorkout({ date, items: planned, only, onSetDone }: { date: string; items: PlannedExercise[]; only?: number; onSetDone?: () => void }) {
+export function DayWorkout({ date, items: planned, only, onSetDone }: { date: string; items: PlannedExercise[]; only?: number; onSetDone?: (restSeconds: number) => void }) {
   const s = useStore()
   const [circuitTimer, setCircuitTimer] = useState<{ title: string; segments: ReturnType<typeof circuitSegments> } | null>(null)
   const groups = groupByBlock(planned)
   return (
     <>
-        {groups.map((g, gi) => only !== undefined && gi !== only ? null : g.items[0].item.wod ? (
+        {groups.map((g, gi) => only !== undefined && gi !== only ? null : g.items[0].item.warmup ? (
+          <WarmupCard key={`warmup-${gi}`} items={g.items.map((x) => x.item)} onRemove={() => g.items.forEach((x) => s.removeExercise(date, x.item.exerciseId))} />
+        ) : g.items[0].item.wod ? (
           <TimedBlockCard key={g.block ?? gi} items={g.items.map((x) => x.item)} date={date} onRemove={() => g.items.forEach((x) => s.removeExercise(date, x.item.exerciseId))} />
         ) : (
           <div key={gi} className={g.block ? 'space-y-2 rounded-3xl bg-neutral-200/50 p-2' : 'contents'}>
@@ -38,6 +41,8 @@ export function DayWorkout({ date, items: planned, only, onSetDone }: { date: st
                   setCount={p.sets}
                   targetReps={p.reps}
                   targetSeconds={p.seconds}
+                  warmupSets={p.warmupSets}
+                  rest={p.block ? undefined : p.rest}
                   note={p.note}
                   current={current}
                   last={last}

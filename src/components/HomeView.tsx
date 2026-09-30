@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { addDays, fmtLong, fmtShort, parseISO, toISO } from '../lib/dates'
 import { goalDetail, goalPct, goalTitle } from '../lib/goals'
-import { dayPlanOf, isRestDay, lastWorkout } from '../lib/plan'
+import { dayPlanOf, isRestDay, lastWorkout, workItems } from '../lib/plan'
 import { hasData, weekStats } from '../lib/stats'
 import { formatPace, formatSeconds, showDistance, showWeight, storeWeight } from '../lib/units'
 import { useToday } from '../lib/useToday'
@@ -62,7 +62,7 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   const greeting = plain
     ? hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
     : hour < 5 ? 'Night owl mode 🦉' : hour < 12 ? 'gm ☀️' : hour < 18 ? 'Let’s get it 💪' : 'Evening grind 🌙'
-  const planned = dayPlanOf(plan, overrides, today)
+  const planned = workItems(dayPlanOf(plan, overrides, today))
   const todays = new Map(logs.filter((l) => l.date === today && hasData(l)).map((l) => [l.exerciseId, l]))
   const upcoming = planned.filter((p) => !todays.has(p.exerciseId))
 

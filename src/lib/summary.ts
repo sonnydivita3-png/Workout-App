@@ -30,7 +30,7 @@ export function workoutSummary(date: string, items: PlannedExercise[], logs: Exe
   const results: ExerciseResult[] = []
   let liftVolume = 0
   let lastLiftVolume = 0
-  for (const id of [...new Set(items.map((i) => i.exerciseId))]) {
+  for (const id of [...new Set(items.filter((i) => !i.warmup).map((i) => i.exerciseId))]) {
     const ex = lookup(id)
     if (!ex) continue
     const now = logs.find((l) => l.date === date && l.exerciseId === id)
