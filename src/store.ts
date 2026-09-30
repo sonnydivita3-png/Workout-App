@@ -40,6 +40,9 @@ interface State extends Data {
   /** Whether the person opted in to social features, opted out, or hasn't been asked yet. */
   socialChoice: SocialChoice
   setSocialChoice: (c: SocialChoice) => void
+  /** Handle from an invite link (?add=handle) waiting to be added as a friend. */
+  pendingInvite: string | null
+  setPendingInvite: (h: string | null) => void
   /** Whether the first-run walkthrough has been finished or skipped. */
   /** Look and feel. Kept even when all data is erased. */
   theme: ThemeMode
@@ -186,6 +189,7 @@ const defaults = () => ({
   theme: 'dark' as ThemeMode,
   accent: 'lime' as Accent,
   socialChoice: 'unset' as SocialChoice,
+  pendingInvite: null as string | null,
   tourDone: false,
   tourVersion: 0,
   trackRpe: false,
@@ -309,6 +313,7 @@ export const useStore = create<State>()(
         }),
       applyProgram: (days) => set((s) => ({ overrides: { ...s.overrides, ...days } })),
       setSocialChoice: (socialChoice) => set({ socialChoice }),
+      setPendingInvite: (pendingInvite) => set({ pendingInvite }),
       setTourDone: (tourDone) => set(tourDone ? { tourDone, tourVersion: TOUR_VERSION } : { tourDone }),
       setPrefs: (p) => set(p),
       setGenPrefs: (p) => set((s) => ({ genPrefs: { ...s.genPrefs, ...p } })),

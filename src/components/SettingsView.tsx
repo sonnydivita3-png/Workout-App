@@ -4,6 +4,9 @@ import { useStore, type Accent } from '../store'
 import { Sheet } from './Sheet'
 import { SocialSettings } from './social/SocialSettings'
 import { CloudBackup } from './CloudBackup'
+import { AccountSection } from './AccountSection'
+import { InviteButton } from './InviteButton'
+import { useSocial } from '../social/store'
 import { LegalSheet, type LegalDoc } from './LegalSheet'
 
 const ACCENTS: [Accent, string][] = [['lime', '#c8ff3e'], ['pink', '#ff5cae'], ['violet', '#a78bfa'], ['orange', '#ff9f45'], ['blue', '#5eb1ff']]
@@ -51,6 +54,7 @@ const Row = ({ title, children }: { title: string; children: React.ReactNode }) 
 
 export function SettingsView() {
   const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, name, setName, importData, setTourDone, trackRpe, restSeconds, setPrefs, plainCopy, theme, setTheme, accent, setAccent } = useStore()
+  const myHandle = useSocial((s) => s.profile?.handle)
   const [installEvt, setInstallEvt] = useState<InstallEvent | null>(null)
   const [msg, setMsg] = useState('')
   const [erasing, setErasing] = useState(false)
@@ -238,6 +242,8 @@ export function SettingsView() {
 
       <SocialSettings />
 
+      <AccountSection />
+
       <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Help</h2>
       {(['privacy', 'terms', 'health'] as const).map((d) => (
         <button key={d} onClick={() => setLegal(d)} className="w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70">
@@ -246,6 +252,10 @@ export function SettingsView() {
       ))}
       {legal && <LegalSheet doc={legal} onClose={() => setLegal(null)} />}
       <button onClick={() => setTourDone(false)} className="w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70">Replay the app walkthrough</button>
+      <InviteButton handle={myHandle} className="w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70">
+        Invite a friend to the app
+        <span className="block text-xs text-neutral-400">{myHandle ? 'Sends a link that lets them add you as a friend' : 'Sends a link to the app'}</span>
+      </InviteButton>
 
       {!standalone && (
         <>

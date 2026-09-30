@@ -68,9 +68,9 @@ Open the app and close/reopen it once or twice so it picks up the new version. *
 - Body weight, measurements, photos and goals are never shared. Avatars are an emoji, a letter, or a photo shrunk to about 96px (the database rejects anything larger or any non-image data).
 - Friend-sent workouts are validated and clamped on the receiving device before anything touches the calendar, and a friend's custom exercises are imported under new ids so they can't overwrite your own.
 - Cloud backup is one row per account that only its owner can read or write.
-- Sending is rate limited, blocking removes the friendship, and deleting the account removes everything server-side, including the backup.
+- Sending is rate limited, blocking removes the friendship, and deleting the account (**Settings → Account**, shown to anyone signed in, even with social off) removes everything server-side, including the backup.
+- Invite links (`…/Workout-App/?add=handle`) only carry a handle. Opening one offers to send that person a friend request, after sign-up if needed; nothing is shared until each side sets permissions.
 
 ## Limits
 - There are no push notifications yet: new requests appear when the app is open (it checks about every 45 seconds).
 - Challenge progress is computed on the accepter's device from their own logs, so a determined person could report false progress.
-- The app's Supabase client has not yet been run against a live project.

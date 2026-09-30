@@ -8,6 +8,8 @@ import { WorkoutSession } from './components/WorkoutSession'
 import { Toasts } from './components/Toasts'
 import { SocialSetup } from './components/social/SocialSetup'
 import { SocialView } from './components/social/SocialView'
+import { InviteBanner } from './components/social/InviteBanner'
+import { clearInviteParam, readInvite } from './lib/invite'
 import { useTheme } from './lib/useTheme'
 import { useCloudSync } from './lib/useCloudSync'
 import { useBackendSwitch } from './lib/useBackendSwitch'
@@ -26,6 +28,12 @@ export default function App() {
   useEffect(() => {
     const s = useStore.getState().session
     if (s && Date.now() - s.startedAt > 12 * 3600 * 1000) useStore.getState().endSession()
+  }, [])
+  // Opened from an invite link: remember who invited them until they add that person or say not now.
+  useEffect(() => {
+    const h = readInvite(window.location.search)
+    if (h) useStore.getState().setPendingInvite(h)
+    clearInviteParam()
   }, [])
   const conflict = useStore((s) => s.cloud.enabled && s.cloud.conflict)
   useNotificationEngine()
@@ -46,6 +54,7 @@ export default function App() {
         {conflict && tab !== 'settings' && (
           <button onClick={() => setTab('settings')} className="mb-3 w-full rounded-2xl bg-amber-50 px-4 py-2.5 text-left text-sm text-amber-800">⚠️ Your backup and this phone both changed. Tap to choose which to keep.</button>
         )}
+        {tab !== 'settings' && <InviteBanner />}
         {tab === 'home' && <HomeView onNavigate={setTab} />}
         {tab === 'plan' && <PlanView />}
         {tab === 'history' && <HistoryView />}

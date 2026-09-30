@@ -21,7 +21,9 @@ export function repairState<T extends Obj>(saved: unknown, defaults: T): T {
   for (const [k, dv] of Object.entries(defaults)) {
     const v = saved[k]
     if (v === undefined || v === null) continue
-    if (Array.isArray(dv)) { if (Array.isArray(v)) out[k] = v }
+    // A null default (e.g. backendKind, session) takes any plain value; before, a saved string was dropped here.
+    if (dv === null) { if (typeof v !== 'function') out[k] = v }
+    else if (Array.isArray(dv)) { if (Array.isArray(v)) out[k] = v }
     else if (isObj(dv)) { if (isObj(v)) out[k] = { ...dv, ...v } }
     else if (typeof dv === typeof v) out[k] = v
   }
