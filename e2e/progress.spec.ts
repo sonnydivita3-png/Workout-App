@@ -40,6 +40,6 @@ test('workout mode: ✓ sets, rest timer, and a beat-last-time summary', async (
   await page.getByRole('button', { name: 'Finish workout' }).click()
   await expect(page.getByText('Beat last time on everything 🔥')).toBeVisible()
   await expect(page.getByText('PR', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Done' }).click()
+  await page.getByRole('button', { name: 'Done', exact: true }).click()
   expect((await state(page)).session).toBeNull()
 })
