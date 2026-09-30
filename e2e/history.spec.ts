@@ -12,7 +12,7 @@ test('history by workout: calendar, day comparison, muscle sets, delete a day', 
     ],
   })
   await page.goto('/')
-  await page.locator('nav').getByText('History').click()
+  await page.locator('nav').getByText('Progress').click()
   await expect(page.getByText('Hard sets per muscle')).toBeVisible()
   await expect(page.getByText('▲ 1 improved')).toBeVisible()
   await page.getByRole('button', { name: /workout logged/ }).last().click()
@@ -25,7 +25,7 @@ test('history by workout: calendar, day comparison, muscle sets, delete a day', 
 test('body: log measurements and see the trend', async ({ page }) => {
   await seed(page, { measurements: [{ id: 'm1', date: iso(-30), waist: 34 }] })
   await page.goto('/')
-  await page.locator('nav').getByText('History').click()
+  await page.locator('nav').getByText('Progress').click()
   await page.getByRole('button', { name: 'Body' }).click()
   await page.getByRole('button', { name: '+ Log' }).click()
   await page.locator('.fixed label', { hasText: 'Waist' }).locator('input').fill('33')

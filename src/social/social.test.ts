@@ -126,7 +126,7 @@ describe('completed workouts', () => {
       { exerciseId: 'Plank', sets: 1, seconds: 60 },
       { exerciseId: 'running', sets: 1, minutes: 27, distance: 3.1 },
     ])
-    expect(p.results).toEqual(['Pushups 3 × 20', 'Barbell Deadlift 2 sets, top 245 lb × 3', 'Plank 1 × 60s', 'Running 3.1 mi in 27 min'])
+    expect(p.results).toEqual(['Push-Up 3 × 20', 'Deadlift 2 sets, top 245 lb × 3', 'Plank 1 × 60s', 'Running 3.1 mi in 27 min'])
     expect(completedWorkout('2026-01-01', logs, lookup, [])).toBeNull()
   })
 })

@@ -50,7 +50,7 @@ export function TimedBlockCard({ items, date, onRemove }: { items: PlannedExerci
     <div className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
       <div className="mb-2 flex items-start justify-between gap-2">
         <div>
-          <p className="text-[11px] uppercase tracking-wide text-neutral-400">Timed workout</p>
+          <p className="text-xs font-medium text-neutral-500">Timed workout</p>
           <h3 className="text-lg font-semibold">{wodTitle(wod)}</h3>
         </div>
         <button onClick={() => confirm('Remove this timed workout from the day?') && onRemove()} aria-label="Remove timed workout" className="text-lg leading-none text-neutral-400">×</button>
@@ -60,7 +60,7 @@ export function TimedBlockCard({ items, date, onRemove }: { items: PlannedExerci
           const ex = findExercise(custom, p.exerciseId)
           return (
             <li key={p.exerciseId} className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
-              <span className="min-w-0 truncate">{name(p.exerciseId)}</span>
+              <span className="min-w-0 line-clamp-2">{name(p.exerciseId)}</span>
               <span className="shrink-0 text-xs tabular-nums text-neutral-400">{ex ? describeItem(p, ex, units) : ''}</span>
             </li>
           )
@@ -72,7 +72,7 @@ export function TimedBlockCard({ items, date, onRemove }: { items: PlannedExerci
 
       {showForm ? (
         <div>
-          <p className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Log your result</p>
+          <p className="mb-2 text-sm font-semibold text-neutral-700">Log your result</p>
           {wod.kind === 'amrap' && (
             <div className="mb-3 flex gap-2">
               <label className="flex-1 text-xs text-neutral-500">Full rounds<NumberInput value={rounds} onChange={setRounds} /></label>

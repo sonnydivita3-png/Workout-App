@@ -19,7 +19,7 @@ export function WorkoutList({ items, onSwap, onChoose, onRemove }: Props) {
     <div className="space-y-3">
       {groupByBlock(items).map((g, gi) => (
         <div key={gi} className={g.block ? 'rounded-2xl bg-neutral-50 px-3 py-2' : ''}>
-          {g.block && g.label && <p className="pb-1 pt-0.5 text-[11px] uppercase tracking-wide text-neutral-500">{g.label}</p>}
+          {g.block && g.label && <p className="pb-1 pt-0.5 text-xs uppercase tracking-wide text-neutral-500">{g.label}</p>}
           <ul className="divide-y divide-neutral-100">
             {g.items.map(({ item: p, index }) => {
               const ex = findExercise(custom, p.exerciseId)
@@ -27,7 +27,7 @@ export function WorkoutList({ items, onSwap, onChoose, onRemove }: Props) {
               return (
                 <li key={p.exerciseId} className="flex items-center justify-between gap-2 py-2.5">
                   <span className="min-w-0">
-                    <span className="block truncate">{ex.name}</span>
+                    <span className="block line-clamp-2">{ex.name}</span>
                     <span className="text-xs tabular-nums text-neutral-400">
                       {[describeItem(p, ex, units), ex.group].filter(Boolean).join(' · ')}
                     </span>

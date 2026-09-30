@@ -1,9 +1,10 @@
 import { expect, test } from './fixtures'
-import { seed } from './helpers'
+import { openSettings, seed } from './helpers'
 
 test('social sign-up without email needs the age check, then friends work', async ({ page }) => {
   await seed(page, { socialChoice: 'unset' })
   await page.goto('/')
+  await page.locator('nav').getByText('Social').click()
   await page.getByRole('button', { name: 'Set up social features' }).click()
   await page.getByRole('button', { name: 'Continue without email' }).click()
   await page.getByPlaceholder('yourname').fill('e2e_user')
@@ -25,7 +26,7 @@ test('social sign-up without email needs the age check, then friends work', asyn
 test('legal pages open from Settings', async ({ page }) => {
   await seed(page)
   await page.goto('/')
-  await page.locator('nav').getByText('Settings').click()
+  await openSettings(page, 'Help & feedback')
   await page.getByRole('button', { name: 'Privacy policy' }).click()
   await expect(page.getByText('No ads, no selling or renting data')).toBeVisible()
 })

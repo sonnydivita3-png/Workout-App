@@ -25,7 +25,8 @@ test('suggests the next step and marks sets that beat last time', async ({ page 
   // plates and how-to
   await page.getByRole('button', { name: 'Plates' }).click()
   await expect(page.getByText(/45 lb bar \+/)).toBeVisible()
-  await page.getByRole('button', { name: 'Barbell Bench Press - Medium Grip' }).click()
+  await page.getByRole('button', { name: 'Bench Press', exact: true }).click()
+  await expect(page.getByText('Barbell Bench Press - Medium Grip')).toBeVisible()
   await expect(page.getByText(/Lie back on a flat bench/i)).toBeVisible()
 })
 

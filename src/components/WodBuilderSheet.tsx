@@ -7,7 +7,7 @@ import { NumberInput } from './NumberInput'
 import { Sheet } from './Sheet'
 
 const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
-const h3 = 'mb-2 text-xs uppercase tracking-wide text-neutral-400'
+const h3 = 'mb-2 text-sm font-semibold text-neutral-700'
 
 /** Build your own AMRAP, EMOM or for-time workout and add it to a day. */
 export function WodBuilderSheet({ date, onClose }: { date: string; onClose: () => void }) {
@@ -70,7 +70,7 @@ export function WodBuilderSheet({ date, onClose }: { date: string; onClose: () =
               const cardio = m.ex.kind === 'cardio'
               return (
                 <li key={m.exerciseId} className="flex items-center gap-2 py-2">
-                  <span className="min-w-0 flex-1 truncate text-sm">{m.ex.name}</span>
+                  <span className="min-w-0 flex-1 line-clamp-2 text-sm">{m.ex.name}</span>
                   {cardio ? (
                     <input value={m.note ?? ''} onChange={(e) => set(m.exerciseId, { note: e.target.value })} placeholder="250 m" aria-label="Distance or time" className="w-20 rounded-lg bg-neutral-100 px-2 py-1.5 text-center text-sm outline-none" />
                   ) : (

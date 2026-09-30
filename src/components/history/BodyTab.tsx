@@ -7,6 +7,7 @@ import type { Measurement } from '../../types'
 import { LineChart } from '../LineChart'
 import { NumberInput } from '../NumberInput'
 import { Sheet } from '../Sheet'
+import { BodyweightSection } from './BodyweightSection'
 
 type Key = Exclude<keyof Measurement, 'id' | 'date'>
 const FIELDS: { key: Key; label: string; pct?: boolean }[] = [
@@ -34,9 +35,10 @@ export function BodyTab() {
 
   return (
     <div className="space-y-4">
+      <BodyweightSection />
       <section className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
         <div className="mb-3 flex items-center justify-between">
-          <p className="text-xs uppercase tracking-wide text-neutral-400">Measurements</p>
+          <p className="text-sm font-semibold text-neutral-700">Measurements</p>
           <button onClick={() => { setDraft({}); setDate(today); setAdding(true) }} className="rounded-full bg-accent px-3 py-1 text-sm font-medium text-on-accent">+ Log</button>
         </div>
         <div className="mb-3 flex flex-wrap gap-1.5">
@@ -113,7 +115,7 @@ function Photos() {
   return (
     <section className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
       <div className="mb-1 flex items-center justify-between">
-        <p className="text-xs uppercase tracking-wide text-neutral-400">Progress photos</p>
+        <p className="text-sm font-semibold text-neutral-700">Progress photos</p>
         <button onClick={() => file.current?.click()} className="rounded-full bg-accent px-3 py-1 text-sm font-medium text-on-accent">+ Photo</button>
       </div>
       <p className="mb-3 text-xs text-neutral-400">Saved only on this phone, never uploaded or shared, and not included in backups. Tap two to compare.</p>

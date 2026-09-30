@@ -169,11 +169,11 @@ export function CardioGoalForm({ onDone }: { onDone: () => void }) {
           </label>
           {buildPlan && (
             <div className="mb-4 rounded-2xl bg-neutral-50 p-3">
-              <p className="mb-1.5 text-xs uppercase tracking-wide text-neutral-400">Your level</p>
+              <p className="mb-1.5 text-sm font-semibold text-neutral-700">Your level</p>
               <div className="mb-3 flex flex-wrap gap-2">
                 {(['beginner', 'intermediate', 'advanced'] as const).map((l) => <button key={l} onClick={() => setLevel(l)} className={chip(l === level)}>{l[0].toUpperCase() + l.slice(1)}</button>)}
               </div>
-              <p className="mb-1.5 text-xs uppercase tracking-wide text-neutral-400">Days a week</p>
+              <p className="mb-1.5 text-sm font-semibold text-neutral-700">Days a week</p>
               <div className="mb-3 flex gap-2">
                 {[3, 4, 5, 6].map((n) => <button key={n} onClick={() => setPerWeek(n)} className={chip(n === perWeek)}>{n}</button>)}
               </div>

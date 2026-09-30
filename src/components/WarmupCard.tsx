@@ -27,7 +27,7 @@ export function WarmupCard({ items, onRemove }: { items: PlannedExercise[]; onRe
     <div className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
       <div className="mb-2 flex items-start justify-between gap-2">
         <div>
-          <p className="text-[11px] uppercase tracking-wide text-neutral-400">Warm-up · about {minutes} min</p>
+          <p className="text-xs font-medium text-neutral-500">Warm-up · about {minutes} min</p>
           <h3 className="font-semibold">Get loose first</h3>
         </div>
         <button onClick={() => confirm('Remove the warm-up from this day?') && onRemove()} aria-label="Remove warm-up" className="text-lg leading-none text-neutral-400">×</button>
@@ -35,7 +35,7 @@ export function WarmupCard({ items, onRemove }: { items: PlannedExercise[]; onRe
       <ul className="mb-3 divide-y divide-neutral-100">
         {rows.map(({ p, ex }) => (
           <li key={p.exerciseId} className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
-            <button onClick={() => setHowTo(ex)} className="min-w-0 truncate text-left underline decoration-neutral-300 decoration-dotted underline-offset-4">{ex.name}</button>
+            <button onClick={() => setHowTo(ex)} className="min-w-0 line-clamp-2 text-left underline decoration-neutral-300 decoration-dotted underline-offset-4">{ex.name}</button>
             <span className="shrink-0 text-xs tabular-nums text-neutral-400">{ex.kind === 'cardio' ? `${p.minutes} min easy` : describeItem(p, ex, units)}</span>
           </li>
         ))}

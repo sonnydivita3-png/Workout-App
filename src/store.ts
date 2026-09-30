@@ -7,6 +7,7 @@ import { dayPlanOf } from './lib/plan'
 import { repairState, SCHEMA_VERSION } from './lib/migrate'
 import { SYNC_KEYS } from './lib/sync'
 import type { RestPref } from './lib/timing'
+import type { WorkoutStyle } from './lib/randomizer'
 import { activePrograms, clearRange, removeProgramDays } from './lib/programs'
 import type {
   AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Sport, TimedLog, StrengthSet, Units, WeekPlan,
@@ -16,7 +17,7 @@ export type ThemeMode = 'dark' | 'light' | 'auto'
 export type Accent = 'lime' | 'pink' | 'violet' | 'orange' | 'blue'
 
 /** Bump when the walkthrough gains new content, so people who saw an older version see it once more. */
-export const TOUR_VERSION = 2
+export const TOUR_VERSION = 3
 
 export type WarmupKind = 'cardio' | 'mobility' | 'sets'
 
@@ -43,6 +44,16 @@ interface State extends Data {
   /** Handle from an invite link (?add=handle) waiting to be added as a friend. */
   pendingInvite: string | null
   setPendingInvite: (h: string | null) => void
+  /** First-run setup (goal, days, first plan) finished or skipped. */
+  onboarded: boolean
+  setOnboarded: (v: boolean) => void
+  /** One-time tips already shown, by id. */
+  tipsSeen: string[]
+  seeTip: (id: string) => void
+  /** Make a date's exercises the usual plan for that weekday (every week). */
+  setUsualDay: (date: string) => void
+  /** Stop repeating a weekday's usual plan; this date keeps its exercises. */
+  clearUsualDay: (date: string) => void
   /** When each Home reminder (install, backup) was last dismissed, in ms. */
   nudgeSnooze: Record<string, number>
   snoozeNudge: (id: string) => void
@@ -53,17 +64,15 @@ interface State extends Data {
   setTheme: (t: ThemeMode) => void
   setAccent: (a: Accent) => void
   /** Randomizer choices remembered between uses. */
-  genPrefs: { warmup: WarmupKind[]; rest: RestPref }
+  genPrefs: { warmup: WarmupKind[]; rest: RestPref; focus?: string[]; styles?: WorkoutStyle[]; minutes?: number }
   setGenPrefs: (p: Partial<State['genPrefs']>) => void
   /** Show an RPE (effort) column when logging sets. */
   trackRpe: boolean
-  /** Rest timer after each set in workout mode, in seconds. 0 = off. */
+  /** Rest timer after each set in workout mode, in seconds. 0 = off, -1 = as planned for each exercise. */
   restSeconds: number
-  setPrefs: (p: Partial<Pick<State, 'trackRpe' | 'restSeconds' | 'plainCopy' | 'backendKind'>>) => void
+  setPrefs: (p: Partial<Pick<State, 'trackRpe' | 'restSeconds' | 'backendKind'>>) => void
   /** Which social server this device last used, to notice the switch from preview to a real one. */
   backendKind: 'demo' | 'supabase' | null
-  /** Plain wording instead of the playful copy. */
-  plainCopy: boolean
   /** A workout in progress (workout mode), so reopening the app picks it back up. */
   session: { date: string; startedAt: number } | null
   startSession: (date: string) => void
@@ -113,7 +122,7 @@ interface State extends Data {
   /** Wipe everything back to a fresh install, optionally keeping name, units and notification settings. */
   resetAll: (keepProfile: boolean) => void
   deleteBodyweight: (date: string) => void
-  // Plan edits take a date: they change that date's override if it has one, else the weekly template.
+  // Plan edits take a date and change that date only (see setUsualDay for the weekly template).
   addExercise: (date: string, exerciseId: string, kind: ExerciseKind) => void
   removeExercise: (date: string, exerciseId: string) => void
   setSetCount: (date: string, exerciseId: string, sets: number) => void
@@ -151,9 +160,15 @@ const emptyPlan = (): WeekPlan => Array.from({ length: 7 }, () => [])
 
 /** Apply `fn` to a date's exercises, editing its override if present, else the weekly template. */
 function editDay(s: Pick<Data, 'plan' | 'overrides'>, date: string, fn: (items: PlannedExercise[]) => PlannedExercise[]) {
-  if (s.overrides[date]) return { overrides: { ...s.overrides, [date]: fn(s.overrides[date]) } }
-  const day = weekdayIndex(parseISO(date))
-  return { plan: s.plan.map((d, i) => (i === day ? fn(d) : d)) }
+  // Edits apply to this date only; "Repeat every <weekday>" (setUsualDay) is how a day becomes part of the usual week.
+  const template = s.plan[weekdayIndex(parseISO(date))]
+  const next = fn(s.overrides[date] ?? template)
+  if (next.length === 0 && template.length === 0) {
+    // Nothing left and nothing usually planned: just an empty day, not a rest day.
+    const { [date]: _gone, ...rest } = s.overrides
+    return { overrides: rest }
+  }
+  return { overrides: { ...s.overrides, [date]: next } }
 }
 
 const appendMissing = (d: PlannedExercise[], items: PlannedExercise[]) => [
@@ -193,13 +208,14 @@ const defaults = () => ({
   accent: 'lime' as Accent,
   socialChoice: 'unset' as SocialChoice,
   pendingInvite: null as string | null,
+  onboarded: false,
+  tipsSeen: [] as string[],
   nudgeSnooze: {} as Record<string, number>,
   tourDone: false,
   tourVersion: 0,
   trackRpe: false,
   genPrefs: { warmup: [], rest: 'normal' } as State['genPrefs'],
-  restSeconds: 0,
-  plainCopy: false,
+  restSeconds: -1,
   backendKind: null as 'demo' | 'supabase' | null,
   session: null as { date: string; startedAt: number } | null,
 })
@@ -213,9 +229,8 @@ export const useStore = create<State>()(
           ...defaults(),
           theme: s.theme,
           accent: s.accent,
-          plainCopy: s.plainCopy,
           // Erasing turns cloud backup off, so the cloud copy stays as a safety net rather than being wiped too.
-          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone, tourVersion: s.tourVersion } : {}),
+          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone, tourVersion: s.tourVersion, onboarded: s.onboarded, tipsSeen: s.tipsSeen } : {}),
         })),
       pushNotifications: (items) => {
         const existing = new Map(get().notifications.map((n) => [n.id, n]))
@@ -318,6 +333,21 @@ export const useStore = create<State>()(
       applyProgram: (days) => set((s) => ({ overrides: { ...s.overrides, ...days } })),
       setSocialChoice: (socialChoice) => set({ socialChoice }),
       setPendingInvite: (pendingInvite) => set({ pendingInvite }),
+      setOnboarded: (onboarded) => set({ onboarded }),
+      seeTip: (id) => set((s) => (s.tipsSeen.includes(id) ? s : { tipsSeen: [...s.tipsSeen, id] })),
+      clearUsualDay: (date) =>
+        set((s) => {
+          const day = weekdayIndex(parseISO(date))
+          const items = dayPlanOf(s.plan, s.overrides, date).map((p) => ({ ...p }))
+          return { plan: s.plan.map((d, i) => (i === day ? [] : d)), overrides: { ...s.overrides, [date]: items } }
+        }),
+      setUsualDay: (date) =>
+        set((s) => {
+          const items = dayPlanOf(s.plan, s.overrides, date).map((p) => ({ ...p }))
+          const day = weekdayIndex(parseISO(date))
+          const { [date]: _gone, ...rest } = s.overrides
+          return { plan: s.plan.map((d, i) => (i === day ? items : d)), overrides: rest }
+        }),
       snoozeNudge: (id) => set((s) => ({ nudgeSnooze: { ...s.nudgeSnooze, [id]: Date.now() } })),
       setTourDone: (tourDone) => set(tourDone ? { tourDone, tourVersion: TOUR_VERSION } : { tourDone }),
       setPrefs: (p) => set(p),

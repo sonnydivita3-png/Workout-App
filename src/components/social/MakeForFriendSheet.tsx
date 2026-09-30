@@ -110,7 +110,7 @@ function BuildSheet({ onBack, onUse }: { onBack: () => void; onUse: (items: Plan
               const cardio = findExercise(custom, p.exerciseId)?.kind === 'cardio'
               return (
                 <li key={p.exerciseId} className="flex items-center gap-2 py-2">
-                  <span className="min-w-0 flex-1 truncate text-sm">{nameOf(p.exerciseId)}</span>
+                  <span className="min-w-0 flex-1 line-clamp-2 text-sm">{nameOf(p.exerciseId)}</span>
                   {!cardio && (
                     <span className="flex items-center gap-1 text-sm">
                       <button aria-label="Fewer sets" onClick={() => setSets(p.exerciseId, p.sets - 1)} className="h-7 w-7 rounded-full bg-neutral-100">−</button>

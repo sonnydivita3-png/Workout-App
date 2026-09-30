@@ -10,10 +10,10 @@ type Mode = 'menu' | 'copy' | 'save' | 'load' | 'share'
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 /** `weekDates` are the 7 ISO dates (Mon–Sun) of the week being viewed. */
-export function DaySheet({ date, weekDates, onClose }: { date: string; weekDates: string[]; onClose: () => void }) {
+export function DaySheet({ date, weekDates, onClose, initialMode = 'menu' }: { date: string; weekDates: string[]; onClose: () => void; initialMode?: 'menu' | 'load' }) {
   const social = useStore((st) => st.socialChoice === 'enabled')
-  const { plan, overrides, routines, copyDay, saveRoutine, deleteRoutine, loadRoutine, resetDay, setRestDay } = useStore()
-  const [mode, setMode] = useState<Mode>('menu')
+  const { plan, overrides, routines, copyDay, saveRoutine, deleteRoutine, loadRoutine, resetDay, setRestDay, setUsualDay, clearUsualDay } = useStore()
+  const [mode, setMode] = useState<Mode>(initialMode)
   const [targets, setTargets] = useState<number[]>([])
   const [name, setName] = useState('')
   const day = weekdayIndex(parseISO(date))
@@ -21,6 +21,8 @@ export function DaySheet({ date, weekDates, onClose }: { date: string; weekDates
   const planOf = (i: number) => dayPlanOf(plan, overrides, weekDates[i])
   const empty = planned.length === 0
   const rest = isRestDay(overrides, date)
+  // This date is following the usual week (nothing changed just for it).
+  const usual = !overrides[date] && plan[day].length > 0
 
   const toggle = (i: number) => setTargets((t) => (t.includes(i) ? t.filter((x) => x !== i) : [...t, i]))
 
@@ -110,6 +112,17 @@ export function DaySheet({ date, weekDates, onClose }: { date: string; weekDates
       <button disabled={empty} onClick={() => setMode('copy')} className={rowBtn}>
         <span>Copy this day to other days</span><span className="text-neutral-300">›</span>
       </button>
+      {!empty && !rest && (usual ? (
+        <button onClick={() => { clearUsualDay(date); onClose() }} className={rowBtn}>
+          <span>Stop repeating every {DAY_NAMES[day]}</span>
+          <span className="text-xs text-neutral-400">Keeps this date</span>
+        </button>
+      ) : (
+        <button onClick={() => { setUsualDay(date); onClose() }} className={rowBtn}>
+          <span>Repeat every {DAY_NAMES[day]}</span>
+          <span className="text-xs text-neutral-400">Your usual week</span>
+        </button>
+      ))}
       {social && (
         <button onClick={() => setMode('share')} className={rowBtn}>
           <span>Share with a friend…</span><span className="text-neutral-300">›</span>

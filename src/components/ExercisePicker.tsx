@@ -31,7 +31,7 @@ export function ExercisePicker({ taken, onPick, onClose }: Props) {
       [...custom, ...EXERCISES].filter(
         (e) =>
           (group === 'All' || e.group === group) &&
-          query.split(/\s+/).every((w) => e.name.toLowerCase().includes(w)),
+          query.split(/\s+/).every((w) => `${e.name} ${e.fullName ?? ''}`.toLowerCase().includes(w)),
       ),
     [custom, query, group],
   )

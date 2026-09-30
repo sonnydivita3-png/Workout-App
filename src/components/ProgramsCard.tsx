@@ -32,7 +32,7 @@ export function ProgramsCard({ onReplace }: { onReplace: (kind: Program['kind'])
   return (
     <section className="mt-3 rounded-2xl bg-surface p-3 shadow-sm ring-1 ring-neutral-200/70">
       <div className="mb-1 flex items-center justify-between">
-        <h2 className="text-xs uppercase tracking-wide text-neutral-400">{active.length ? 'My programs' : 'Planned days'}</h2>
+        <h2 className="text-sm font-semibold text-neutral-700">{active.length ? 'My programs' : 'Planned days'}</h2>
         {upcoming > 0 && <button onClick={() => setClearing(true)} className="text-xs text-neutral-500 underline underline-offset-2">Clear days…</button>}
       </div>
       {msg && <p role="status" className="mb-1 text-xs text-neutral-500">{msg}</p>}

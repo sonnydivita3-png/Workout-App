@@ -51,8 +51,24 @@ const Row = ({ title, children }: { title: string; children: React.ReactNode }) 
   </div>
 )
 
-export function SettingsView() {
-  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, name, setName, importData, setTourDone, trackRpe, restSeconds, setPrefs, plainCopy, theme, setTheme, accent, setAccent } = useStore()
+type Page = 'profile' | 'workouts' | 'look' | 'notifications' | 'data' | 'social' | 'help'
+// Line icons (24px grid), matching the tab bar.
+const PAGES: { id: Page; title: string; icon: string }[] = [
+  { id: 'profile', title: 'Profile & units', icon: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21c0-4 4-6 8-6s8 2 8 6' },
+  { id: 'workouts', title: 'Workouts', icon: 'M6 4v16M18 4v16M3 8v8M21 8v8M6 12h12' },
+  { id: 'look', title: 'Appearance', icon: 'M12 3a9 9 0 100 18c1 0 1.5-.7 1.5-1.5 0-1.2-1-1.5-1-2.5s.8-1.5 2-1.5H17a4 4 0 004-4c0-4.4-4-8.5-9-8.5zM7.5 12a1 1 0 100-2 1 1 0 000 2zM10 8a1 1 0 100-2 1 1 0 000 2zM15 8a1 1 0 100-2 1 1 0 000 2z' },
+  { id: 'notifications', title: 'Notifications', icon: 'M6 9a6 6 0 1112 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9M10 20a2 2 0 004 0' },
+  { id: 'data', title: 'Backup & data', icon: 'M7 18a5 5 0 01-.5-10A6 6 0 0118 9a4.5 4.5 0 01-.5 9H7zM12 11v6M9.5 13.5L12 11l2.5 2.5' },
+  { id: 'social', title: 'Friends & account', icon: 'M16 11a3 3 0 100-6 3 3 0 000 6zM8 12a3 3 0 100-6 3 3 0 000 6zM2 20c0-3 3-5 6-5s6 2 6 5M14 15c3 0 8 1 8 5' },
+  { id: 'help', title: 'Help & feedback', icon: 'M12 21a9 9 0 100-18 9 9 0 000 18zM9.5 9.5a2.5 2.5 0 114 2c-1 .6-1.5 1.2-1.5 2.5M12 17h.01' },
+]
+const REST_LABEL = (r: number) => (r === -1 ? 'as planned' : r ? `${r} s` : 'off')
+
+/** Settings, grouped into a few short pages instead of one long list. */
+export function SettingsView({ initialPage, onBack }: { initialPage?: string; onBack?: () => void }) {
+  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, name, setName, importData, setTourDone, trackRpe, restSeconds, setPrefs, theme, setTheme, accent, setAccent, cloud, socialChoice } = useStore()
+  const [page, setPage] = useState<Page | null>(PAGES.some((p) => p.id === initialPage) ? (initialPage as Page) : null)
+  const [advanced, setAdvanced] = useState(false)
   const myHandle = useSocial((s) => s.profile?.handle)
   const install = useInstallPrompt()
   const [msg, setMsg] = useState('')
@@ -101,9 +117,50 @@ export function SettingsView() {
     }
   }
 
+  const summary: Record<Page, string> = {
+    profile: `${name || 'No name yet'} · ${units.weight}, ${units.distance}`,
+    workouts: `Rest timer ${REST_LABEL(restSeconds)} · effort ${trackRpe ? 'on' : 'off'}`,
+    look: `${theme[0].toUpperCase()}${theme.slice(1)} · ${accent}`,
+    notifications: [notifPrefs.goals && 'goals', notifPrefs.pbs && 'bests', notifPrefs.daily && 'daily reminder'].filter(Boolean).join(', ') || 'Off',
+    data: cloud.enabled ? 'Cloud backup on' : 'Cloud backup off',
+    social: socialChoice === 'enabled' ? 'Friends on' : 'Friends off',
+    help: 'Guide, invite a friend, feedback, privacy',
+  }
+  const title = page ? PAGES.find((p) => p.id === page)!.title : 'Settings'
+
+  if (!page) {
+    return (
+      <section>
+        <header className="mb-4 flex items-center gap-2">
+          {onBack && <button onClick={onBack} aria-label="Back" className="-ml-2 h-10 w-10 rounded-full text-xl text-neutral-500">‹</button>}
+          <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        </header>
+        <ul className="divide-y divide-neutral-100 overflow-hidden rounded-2xl bg-surface ring-1 ring-neutral-200/70">
+          {PAGES.map((p) => (
+            <li key={p.id}>
+              <button onClick={() => { setPage(p.id); window.scrollTo(0, 0) }} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
+                <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-neutral-500" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d={p.icon} /></svg>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium">{p.title}</span>
+                  <span className="block truncate text-sm text-neutral-400">{summary[p.id]}</span>
+                </span>
+                <span className="text-neutral-300">›</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-4 text-center text-xs text-neutral-400">EZ Workout Tracker · version {APP_VERSION}</p>
+      </section>
+    )
+  }
+
   return (
     <section className="space-y-3">
-      <h1 className="mb-4 text-2xl font-semibold tracking-tight">Settings</h1>
+      <header className="mb-4 flex items-center gap-2">
+        <button onClick={() => setPage(null)} aria-label="Back to settings" className="-ml-2 h-10 w-10 rounded-full text-xl text-neutral-500">‹</button>
+        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+      </header>
+      {page === 'profile' && (<>
       <Row title="Name">
         <input
           value={name}
@@ -118,18 +175,19 @@ export function SettingsView() {
       <Row title="Distance">
         <Segmented value={units.distance} options={['mi', 'km']} onChange={(distance) => setUnits({ distance })} />
       </Row>
+      </>)}
 
-      <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Logging</h2>
+      {page === 'workouts' && (<>
       <Row title="Track effort (RPE)"><Toggle on={trackRpe} onChange={(v) => setPrefs({ trackRpe: v })} label="Track effort (RPE)" /></Row>
       <Row title="Rest timer in workouts">
         <select value={restSeconds} onChange={(e) => setPrefs({ restSeconds: Number(e.target.value) })} className="rounded-lg bg-neutral-100 px-2 py-1.5 text-sm">
           {[0, -1, 60, 90, 120, 180].map((r) => <option key={r} value={r}>{r === -1 ? 'As planned' : r ? `${r} s` : 'Off'}</option>)}
         </select>
       </Row>
-      <p className="px-1 text-xs text-neutral-400">RPE is how hard a set felt (10 = nothing left). Sets at RPE 10 won’t trigger a “add weight” suggestion. Tap a set number to mark it as a warm-up.</p>
+      <p className="px-1 text-sm text-neutral-500">The rest timer starts when you tick a set in a workout. “As planned” uses each exercise’s planned rest (longer for heavy sets). RPE is how hard a set felt (10 = nothing left); sets at 10 won’t trigger an “add weight” suggestion.</p>
+      </>)}
 
-      <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Look</h2>
-      <Row title="Plain wording"><Toggle on={plainCopy} onChange={(v) => setPrefs({ plainCopy: v })} label="Plain wording" /></Row>
+      {page === 'look' && (<>
       <Row title="Theme">
         <Segmented value={theme} options={['dark', 'light', 'auto']} onChange={setTheme} />
       </Row>
@@ -148,8 +206,9 @@ export function SettingsView() {
           ))}
         </div>
       </Row>
+      </>)}
 
-      <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Notifications</h2>
+      {page === 'notifications' && (<>
       <Row title="Goals"><Toggle on={notifPrefs.goals} onChange={(goals) => setNotifPrefs({ goals })} label="Goal notifications" /></Row>
       <Row title="Personal bests"><Toggle on={notifPrefs.pbs} onChange={(pbs) => setNotifPrefs({ pbs })} label="Personal best notifications" /></Row>
       <Row title="Daily workout reminder"><Toggle on={notifPrefs.daily} onChange={(daily) => setNotifPrefs({ daily })} label="Daily reminder" /></Row>
@@ -175,16 +234,21 @@ export function SettingsView() {
         without a push server, so a reminder that comes due while the app is closed shows up the next time you open it.
         {ios && !standalone && ' On iPhone, system alerts only work after you add the app to your Home Screen.'}
       </p>
+      </>)}
 
-      <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Your data</h2>
-      <p className="text-sm text-neutral-500">
-        Without cloud backup, everything lives on this device only. Export a file now and then — clearing browser data erases it.
-      </p>
+      {page === 'data' && (<>
+      <CloudBackup />
+      <button onClick={() => setAdvanced(!advanced)} aria-expanded={advanced} className="mt-2 w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70">
+        Backup file (advanced) <span className="float-right text-neutral-400">{advanced ? '⌃' : '⌄'}</span>
+        <span className="block text-xs text-neutral-400">Save or restore a copy as a file, e.g. to move without cloud backup</span>
+      </button>
+      {advanced && (<>
       <div className="flex gap-2">
         <button onClick={exportData} className="flex-1 rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent">Export backup</button>
         <button onClick={() => file.current?.click()} className="flex-1 rounded-2xl bg-surface py-3 text-sm font-medium shadow-sm ring-1 ring-neutral-200/70">Import backup</button>
         <input ref={file} type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && onImport(e.target.files[0])} />
       </div>
+      </>)}
       {msg && <p className="text-sm text-neutral-500">{msg}</p>}
 
       <button
@@ -231,20 +295,21 @@ export function SettingsView() {
         </Sheet>
       )}
 
-      <CloudBackup />
+      </>)}
 
+      {page === 'social' && (<>
       <SocialSettings />
-
       <AccountSection />
+      </>)}
 
-      <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Help</h2>
+      {page === 'help' && (<>
       {(['privacy', 'terms', 'health'] as const).map((d) => (
         <button key={d} onClick={() => setLegal(d)} className="w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70">
           {LEGAL_TITLES[d]}
         </button>
       ))}
       {legal && <LegalSheet doc={legal} onClose={() => setLegal(null)} />}
-      <button onClick={() => setTourDone(false)} className="w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70">Replay the app walkthrough</button>
+      <button onClick={() => setTourDone(false)} className="w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70">App guide</button>
       <InviteButton handle={myHandle} className="w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70">
         Invite a friend to the app
         <span className="block text-xs text-neutral-400">{myHandle ? 'Sends a link that lets them add you as a friend' : 'Sends a link to the app'}</span>
@@ -256,11 +321,10 @@ export function SettingsView() {
         Report a bug
         <span className="block text-xs text-neutral-400">Includes the app version and any recent errors, nothing else</span>
       </a>
-      <p className="text-center text-xs text-neutral-400">Version {APP_VERSION}</p>
 
       {!standalone && (
         <>
-          <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Install</h2>
+          <h2 className="pt-4 text-sm font-semibold text-neutral-700">Install</h2>
           {install ? (
             <button onClick={install} className="w-full rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent">Add to home screen</button>
           ) : (
@@ -272,6 +336,7 @@ export function SettingsView() {
           )}
         </>
       )}
+      </>)}
     </section>
   )
 }

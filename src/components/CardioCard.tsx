@@ -42,7 +42,7 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
       </div>
       {note && <p className="mb-3 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-neutral-600">{note}</p>}
       <div className="grid grid-cols-3 items-end gap-3">
-        <label className="text-[11px] uppercase tracking-wide text-neutral-400">
+        <label className="text-xs font-medium text-neutral-500">
           {units.distance === 'km' ? 'Km' : 'Miles'}
           <NumberInput
             value={showDistance(c.distance, units)}
@@ -51,11 +51,11 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
             onChange={(v) => onChange({ ...c, distance: storeDistance(v, units) })}
           />
         </label>
-        <label className="text-[11px] uppercase tracking-wide text-neutral-400">
+        <label className="text-xs font-medium text-neutral-500">
           Minutes
           <NumberInput value={c.minutes} step={0.5} placeholder={(prev?.minutes ?? targetMinutes)?.toString() ?? '–'} onChange={(v) => onChange({ ...c, minutes: v })} />
         </label>
-        <div className="text-[11px] uppercase tracking-wide text-neutral-400">
+        <div className="text-xs font-medium text-neutral-500">
           Pace
           <div className="py-2 text-center text-base normal-case tabular-nums text-neutral-900">{formatPace(c.distance, c.minutes, units) ?? '–'}</div>
         </div>

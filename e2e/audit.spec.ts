@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures'
-import { iso, seed, state } from './helpers'
+import { iso, openSettings, seed, state } from './helpers'
 
 const BENCH = 'Barbell_Bench_Press_-_Medium_Grip'
 const plannedBench = {
@@ -48,14 +48,15 @@ test('a workout left running for hours does not take over the app', async ({ pag
 test('cloud backup that is on but signed out offers a way to sign in', async ({ page }) => {
   await seed(page, { cloud: { enabled: true, lastSyncedAt: null, lastHash: null, conflict: false, error: null, checkedAt: null } })
   await page.goto('/')
-  await page.locator('nav').getByText('Settings').click()
+  await openSettings(page, 'Backup & data')
   await expect(page.getByRole('button', { name: 'Sign in to back up' })).toBeVisible()
 })
 
 test('a backup file restores programs too, and a damaged file cannot break the app', async ({ page }) => {
   await seed(page, { programs: [{ id: 'p1', kind: 'cardio', title: '10K plan', sport: 'run', createdAt: '', entries: [{ date: iso(3), exerciseId: 'running' }] }], overrides: { [iso(3)]: [{ exerciseId: 'running', sets: 1 }] } })
   await page.goto('/')
-  await page.locator('nav').getByText('Settings').click()
+  await openSettings(page, 'Backup & data')
+  await page.getByRole('button', { name: /Backup file/ }).click()
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Export/ }).first().click()])
   const file = JSON.parse(await (await download.createReadStream()).toArray().then((c) => Buffer.concat(c).toString()))
   expect(file.programs).toHaveLength(1)

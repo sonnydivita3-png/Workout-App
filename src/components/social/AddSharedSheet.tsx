@@ -45,7 +45,7 @@ export function AddSharedSheet({ share, onClose }: { share: SharedWorkout; onClo
       </div>
       {clean?.results && (
         <p className="mb-3 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-neutral-600">
-          <span className="block text-xs uppercase tracking-wide text-neutral-400">What {share.from.displayName} did</span>
+          <span className="block text-sm font-semibold text-neutral-700">What {share.from.displayName} did</span>
           {clean.results.join(' · ')}
         </p>
       )}
@@ -73,7 +73,7 @@ export function AddSharedSheet({ share, onClose }: { share: SharedWorkout; onClo
           <ul className="mb-4 max-h-64 divide-y divide-neutral-100 overflow-y-auto rounded-2xl bg-neutral-50 px-3">
             {dates.map((d) => (
               <li key={d} className="py-2">
-                <p className="text-xs uppercase tracking-wide text-neutral-400">{DAY_LABELS[weekdayIndex(parseISO(d))]} · {fmtLong(d)}</p>
+                <p className="text-sm font-semibold text-neutral-700">{DAY_LABELS[weekdayIndex(parseISO(d))]} · {fmtLong(d)}</p>
                 {preview.days[d].map((it) => {
                   const ex = exOf(it.exerciseId)
                   return <p key={it.exerciseId} className="text-sm">{nameOf(it.exerciseId)}<span className="ml-2 text-xs text-neutral-400">{ex ? describeItem(it, ex, units) : ''}</span></p>

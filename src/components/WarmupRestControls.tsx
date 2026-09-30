@@ -3,7 +3,7 @@ import { useStore, type WarmupKind } from '../store'
 
 const chip = (on: boolean, disabled = false) =>
   `rounded-full px-3 py-1.5 text-sm ${disabled ? 'bg-neutral-100 text-neutral-300' : on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
-const h3 = 'mb-2 text-xs uppercase tracking-wide text-neutral-400'
+const h3 = 'mb-2 text-sm font-semibold text-neutral-700'
 
 /** Warm-up choices and rest length, remembered between uses. Shared by the randomizer and the week/month planner. */
 export function WarmupRestControls({ lifting, onWarmupChange }: { lifting: boolean; onWarmupChange?: () => void }) {

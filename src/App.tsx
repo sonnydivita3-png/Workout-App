@@ -6,7 +6,7 @@ import { SettingsView } from './components/SettingsView'
 import { Tour } from './components/Tour'
 import { WorkoutSession } from './components/WorkoutSession'
 import { Toasts } from './components/Toasts'
-import { SocialSetup } from './components/social/SocialSetup'
+import { Onboarding } from './components/Onboarding'
 import { SocialView } from './components/social/SocialView'
 import { InviteBanner } from './components/social/InviteBanner'
 import { clearInviteParam, readInvite } from './lib/invite'
@@ -24,7 +24,13 @@ import { useNotificationEngine } from './lib/useNotificationEngine'
 import { TabBar, type Tab } from './components/TabBar'
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('home')
+  const [chosenTab, setTab] = useState<Tab>('home')
+  // Some links open a specific part of a tab (History → Body, Settings → Backup).
+  const [sub, setSub] = useState<string | undefined>()
+  const navigate = (t: Tab, part?: string) => { setSub(part); setTab(t); window.scrollTo(0, 0) }
+  const hideSocial = useStore((s) => s.socialChoice === 'declined')
+  // Turning friends off while on the Social tab lands on Home.
+  const tab: Tab = hideSocial && chosenTab === 'social' ? 'home' : chosenTab
   // Public pages for app store listings and links: …/#privacy, #terms, #health, #delete-account.
   const [page, setPage] = useState<LegalDoc | null>(pageFromHash)
   useEffect(() => {
@@ -32,7 +38,8 @@ export default function App() {
     window.addEventListener('hashchange', h)
     return () => window.removeEventListener('hashchange', h)
   }, [])
-  const choice = useStore((s) => s.socialChoice)
+  // New installs get the goal-based setup first; people who used the app before it existed never see it.
+  const needsSetup = useStore((s) => !s.onboarded && !s.tourDone)
   const showTour = useStore((s) => !s.tourDone || s.tourVersion < TOUR_VERSION)
   const session = useStore((s) => s.session)
   const [hidden, setHidden] = useState(false)
@@ -54,27 +61,21 @@ export default function App() {
   useBackendSwitch()
   useCloudSync()
   if (page) return <LegalPage doc={page} />
-  if (choice === 'unset') {
-    return (
-      <div className="min-h-screen bg-surface">
-        <SocialSetup variant="gate" onDone={() => undefined} />
-      </div>
-    )
-  }
+  if (needsSetup) return <Onboarding />
   return (
     <>
       <main className="mx-auto min-h-screen max-w-md px-4 pb-40 pt-[max(1.5rem,env(safe-area-inset-top))]">
         {conflict && tab !== 'settings' && (
-          <button onClick={() => setTab('settings')} className="mb-3 w-full rounded-2xl bg-amber-50 px-4 py-2.5 text-left text-sm text-amber-800">⚠️ Your backup and this phone both changed. Tap to choose which to keep.</button>
+          <button onClick={() => navigate('settings', 'data')} className="mb-3 w-full rounded-2xl bg-amber-50 px-4 py-2.5 text-left text-sm text-amber-800">⚠️ Your backup and this phone both changed. Tap to choose which to keep.</button>
         )}
         {tab !== 'settings' && <InviteBanner />}
-        {tab === 'home' && <HomeView onNavigate={setTab} />}
+        {tab === 'home' && <HomeView onNavigate={navigate} />}
         {tab === 'plan' && <PlanView />}
-        {tab === 'history' && <HistoryView />}
-        {tab === 'social' && <SocialView onNavigate={setTab} />}
-        {tab === 'settings' && <SettingsView />}
+        {tab === 'history' && <HistoryView key={sub ?? 'default'} initialTab={sub} />}
+        {tab === 'social' && <SocialView onNavigate={navigate} />}
+        {tab === 'settings' && <SettingsView key={sub ?? 'default'} initialPage={sub} onBack={() => navigate('home')} />}
       </main>
-      <TabBar tab={tab} onChange={setTab} />
+      <TabBar tab={tab} onChange={(t) => navigate(t)} />
       {session && !hidden && <WorkoutSession onMinimize={() => setHidden(true)} />}
       {session && hidden && (
         <button onClick={() => setHidden(false)} className="fixed inset-x-4 bottom-[calc(8.25rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-md rounded-full bg-accent py-3 text-sm font-medium text-on-accent shadow-lg">

@@ -9,7 +9,7 @@ const snoozed = (at: number | undefined, days: number) => !!at && Date.now() - a
  * Workouts live on the phone, so the two things that protect them are installing the app (browsers, Safari above all,
  * may clear a website's data) and cloud backup. Home shows one gentle reminder at a time until each is done.
  */
-export function SafetyNudge({ onNavigate }: { onNavigate: (t: Tab) => void }) {
+export function SafetyNudge({ onNavigate }: { onNavigate: (t: Tab, sub?: string) => void }) {
   const snooze = useStore((s) => s.nudgeSnooze)
   const snoozeNudge = useStore((s) => s.snoozeNudge)
   const cloudOn = useStore((s) => s.cloud.enabled)
@@ -44,7 +44,7 @@ export function SafetyNudge({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         <p className="mb-1 text-sm font-medium">☁️ Back up your workouts</p>
         <p className="mb-3 text-xs text-neutral-500">You’ve logged {loggedDays} days. If you lose or reset your phone, a backup brings them back. It’s free and email is optional.</p>
         <div className="flex gap-2">
-          <button onClick={() => onNavigate('settings')} className="rounded-full bg-accent px-4 py-1.5 text-sm text-on-accent">Set up backup</button>
+          <button onClick={() => onNavigate('settings', 'data')} className="rounded-full bg-accent px-4 py-1.5 text-sm text-on-accent">Set up backup</button>
           {later('backup')}
         </div>
       </div>
