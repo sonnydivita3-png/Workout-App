@@ -35,6 +35,8 @@ const empty = { friends: [], requests: { incoming: [], outgoing: [] }, shares: [
 
 export const describeError = (e: unknown): string => {
   if (e instanceof SocialError) {
+    // A specific message (e.g. "That email is already used by another account.") beats the generic one for the code.
+    if (e.message && e.message !== e.code) return e.message
     return (
       {
         handle_taken: 'That handle is already taken.', invalid_handle: 'Handles are 3–20 letters, numbers or underscores.', not_found: 'That is no longer available.',

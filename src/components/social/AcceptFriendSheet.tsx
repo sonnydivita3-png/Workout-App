@@ -3,6 +3,7 @@ import { useSocial } from '../../social/store'
 import { ALL_PERMS, NO_PERMS, type FriendRequest, type PermKey, type Perms } from '../../social/types'
 import { Sheet } from '../Sheet'
 import { PermissionToggles } from './PermissionToggles'
+import { ReportSheet } from './ReportSheet'
 import { Avatar, ErrorNote } from './ui'
 import { primary, secondary } from './styles'
 
@@ -12,6 +13,8 @@ export function AcceptFriendSheet({ request, onClose }: { request: FriendRequest
   const [grant, setGrant] = useState<Perms>({ ...NO_PERMS })
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [reporting, setReporting] = useState(false)
+  const [confirmBlock, setConfirmBlock] = useState(false)
   const { from } = request
 
   const respond = async (accept: boolean) => {
@@ -20,6 +23,14 @@ export function AcceptFriendSheet({ request, onClose }: { request: FriendRequest
     setBusy(false)
     if (r.ok) onClose(); else setError(r.error)
   }
+  const block = async () => {
+    setBusy(true)
+    const r = await act((b) => b.blockUser(from.id))
+    setBusy(false)
+    if (r.ok) onClose(); else setError(r.error)
+  }
+
+  if (reporting) return <ReportSheet profile={from} onClose={() => setReporting(false)} onBlocked={onClose} />
 
   return (
     <Sheet title="Friend request" onClose={onClose} closeLabel="Close">
@@ -39,6 +50,20 @@ export function AcceptFriendSheet({ request, onClose }: { request: FriendRequest
       </div>
       <button disabled={busy} onClick={() => respond(true)} className={primary}>Accept</button>
       <button disabled={busy} onClick={() => respond(false)} className={`${secondary} mt-2`}>Decline</button>
+      <div className="mt-4 flex justify-center gap-4 text-sm">
+        {confirmBlock ? (
+          <>
+            <span className="text-neutral-500">Block @{from.handle}?</span>
+            <button disabled={busy} onClick={block} className="font-medium text-red-600">Yes</button>
+            <button onClick={() => setConfirmBlock(false)} className="text-neutral-500">No</button>
+          </>
+        ) : (
+          <>
+            <button onClick={() => setConfirmBlock(true)} className="text-red-600 underline underline-offset-2">Block</button>
+            <button onClick={() => setReporting(true)} className="text-red-600 underline underline-offset-2">Report</button>
+          </>
+        )}
+      </div>
     </Sheet>
   )
 }

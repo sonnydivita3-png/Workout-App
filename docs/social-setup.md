@@ -11,6 +11,7 @@ Until this is done the app runs social and backup in **preview mode**: friends a
 Run each file in `supabase/migrations/` **once, in order**, in the **SQL Editor** (New query → paste → Run):
 1. `20260930000000_social.sql` (friends, sharing, challenges, emoji)
 2. `20261001000000_sync.sql` (cloud backup)
+3. `20261002000000_reports_ping.sql` (reporting people, and the keep-alive ping)
 
 To copy a file: open it on GitHub, click **Raw**, select all, copy. Each should end with "Success. No rows returned". Running a file a second time fails with "already exists"; that's harmless if the first run succeeded.
 
@@ -54,11 +55,25 @@ People who choose **Continue without email** don't need any of this.
 
 For local development, put `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env.local`.
 
-## 8. Check it
+## 8. Optional extras (all free)
+- **Feedback email:** add a repository **variable** `FEEDBACK_EMAIL` (e.g. the app's Gmail). "Send feedback", "Report a bug" and account-deletion requests then open an email to it; without it they open a GitHub issue. The address is visible in the app's code, so use a dedicated inbox.
+- **Keep-alive:** nothing to set up once step 7 is done. `.github/workflows/keepalive.yml` pings the database every 3 days so the free project doesn't pause. GitHub turns off scheduled workflows after 60 days with no commits to the repo and emails you first; re-enable it under **Actions** if that happens.
+- **Database backups:** add two repository **secrets** (Settings → Secrets and variables → Actions → Secrets):
+  - `SUPABASE_DB_URL`: in Supabase, **Connect** → **Session pooler** connection string, with your database password filled in. (The "Direct connection" doesn't work from GitHub.)
+  - `BACKUP_PASSPHRASE`: a long random passphrase. Store it in your password manager; without it the backups can't be opened.
+
+  `.github/workflows/db-backup.yml` then runs every Sunday (or on demand from **Actions**), saving an encrypted file for 90 days under the run's **Artifacts**. To restore: download it, `gpg -d db-backup-DATE.sql.gpg > dump.sql`, then load it into a project that has the migrations applied with `psql "<connection string>" -f dump.sql`.
+
+## 9. Moderation
+- **Reports:** Table Editor → `reports`. Each row has who reported (`from_id`), who was reported (`target_id`), a reason and an optional note. Look the person up in `profiles` by `id`.
+- **Removing someone:** Authentication → Users → find the user by id → **Delete user**. Everything they had is deleted with them.
+- Handles and display names go through a basic word filter in the app; reports and blocking cover the rest.
+
+## 10. Check it
 Open the app and close/reopen it once or twice so it picks up the new version. **Settings → Social** should no longer say "Preview mode". People who tried the preview get a note that friends and backup are live and are asked to set them up again; their workouts stay on the phone.
 
 ## Things to know
-- **Free projects pause after about a week with no activity.** If that happens the app can't reach the server until you press Restore in the Supabase dashboard.
+- **Free projects pause after about a week with no activity.** The keep-alive workflow (step 8) prevents that. If it happens anyway, the app can't reach the server until you press Restore in the Supabase dashboard.
 - The anon/publishable key is public by design; all protection comes from the row-level security in the migrations (tested against a real Postgres in `npm test`).
 
 ## Privacy model (enforced in the database, not the UI)
@@ -68,6 +83,7 @@ Open the app and close/reopen it once or twice so it picks up the new version. *
 - Body weight, measurements, photos and goals are never shared. Avatars are an emoji, a letter, or a photo shrunk to about 96px (the database rejects anything larger or any non-image data).
 - Friend-sent workouts are validated and clamped on the receiving device before anything touches the calendar, and a friend's custom exercises are imported under new ids so they can't overwrite your own.
 - Cloud backup is one row per account that only its owner can read or write.
+- People can report anyone from a friend request or a friend's page (optionally blocking them too). Reports can only be written, never read, through the API.
 - Sending is rate limited, blocking removes the friendship, and deleting the account (**Settings → Account**, shown to anyone signed in, even with social off) removes everything server-side, including the backup.
 - Invite links (`…/Workout-App/?add=handle`) only carry a handle. Opening one offers to send that person a friend request, after sign-up if needed; nothing is shared until each side sets permissions.
 

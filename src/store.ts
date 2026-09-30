@@ -43,6 +43,9 @@ interface State extends Data {
   /** Handle from an invite link (?add=handle) waiting to be added as a friend. */
   pendingInvite: string | null
   setPendingInvite: (h: string | null) => void
+  /** When each Home reminder (install, backup) was last dismissed, in ms. */
+  nudgeSnooze: Record<string, number>
+  snoozeNudge: (id: string) => void
   /** Whether the first-run walkthrough has been finished or skipped. */
   /** Look and feel. Kept even when all data is erased. */
   theme: ThemeMode
@@ -190,6 +193,7 @@ const defaults = () => ({
   accent: 'lime' as Accent,
   socialChoice: 'unset' as SocialChoice,
   pendingInvite: null as string | null,
+  nudgeSnooze: {} as Record<string, number>,
   tourDone: false,
   tourVersion: 0,
   trackRpe: false,
@@ -314,6 +318,7 @@ export const useStore = create<State>()(
       applyProgram: (days) => set((s) => ({ overrides: { ...s.overrides, ...days } })),
       setSocialChoice: (socialChoice) => set({ socialChoice }),
       setPendingInvite: (pendingInvite) => set({ pendingInvite }),
+      snoozeNudge: (id) => set((s) => ({ nudgeSnooze: { ...s.nudgeSnooze, [id]: Date.now() } })),
       setTourDone: (tourDone) => set(tourDone ? { tourDone, tourVersion: TOUR_VERSION } : { tourDone }),
       setPrefs: (p) => set(p),
       setGenPrefs: (p) => set((s) => ({ genPrefs: { ...s.genPrefs, ...p } })),

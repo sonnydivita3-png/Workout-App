@@ -45,6 +45,9 @@ jobs:
           # Optional: set these repository variables to turn on real friends. Without them the app runs social in preview mode.
           VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}
+          # Optional: where "Send feedback" and bug reports go. Without it they open a GitHub issue instead.
+          VITE_FEEDBACK_EMAIL: ${{ vars.FEEDBACK_EMAIL }}
+          VITE_APP_VERSION: ${{ github.sha }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

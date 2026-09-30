@@ -6,6 +6,7 @@ import { hasData, weekStats } from '../lib/stats'
 import { formatPace, formatSeconds, showDistance, showWeight, storeWeight } from '../lib/units'
 import { useToday } from '../lib/useToday'
 import { findExercise, selectLastLog, useStore } from '../store'
+import { SafetyNudge } from './SafetyNudge'
 import type { ExerciseLog, Goal, Units } from '../types'
 import { GoalSheet } from './GoalSheet'
 import { NotificationsSheet } from './NotificationsSheet'
@@ -116,6 +117,7 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
           </>
         )}
       </header>
+      <SafetyNudge onNavigate={onNavigate} />
 
       <Card
         title="Today"

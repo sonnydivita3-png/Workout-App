@@ -24,6 +24,7 @@ beforeAll(async () => {
   await db.exec(PRELUDE)
   await db.exec(readFileSync(new URL('../../supabase/migrations/20260930000000_social.sql', import.meta.url), 'utf8'))
   await db.exec(readFileSync(new URL('../../supabase/migrations/20261001000000_sync.sql', import.meta.url), 'utf8'))
+  await db.exec(readFileSync(new URL('../../supabase/migrations/20261002000000_reports_ping.sql', import.meta.url), 'utf8'))
 }, 120000)
 afterAll(async () => { await db.close() })
 
@@ -472,3 +473,30 @@ describe('cloud backup (user_data)', () => {
   })
 })
 
+
+describe('reports and keep-alive', () => {
+  it('anyone signed in can report someone, but nobody can read reports through the API', async () => {
+    const a = await user()
+    const b = await user()
+    await as(a, `insert into public.reports (target_id, reason, note) values ($1, 'name', 'rude handle')`, [b])
+    await expect(as(a, 'select * from public.reports')).rejects.toThrow(/permission denied/)
+    await expect(as(b, 'delete from public.reports')).rejects.toThrow(/permission denied/)
+    await expect(as(a, `insert into public.reports (from_id, target_id, reason) values ($1, $2, 'spam')`, [b, a])).rejects.toThrow(/row-level security|violates check/)
+    await expect(as(a, `insert into public.reports (target_id, reason) values ($1, 'spam')`, [a])).rejects.toThrow(/check/)
+    await expect(as(a, `insert into public.reports (target_id, reason) values ($1, 'because')`, [b])).rejects.toThrow(/check/)
+    await expect(asAnon(`insert into public.reports (target_id, reason) values ('${b}', 'spam')`)).rejects.toThrow(/permission denied/)
+    const [row] = await admin<{ from_id: string }>('select from_id from public.reports where target_id = $1', [b])
+    expect(row.from_id).toBe(a)
+  })
+  it('rate-limits reports', async () => {
+    const a = await user()
+    const targets: string[] = []
+    for (let i = 0; i < 11; i++) targets.push(await user())
+    for (const t of targets.slice(0, 10)) await as(a, `insert into public.reports (target_id, reason) values ($1, 'spam')`, [t])
+    await expect(as(a, `insert into public.reports (target_id, reason) values ($1, 'spam')`, [targets[10]])).rejects.toThrow(/rate_limited/)
+  })
+  it('ping works for anon and reads nothing', async () => {
+    const [r] = await asAnon<{ ping: string }>('select public.ping()')
+    expect(r.ping).toBeTruthy()
+  })
+})

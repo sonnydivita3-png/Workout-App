@@ -8,6 +8,7 @@ import { EmojiBar } from './EmojiBar'
 import { PermissionToggles } from './PermissionToggles'
 import { RequestWorkoutSheet } from './RequestWorkoutSheet'
 import { ShareSheet } from './ShareSheet'
+import { ReportSheet } from './ReportSheet'
 import { label, secondary } from './styles'
 import { Avatar, ErrorNote } from './ui'
 import { useToday } from '../../lib/useToday'
@@ -18,7 +19,7 @@ export function FriendSheet({ friendId, onClose }: { friendId: string; onClose: 
   const { friends, backend, act } = useSocial()
   const friend = friends.find((f) => f.profile.id === friendId)
   const [snap, setSnap] = useState<ProgressSnapshot | null>(null)
-  const [sub, setSub] = useState<'share' | 'challenge' | 'request' | null>(null)
+  const [sub, setSub] = useState<'share' | 'challenge' | 'request' | 'report' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<'remove' | 'block' | null>(null)
@@ -51,6 +52,7 @@ export function FriendSheet({ friendId, onClose }: { friendId: string; onClose: 
   if (sub === 'share') return <ShareSheet date={today} friendId={profile.id} onClose={() => setSub(null)} />
   if (sub === 'challenge') return <ChallengeSheet friendId={profile.id} onClose={() => setSub(null)} />
   if (sub === 'request') return <RequestWorkoutSheet friend={friend} onClose={() => setSub(null)} />
+  if (sub === 'report') return <ReportSheet profile={profile} onClose={() => setSub(null)} onBlocked={onClose} />
 
   const btn = (ok: boolean, text: string, on: () => void) => (
     <button disabled={!ok} onClick={on} className={secondary}>{text}</button>
@@ -100,6 +102,7 @@ export function FriendSheet({ friendId, onClose }: { friendId: string; onClose: 
           <>
             <button onClick={() => setConfirm('remove')} className="text-neutral-500 underline underline-offset-2">Remove friend</button>
             <button onClick={() => setConfirm('block')} className="text-red-600 underline underline-offset-2">Block</button>
+            <button onClick={() => setSub('report')} className="text-red-600 underline underline-offset-2">Report</button>
           </>
         ) : (
           <>

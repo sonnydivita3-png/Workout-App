@@ -3,8 +3,9 @@ import type { FriendRequests, SessionUser, SocialBackend } from './backend'
 import {
   HANDLE_RE, NO_PERMS, SocialError,
   type Challenge, type ChallengeSpec, type Emoji, type EmojiMessage, type FriendEntry, type FriendRequest, type PermKey, type Perms,
-  type ProgressSnapshot, type Profile, type Scope, type SharedPayload, type SharedWorkout, type WorkoutRequest,
+  type ProgressSnapshot, type Profile, type ReportReason, type Scope, type SharedPayload, type SharedWorkout, type WorkoutRequest,
 } from './types'
+import { checkName } from './nameFilter'
 
 type Row = Record<string, any>
 
@@ -121,11 +122,13 @@ export class SupabaseBackend implements SocialBackend {
   async createProfile(p: { handle: string; displayName: string; avatar: string }): Promise<Profile> {
     const id = await this.me()
     if (!HANDLE_RE.test(p.handle)) throw new SocialError('invalid_handle')
+    checkName(p.handle, p.displayName)
     const c = await this.db()
     const r = ok(await c.from('profiles').insert({ id, handle: p.handle, display_name: p.displayName, avatar: p.avatar }).select('id, handle, display_name, avatar').single()) as Row
     return toProfile(r)
   }
   async updateProfile(p: { displayName?: string; avatar?: string }): Promise<Profile> {
+    if (p.displayName !== undefined) checkName(p.displayName)
     const id = await this.me()
     const c = await this.db()
     const patch: Row = {}
@@ -191,6 +194,10 @@ export class SupabaseBackend implements SocialBackend {
   async blockUser(userId: string) {
     const c = await this.db()
     ok(await c.rpc('block_user', { p_user: userId }))
+  }
+  async reportUser(userId: string, reason: ReportReason, note?: string) {
+    const c = await this.db()
+    ok(await c.from('reports').insert({ target_id: userId, reason, note: note?.trim().slice(0, 300) || null }))
   }
   async setPermissions(friendId: string, perms: Partial<Perms>) {
     const id = await this.me()
