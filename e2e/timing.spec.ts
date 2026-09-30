@@ -48,7 +48,7 @@ test('warm-up: easy cardio, mobility and ramp-up sets, with the rest timer follo
   await page.getByRole('button', { name: '⏱ Start warm-up' }).click()
   await page.locator('.fixed').getByRole('button', { name: 'Start' }).click()
   await expect(page.locator('.fixed').getByText(/easy/)).toBeVisible()
-  await page.locator('.fixed').getByRole('button', { name: 'Close' }).last().click()
+  await page.locator('.fixed').getByRole('button', { name: 'Close', exact: true }).last().click()
 
   // Workout mode: warm-up first, then the lifts; rest follows the plan
   await page.getByRole('button', { name: '▶ Start workout' }).click()

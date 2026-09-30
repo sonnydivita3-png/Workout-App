@@ -120,7 +120,7 @@ test('randomizer remembers the last choices, and Full body is one tap', async ({
   await expect(sheet.getByRole('button', { name: 'Legs', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await sheet.getByRole('button', { name: '30 min', exact: true }).click()
   await sheet.getByRole('button', { name: /^Generate/ }).click()
-  await sheet.getByRole('button', { name: 'Close' }).click()
+  await sheet.getByRole('button', { name: 'Close', exact: true }).click()
   await page.getByRole('button', { name: '+ Add' }).click()
   await page.getByText('Randomize a workout').click()
   await expect(sheet.getByRole('button', { name: 'Full body', exact: true })).toHaveAttribute('aria-pressed', 'true')
