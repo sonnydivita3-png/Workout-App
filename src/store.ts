@@ -38,6 +38,18 @@ interface State extends Data {
   accent: Accent
   setTheme: (t: ThemeMode) => void
   setAccent: (a: Accent) => void
+  /** Show an RPE (effort) column when logging sets. */
+  trackRpe: boolean
+  /** Rest timer after each set in workout mode, in seconds. 0 = off. */
+  restSeconds: number
+  setPrefs: (p: Partial<Pick<State, 'trackRpe' | 'restSeconds' | 'plainCopy'>>) => void
+  /** Plain wording instead of the playful copy. */
+  plainCopy: boolean
+  /** A workout in progress (workout mode), so reopening the app picks it back up. */
+  session: { date: string; startedAt: number } | null
+  startSession: (date: string) => void
+  endSession: () => void
+  saveNote: (date: string, exerciseId: string, note: string) => void
   tourDone: boolean
   setTourDone: (done: boolean) => void
   /** Add dated exercises (e.g. from a friend's shared plan). They join what's planned unless `replace`. */
@@ -117,6 +129,12 @@ const appendMissing = (d: PlannedExercise[], items: PlannedExercise[]) => [
   ...items.filter((p) => !d.some((q) => q.exerciseId === p.exerciseId)).map((p) => ({ ...p })),
 ]
 
+/** Editing sets shouldn't wipe the note on that exercise. */
+const keepNote = (logs: ExerciseLog[], date: string, exerciseId: string) => {
+  const note = logs.find((l) => l.date === date && l.exerciseId === exerciseId)?.note
+  return note ? { note } : {}
+}
+
 const upsertLog = (logs: ExerciseLog[], next: ExerciseLog) => [
   ...logs.filter((l) => !(l.date === next.date && l.exerciseId === next.exerciseId)),
   next,
@@ -141,6 +159,10 @@ const defaults = () => ({
   accent: 'lime' as Accent,
   socialChoice: 'unset' as SocialChoice,
   tourDone: false,
+  trackRpe: false,
+  restSeconds: 0,
+  plainCopy: false,
+  session: null as { date: string; startedAt: number } | null,
 })
 
 export const useStore = create<State>()(
@@ -152,6 +174,7 @@ export const useStore = create<State>()(
           ...defaults(),
           theme: s.theme,
           accent: s.accent,
+          plainCopy: s.plainCopy,
           ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone } : {}),
         })),
       pushNotifications: (items) => {
@@ -188,9 +211,9 @@ export const useStore = create<State>()(
       setSetCount: (date, exerciseId, sets) =>
         set((s) => editDay(s, date, (d) => d.map((p) => (p.exerciseId === exerciseId ? { ...p, sets } : p)))),
       saveStrength: (date, exerciseId, sets) =>
-        set((s) => ({ logs: upsertLog(s.logs, { date, exerciseId, sets }) })),
+        set((s) => ({ logs: upsertLog(s.logs, { ...keepNote(s.logs, date, exerciseId), date, exerciseId, sets }) })),
       saveCardio: (date, exerciseId, cardio) =>
-        set((s) => ({ logs: upsertLog(s.logs, { date, exerciseId, cardio }) })),
+        set((s) => ({ logs: upsertLog(s.logs, { ...keepNote(s.logs, date, exerciseId), date, exerciseId, cardio }) })),
       saveTimed: (log, derived) =>
         set((s) => {
           const prev = s.timedLogs.find((t) => t.date === log.date && t.block === log.block)
@@ -241,6 +264,16 @@ export const useStore = create<State>()(
       applyProgram: (days) => set((s) => ({ overrides: { ...s.overrides, ...days } })),
       setSocialChoice: (socialChoice) => set({ socialChoice }),
       setTourDone: (tourDone) => set({ tourDone }),
+      setPrefs: (p) => set(p),
+      startSession: (date) => set({ session: { date, startedAt: Date.now() } }),
+      endSession: () => set({ session: null }),
+      saveNote: (date, exerciseId, note) =>
+        set((s) => {
+          const cur = s.logs.find((l) => l.date === date && l.exerciseId === exerciseId)
+          if (!cur && !note) return s
+          const next = { ...(cur ?? { date, exerciseId, sets: [] }), note: note || undefined }
+          return { logs: upsertLog(s.logs, next) }
+        }),
       setTheme: (theme) => set({ theme }),
       setAccent: (accent) => set({ accent }),
       addCustomExercises: (list) =>

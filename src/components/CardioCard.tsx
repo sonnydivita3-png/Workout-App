@@ -54,6 +54,14 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
           Last time: {showDistance(prev.distance, units) ?? '–'} {units.distance} · {prev.minutes ?? '–'} min · {formatPace(prev.distance, prev.minutes, units) ?? '–'}
         </p>
       )}
+      {prev && (() => {
+        // Beat last time: go further, or cover the same distance faster.
+        const faster = !!(c.distance && c.minutes && prev.distance && prev.minutes && c.distance >= prev.distance - 0.01 && c.minutes / c.distance < prev.minutes / prev.distance - 0.001)
+        const further = !!(c.distance && prev.distance && c.distance > prev.distance + 0.01)
+        if (faster || further) return <p className="mt-1 text-xs font-medium text-green-600">▲ {further && faster ? 'Further and faster' : further ? 'Further' : 'Faster'} than last time</p>
+        if (!c.distance && !c.minutes && prev.distance && prev.minutes) return <p className="mt-1 text-xs text-neutral-500">🎯 Beat it: go past {showDistance(prev.distance, units)} {units.distance}, or hold under {formatPace(prev.distance, prev.minutes, units)}</p>
+        return null
+      })()}
     </div>
   )
 }

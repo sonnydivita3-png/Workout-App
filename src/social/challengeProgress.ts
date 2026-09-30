@@ -42,7 +42,7 @@ export function challengeProgress(
   } else if (spec.exercise) {
     const value = (s: { weight: number | null; reps: number | null; seconds?: number | null }) =>
       spec.metric === 'reps' ? s.reps ?? 0 : spec.metric === 'seconds' ? s.seconds ?? 0 : s.weight ?? 0
-    const values = window.filter((l) => l.exerciseId === spec.exercise!.id).flatMap((l) => (l.sets ?? []).map(value))
+    const values = window.filter((l) => l.exerciseId === spec.exercise!.id).flatMap((l) => (l.sets ?? []).filter((s) => !s.warmup).map(value))
     progress = spec.mode === 'best' || spec.metric === 'weight' ? Math.max(0, ...values) : values.reduce((a, v) => a + v, 0)
   }
   progress = Math.round(progress * 100) / 100

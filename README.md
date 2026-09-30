@@ -12,6 +12,10 @@ npm test         # unit tests, including database privacy rules run against a re
 ```
 
 ## Features
+Built around one idea: beat what you did last time.
+- "Try this next" on every lift (double progression: hit the reps on every set, then add weight), ▲/▼ per set vs last time, and a Fill button
+- Workout mode (▶ Start workout): one exercise at a time, ✓ per set, optional rest timer (off by default), and a finish summary: what improved, new bests, volume vs last time
+- Warm-up sets (tap the set number), optional RPE, notes per exercise (last note shown next time), plate calculator, and how-to steps and pictures for 750+ exercises
 - Home dashboard: greeting, today's upcoming exercises, last workout, body weight log + chart, weekly stats, goals
 - Workout randomizer with eight styles: standard, strength, supersets, HIIT circuit, PHA, Hyrox-style, CrossFit-style, bodyweight. Pick body parts and/or cardio plus a time; swap, choose, or remove exercises, step Back/Forward through versions, add to the day or save as a routine
 - Week or month planner: pick a goal, training days and session length; builds dated workouts with rest days, never trains the same major muscle group two days in a row, varies exercises, and adds a set in week 3 and a deload in week 4 of a month plan

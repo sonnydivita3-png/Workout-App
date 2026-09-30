@@ -58,7 +58,10 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   const [lastShare, setLastShare] = useState<'share' | 'challenge' | null>(null)
   const { units, logs, custom, plan, overrides } = s
 
-  const greeting = hour < 5 ? 'Night owl mode 🦉' : hour < 12 ? 'gm ☀️' : hour < 18 ? 'Let’s get it 💪' : 'Evening grind 🌙'
+  const plain = s.plainCopy
+  const greeting = plain
+    ? hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
+    : hour < 5 ? 'Night owl mode 🦉' : hour < 12 ? 'gm ☀️' : hour < 18 ? 'Let’s get it 💪' : 'Evening grind 🌙'
   const planned = dayPlanOf(plan, overrides, today)
   const todays = new Map(logs.filter((l) => l.date === today && hasData(l)).map((l) => [l.exerciseId, l]))
   const upcoming = planned.filter((p) => !todays.has(p.exerciseId))
@@ -119,14 +122,17 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         action={<button onClick={() => onNavigate('plan')} className="text-sm text-neutral-500">{planned.length || restToday ? 'Open ›' : 'Plan ›'}</button>}
       >
         {restToday ? (
-          <p className="text-neutral-500">Rest day 😴 Recovery is part of the plan.</p>
+          <p className="text-neutral-500">{plain ? 'Rest day. Recovery is part of the plan.' : 'Rest day 😴 Recovery is part of the plan.'}</p>
         ) : planned.length === 0 ? (
-          <p className="text-neutral-400">Nothing planned today. Free day or add a move?</p>
+          <p className="text-neutral-400">{plain ? 'Nothing planned today.' : 'Nothing planned today. Free day or add a move?'}</p>
         ) : upcoming.length === 0 ? (
           <p className="text-neutral-500">All {planned.length} done today. Nice work.</p>
         ) : (
           <>
-            <p className="mb-2 text-sm text-neutral-400">{planned.length - upcoming.length} of {planned.length} done</p>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm text-neutral-400">{planned.length - upcoming.length} of {planned.length} done</p>
+              <button onClick={() => s.startSession(today)} className="rounded-full bg-accent px-3 py-1 text-sm font-medium text-on-accent">{s.session?.date === today ? 'Resume' : '▶ Start workout'}</button>
+            </div>
             <ul className="divide-y divide-neutral-100">
               {upcoming.map((p) => {
                 const ex = findExercise(custom, p.exerciseId)
@@ -149,7 +155,7 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
 
       <Card title="Last workout" action={lastDate && <span className="text-sm text-neutral-400">{fmtLong(lastDate)}</span>}>
         {lastLogs.length === 0 ? (
-          <p className="text-neutral-400">Nothing logged yet. First one’s the hardest 😤</p>
+          <p className="text-neutral-400">{plain ? 'Nothing logged yet.' : 'Nothing logged yet. First one’s the hardest 😤'}</p>
         ) : (
           <ul className="divide-y divide-neutral-100">
             {lastLogs.map((l) => (

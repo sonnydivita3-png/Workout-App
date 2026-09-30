@@ -23,7 +23,7 @@ export function strengthSessions(logs: ExerciseLog[], exerciseId: string): Stren
   return logs
     .filter((l) => l.exerciseId === exerciseId && l.sets)
     .map((l) => {
-      const sets = l.sets!.filter((s): s is { weight: number; reps: number } => !!s.weight && !!s.reps)
+      const sets = l.sets!.filter((s): s is { weight: number; reps: number } => !s.warmup && !!s.weight && !!s.reps)
       return {
         date: l.date,
         sets,
@@ -76,7 +76,7 @@ export function weekStats(logs: ExerciseLog[], today: string): WeekStats {
     const [from, to] = range(offset)
     return logs
       .filter((l) => inRange(l.date, from, to) && l.date <= today) // anything dated in the future doesn't count yet
-      .reduce((a, l) => a + (l.sets ?? []).reduce((b, s) => b + (s.weight ?? 0) * (s.reps ?? 0), 0), 0)
+      .reduce((a, l) => a + (l.sets ?? []).reduce((b, s) => b + (s.warmup ? 0 : (s.weight ?? 0) * (s.reps ?? 0)), 0), 0)
   }
   const count = (offset: number) => {
     const [from, to] = range(offset)
@@ -100,7 +100,7 @@ export function setSessions(logs: ExerciseLog[], exerciseId: string, mode: 'reps
   return logs
     .filter((l) => l.exerciseId === exerciseId && l.sets)
     .map((l) => {
-      const values = l.sets!.map((s) => (mode === 'time' ? s.seconds : s.reps)).filter((v): v is number => !!v)
+      const values = l.sets!.filter((s) => !s.warmup).map((s) => (mode === 'time' ? s.seconds : s.reps)).filter((v): v is number => !!v)
       return { date: l.date, values, best: Math.max(0, ...values), total: values.reduce((a, v) => a + v, 0) }
     })
     .filter((s) => s.values.length > 0)

@@ -20,6 +20,10 @@ export interface StrengthSet {
   weight: number | null
   reps: number | null
   seconds?: number | null // timed exercises
+  /** Warm-up sets don't count toward records, volume or progress. */
+  warmup?: boolean
+  /** How hard it felt, 1-10 (10 = nothing left). */
+  rpe?: number | null
 }
 
 export interface CardioEntry {
@@ -100,6 +104,7 @@ export interface ExerciseLog {
   date: string // YYYY-MM-DD
   sets?: StrengthSet[]
   cardio?: CardioEntry
+  note?: string
 }
 
 export interface Units {
