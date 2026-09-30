@@ -22,6 +22,8 @@ export function mapError(e: unknown): SocialError {
   if (/invalid.*(token|otp|code)|token has expired|expired.*token/i.test(msg)) return new SocialError('invalid_code')
   if (/already.*registered|email_exists/i.test(msg)) return new SocialError('already_exists', 'That email is already used by another account.')
   if (/anonymous sign-?ins? (are )?disabled/i.test(msg)) return new SocialError('unavailable', 'Sign-up without an email isn’t turned on for this app yet.')
+  if (/rate limit|only request this after|too many requests/i.test(msg) || err.status === 429) return new SocialError('rate_limited')
+  if (/signups? not allowed|signup(s)? (are )?disabled/i.test(msg)) return new SocialError('unavailable', 'New sign-ups are turned off for this app right now.')
   if (/^rate_limited$/.test(msg)) return new SocialError('rate_limited')
   if (/^not_found$/.test(msg)) return new SocialError('not_found')
   if (/^expired$/.test(msg)) return new SocialError('expired')

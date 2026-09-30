@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 import { iso, seed, state } from './helpers'
 
 const B = 'Barbell_Bench_Press_-_Medium_Grip'

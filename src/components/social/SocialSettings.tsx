@@ -28,7 +28,7 @@ export function SocialSettings() {
   const del = async () => {
     const r = await act((b) => b.deleteAccount())
     if (!r.ok) { setError(r.error); return }
-    reset(); setSocialChoice('declined'); setConfirm(null)
+    reset(); setSocialChoice('declined'); useStore.getState().setCloud({ enabled: false, lastSyncedAt: null, lastHash: null, conflict: false }); setConfirm(null)
   }
 
   return (
@@ -95,7 +95,7 @@ export function SocialSettings() {
       )}
       {confirm === 'delete' && (
         <Sheet title="Delete social account?" onClose={() => setConfirm(null)} closeLabel="Cancel">
-          <p className="mb-4 text-sm text-neutral-600">This removes your handle, friends, shared workouts, challenges and emoji from the server. It can’t be undone. Your own workouts on this device are not affected.</p>
+          <p className="mb-4 text-sm text-neutral-600">This deletes your account: your handle, friends, shared workouts, challenges and emoji, and your cloud backup. It can’t be undone. Your workouts on this phone are not affected.</p>
           {error && <ErrorNote>{error}</ErrorNote>}
           <button onClick={del} className="w-full rounded-2xl bg-red-600 py-3 text-sm font-medium text-white">Delete account</button>
         </Sheet>

@@ -201,7 +201,7 @@ create trigger challenges_rate before insert on public.challenges for each row e
 create trigger emoji_rate before insert on public.emoji_messages for each row execute function public.limit_rate(20, 1);
 
 -- Handles can't change once chosen (friends know people by them).
-create function public.lock_handle() returns trigger language plpgsql as $$
+create function public.lock_handle() returns trigger language plpgsql set search_path = public as $$
 begin
   if new.handle <> old.handle then raise exception 'handle_locked' using errcode = 'P0001'; end if;
   return new;

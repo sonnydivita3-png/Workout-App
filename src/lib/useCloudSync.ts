@@ -2,7 +2,8 @@ import { useEffect } from 'react'
 import { getBackend } from '../social'
 import { describeError } from '../social/store'
 import { useStore } from '../store'
-import { decideSync, fingerprint, syncPayload } from './sync'
+import { decideSync, fingerprint, SYNC_KEYS, syncPayload } from './sync'
+import { useToasts } from '../toastStore'
 
 const DELAY = 4000
 let running: Promise<void> | null = null
@@ -29,6 +30,7 @@ export function syncNow(force?: 'keep-local' | 'use-cloud'): Promise<void> {
         st.setCloud({ lastSyncedAt: updatedAt, lastHash: localHash, conflict: false, error: null, checkedAt: Date.now() })
       } else if (action === 'pull' && remote) {
         st.replaceData(remote.data)
+        useToasts.getState().push({ id: `restored-${remote.updatedAt}`, title: 'Synced from your backup ☁️', body: `Updated with the copy saved ${new Date(remote.updatedAt).toLocaleString()}.` })
         const after = fingerprint(syncPayload(useStore.getState() as unknown as Record<string, unknown>))
         st.setCloud({ lastSyncedAt: remote.updatedAt, lastHash: after, conflict: false, error: null, checkedAt: Date.now() })
       } else if (action === 'conflict') {
@@ -52,11 +54,9 @@ export function useCloudSync() {
     if (!enabled) return
     void syncNow()
     let timer: ReturnType<typeof setTimeout> | undefined
-    let last = fingerprint(syncPayload(useStore.getState() as unknown as Record<string, unknown>))
-    const unsub = useStore.subscribe((s) => {
-      const h = fingerprint(syncPayload(s as unknown as Record<string, unknown>))
-      if (h === last) return
-      last = h
+    // State updates are immutable, so a changed field is a new object: no need to hash on every keystroke.
+    const unsub = useStore.subscribe((s, prev) => {
+      if (!SYNC_KEYS.some((k) => s[k] !== prev[k])) return
       clearTimeout(timer)
       timer = setTimeout(() => { if (!useStore.getState().cloud.conflict) void syncNow() }, DELAY)
     })

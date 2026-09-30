@@ -14,6 +14,9 @@ import type {
 export type ThemeMode = 'dark' | 'light' | 'auto'
 export type Accent = 'lime' | 'pink' | 'violet' | 'orange' | 'blue'
 
+/** Bump when the walkthrough gains new content, so people who saw an older version see it once more. */
+export const TOUR_VERSION = 2
+
 export type SocialChoice = 'unset' | 'enabled' | 'declined'
 
 export interface Data {
@@ -44,7 +47,9 @@ interface State extends Data {
   trackRpe: boolean
   /** Rest timer after each set in workout mode, in seconds. 0 = off. */
   restSeconds: number
-  setPrefs: (p: Partial<Pick<State, 'trackRpe' | 'restSeconds' | 'plainCopy'>>) => void
+  setPrefs: (p: Partial<Pick<State, 'trackRpe' | 'restSeconds' | 'plainCopy' | 'backendKind'>>) => void
+  /** Which social server this device last used, to notice the switch from preview to a real one. */
+  backendKind: 'demo' | 'supabase' | null
   /** Plain wording instead of the playful copy. */
   plainCopy: boolean
   /** A workout in progress (workout mode), so reopening the app picks it back up. */
@@ -53,6 +58,8 @@ interface State extends Data {
   endSession: () => void
   saveNote: (date: string, exerciseId: string, note: string) => void
   tourDone: boolean
+  /** Which walkthrough version was last finished or skipped. */
+  tourVersion: number
   setTourDone: (done: boolean) => void
   /** Add dated exercises (e.g. from a friend's shared plan). They join what's planned unless `replace`. */
   applyDays: (days: Record<string, PlannedExercise[]>, replace: boolean) => void
@@ -124,7 +131,8 @@ interface State extends Data {
   loadRoutine: (date: string, id: string) => void
   addGoal: (goal: NewGoal) => string
   deleteGoal: (id: string) => void
-  importData: (d: Data) => void
+  /** Restore from a backup file: checked and repaired, replaces all workout data. */
+  importData: (d: unknown) => void
 }
 
 const emptyPlan = (): WeekPlan => Array.from({ length: 7 }, () => [])
@@ -173,9 +181,11 @@ const defaults = () => ({
   accent: 'lime' as Accent,
   socialChoice: 'unset' as SocialChoice,
   tourDone: false,
+  tourVersion: 0,
   trackRpe: false,
   restSeconds: 0,
   plainCopy: false,
+  backendKind: null as 'demo' | 'supabase' | null,
   session: null as { date: string; startedAt: number } | null,
 })
 
@@ -190,7 +200,7 @@ export const useStore = create<State>()(
           accent: s.accent,
           plainCopy: s.plainCopy,
           // Erasing turns cloud backup off, so the cloud copy stays as a safety net rather than being wiped too.
-          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone } : {}),
+          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone, tourVersion: s.tourVersion } : {}),
         })),
       pushNotifications: (items) => {
         const existing = new Map(get().notifications.map((n) => [n.id, n]))
@@ -292,7 +302,7 @@ export const useStore = create<State>()(
         }),
       applyProgram: (days) => set((s) => ({ overrides: { ...s.overrides, ...days } })),
       setSocialChoice: (socialChoice) => set({ socialChoice }),
-      setTourDone: (tourDone) => set({ tourDone }),
+      setTourDone: (tourDone) => set(tourDone ? { tourDone, tourVersion: TOUR_VERSION } : { tourDone }),
       setPrefs: (p) => set(p),
       startSession: (date) => set({ session: { date, startedAt: Date.now() } }),
       endSession: () => set({ session: null }),
@@ -393,9 +403,9 @@ export const useStore = create<State>()(
       },
       deleteGoal: (id) => set((s) => ({ goals: s.goals.filter((g) => g.id !== id) })),
       importData: (d) =>
-        set({
-          plan: d.plan, overrides: d.overrides ?? {}, logs: d.logs, custom: d.custom ?? [], units: d.units,
-          name: d.name ?? '', bodyweight: d.bodyweight ?? [], routines: d.routines ?? [], goals: d.goals ?? [], programs: [], timedLogs: d.timedLogs ?? [], measurements: d.measurements ?? [],
+        set(() => {
+          const fixed = repairState(d, defaults()) as Record<string, unknown>
+          return Object.fromEntries(SYNC_KEYS.map((k) => [k, fixed[k]])) as Partial<State>
         }),
     }),
     {
