@@ -30,6 +30,8 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const dayName = DAY_NAMES[weekdayIndex(parseISO(date))]
   const [focus, setFocus] = useState<string[]>([])
   const [minutes, setMinutes] = useState(45)
+  // Per-part minutes when mixing styles and/or cardio; unset parts use an even split.
+  const [split, setSplit] = useState<Record<string, number>>({})
   const [styles, setStyles] = useState<WorkoutStyle[]>(['standard'])
   // Every version of the workout, so an accidental reroll or swap can be walked back.
   const [history, setHistory] = useState<{ list: PlannedExercise[][]; at: number }>({ list: [], at: 0 })
@@ -66,10 +68,19 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const body = focus.filter((g) => g !== 'Cardio')
   const cardioOnly = !focusIgnored && body.length === 0 && focus.includes('Cardio')
   const focusLabel = focusIgnored ? 'Full body' : cardioOnly ? 'Cardio' : body.length === 0 ? 'Full body' : body.length > 3 ? 'Full body' : body.join(' + ')
-  const defaultName = `${styleLabel} · ${focusLabel} · ${minutes} min`
+  // Mixing parts (several styles, or lifting + cardio): let each part have its own time.
+  const hasCardio = !focusIgnored && focus.includes('Cardio') && !cardioOnly
+  const parts: string[] = [...styles, ...(hasCardio ? ['cardio'] : [])]
+  const showSplit = parts.length > 1
+  const evenShare = Math.max(5, Math.round(minutes / parts.length / 5) * 5)
+  const partMin = (k: string) => split[k] ?? evenShare
+  const total0 = showSplit ? parts.reduce((a, k) => a + partMin(k), 0) : minutes
+  const bump = (k: string, d: number) => setSplit((cur) => ({ ...cur, [k]: Math.min(120, Math.max(5, (cur[k] ?? evenShare) + d)) }))
+  const partLabel = (k: string) => (k === 'cardio' ? 'Cardio' : styleInfo(k as WorkoutStyle).label)
+  const defaultName = `${styleLabel} · ${focusLabel} · ${total0} min`
 
   const generate = (avoid?: PlannedExercise[]) =>
-    commit(generateWorkout(focus, minutes, { style: styles[0], styles, avoid: new Set(avoid?.map((p) => p.exerciseId)) }))
+    commit(generateWorkout(focus, total0, { style: styles[0], styles, ...(showSplit ? { minutesByStyle: Object.fromEntries(styles.map((st) => [st, partMin(st)])), ...(hasCardio ? { cardioMinutes: partMin('cardio') } : {}) } : {}), avoid: new Set(avoid?.map((p) => p.exerciseId)) }))
 
   if (!items) {
     return (
@@ -106,10 +117,29 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
           </button>
         )}
 
-        <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">How long?</h3>
+        {showSplit ? (
+          <>
+            <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Time for each part</h3>
+            <ul className="mb-2 divide-y divide-neutral-100 rounded-2xl bg-neutral-50 px-3">
+              {parts.map((k) => (
+                <li key={k} className="flex items-center justify-between py-2">
+                  <span className="text-sm">{partLabel(k)}</span>
+                  <span className="flex items-center gap-2">
+                    <button onClick={() => bump(k, -5)} aria-label={`Less ${partLabel(k)} time`} className="h-8 w-8 rounded-full bg-neutral-100 text-lg">−</button>
+                    <span className="w-16 text-center text-sm tabular-nums">{partMin(k)} min</span>
+                    <button onClick={() => bump(k, 5)} aria-label={`More ${partLabel(k)} time`} className="h-8 w-8 rounded-full bg-neutral-100 text-lg">+</button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mb-2 text-xs text-neutral-400">Total {total0} min. Or start from a total and split it evenly:</p>
+          </>
+        ) : (
+          <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">How long?</h3>
+        )}
         <div className="mb-6 flex flex-wrap gap-2">
           {DURATIONS.map((m) => (
-            <button key={m} onClick={() => setMinutes(m)} className={chip(m === minutes)}>{m} min</button>
+            <button key={m} onClick={() => { setMinutes(m); setSplit({}) }} className={chip(m === minutes && Object.keys(split).length === 0)}>{m} min</button>
           ))}
         </div>
 

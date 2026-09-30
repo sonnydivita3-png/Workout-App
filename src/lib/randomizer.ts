@@ -338,6 +338,10 @@ export interface GenerateOptions {
   style?: WorkoutStyle
   /** Several styles in one workout, e.g. Strength then HIIT circuit. Cardio (a focus option) always comes last. */
   styles?: WorkoutStyle[]
+  /** Minutes for each style in a mixed workout. Missing styles share what's left. */
+  minutesByStyle?: Partial<Record<WorkoutStyle, number>>
+  /** Minutes of cardio at the end (when Cardio is a focus). Defaults to about a quarter of the time. */
+  cardioMinutes?: number
   rng?: Rng
   /** Exercises to use only if nothing else fits (e.g. what was in the previous workout). */
   avoid?: Set<string>
@@ -352,15 +356,17 @@ export interface GenerateOptions {
 const STYLE_ORDER: WorkoutStyle[] = ['strength', 'standard', 'bodyweight', 'supersets', 'pha', 'circuit', 'amrap', 'emom', 'tabata', 'fortime', 'crossfit', 'hyrox']
 
 /** Several styles back to back, splitting the time between them, with any cardio at the end. */
-function generateMixed(focus: string[], minutes: number, styles: WorkoutStyle[], rng: Rng, avoid: Set<string>): PlannedExercise[] {
+function generateMixed(focus: string[], minutes: number, styles: WorkoutStyle[], rng: Rng, avoid: Set<string>, byStyle: Partial<Record<WorkoutStyle, number>> = {}, cardioMinutes?: number): PlannedExercise[] {
   const cardio = focus.includes('Cardio')
   const body = focus.filter((g) => g !== 'Cardio')
-  const cardioMin = cardio ? Math.min(30, Math.max(10, roundTo5(minutes * 0.25))) : 0
-  const share = Math.max(10, roundTo5((minutes - cardioMin) / styles.length))
+  const cardioMin = cardio ? (cardioMinutes ?? Math.min(30, Math.max(10, roundTo5(minutes * 0.25)))) : 0
+  const fixed = styles.reduce((a, s) => a + (byStyle[s] ?? 0), 0)
+  const open = styles.filter((s) => byStyle[s] == null).length
+  const share = open ? Math.max(10, roundTo5((minutes - cardioMin - fixed) / open)) : 0
   const used = new Set<string>()
   const out: PlannedExercise[] = []
   for (const style of styles) {
-    const part = generateWorkout(body, share, { style, rng, avoid: new Set([...avoid, ...used]) })
+    const part = generateWorkout(body, byStyle[style] ?? share, { style, rng, avoid: new Set([...avoid, ...used]) })
     for (const p of part) {
       if (used.has(p.exerciseId)) continue // one entry per exercise across the whole workout
       used.add(p.exerciseId)
@@ -372,9 +378,10 @@ function generateMixed(focus: string[], minutes: number, styles: WorkoutStyle[],
 
 export function generateWorkout(focus: string[], minutes: number, opts: GenerateOptions = {}): PlannedExercise[] {
   const { style = 'standard', rng = Math.random, avoid = new Set<string>() } = opts
-  if (opts.styles && new Set(opts.styles).size > 1) {
+  const custom = opts.cardioMinutes != null || (opts.minutesByStyle && Object.keys(opts.minutesByStyle).length > 0)
+  if (opts.styles && (new Set(opts.styles).size > 1 || custom)) {
     const list = [...new Set(opts.styles)].sort((a, b) => STYLE_ORDER.indexOf(a) - STYLE_ORDER.indexOf(b))
-    return generateMixed(focus, minutes, list, rng, avoid)
+    return generateMixed(focus, minutes, list, rng, avoid, opts.minutesByStyle, opts.cardioMinutes)
   }
   if (opts.styles?.length === 1) return generateWorkout(focus, minutes, { style: opts.styles[0], rng, avoid })
   if (style === 'hyrox') return generateHyrox(minutes)

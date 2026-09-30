@@ -274,3 +274,23 @@ describe('several styles in one workout', () => {
     expect(mixed(['strength'], ['Chest', 'Legs'], 45, 5)).toEqual(gen('strength', ['Chest', 'Legs'], 45, 5))
   })
 })
+
+describe('time per part', () => {
+  it('gives each style and the cardio its own minutes', () => {
+    for (let seed = 1; seed <= 15; seed++) {
+      const w = generateWorkout(['Chest', 'Back', 'Legs', 'Cardio'], 75, { styles: ['strength'], minutesByStyle: { strength: 45 }, cardioMinutes: 30, rng: mulberry32(seed) })
+      const cardio = w.filter((p) => ex(p).kind === 'cardio')
+      const lifts = w.filter((p) => ex(p).kind === 'strength')
+      expect(cardio.reduce((a, p) => a + (p.minutes ?? 0), 0), `seed ${seed}`).toBeGreaterThanOrEqual(25)
+      expect(minutesFor(lifts)).toBeGreaterThan(30)
+      expect(minutesFor(lifts)).toBeLessThanOrEqual(53)
+      expect(ex(w.at(-1)!).kind).toBe('cardio')
+    }
+  })
+  it('splits between styles as asked', () => {
+    const w = generateWorkout(['Chest', 'Legs'], 60, { styles: ['strength', 'circuit'], minutesByStyle: { strength: 40, circuit: 20 }, rng: mulberry32(4) })
+    const circuit = w.filter((p) => p.block?.startsWith('circuit-'))
+    expect(minutesFor(circuit)).toBeLessThanOrEqual(24)
+    expect(minutesFor(w.filter((p) => !p.block))).toBeGreaterThan(28)
+  })
+})
