@@ -51,3 +51,14 @@ export function withGear<T extends Exercise>(list: T[]): T[] {
   const ok = list.filter(hasGear)
   return ok.length ? ok : list
 }
+
+/** Run a generator with a one-off equipment choice (e.g. "bodyweight only" at a hotel), then restore the setting. */
+export function withGearFor<T>(gear: readonly string[] | null, fn: () => T): T {
+  const prev = owned
+  setOwnedGear(gear)
+  try {
+    return fn()
+  } finally {
+    owned = prev
+  }
+}

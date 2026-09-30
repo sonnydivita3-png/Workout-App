@@ -198,6 +198,35 @@ test('equipment setting: dumbbells only shapes generated workouts and the picker
   await expect(sheet.getByRole('button', { name: /^My equipment \d+$/ })).toHaveAttribute('aria-pressed', 'true')
 })
 
+test('randomizer asks where you train: bodyweight just this once, or as the new default', async ({ page }) => {
+  await seed(page)
+  await page.goto('/')
+  await page.locator('nav').getByText('Plan').click()
+  await page.getByRole('button', { name: 'Make a workout' }).click()
+  const sheet = page.locator('.fixed')
+  const gear = sheet.getByRole('radiogroup', { name: 'Equipment' })
+  await expect(gear.getByRole('radio', { name: 'Full gym' })).toHaveAttribute('aria-checked', 'true')
+  await gear.getByRole('radio', { name: 'Bodyweight only' }).click()
+  await expect(sheet.getByText('Just for this workout.')).toBeVisible()
+  await sheet.getByRole('button', { name: 'Full body', exact: true }).click()
+  await sheet.getByRole('button', { name: /^Generate/ }).click()
+  await sheet.getByRole('button', { name: /^Add to/ }).click()
+  let s = await state(page)
+  const ids = (Object.values(s.overrides).flat() as { exerciseId: string }[]).map((p) => p.exerciseId)
+  expect(ids.length).toBeGreaterThan(3)
+  expect(ids.filter((id) => /Barbell|Dumbbell|Kettlebell|Cable|Machine|Smith|Leg_Press/i.test(id))).toEqual([])
+  expect(s.equipment ?? null).toBeNull() // the profile is untouched
+
+  await page.getByRole('button', { name: '+ Add' }).click()
+  await page.getByText('Randomize a workout').click()
+  await expect(gear.getByRole('radio', { name: 'Full gym' })).toHaveAttribute('aria-checked', 'true')
+  await gear.getByRole('radio', { name: 'Dumbbells only' }).click()
+  await sheet.getByRole('button', { name: 'Make it my default' }).click()
+  await expect(sheet.getByText('Just for this workout.')).toBeHidden()
+  s = await state(page)
+  expect(s.equipment).toEqual(['Dumbbell'])
+})
+
 test('reorder a day and build supersets of any size', async ({ page }) => {
   const today = new Date().toISOString().slice(0, 10)
   const ex = ['Barbell_Bench_Press_-_Medium_Grip', 'Bent_Over_Barbell_Row', 'Dumbbell_Bicep_Curl', 'Triceps_Pushdown']

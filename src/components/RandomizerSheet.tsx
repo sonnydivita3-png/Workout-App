@@ -10,6 +10,8 @@ import { ModeSwitch, type GeneratorMode } from './ModeSwitch'
 import { primaryBtn, Sheet } from './Sheet'
 import { WarmupRestControls } from './WarmupRestControls'
 import { WorkoutList } from './WorkoutList'
+import { GearChoice } from './GearChoice'
+import { withGearFor } from '../lib/equipment'
 
 const MAX_HISTORY = 50
 const DURATIONS = [20, 30, 45, 60, 75, 90]
@@ -27,7 +29,8 @@ interface Props {
 }
 
 export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
-  const { addPlanned, saveRoutine, genPrefs, setGenPrefs } = useStore()
+  const { addPlanned, saveRoutine, genPrefs, setGenPrefs, equipment } = useStore()
+  const [gear, setGear] = useState<string[] | null>(equipment)
   const warm = genPrefs.warmup
   const rest = genPrefs.rest
   const dayName = DAY_NAMES[weekdayIndex(parseISO(date))]
@@ -100,12 +103,12 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
 
   const generate = (avoid?: PlannedExercise[]) => {
     if (!avoid) setGenPrefs({ focus, styles, minutes })
-    commit(generateWorkout(focus, total0, {
+    commit(withGearFor(gear, () => generateWorkout(focus, total0, {
       style: styles[0], styles, rest,
       warmup: { ...warmSplit(), sets: warm.includes('sets') && lifting },
       ...(showSplit ? { minutesByStyle: Object.fromEntries(styles.map((st) => [st, partMin(st)])), ...(hasCardio ? { cardioMinutes: partMin('cardio') } : {}) } : {}),
       avoid: new Set(avoid?.map((p) => p.exerciseId)),
-    }))
+    })))
   }
 
   if (!items) {
@@ -127,6 +130,8 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
             <p className="mb-5 text-xs text-neutral-400">Add <b className="font-medium">Cardio</b> to finish with a run, ride or row.</p>
           </>
         )}
+
+        <GearChoice value={gear} onChange={setGear} />
 
         {!showSplit && <h3 className="mb-2 text-sm font-medium">How long?</h3>}
         {showSplit && (
@@ -233,7 +238,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
         <div className="mb-4">
           <WorkoutList
             items={items}
-            onSwap={(i) => commit(swapExercise(items, i))}
+            onSwap={(i) => commit(withGearFor(gear, () => swapExercise(items, i)))}
             onChoose={setPickIndex}
             onRemove={(i) => commit(items.filter((_, j) => j !== i))}
           />

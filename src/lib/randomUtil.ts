@@ -49,8 +49,48 @@ export const isMainLift = (e: Exercise) =>
   /\b(squat|deadlift|bench press|shoulder press|overhead press|military press|push press|bent over row|barbell row|pull-?up|chin-?up|hip thrust|lunge|dip)\b/i.test(e.name) &&
   !/band|chain|smith|high pull|one arm|single|reverse|box|jump|kettlebell|upright|rear delt|lying|hyperextension/i.test(e.name)
 
+/**
+ * Everyday gym staples: what most programs are built from. Random workouts reach for these first and only use the
+ * rest of the library to fill gaps (checked against the everyday and the full name).
+ */
+const STAPLES = new RegExp([
+  'squat', 'leg press', 'lunge', 'split squat', 'step-?up', 'deadlift', 'hip thrust', 'glute bridge', 'leg curl', 'leg extension', 'calf raise',
+  'bench press', 'incline .*press', 'chest press', 'push-?up', 'chest dip', '\\bfly', 'flyes', 'crossover',
+  '\\brow\\b', '\\brows\\b', 'pulldown', 'pull-?up', 'chin-?up', 'face pull', 'shrug',
+  'overhead press', 'shoulder press', 'military press', 'arnold', 'lateral raise', 'front raise', 'rear delt', 'reverse fly',
+  '\\bcurl', 'pushdown', 'skull ?crusher', 'triceps? extension', 'triceps dip', 'close-grip bench',
+  'plank', '\\bcrunch', 'leg raise', 'russian twist', 'dead bug', 'ab roller', 'mountain climber', 'kettlebell swing', 'farmer',
+].join('|'), 'i')
+/** Cache a per-exercise check: generators ask the same question about the same exercise thousands of times. */
+function perExercise<T>(fn: (e: Exercise) => T): (e: Exercise) => T {
+  const cache = new WeakMap<Exercise, T>()
+  return (e) => {
+    if (cache.has(e)) return cache.get(e)!
+    const v = fn(e)
+    cache.set(e, v)
+    return v
+  }
+}
+
+export const isStaple = perExercise((e) => STAPLES.test(`${e.name} ${e.fullName ?? ''}`))
+
+// Movement families, so a workout doesn't repeat the same thing (three squats, three incline presses...).
+const FAMILIES: [string, RegExp][] = [
+  ['squat', /squat/i], ['hinge', /deadlift|good morning|pull through/i], ['lunge', /lunge|split squat|step-?up/i],
+  ['incline', /incline.*(press|bench)/i], ['bench', /bench press|chest press|floor press/i], ['pushup', /push-?up/i],
+  ['row', /\brows?\b/i], ['vertical pull', /pulldown|pull-?up|chin-?up/i], ['overhead', /overhead press|shoulder press|military|arnold|push press/i],
+  ['raise', /lateral raise|front raise|rear delt|reverse fly/i], ['fly', /\bfly|flyes|crossover/i], ['curl', /(?<!leg )curl/i],
+  ['triceps', /pushdown|triceps? extension|skull|kickback/i], ['calf', /calf/i], ['bridge', /hip thrust|glute bridge|bridge/i],
+  ['crunch', /crunch|sit-?up/i], ['plank', /plank/i],
+]
+export const familyOf = perExercise((e) => FAMILIES.find(([, re]) => re.test(`${e.name} ${e.fullName ?? ''}`))?.[0])
+
+/** Niche or gimmicky moves that make a random workout feel odd. Still available to pick by hand. */
+export const isQuirky = perExercise((e) =>
+  /\b(bands?|chains?|isometric|around the worlds?|turkish|windmill|get-?up|wipers?|body-up|butt-ups|halo|pass between|otis|london bridges|conan)\b/i.test(e.name))
+
 /** Olympic lifts and their variations: great, but too technical to hand out at random for sets of 6-12. */
-export const isTechnical = (e: Exercise) => /\b(clean|snatch|jerk)\b/i.test(e.name)
+export const isTechnical = perExercise((e) => /\b(clean|snatch|jerk)\b/i.test(e.name))
 
 /** Movements too advanced or awkward to prescribe at random. */
-export const isAdvanced = (e: Exercise) => /single-arm|one-arm|one arm|pistol|handstand|muscle-up|planche|clap|archer|freehand jump|explosive|kipping/i.test(e.name)
+export const isAdvanced = perExercise((e) => /single-arm|one-arm|one arm|pistol|handstand|muscle-up|planche|clap|archer|freehand jump|explosive|kipping/i.test(e.name))
