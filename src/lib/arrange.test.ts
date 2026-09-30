@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PlannedExercise } from '../types'
-import { combine, moveInGroup, moveUnit, removeFromGroup, ungroup, unitsOf } from './arrange'
+import { combine, moveInGroup, moveUnit, removeFromGroup, roundDone, ungroup, unitsOf } from './arrange'
 
 const p = (id: string, extra: Partial<PlannedExercise> = {}): PlannedExercise => ({ exerciseId: id, sets: 3, ...extra })
 const ids = (items: PlannedExercise[]) => items.map((x) => x.exerciseId).join(',')
@@ -53,5 +53,16 @@ describe('arranging a day', () => {
     const mixed = [p('w', { warmup: true, block: 'warmup' }), p('x'), p('t', { block: 'amrap', wod: { kind: 'amrap', minutes: 10 } }), p('y')]
     expect(shape(combine(mixed, [0, 1]))).toBe('w | x | t | y')
     expect(shape(combine(mixed, [1, 2, 3]))).toBe('w | x+y | t')
+  })
+})
+
+describe('superset rounds', () => {
+  const members = [{ exerciseId: 'a', sets: 3 }, { exerciseId: 'b', sets: 2 }]
+  const log = (id: string, n: number, warm = 0) => ({ date: 'd', exerciseId: id, sets: [...Array(warm).fill({ weight: 45, reps: 5, warmup: true }), ...Array(n).fill({ weight: 100, reps: 8 })] })
+  it('a round is done when every exercise has done that set', () => {
+    expect(roundDone(members, [log('a', 1)], 'd', 1)).toBe(false)
+    expect(roundDone(members, [log('a', 1), log('b', 1)], 'd', 1)).toBe(true)
+    expect(roundDone(members, [log('a', 2, 2), log('b', 1)], 'd', 2)).toBe(false) // warm-ups don't count
+    expect(roundDone(members, [log('a', 3), log('b', 2)], 'd', 3)).toBe(true) // b has only 2 sets
   })
 })

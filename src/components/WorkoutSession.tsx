@@ -72,6 +72,8 @@ export function WorkoutSession({ onMinimize }: { onMinimize: () => void }) {
 
   // Auto (-1) rests for as long as the plan says for that exercise; otherwise a fixed time.
   const startRest = (planned: number) => {
+    // 0 means "no rest here" (mid-round in a superset), whatever the timer setting.
+    if (planned <= 0) return
     const secs = restSeconds === -1 ? planned : restSeconds
     if (secs > 0) { beeped.current = false; setRestUntil(Date.now() + secs * 1000) }
   }

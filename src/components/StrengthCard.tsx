@@ -26,12 +26,14 @@ interface Props {
   onNote?: (note: string) => void
   onRemove: () => void
   /** Workout mode: show a ✓ per set that fills in the suggestion and starts the rest timer (for this many seconds). */
-  onSetDone?: (restSeconds: number) => void
+  onSetDone?: (restSeconds: number, set: { round: number; warmup: boolean }) => void
+  /** Replaces "rest 1:30" in the subtitle, e.g. for an exercise in a superset. */
+  restNote?: string
 }
 
 const MARK = { up: { t: '▲', c: 'text-green-600', l: 'beat last time' }, same: { t: '=', c: 'text-neutral-400', l: 'matched last time' }, down: { t: '▼', c: 'text-red-600', l: 'below last time' } } as const
 
-export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, warmupSets = 0, rest, note, current, last, onSetCount, onChange, onNote, onRemove, onSetDone }: Props) {
+export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, warmupSets = 0, rest, note, current, last, onSetCount, onChange, onNote, onRemove, onSetDone, restNote }: Props) {
   const units = useStore((s) => s.units)
   const trackRpe = useStore((s) => s.trackRpe)
   const mode = exercise.mode ?? 'weight'
@@ -70,7 +72,8 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
     const s = sets[i]
     if (!filled(s)) update(i, s.warmup ? { ...s, ...(rampFor(i) ?? {}) } : fromTip(s))
     try { navigator.vibrate?.(15) } catch { /* not supported */ }
-    onSetDone?.(s.warmup ? 60 : workRest)
+    const round = sets.slice(0, i + 1).filter((x) => !x.warmup).length
+    onSetDone?.(s.warmup ? 60 : workRest, { round, warmup: !!s.warmup })
   }
 
   // Compare working sets in order with last time's working sets (warm-ups skipped on both sides).
@@ -114,7 +117,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
             {mode === 'time' && ' · timed'}
             {target && ` · target ${target}`}
             {warmupSets > 0 && ` · +${warmupSets} warm-up`}
-            {` · rest ${fmtRest(workRest)}`}
+            {restNote ? ` · ${restNote}` : ` · rest ${fmtRest(workRest)}`}
             {note && ` · ${note}`}
           </p>
         </div>
