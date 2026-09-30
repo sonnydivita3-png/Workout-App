@@ -47,6 +47,9 @@ interface State extends Data {
   /** First-run setup (goal, days, first plan) finished or skipped. */
   onboarded: boolean
   setOnboarded: (v: boolean) => void
+  /** Equipment filter last used in the exercise picker ('Any' for no filter). */
+  pickerEquipment: string
+  setPickerEquipment: (e: string) => void
   /** One-time tips already shown, by id. */
   tipsSeen: string[]
   seeTip: (id: string) => void
@@ -210,6 +213,7 @@ const defaults = () => ({
   pendingInvite: null as string | null,
   onboarded: false,
   tipsSeen: [] as string[],
+  pickerEquipment: 'Any',
   nudgeSnooze: {} as Record<string, number>,
   tourDone: false,
   tourVersion: 0,
@@ -334,6 +338,7 @@ export const useStore = create<State>()(
       setSocialChoice: (socialChoice) => set({ socialChoice }),
       setPendingInvite: (pendingInvite) => set({ pendingInvite }),
       setOnboarded: (onboarded) => set({ onboarded }),
+      setPickerEquipment: (pickerEquipment) => set({ pickerEquipment }),
       seeTip: (id) => set((s) => (s.tipsSeen.includes(id) ? s : { tipsSeen: [...s.tipsSeen, id] })),
       clearUsualDay: (date) =>
         set((s) => {

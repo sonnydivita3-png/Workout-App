@@ -9,7 +9,15 @@ interface Props {
   onClose: () => void
 }
 
-const GROUPS = ['All', 'Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Glutes', 'Core', 'Cardio', 'Mobility', 'Other']
+const GROUPS = ['All', 'Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Glutes', 'Core', 'Cardio', 'Conditioning', 'Mobility', 'Other']
+// Equipment filters; a few rarer kinds are folded into the closest one or "Other".
+const EQUIPMENT = ['Any', 'Barbell', 'Dumbbell', 'Bodyweight', 'Cable', 'Machine', 'Kettlebell', 'Bands', 'Other'] as const
+type Equip = (typeof EQUIPMENT)[number]
+const equipOf = (e: Exercise): Equip => {
+  const k = e.equipment ?? ''
+  if (k === 'EZ bar') return 'Barbell'
+  return (EQUIPMENT as readonly string[]).includes(k) && k !== 'Any' ? (k as Equip) : 'Other'
+}
 const PAGE = 50
 const CREATE_AS: [string, 'strength' | 'cardio', ExerciseMode | undefined][] = [
   ['Weights', 'strength', 'weight'],
@@ -21,19 +29,34 @@ const CREATE_AS: [string, 'strength' | 'cardio', ExerciseMode | undefined][] = [
 export function ExercisePicker({ taken, onPick, onClose }: Props) {
   const custom = useStore((s) => s.custom)
   const createCustom = useStore((s) => s.createCustom)
+  // Remembered between visits: someone with a home gym usually wants the same equipment every time.
+  const equip = useStore((s) => s.pickerEquipment) as Equip
+  const setEquip = useStore((s) => s.setPickerEquipment)
   const [q, setQ] = useState('')
   const [group, setGroup] = useState('All')
   const [limit, setLimit] = useState(PAGE)
 
   const query = q.trim().toLowerCase()
+  const words = query.split(/\s+/)
+  const matches = (e: Exercise) => words.every((w) => `${e.name} ${e.fullName ?? ''}`.toLowerCase().includes(w))
+  // Muscle group and search first, so each equipment chip can say how many it would leave.
+  const inGroup = useMemo(
+    () => [...custom, ...EXERCISES].filter((e) => (group === 'All' || e.group === group) && matches(e)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [custom, query, group],
+  )
+  const counts = useMemo(() => {
+    const c = new Map<Equip, number>()
+    for (const e of inGroup) c.set(equipOf(e), (c.get(equipOf(e)) ?? 0) + 1)
+    return c
+  }, [inGroup])
   const results = useMemo(
     () =>
-      [...custom, ...EXERCISES].filter(
-        (e) =>
-          (group === 'All' || e.group === group) &&
-          query.split(/\s+/).every((w) => `${e.name} ${e.fullName ?? ''}`.toLowerCase().includes(w)),
-      ),
-    [custom, query, group],
+      inGroup
+        .filter((e) => equip === 'Any' || equipOf(e) === equip)
+        // Your own exercises, then the everyday ones, then the rest alphabetically.
+        .sort((a, b) => Number(!!b.custom) - Number(!!a.custom) || Number(!!b.suggest) - Number(!!a.suggest) || a.name.localeCompare(b.name)),
+    [inGroup, equip],
   )
   const exact = results.some((e) => e.name.toLowerCase() === query)
 
@@ -66,6 +89,21 @@ export function ExercisePicker({ taken, onPick, onClose }: Props) {
             </button>
           ))}
         </div>
+        <div className="mb-3 flex shrink-0 gap-2 overflow-x-auto pb-1" role="group" aria-label="Equipment">
+          {EQUIPMENT.filter((k) => k === 'Any' || k === equip || counts.get(k)).map((k) => (
+            <button
+              key={k}
+              onClick={() => { setEquip(k); setLimit(PAGE) }}
+              aria-pressed={k === equip}
+              className={`shrink-0 rounded-full px-3 py-1 text-sm ring-1 ${
+                k === equip ? 'bg-neutral-900 text-surface ring-neutral-900' : 'text-neutral-600 ring-neutral-200'
+              }`}
+            >
+              {k === 'Any' ? 'Any equipment' : `${k} ${counts.get(k) ?? 0}`}
+            </button>
+          ))}
+        </div>
+        <p className="mb-1 shrink-0 text-xs text-neutral-400">{results.length} exercise{results.length === 1 ? '' : 's'}{equip !== 'Any' ? ` · ${equip.toLowerCase()}` : ''}{group !== 'All' ? ` · ${group.toLowerCase()}` : ''}</p>
         <ul className="-mx-1 overflow-y-auto">
           {q.trim() && !exact && (
             <li className="mb-1 rounded-xl bg-neutral-50 px-3 py-2.5">
@@ -102,7 +140,11 @@ export function ExercisePicker({ taken, onPick, onClose }: Props) {
               </button>
             </li>
           )}
-          {results.length === 0 && !q.trim() && <li className="px-3 py-6 text-center text-neutral-400">No matches</li>}
+          {results.length === 0 && !q.trim() && (
+            <li className="px-3 py-6 text-center text-neutral-400">
+              No matches.{equip !== 'Any' && <> <button onClick={() => setEquip('Any')} className="underline">Show any equipment</button></>}
+            </li>
+          )}
         </ul>
       </div>
     </div>
