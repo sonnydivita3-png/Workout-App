@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { parseISO, weekdayIndex } from '../lib/dates'
 import {
-  FOCUS_OPTIONS, generateWorkout, LIFT_GROUPS, minutesFor, replaceExercise, STYLES, styleInfo, swapExercise, type WorkoutStyle,
+  FOCUS_OPTIONS, generateWorkout, LIFT_GROUPS, minutesFor, replaceExercise, STYLE_GROUPS, styleInfo, swapExercise, type WorkoutStyle,
 } from '../lib/randomizer'
 import { useStore } from '../store'
 import type { PlannedExercise } from '../types'
@@ -94,10 +94,30 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
 
         <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Workout style <span className="normal-case">(pick one or more)</span></h3>
         <div className="mb-1 flex flex-wrap gap-2">
-          {STYLES.map((s) => (
-            <button key={s.id} onClick={() => toggleStyle(s.id)} aria-pressed={styles.includes(s.id)} className={chip(styles.includes(s.id))}>{s.label}</button>
-          ))}
+          {STYLE_GROUPS.map((g) => {
+            const on = g.styles.some((st) => styles.includes(st))
+            return (
+              <button key={g.label} onClick={() => (on ? g.styles.filter((st) => styles.includes(st)).forEach(toggleStyle) : toggleStyle(g.styles[0]))} aria-pressed={on} className={chip(on)}>
+                {g.label}
+              </button>
+            )
+          })}
         </div>
+        {STYLE_GROUPS.filter((g) => g.styles.length > 1 && g.styles.some((st) => styles.includes(st))).map((g) => (
+          <div key={g.label} className="mb-1 mt-2 flex flex-wrap items-center gap-1.5 pl-1">
+            <span className="text-xs text-neutral-400">{g.label}:</span>
+            {g.styles.map((st) => (
+              <button
+                key={st}
+                onClick={() => setStyles((cur) => [...cur.filter((x) => !g.styles.includes(x)), st])}
+                aria-pressed={styles.includes(st)}
+                className={`rounded-full px-2.5 py-1 text-xs ${styles.includes(st) ? 'bg-neutral-900 text-surface' : 'bg-neutral-100 text-neutral-600'}`}
+              >
+                {styleInfo(st).label}
+              </button>
+            ))}
+          </div>
+        ))}
         <p className="mb-5 text-xs text-neutral-400">
           {styles.length > 1 ? `${styleLabel}: the time is split between them, in that order, with cardio last.` : info.blurb}
         </p>

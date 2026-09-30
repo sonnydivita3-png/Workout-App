@@ -86,7 +86,8 @@ export function PlanView() {
         <Sheet title="Add to this day" onClose={() => setAddMenu(false)}>
           {([
             ['Add an exercise', 'Pick from 750+ exercises', () => setPicking(true)],
-            ['Randomize a workout', 'Muscles, style and time, or a random week/month', () => setGenerator('one')],
+            ['Randomize a workout', 'Pick muscles, style and time for this day', () => setGenerator('one')],
+            ['Randomize a week or month', 'Training days, rest days and a goal, built for you', () => setGenerator('program')],
             ['Build a timed workout', 'AMRAP, EMOM or for time, with a built-in clock', () => setWodBuilder(true)],
             ['Start a training plan', 'Run or bike plan for a goal or race', () => setGenerator('cardio')],
           ] as const).map(([title, hint, go]) => (

@@ -30,6 +30,17 @@ export const STYLES: StyleInfo[] = [
   { id: 'tabata', label: 'Tabata', blurb: '20 seconds all-out, 10 rest, 8 times per movement, then a minute\'s break. Leave body parts empty for full body.', focus: 'optional' },
   { id: 'bodyweight', label: 'Bodyweight', blurb: 'No equipment needed.', focus: 'required' },
 ]
+/** How styles are shown: a few top-level choices, some with variations underneath. */
+export const STYLE_GROUPS: { label: string; styles: WorkoutStyle[] }[] = [
+  { label: 'Standard', styles: ['standard'] },
+  { label: 'Strength', styles: ['strength'] },
+  { label: 'Supersets', styles: ['supersets'] },
+  { label: 'Bodyweight', styles: ['bodyweight'] },
+  { label: 'HIIT', styles: ['circuit', 'pha'] },
+  { label: 'Timed', styles: ['amrap', 'emom', 'tabata', 'fortime'] },
+  { label: 'Hyrox / CrossFit', styles: ['hyrox', 'crossfit'] },
+]
+
 export const styleInfo = (id: WorkoutStyle) => STYLES.find((s) => s.id === id)!
 
 const MIN_SETS = 2
