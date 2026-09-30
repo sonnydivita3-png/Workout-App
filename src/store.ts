@@ -8,6 +8,7 @@ import { repairState, SCHEMA_VERSION } from './lib/migrate'
 import { SYNC_KEYS } from './lib/sync'
 import type { RestPref } from './lib/timing'
 import type { WorkoutStyle } from './lib/randomizer'
+import { setOwnedGear } from './lib/equipment'
 import { activePrograms, clearRange, removeProgramDays } from './lib/programs'
 import type {
   AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Sport, TimedLog, StrengthSet, Units, WeekPlan,
@@ -47,6 +48,9 @@ interface State extends Data {
   /** First-run setup (goal, days, first plan) finished or skipped. */
   onboarded: boolean
   setOnboarded: (v: boolean) => void
+  /** Equipment the person has (null = a full gym). Generated workouts and plans only use this. */
+  equipment: string[] | null
+  setEquipment: (e: string[] | null) => void
   /** Equipment filter last used in the exercise picker ('Any' for no filter). */
   pickerEquipment: string
   setPickerEquipment: (e: string) => void
@@ -214,6 +218,7 @@ const defaults = () => ({
   onboarded: false,
   tipsSeen: [] as string[],
   pickerEquipment: 'Any',
+  equipment: null as string[] | null,
   nudgeSnooze: {} as Record<string, number>,
   tourDone: false,
   tourVersion: 0,
@@ -234,7 +239,7 @@ export const useStore = create<State>()(
           theme: s.theme,
           accent: s.accent,
           // Erasing turns cloud backup off, so the cloud copy stays as a safety net rather than being wiped too.
-          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone, tourVersion: s.tourVersion, onboarded: s.onboarded, tipsSeen: s.tipsSeen } : {}),
+          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone, tourVersion: s.tourVersion, onboarded: s.onboarded, tipsSeen: s.tipsSeen, equipment: s.equipment } : {}),
         })),
       pushNotifications: (items) => {
         const existing = new Map(get().notifications.map((n) => [n.id, n]))
@@ -339,6 +344,9 @@ export const useStore = create<State>()(
       setPendingInvite: (pendingInvite) => set({ pendingInvite }),
       setOnboarded: (onboarded) => set({ onboarded }),
       setPickerEquipment: (pickerEquipment) => set({ pickerEquipment }),
+      // Once someone says what they have, the exercise picker starts on "My equipment" too.
+      setEquipment: (equipment) =>
+        set((s) => ({ equipment, pickerEquipment: equipment && s.pickerEquipment === 'Any' ? 'Mine' : !equipment && s.pickerEquipment === 'Mine' ? 'Any' : s.pickerEquipment })),
       seeTip: (id) => set((s) => (s.tipsSeen.includes(id) ? s : { tipsSeen: [...s.tipsSeen, id] })),
       clearUsualDay: (date) =>
         set((s) => {
@@ -470,6 +478,10 @@ export const useStore = create<State>()(
     },
   ),
 )
+
+// The workout generators read the person's equipment from here (see lib/equipment.ts).
+setOwnedGear(useStore.getState().equipment)
+useStore.subscribe((s, prev) => { if (s.equipment !== prev.equipment) setOwnedGear(s.equipment) })
 
 /** Resolve an exercise id against the built-in library and the user's custom exercises. */
 export function findExercise(custom: Exercise[], id: string): Exercise | undefined {

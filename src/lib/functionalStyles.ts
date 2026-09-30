@@ -1,7 +1,8 @@
 import { EXERCISES } from '../data/exercises'
+import { hasGear } from './equipment'
 import type { Exercise, PlannedExercise, Wod, WodKind } from '../types'
 import { buildWodItems, makeTabata } from './wod'
-import { byName, isMainLift, pick, roundTo, roundTo5, softShuffle, type Rng } from './randomUtil'
+import { BY_ID, byName, isMainLift, pick, roundTo, roundTo5, softShuffle, type Rng } from './randomUtil'
 
 const RUN = 'running'
 const minutesOf = (n: number) => Math.round(n * 10) / 10
@@ -21,6 +22,16 @@ const HYROX_STATIONS: [string, number, 'm' | 'reps', number][] = [
   ['x-sandbag-lunges', 100, 'm', 4],
   ['x-wall-balls', 100, 'reps', 5],
 ]
+/** Stand-ins when a station's equipment isn't available: [exercise id, full-size amount, unit]. All bodyweight. */
+const HYROX_SUBS: Record<string, [string, number, 'm' | 'reps']> = {
+  'x-skierg': ['x-burpee', 30, 'reps'],
+  'x-sled-push': ['x-jump-squat', 30, 'reps'],
+  'x-sled-pull': ['Mountain_Climbers', 60, 'reps'],
+  'x-row-erg': ['x-jumping-jacks', 100, 'reps'],
+  'x-farmers-carry': ['x-high-knees', 100, 'reps'],
+  'x-sandbag-lunges': ['Bodyweight_Walking_Lunge', 100, 'm'],
+  'x-wall-balls': ['x-air-squat', 75, 'reps'],
+}
 const FULL_RUN_KM = 1
 const MIN_PER_KM = 6
 
@@ -45,7 +56,11 @@ export function generateHyrox(minutes: number): PlannedExercise[] {
       blockLabel,
     },
   ]
-  for (const [id, full, unit, est] of HYROX_STATIONS.slice(0, pairs)) {
+  for (const station of HYROX_STATIONS.slice(0, pairs)) {
+    const est = station[3]
+    // Swap in a bodyweight stand-in when the station's equipment isn't available (e.g. no sled at home).
+    const sub = !hasGear(BY_ID.get(station[0])!) ? HYROX_SUBS[station[0]] : undefined
+    const [id, full, unit] = sub ?? station
     const amount = unit === 'm' ? Math.max(10, roundTo(full * scale, full >= 200 ? 25 : 5)) : Math.max(10, roundTo(full * scale, 5))
     const item: PlannedExercise = {
       exerciseId: id,
@@ -70,7 +85,7 @@ const PRIMER_MIN = 15
 const crossfitPool = () => {
   const named = ['Pushups', 'Pullups', 'Bodyweight Squat', 'Sit-Up'].map(byName).filter((e): e is Exercise => !!e)
   const tagged = EXERCISES.filter((e) => e.tags?.includes('crossfit'))
-  return [...new Map([...tagged, ...named].map((e) => [e.id, e])).values()]
+  return [...new Map([...tagged, ...named].map((e) => [e.id, e])).values()].filter(hasGear)
 }
 
 /** Reps per round for a WOD movement, by feel. */
@@ -120,7 +135,7 @@ export function generateCrossfit(minutes: number, rng: Rng, avoid: Set<string>):
   const wantPrimer = minutes >= 45
   if (wantPrimer) {
     const lifts = softShuffle(
-      EXERCISES.filter((e) => e.suggest && e.kind === 'strength' && e.mode === 'weight' && e.equipment === 'Barbell' && isMainLift(e) && ['Legs', 'Back', 'Chest', 'Shoulders'].includes(e.group)),
+      EXERCISES.filter((e) => e.suggest && e.kind === 'strength' && e.mode === 'weight' && e.equipment === 'Barbell' && isMainLift(e) && ['Legs', 'Back', 'Chest', 'Shoulders'].includes(e.group) && hasGear(e)),
       avoid,
       rng,
     )
@@ -168,7 +183,7 @@ function timedPool(focus: string[]): Exercise[] {
   const base = crossfitPool()
   if (focus.length === 0) return base
   const inFocus = (e: Exercise) => focus.includes(e.group)
-  const extra = EXERCISES.filter((e) => e.suggest && e.kind === 'strength' && e.mode !== 'time' && inFocus(e) && HOME_GEAR.includes(e.equipment ?? ''))
+  const extra = EXERCISES.filter((e) => e.suggest && e.kind === 'strength' && e.mode !== 'time' && inFocus(e) && HOME_GEAR.includes(e.equipment ?? '') && hasGear(e))
   return [...new Map([...base.filter(inFocus), ...extra].map((e) => [e.id, e])).values()]
 }
 

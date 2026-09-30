@@ -43,6 +43,7 @@ const steps = (social: boolean): Step[] => [
     body: 'Pick what to train and how long. That’s it.',
     points: [
       'Full body is one tap, and it remembers your last choices',
+      'It only uses equipment you have: set it in Settings → Profile, units & equipment',
       'More options: style (strength, supersets, HIIT, timed, Hyrox/CrossFit), warm-up and rest',
       'Swap any exercise, step back through versions, or save it as a routine',
     ],

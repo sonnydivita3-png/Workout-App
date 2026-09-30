@@ -4,6 +4,7 @@ import { defaultWeekdays, generateProgram, PROGRAM_GOALS, type ProgramDay, type 
 import { defaultWarmup } from '../lib/randomizer'
 import { useToday } from '../lib/useToday'
 import { useStore } from '../store'
+import { EquipmentPicker } from './EquipmentPicker'
 
 type Step = 'welcome' | 'goal' | 'schedule' | 'plan'
 const STEPS: Step[] = ['welcome', 'goal', 'schedule', 'plan']
@@ -98,7 +99,9 @@ export function Onboarding() {
             <div className="mb-2 flex gap-2">{[2, 3, 4, 5, 6].map((n) => <button key={n} onClick={() => setDays(n)} className={chip(days === n)}>{n}</button>)}</div>
             <p className="mb-6 text-sm text-neutral-400">{defaultWeekdays(days).map((d) => DAY[d]).join(', ')}. You can move days later.</p>
             <p className="mb-2 text-sm font-medium">Time per workout</p>
-            <div className="mb-8 flex gap-2">{[30, 45, 60, 75].map((m) => <button key={m} onClick={() => setMinutes(m)} className={chip(minutes === m)}>{m} min</button>)}</div>
+            <div className="mb-6 flex gap-2">{[30, 45, 60, 75].map((m) => <button key={m} onClick={() => setMinutes(m)} className={chip(minutes === m)}>{m} min</button>)}</div>
+            <p className="mb-2 text-sm font-medium">Where do you train?</p>
+            <div className="mb-8"><EquipmentPicker detailed={false} /></div>
             <div className="mt-auto space-y-2">
               <button onClick={build} className={primary}>Build my plan</button>
               <button onClick={() => setStep('goal')} className="w-full py-2 text-sm text-neutral-500">Back</button>
