@@ -120,7 +120,7 @@ test('randomizer remembers the last choices, and Full body is one tap', async ({
   await expect(sheet.getByRole('button', { name: 'Legs', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await sheet.getByRole('button', { name: '30 min', exact: true }).click()
   await sheet.getByRole('button', { name: /^Generate/ }).click()
-  await sheet.getByRole('button', { name: 'Close' }).click()
+  await sheet.getByRole('button', { name: 'Close', exact: true }).click()
   await page.getByRole('button', { name: '+ Add' }).click()
   await page.getByText('Randomize a workout').click()
   await expect(sheet.getByRole('button', { name: 'Full body', exact: true })).toHaveAttribute('aria-pressed', 'true')
@@ -237,4 +237,28 @@ test('reorder a day and build supersets of any size', async ({ page }) => {
   await page.mouse.move(b.x + b.width / 2, b.y + 2, { steps: 8 })
   await page.mouse.up()
   expect((await order())[0].exerciseId).toBe(ex[3])
+})
+
+test('supersets rest once per round, not after every exercise', async ({ page }) => {
+  const today = new Date().toISOString().slice(0, 10)
+  const ss = { block: 'ss1', blockLabel: 'Superset' }
+  await seed(page, {
+    restSeconds: -1,
+    overrides: { [today]: [{ exerciseId: 'Dumbbell_Bicep_Curl', sets: 2, reps: 10, ...ss }, { exerciseId: 'Triceps_Pushdown', sets: 2, reps: 10, ...ss }] },
+  })
+  await page.goto('/')
+  await page.getByRole('button', { name: '▶ Start workout' }).click()
+  await expect(page.getByText(/straight into the next/)).toBeVisible()
+  await expect(page.getByText(/Do one set of each, back to back, then rest/)).toBeVisible()
+  const done = page.getByRole('button', { name: 'Set 1 done' })
+  await done.nth(0).click()
+  await expect(page.getByRole('timer')).toHaveCount(0)
+  await done.nth(1).click()
+  await expect(page.getByRole('timer')).toContainText('Rest')
+  await page.getByRole('button', { name: 'Skip' }).click()
+  // Round 2 starts with the second exercise this time: still only one rest, after both.
+  await page.getByRole('button', { name: 'Set 2 done' }).nth(1).click()
+  await expect(page.getByRole('timer')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Set 2 done' }).nth(0).click()
+  await expect(page.getByRole('timer')).toContainText('Rest')
 })

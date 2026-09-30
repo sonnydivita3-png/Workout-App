@@ -74,7 +74,7 @@ test('how-to and the hold timer open on top of workout mode', async ({ page }) =
   await page.getByRole('button', { name: '▶ Start workout' }).click()
   await page.getByRole('button', { name: 'Plank', exact: true }).click()
   await expect(page.getByText(/Get into a prone position/i)).toBeVisible()
-  await page.locator('.fixed').getByRole('button', { name: 'Close' }).last().click()
+  await page.locator('.fixed').getByRole('button', { name: 'Close', exact: true }).last().click()
   await page.getByRole('button', { name: 'Time set 1' }).click()
   await expect(page.getByText('Target 0:30')).toBeVisible()
 })

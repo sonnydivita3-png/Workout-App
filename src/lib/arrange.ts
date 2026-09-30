@@ -1,4 +1,4 @@
-import type { PlannedExercise } from '../types'
+import type { ExerciseLog, PlannedExercise } from '../types'
 import { groupByBlock } from './describe'
 
 /**
@@ -84,5 +84,17 @@ export function removeFromGroup(items: PlannedExercise[], u: number, m: number):
     if (i !== u) return x.items.map((y) => y.item)
     const kept = rest.items.length === 1 ? [single(rest.items[0].item)] : rest.items.map((y) => y.item)
     return [...kept, pulled]
+  })
+}
+
+/**
+ * Supersets are done back to back, resting only after each round. A round is complete once every exercise in the
+ * group that has that many sets has logged that working set (warm-up sets don't count).
+ */
+export function roundDone(members: { exerciseId: string; sets: number }[], logs: ExerciseLog[], date: string, round: number): boolean {
+  return members.every((m) => {
+    if (m.sets < round) return true
+    const sets = logs.find((l) => l.date === date && l.exerciseId === m.exerciseId)?.sets ?? []
+    return sets.filter((s) => !s.warmup && (s.weight || s.reps || s.seconds)).length >= round
   })
 }
