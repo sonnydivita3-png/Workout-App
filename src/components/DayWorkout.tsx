@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { groupByBlock } from '../lib/describe'
+import { canCombine, combine, ungroup } from '../lib/arrange'
 import { circuitSegments, parseCircuit } from '../lib/wod'
 import { findExercise, selectLastLog, useStore } from '../store'
 import type { PlannedExercise } from '../types'
@@ -14,15 +15,30 @@ export function DayWorkout({ date, items: planned, only, onSetDone }: { date: st
   const s = useStore()
   const [circuitTimer, setCircuitTimer] = useState<{ title: string; segments: ReturnType<typeof circuitSegments> } | null>(null)
   const groups = groupByBlock(planned)
+  // On the Plan tab (not mid-workout), two neighbouring exercises can be joined into a superset in one tap.
+  const joinable = (gi: number) => only === undefined && gi < groups.length - 1 && canCombine(groups[gi]) && canCombine(groups[gi + 1])
+  const join = (gi: number) => s.setDayItems(date, combine(planned, [gi, gi + 1]))
+  const joinLink = (gi: number) => joinable(gi) && (
+    <button key={`join-${gi}`} onClick={() => join(gi)} className="relative mx-auto -my-1 block rounded-full bg-surface px-3 py-1 text-xs text-neutral-500 ring-1 ring-neutral-200/70">
+      ⤓ Superset with next
+    </button>
+  )
   return (
     <>
-        {groups.map((g, gi) => only !== undefined && gi !== only ? null : g.items[0].item.warmup ? (
+        {groups.map((g, gi) => only !== undefined && gi !== only ? null : [g.items[0].item.warmup ? (
           <WarmupCard key={`warmup-${gi}`} items={g.items.map((x) => x.item)} onRemove={() => g.items.forEach((x) => s.removeExercise(date, x.item.exerciseId))} />
         ) : g.items[0].item.wod ? (
           <TimedBlockCard key={g.block ?? gi} items={g.items.map((x) => x.item)} date={date} onRemove={() => g.items.forEach((x) => s.removeExercise(date, x.item.exerciseId))} />
         ) : (
           <div key={gi} className={g.block ? 'space-y-2 rounded-3xl bg-neutral-200/50 p-2' : 'contents'}>
-            {g.block && g.label && <p className="px-2 pt-1 text-xs uppercase tracking-wide text-neutral-500">{g.label}</p>}
+            {g.block && g.label && (
+              <div className="flex items-center justify-between px-2 pt-1">
+                <p className="text-xs uppercase tracking-wide text-neutral-500">{g.label}</p>
+                {only === undefined && canCombine(g) && g.items.length > 1 && (
+                  <button onClick={() => s.setDayItems(date, ungroup(planned, gi))} className="text-xs text-neutral-500 underline underline-offset-2">Split</button>
+                )}
+              </div>
+            )}
             {(() => {
               const c = parseCircuit(g.label, g.items.map((x) => x.item))
               if (!c) return null
@@ -67,7 +83,7 @@ export function DayWorkout({ date, items: planned, only, onSetDone }: { date: st
               )
             })}
           </div>
-        ))}
+        ), joinLink(gi)])}
       {circuitTimer && <IntervalTimerSheet title={circuitTimer.title} segments={circuitTimer.segments} onClose={() => setCircuitTimer(null)} />}
     </>
   )

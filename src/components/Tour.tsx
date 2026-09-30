@@ -35,6 +35,7 @@ const steps = (social: boolean): Step[] => [
     points: [
       'An empty day offers Add exercises, Make a workout, Load a routine or Rest day',
       'Changes apply to that date only. Use ⋯ → Repeat every Monday (or any day) for your usual week',
+      '⇅ Reorder: drag or use arrows, and tick any exercises to make a superset (or tap “Superset with next”)',
       '+ Add has more: a week or month plan, timed workouts (AMRAP, EMOM, Tabata) and run or ride plans',
     ],
   },

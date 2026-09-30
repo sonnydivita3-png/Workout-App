@@ -57,6 +57,8 @@ interface State extends Data {
   /** One-time tips already shown, by id. */
   tipsSeen: string[]
   seeTip: (id: string) => void
+  /** Replace a date's exercises (reordered, grouped into supersets...). */
+  setDayItems: (date: string, items: PlannedExercise[]) => void
   /** Make a date's exercises the usual plan for that weekday (every week). */
   setUsualDay: (date: string) => void
   /** Stop repeating a weekday's usual plan; this date keeps its exercises. */
@@ -348,6 +350,7 @@ export const useStore = create<State>()(
       setEquipment: (equipment) =>
         set((s) => ({ equipment, pickerEquipment: equipment && s.pickerEquipment === 'Any' ? 'Mine' : !equipment && s.pickerEquipment === 'Mine' ? 'Any' : s.pickerEquipment })),
       seeTip: (id) => set((s) => (s.tipsSeen.includes(id) ? s : { tipsSeen: [...s.tipsSeen, id] })),
+      setDayItems: (date, items) => set((s) => editDay(s, date, () => items)),
       clearUsualDay: (date) =>
         set((s) => {
           const day = weekdayIndex(parseISO(date))

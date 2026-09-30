@@ -14,6 +14,7 @@ import { rowBtn, Sheet } from './Sheet'
 import { ExercisePicker } from './ExercisePicker'
 import { DayWorkout } from './DayWorkout'
 import { WeekStrip } from './WeekStrip'
+import { ArrangeSheet } from './ArrangeSheet'
 import { Tip } from './Tip'
 
 export function PlanView() {
@@ -24,6 +25,7 @@ export function PlanView() {
   const [addMenu, setAddMenu] = useState(false)
   const [wodBuilder, setWodBuilder] = useState(false)
   const [dayMenu, setDayMenu] = useState<false | 'menu' | 'load'>(false)
+  const [arranging, setArranging] = useState(false)
   const [generator, setGenerator] = useState<GeneratorMode | null>(null)
   const s = useStore()
 
@@ -57,6 +59,9 @@ export function PlanView() {
           <button onClick={() => s.startSession(date)} className="rounded-full bg-accent px-3 py-1 text-sm font-medium text-on-accent">
             {s.session?.date === date ? 'Resume workout' : '▶ Start workout'}
           </button>
+        )}
+        {planned.length > 1 && (
+          <button onClick={() => setArranging(true)} className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-600">⇅ Reorder</button>
         )}
         <button onClick={() => setDayMenu('menu')} aria-label="Day options" className="flex h-8 w-10 items-center justify-center rounded-full bg-neutral-100 text-lg leading-none text-neutral-600">
           ⋯
@@ -117,6 +122,7 @@ export function PlanView() {
           ))}
         </Sheet>
       )}
+      {arranging && <ArrangeSheet date={date} onClose={() => setArranging(false)} />}
       {wodBuilder && <WodBuilderSheet date={date} onClose={() => setWodBuilder(false)} />}
       {generator === 'one' && <RandomizerSheet date={date} onClose={() => setGenerator(null)} onSwitchMode={setGenerator} />}
       {generator === 'program' && (

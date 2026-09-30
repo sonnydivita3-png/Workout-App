@@ -197,3 +197,44 @@ test('equipment setting: dumbbells only shapes generated workouts and the picker
   await page.getByText('Add an exercise').click()
   await expect(sheet.getByRole('button', { name: /^My equipment \d+$/ })).toHaveAttribute('aria-pressed', 'true')
 })
+
+test('reorder a day and build supersets of any size', async ({ page }) => {
+  const today = new Date().toISOString().slice(0, 10)
+  const ex = ['Barbell_Bench_Press_-_Medium_Grip', 'Bent_Over_Barbell_Row', 'Dumbbell_Bicep_Curl', 'Triceps_Pushdown']
+  await seed(page, { overrides: { [today]: ex.map((id) => ({ exerciseId: id, sets: 3, reps: 10 })) } })
+  await page.goto('/')
+  await page.locator('nav').getByText('Plan').click()
+  const order = async () => ((await state(page)).overrides[today] as { exerciseId: string; block?: string }[])
+
+  // One tap joins neighbours into a superset; Split undoes it.
+  await page.getByRole('button', { name: '⤓ Superset with next' }).first().click()
+  expect((await order()).slice(0, 2).map((p) => p.block)).toEqual(['ss1', 'ss1'])
+  await page.getByRole('button', { name: 'Split' }).click()
+  expect((await order()).every((p) => !p.block)).toBe(true)
+
+  // Arrows reorder.
+  await page.getByRole('button', { name: '⇅ Reorder' }).click()
+  await page.getByRole('button', { name: 'Move Bench Press down' }).click()
+  expect((await order()).map((p) => p.exerciseId).slice(0, 2)).toEqual([ex[1], ex[0]])
+
+  // Tick three and combine them into a giant set, then take one back out.
+  for (const n of ['Barbell Row', 'Bench Press', 'Dumbbell Curl']) await page.getByRole('checkbox', { name: `Select ${n}` }).check()
+  await page.getByRole('button', { name: 'Superset the 3 ticked' }).click()
+  let o = await order()
+  expect(o.slice(0, 3).every((p) => p.block === o[0].block && p.block)).toBe(true)
+  await expect(page.getByText(/3 exercises \(giant set\)/).first()).toBeVisible()
+  await page.getByRole('button', { name: 'Take Dumbbell Curl out of the superset' }).click()
+  o = await order()
+  expect(o.filter((p) => p.block).length).toBe(2)
+
+  // Drag the last exercise to the top.
+  const handle = page.getByRole('button', { name: 'Drag Triceps Pushdown' })
+  const top = page.getByRole('button', { name: /^Drag Superset/ })
+  const a = (await handle.boundingBox())!
+  const b = (await top.boundingBox())!
+  await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(b.x + b.width / 2, b.y + 2, { steps: 8 })
+  await page.mouse.up()
+  expect((await order())[0].exerciseId).toBe(ex[3])
+})
