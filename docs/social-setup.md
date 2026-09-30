@@ -58,8 +58,9 @@ For local development, put `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `
 ## 8. Optional extras (all free)
 - **Feedback email:** add a repository **variable** `FEEDBACK_EMAIL` (e.g. the app's Gmail). "Send feedback", "Report a bug" and account-deletion requests then open an email to it; without it they open a GitHub issue. The address is visible in the app's code, so use a dedicated inbox.
 - **Keep-alive:** nothing to set up once step 7 is done. `.github/workflows/keepalive.yml` pings the database every 3 days so the free project doesn't pause. GitHub turns off scheduled workflows after 60 days with no commits to the repo and emails you first; re-enable it under **Actions** if that happens.
-- **Database backups:** add two repository **secrets** (Settings → Secrets and variables → Actions → Secrets):
-  - `SUPABASE_DB_URL`: in Supabase, **Connect** → **Session pooler** connection string, with your database password filled in. (The "Direct connection" doesn't work from GitHub.)
+- **Database backups:** add three repository **secrets** (Settings → Secrets and variables → Actions → Secrets):
+  - `SUPABASE_DB_URL`: in Supabase, **Connect** → **Session pooler** connection string, pasted exactly as shown (leave `[YOUR-PASSWORD]` in it). The "Direct connection" doesn't work from GitHub.
+  - `SUPABASE_DB_PASSWORD`: the database password on its own (Project Settings → Database; reset it there if you don't know it).
   - `BACKUP_PASSPHRASE`: a long random passphrase. Store it in your password manager; without it the backups can't be opened.
 
   `.github/workflows/db-backup.yml` then runs every Sunday (or on demand from **Actions**), saving an encrypted file for 90 days under the run's **Artifacts**. To restore: download it, `gpg -d db-backup-DATE.sql.gpg > dump.sql`, then load it into a project that has the migrations applied with `psql "<connection string>" -f dump.sql`.
