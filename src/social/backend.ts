@@ -1,6 +1,6 @@
 import type {
   Challenge, ChallengeSpec, Emoji, EmojiMessage, FriendEntry, FriendRequest, PermKey, Perms, ProgressSnapshot, Profile,
-  Scope, SharedPayload, SharedWorkout, WorkoutRequest,
+  ReportReason, Scope, SharedPayload, SharedWorkout, WorkoutRequest,
 } from './types'
 
 export interface SessionUser {
@@ -52,6 +52,8 @@ export interface SocialBackend {
   cancelFriendRequest(id: string): Promise<void>
   removeFriend(friendId: string): Promise<void>
   blockUser(userId: string): Promise<void>
+  /** Flag someone for the app owner to review. Nobody else can read reports. */
+  reportUser(userId: string, reason: ReportReason, note?: string): Promise<void>
   setPermissions(friendId: string, perms: Partial<Perms>): Promise<void>
 
   // ---- shared workouts

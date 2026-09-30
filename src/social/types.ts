@@ -163,5 +163,10 @@ export class SocialError extends Error {
   }
 }
 
+export type ReportReason = 'name' | 'avatar' | 'spam' | 'harassment' | 'other'
+export const REPORT_REASONS: [ReportReason, string][] = [
+  ['name', 'Offensive handle or name'], ['avatar', 'Offensive avatar'], ['spam', 'Spam'], ['harassment', 'Harassment or bullying'], ['other', 'Something else'],
+]
+
 export const HANDLE_RE = /^[a-z0-9_]{3,20}$/
 export const normalizeHandle = (s: string) => s.trim().replace(/^@/, '').toLowerCase()

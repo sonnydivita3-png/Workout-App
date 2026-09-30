@@ -3,8 +3,9 @@ import type { FriendRequests, SessionUser, SocialBackend } from './backend'
 import {
   ALL_PERMS, EMOJI, HANDLE_RE, NO_PERMS, SocialError, isValidAvatar, normalizeHandle,
   type Challenge, type ChallengeSpec, type Emoji, type EmojiMessage, type FriendEntry, type PermKey, type Perms,
-  type Profile, type ProgressSnapshot, type Scope, type SharedPayload, type SharedWorkout, type WorkoutRequest,
+  type Profile, type ProgressSnapshot, type ReportReason, type Scope, type SharedPayload, type SharedWorkout, type WorkoutRequest,
 } from './types'
+import { checkName } from './nameFilter'
 
 /**
  * A complete social server that lives in this device's storage, with a few simulated friends. It enforces the
@@ -22,6 +23,7 @@ interface Store {
   friends: { userId: string; friendId: string }[]
   perms: Record<string, Perms & { reviewed: boolean }>
   blocks: { blockerId: string; blockedId: string }[]
+  reports?: { id: string; createdAt: string; fromId: string; targetId: string; reason: ReportReason; note?: string }[]
   shares: (Row & { fromId: string; toId: string; scope: Scope; title: string; emoji?: string; payload: SharedPayload; status: SharedWorkout['status'] })[]
   wreqs: (Row & { fromId: string; toId: string; scope: Scope; note: string; status: WorkoutRequest['status']; shareId?: string })[]
   challenges: (Row & {
@@ -232,6 +234,7 @@ export class DemoBackend implements SocialBackend {
     if (!HANDLE_RE.test(handle)) throw new SocialError('invalid_handle')
     const name = p.displayName.trim()
     if (name.length < 1 || name.length > 40) throw new SocialError('not_allowed', 'Display name must be 1–40 characters.')
+    checkName(handle, name)
     if (this.s.profiles.some((x) => x.handle === handle)) throw new SocialError('handle_taken')
     if (this.s.profiles.some((x) => x.id === me)) throw new SocialError('already_exists')
     if (p.avatar && !isValidAvatar(p.avatar)) throw new SocialError('not_allowed', 'That avatar isn’t valid.')
@@ -247,6 +250,7 @@ export class DemoBackend implements SocialBackend {
     if (p.displayName !== undefined) {
       const n = p.displayName.trim()
       if (n.length < 1 || n.length > 40) throw new SocialError('not_allowed')
+      checkName(n)
       me.displayName = n
     }
     if (p.avatar) {
@@ -347,6 +351,14 @@ export class DemoBackend implements SocialBackend {
     if (userId === me) throw new SocialError('not_allowed')
     if (!this.s.blocks.some((b) => b.blockerId === me && b.blockedId === userId)) this.s.blocks.push({ blockerId: me, blockedId: userId })
     await this.removeFriend(userId)
+  }
+  async reportUser(userId: string, reason: ReportReason, note?: string) {
+    const me = this.me()
+    if (userId === me) throw new SocialError('not_allowed')
+    this.profile(userId)
+    this.limit('reports', 10, 60)
+    ;(this.s.reports ??= []).push({ id: uuid(), createdAt: this.now(), fromId: me, targetId: userId, reason, note: note?.trim().slice(0, 300) || undefined })
+    this.save()
   }
   async setPermissions(friendId: string, perms: Partial<Perms>) {
     const me = this.me()

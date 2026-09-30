@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { syncPayload } from '../lib/sync'
 import { useStore, type Accent } from '../store'
 import { Sheet } from './Sheet'
@@ -7,13 +7,12 @@ import { CloudBackup } from './CloudBackup'
 import { AccountSection } from './AccountSection'
 import { InviteButton } from './InviteButton'
 import { useSocial } from '../social/store'
-import { LegalSheet, type LegalDoc } from './LegalSheet'
+import { LegalSheet } from './LegalSheet'
+import { LEGAL_TITLES, type LegalDoc } from '../lib/legal'
+import { isIos, isStandalone, useInstallPrompt } from '../lib/install'
+import { APP_VERSION, feedbackLink } from '../lib/feedback'
 
 const ACCENTS: [Accent, string][] = [['lime', '#c8ff3e'], ['pink', '#ff5cae'], ['violet', '#a78bfa'], ['orange', '#ff9f45'], ['blue', '#5eb1ff']]
-
-interface InstallEvent extends Event {
-  prompt: () => Promise<void>
-}
 
 function Segmented<T extends string>({ value, options, onChange }: { value: T; options: T[]; onChange: (v: T) => void }) {
   return (
@@ -55,7 +54,7 @@ const Row = ({ title, children }: { title: string; children: React.ReactNode }) 
 export function SettingsView() {
   const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, name, setName, importData, setTourDone, trackRpe, restSeconds, setPrefs, plainCopy, theme, setTheme, accent, setAccent } = useStore()
   const myHandle = useSocial((s) => s.profile?.handle)
-  const [installEvt, setInstallEvt] = useState<InstallEvent | null>(null)
+  const install = useInstallPrompt()
   const [msg, setMsg] = useState('')
   const [erasing, setErasing] = useState(false)
   const [keepProfile, setKeepProfile] = useState(true)
@@ -63,12 +62,6 @@ export function SettingsView() {
   const [legal, setLegal] = useState<LegalDoc | null>(null)
   const [backedUp, setBackedUp] = useState(false)
   const file = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    const h = (e: Event) => { e.preventDefault(); setInstallEvt(e as InstallEvent) }
-    window.addEventListener('beforeinstallprompt', h)
-    return () => window.removeEventListener('beforeinstallprompt', h)
-  }, [])
 
   const [perm, setPerm] = useState<'granted' | 'denied' | 'default' | 'unsupported'>(() =>
     typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
@@ -81,8 +74,8 @@ export function SettingsView() {
     setNotifPrefs({ system: result === 'granted' })
   }
 
-  const standalone = window.matchMedia('(display-mode: standalone)').matches
-  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent)
+  const standalone = isStandalone()
+  const ios = isIos()
 
   const exportData = () => {
     const blob = new Blob([JSON.stringify({ app: 'workout', ...syncPayload(useStore.getState() as unknown as Record<string, unknown>) }, null, 2)], { type: 'application/json' })
@@ -247,7 +240,7 @@ export function SettingsView() {
       <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Help</h2>
       {(['privacy', 'terms', 'health'] as const).map((d) => (
         <button key={d} onClick={() => setLegal(d)} className="w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70">
-          {d === 'privacy' ? 'Privacy policy' : d === 'terms' ? 'Terms of use' : 'Health notice'}
+          {LEGAL_TITLES[d]}
         </button>
       ))}
       {legal && <LegalSheet doc={legal} onClose={() => setLegal(null)} />}
@@ -256,12 +249,20 @@ export function SettingsView() {
         Invite a friend to the app
         <span className="block text-xs text-neutral-400">{myHandle ? 'Sends a link that lets them add you as a friend' : 'Sends a link to the app'}</span>
       </InviteButton>
+      <a href={feedbackLink('feedback')} target="_blank" rel="noreferrer" className="block w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70">
+        Send feedback or an idea
+      </a>
+      <a href={feedbackLink('bug')} target="_blank" rel="noreferrer" className="block w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70">
+        Report a bug
+        <span className="block text-xs text-neutral-400">Includes the app version and any recent errors, nothing else</span>
+      </a>
+      <p className="text-center text-xs text-neutral-400">Version {APP_VERSION}</p>
 
       {!standalone && (
         <>
           <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Install</h2>
-          {installEvt ? (
-            <button onClick={() => installEvt.prompt()} className="w-full rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent">Add to home screen</button>
+          {install ? (
+            <button onClick={install} className="w-full rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent">Add to home screen</button>
           ) : (
             <p className="text-sm text-neutral-500">
               {ios

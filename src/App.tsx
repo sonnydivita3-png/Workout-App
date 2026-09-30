@@ -10,6 +10,11 @@ import { SocialSetup } from './components/social/SocialSetup'
 import { SocialView } from './components/social/SocialView'
 import { InviteBanner } from './components/social/InviteBanner'
 import { clearInviteParam, readInvite } from './lib/invite'
+import { LegalPage } from './components/LegalSheet'
+import type { LegalDoc } from './lib/legal'
+
+const PAGES: Record<string, LegalDoc> = { '#privacy': 'privacy', '#terms': 'terms', '#health': 'health', '#delete-account': 'delete' }
+const pageFromHash = () => PAGES[window.location.hash] ?? null
 import { useTheme } from './lib/useTheme'
 import { useCloudSync } from './lib/useCloudSync'
 import { useBackendSwitch } from './lib/useBackendSwitch'
@@ -20,6 +25,13 @@ import { TabBar, type Tab } from './components/TabBar'
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('home')
+  // Public pages for app store listings and links: …/#privacy, #terms, #health, #delete-account.
+  const [page, setPage] = useState<LegalDoc | null>(pageFromHash)
+  useEffect(() => {
+    const h = () => { setPage(pageFromHash()); window.scrollTo(0, 0) }
+    window.addEventListener('hashchange', h)
+    return () => window.removeEventListener('hashchange', h)
+  }, [])
   const choice = useStore((s) => s.socialChoice)
   const showTour = useStore((s) => !s.tourDone || s.tourVersion < TOUR_VERSION)
   const session = useStore((s) => s.session)
@@ -41,6 +53,7 @@ export default function App() {
   useTheme()
   useBackendSwitch()
   useCloudSync()
+  if (page) return <LegalPage doc={page} />
   if (choice === 'unset') {
     return (
       <div className="min-h-screen bg-surface">
