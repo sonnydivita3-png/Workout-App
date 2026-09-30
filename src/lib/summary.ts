@@ -51,3 +51,26 @@ export function workoutSummary(date: string, items: PlannedExercise[], logs: Exe
   const compared = results.filter((r) => r.status === 'up' || r.status === 'same' || r.status === 'down').length
   return { results, beat: results.filter((r) => r.status === 'up').length, compared, prs: results.filter((r) => r.pr).length, liftVolume, lastLiftVolume }
 }
+
+export interface Unfinished { exerciseId: string; name: string; done: number; planned: number; cardio: boolean }
+
+/**
+ * What's planned for a day but not logged: lifts with fewer working sets than planned, and cardio with nothing
+ * logged. Warm-ups and timed blocks (which log a single result) aren't counted.
+ */
+export function unfinished(date: string, items: PlannedExercise[], logs: ExerciseLog[], lookup: (id: string) => Exercise | undefined): Unfinished[] {
+  const out: Unfinished[] = []
+  for (const p of items) {
+    if (p.warmup || p.wod) continue
+    const ex = lookup(p.exerciseId)
+    if (!ex) continue
+    const log = logs.find((l) => l.date === date && l.exerciseId === p.exerciseId)
+    if (ex.kind === 'cardio') {
+      if (!log?.cardio?.distance && !log?.cardio?.minutes) out.push({ exerciseId: ex.id, name: ex.name, done: 0, planned: 1, cardio: true })
+      continue
+    }
+    const done = (log?.sets ?? []).filter((s) => !s.warmup && (s.weight || s.reps || s.seconds)).length
+    if (done < p.sets) out.push({ exerciseId: ex.id, name: ex.name, done, planned: p.sets, cardio: false })
+  }
+  return out
+}
