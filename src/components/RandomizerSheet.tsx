@@ -46,7 +46,12 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const focusIgnored = infos.every((i) => i.focus === 'ignored')
   const canGenerate = !infos.some((i) => i.focus === 'required') || focus.length > 0
   const styleLabel = infos.map((i) => i.label).join(' + ')
-  const toggleStyle = (id: WorkoutStyle) => setStyles((cur) => (cur.includes(id) ? (cur.length > 1 ? cur.filter((x) => x !== id) : cur) : [...cur, id]))
+  // The first tap replaces the default style; later taps add or remove styles.
+  const [picked, setPicked] = useState(false)
+  const toggleStyle = (id: WorkoutStyle) => {
+    setPicked(true)
+    setStyles((cur) => (!picked ? [id] : cur.includes(id) ? (cur.length > 1 ? cur.filter((x) => x !== id) : cur) : [...cur, id]))
+  }
 
   const commit = (next: PlannedExercise[]) => {
     if (next === items) return // nothing changed (e.g. no alternative to swap in)
