@@ -125,7 +125,7 @@ export function DaySheet({ date, weekDates, onClose }: { date: string; weekDates
       {rest ? (
         <button onClick={() => { resetDay(date); onClose() }} className={rowBtn}>
           <span>Cancel rest day</span>
-          <span className="text-xs text-neutral-400">Go back to the weekly plan</span>
+          <span className="text-xs text-neutral-400">Back to your usual week</span>
         </button>
       ) : (
         <button
@@ -142,8 +142,8 @@ export function DaySheet({ date, weekDates, onClose }: { date: string; weekDates
       )}
       {overrides[date] && !rest && (
         <button onClick={() => { resetDay(date); onClose() }} className={rowBtn}>
-          <span>Reset to weekly plan</span>
-          <span className="text-xs text-neutral-400">Undo generated plan for this day</span>
+          <span>Undo changes to this day</span>
+          <span className="text-xs text-neutral-400">Go back to your usual week</span>
         </button>
       )}
     </Sheet>
