@@ -26,6 +26,19 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+      # The key ends up in the public JS bundle, so refuse anything but the publishable/anon key.
+      - name: Check Supabase key is public
+        env:
+          KEY: ${{ vars.SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}
+        run: |
+          node -e '
+            const k = process.env.KEY || ""
+            if (k.startsWith("sb_secret_")) { console.error("::error::SUPABASE_ANON_KEY is a secret key. Use the publishable key (sb_publishable_...) and revoke this one."); process.exit(1) }
+            const p = k.split(".")[1]
+            let role
+            try { role = p && JSON.parse(Buffer.from(p, "base64url").toString()).role } catch {}
+            if (role && role !== "anon") { console.error("::error::SUPABASE_ANON_KEY is a " + role + " key. Use the anon/publishable key and rotate this one."); process.exit(1) }
+          '
       - run: npm run build
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
