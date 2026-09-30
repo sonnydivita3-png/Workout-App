@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { compareSet, platesFor, suggestNext, workSets } from '../lib/progression'
+import { fmtRest } from '../lib/describe'
+import { compareSet, platesFor, suggestNext, weightStep, workSets } from '../lib/progression'
+import { restFor, warmupRamp } from '../lib/timing'
 import { formatSeconds, showWeight, storeWeight } from '../lib/units'
 import { useStore } from '../store'
 import type { Exercise, ExerciseLog, StrengthSet } from '../types'
@@ -12,6 +14,10 @@ interface Props {
   setCount: number
   targetReps?: number
   targetSeconds?: number
+  /** Planned light ramp-up sets before the working sets. */
+  warmupSets?: number
+  /** Planned rest after each working set, in seconds. */
+  rest?: number
   note?: string
   current?: ExerciseLog
   last?: ExerciseLog
@@ -19,13 +25,13 @@ interface Props {
   onChange: (sets: StrengthSet[]) => void
   onNote?: (note: string) => void
   onRemove: () => void
-  /** Workout mode: show a ✓ per set that fills in the suggestion and starts the rest timer. */
-  onSetDone?: () => void
+  /** Workout mode: show a ✓ per set that fills in the suggestion and starts the rest timer (for this many seconds). */
+  onSetDone?: (restSeconds: number) => void
 }
 
 const MARK = { up: { t: '▲', c: 'text-green-600', l: 'beat last time' }, same: { t: '=', c: 'text-neutral-400', l: 'matched last time' }, down: { t: '▼', c: 'text-red-600', l: 'below last time' } } as const
 
-export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, note, current, last, onSetCount, onChange, onNote, onRemove, onSetDone }: Props) {
+export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, warmupSets = 0, rest, note, current, last, onSetCount, onChange, onNote, onRemove, onSetDone }: Props) {
   const units = useStore((s) => s.units)
   const trackRpe = useStore((s) => s.trackRpe)
   const mode = exercise.mode ?? 'weight'
@@ -33,7 +39,8 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, no
   const [howTo, setHowTo] = useState(false)
   const [plates, setPlates] = useState(false)
   const [editingNote, setEditingNote] = useState(false)
-  const sets = Array.from({ length: setCount }, (_, i) => current?.sets?.[i] ?? { weight: null, reps: null, seconds: null })
+  // Planned warm-up sets come first (marked W), then the working sets.
+  const sets: StrengthSet[] = Array.from({ length: warmupSets + setCount }, (_, i) => current?.sets?.[i] ?? { weight: null, reps: null, seconds: null, ...(i < warmupSets ? { warmup: true } : {}) })
   const lastWork = workSets(last)
   const allLogs = useStore((s) => s.logs)
   const history = last ? allLogs.filter((l) => l.exerciseId === exercise.id && l.date <= last.date).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4) : []
@@ -47,11 +54,22 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, no
     reps: s.reps ?? (mode === 'time' ? null : tip.reps ?? targetReps ?? null),
     ...(mode === 'time' ? { seconds: s.seconds ?? tip.seconds ?? targetSeconds ?? null } : {}),
   })
-  const fillAll = () => onChange(sets.map((s) => (s.warmup || filled(s) ? s : fromTip(s))))
+  // Warm-up ramp from the weight you're working up to (rounded to what you can load).
+  const ramp = warmupRamp(warmupSets)
+  const rampFor = (i: number): StrengthSet | null => {
+    const r = ramp[i]
+    const top = tip.weight ?? workSets(last)[0]?.weight ?? null
+    if (!r || mode !== 'weight' || !top) return null
+    const step = weightStep(exercise, units)
+    const bar = exercise.equipment === 'Barbell' ? (units.weight === 'kg' ? 20 * 2.20462262 : 45) : 0
+    return { weight: Math.max(bar, Math.round((top * r.pct) / step) * step), reps: r.reps, warmup: true }
+  }
+  const fillAll = () => onChange(sets.map((s, i) => (filled(s) ? s : s.warmup ? { ...s, ...(rampFor(i) ?? {}) } : fromTip(s))))
+  const workRest = rest ?? restFor(exercise, targetReps, targetSeconds)
   const done = (i: number) => {
     const s = sets[i]
-    if (!filled(s) && !s.warmup) update(i, fromTip(s))
-    onSetDone?.()
+    if (!filled(s)) update(i, s.warmup ? { ...s, ...(rampFor(i) ?? {}) } : fromTip(s))
+    onSetDone?.(s.warmup ? 60 : workRest)
   }
 
   // Compare working sets in order with last time's working sets (warm-ups skipped on both sides).
@@ -94,6 +112,8 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, no
             {exercise.group}
             {mode === 'time' && ' · timed'}
             {target && ` · target ${target}`}
+            {warmupSets > 0 && ` · +${warmupSets} warm-up`}
+            {` · rest ${fmtRest(workRest)}`}
             {note && ` · ${note}`}
           </p>
         </div>
@@ -128,22 +148,25 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, no
         {sets.map((s, i) => {
           const prev = last?.sets?.[i]
           const mark = vsLast[i] ? MARK[vsLast[i]!] : null
+          // Warm-ups and working sets are numbered separately: W W W, then 1 2 3.
+          const warmBefore = sets.slice(0, i).filter((x) => x.warmup).length
+          const label = s.warmup ? `Warm-up set ${warmBefore + 1}` : `Set ${i + 1 - warmBefore}`
           return (
             <div key={i} className="grid items-center gap-2" style={{ gridTemplateColumns: cols.replaceAll('_', ' ') }}>
               <button
                 onClick={() => update(i, { warmup: !s.warmup })}
-                aria-label={s.warmup ? `Set ${i + 1} is a warm-up; tap to make it a working set` : `Set ${i + 1}; tap to mark as warm-up`}
+                aria-label={s.warmup ? `${label}; tap to make it a working set` : `${label}; tap to mark as warm-up`}
                 title="Tap to mark as warm-up"
                 className={`h-8 rounded-lg text-sm ${s.warmup ? 'bg-neutral-100 font-semibold text-amber-700' : 'text-neutral-400'}`}
               >
-                {s.warmup ? 'W' : i + 1}
+                {s.warmup ? 'W' : i + 1 - warmBefore}
                 {mark && <span className={`ml-0.5 text-[10px] ${mark.c}`} aria-label={mark.l}>{mark.t}</span>}
               </button>
               {mode === 'weight' && (
                 <NumberInput
                   value={showWeight(s.weight, units)}
                   step={units.weight === 'kg' ? 1 : 2.5}
-                  placeholder={showWeight(s.warmup ? null : tip.weight ?? prev?.weight ?? null, units)?.toString() ?? '–'}
+                  placeholder={showWeight(s.warmup ? rampFor(i)?.weight ?? null : tip.weight ?? prev?.weight ?? null, units)?.toString() ?? '–'}
                   onChange={(v) => update(i, { weight: storeWeight(v, units) })}
                 />
               )}
@@ -153,11 +176,11 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, no
                   <button onClick={() => setTiming(i)} aria-label={`Time set ${i + 1}`} title="Time this hold" className="h-9 w-9 shrink-0 rounded-lg bg-neutral-100 text-base">⏱</button>
                 </div>
               ) : (
-                <NumberInput value={s.reps} placeholder={(s.warmup ? undefined : tip.reps ?? prev?.reps ?? targetReps)?.toString() ?? '–'} onChange={(v) => update(i, { reps: v })} />
+                <NumberInput value={s.reps} placeholder={(s.warmup ? rampFor(i)?.reps : tip.reps ?? prev?.reps ?? targetReps)?.toString() ?? '–'} onChange={(v) => update(i, { reps: v })} />
               )}
               {trackRpe && <NumberInput value={s.rpe ?? null} placeholder="–" onChange={(v) => update(i, { rpe: v == null ? null : Math.min(10, Math.max(1, v)) })} />}
               {onSetDone ? (
-                <button onClick={() => done(i)} aria-label={`Set ${i + 1} done`} className={`h-9 rounded-lg text-sm font-bold ${filled(s) ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-400'}`}>✓</button>
+                <button onClick={() => done(i)} aria-label={`${label} done`} className={`h-9 rounded-lg text-sm font-bold ${filled(s) ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-400'}`}>✓</button>
               ) : (
                 <span className="text-right text-xs tabular-nums text-neutral-400">{lastText(prev)}</span>
               )}

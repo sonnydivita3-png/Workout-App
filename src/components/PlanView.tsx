@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { parseISO, toISO, weekDates, weekdayIndex } from '../lib/dates'
-import { dayPlanOf, isRestDay } from '../lib/plan'
+import { dayPlanOf, isRestDay, workItems } from '../lib/plan'
 import { useStore } from '../store'
 import { WodBuilderSheet } from './WodBuilderSheet'
 import { ProgramsCard } from './ProgramsCard'
@@ -44,7 +44,7 @@ export function PlanView() {
         </div>
       </header>
 
-      <WeekStrip dates={dates} selected={day} counts={dates.map((d) => dayPlanOf(s.plan, s.overrides, toISO(d)).length)} rest={dates.map((d) => isRestDay(s.overrides, toISO(d)))} today={today} onSelect={setDay} />
+      <WeekStrip dates={dates} selected={day} counts={dates.map((d) => workItems(dayPlanOf(s.plan, s.overrides, toISO(d))).length)} rest={dates.map((d) => isRestDay(s.overrides, toISO(d)))} today={today} onSelect={setDay} />
 
       <div className="mt-4 flex justify-end gap-2">
         {planned.length > 0 && (

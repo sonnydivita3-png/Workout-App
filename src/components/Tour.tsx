@@ -43,6 +43,7 @@ const steps = (social: boolean): Step[] => [
     points: [
       'Styles: Standard, Strength, Supersets, Bodyweight, HIIT, Timed and Hyrox/CrossFit',
       'Pick two or more (say Strength + Cardio) and set minutes for each part',
+      'Add a warm-up (easy cardio, mobility, ramp-up sets) and pick how long you rest; workouts are built to fill your time',
       'Swap or choose any exercise, step back through versions, then add it or save it as a routine',
     ],
   },

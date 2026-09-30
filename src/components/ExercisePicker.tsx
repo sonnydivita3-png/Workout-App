@@ -9,7 +9,7 @@ interface Props {
   onClose: () => void
 }
 
-const GROUPS = ['All', 'Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Glutes', 'Core', 'Cardio', 'Other']
+const GROUPS = ['All', 'Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Glutes', 'Core', 'Cardio', 'Mobility', 'Other']
 const PAGE = 50
 const CREATE_AS: [string, 'strength' | 'cardio', ExerciseMode | undefined][] = [
   ['Weights', 'strength', 'weight'],

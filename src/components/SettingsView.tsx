@@ -126,7 +126,7 @@ export function SettingsView() {
       <Row title="Track effort (RPE)"><Toggle on={trackRpe} onChange={(v) => setPrefs({ trackRpe: v })} label="Track effort (RPE)" /></Row>
       <Row title="Rest timer in workouts">
         <select value={restSeconds} onChange={(e) => setPrefs({ restSeconds: Number(e.target.value) })} className="rounded-lg bg-neutral-100 px-2 py-1.5 text-sm">
-          {[0, 60, 90, 120, 180].map((r) => <option key={r} value={r}>{r ? `${r} s` : 'Off'}</option>)}
+          {[0, -1, 60, 90, 120, 180].map((r) => <option key={r} value={r}>{r === -1 ? 'As planned' : r ? `${r} s` : 'Off'}</option>)}
         </select>
       </Row>
       <p className="px-1 text-xs text-neutral-400">RPE is how hard a set felt (10 = nothing left). Sets at RPE 10 won’t trigger a “add weight” suggestion. Tap a set number to mark it as a warm-up.</p>

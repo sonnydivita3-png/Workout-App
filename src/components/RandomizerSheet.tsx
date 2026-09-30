@@ -8,6 +8,7 @@ import type { PlannedExercise } from '../types'
 import { ExercisePicker } from './ExercisePicker'
 import { ModeSwitch, type GeneratorMode } from './ModeSwitch'
 import { primaryBtn, Sheet } from './Sheet'
+import { WarmupRestControls } from './WarmupRestControls'
 import { WorkoutList } from './WorkoutList'
 
 const MAX_HISTORY = 50
@@ -26,7 +27,9 @@ interface Props {
 }
 
 export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
-  const { addPlanned, saveRoutine } = useStore()
+  const { addPlanned, saveRoutine, genPrefs } = useStore()
+  const warm = genPrefs.warmup
+  const rest = genPrefs.rest
   const dayName = DAY_NAMES[weekdayIndex(parseISO(date))]
   const [focus, setFocus] = useState<string[]>([])
   const [minutes, setMinutes] = useState(45)
@@ -75,17 +78,31 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const focusLabel = focusIgnored ? 'Full body' : cardioOnly ? 'Cardio' : body.length === 0 ? 'Full body' : body.length > 3 ? 'Full body' : body.join(' + ')
   // Mixing parts (several styles, or lifting + cardio): let each part have its own time.
   const hasCardio = !focusIgnored && focus.includes('Cardio') && !cardioOnly
-  const parts: string[] = [...styles, ...(hasCardio ? ['cardio'] : [])]
+  // Warm-up cardio and mobility take their own minutes (5 each by default); warm-up sets live inside the lifting.
+  const warmDefault = (warm.includes('cardio') ? 5 : 0) + (warm.includes('mobility') ? 5 : 0)
+  const parts: string[] = [...(warmDefault ? ['warmup'] : []), ...styles, ...(hasCardio ? ['cardio'] : [])]
   const showSplit = parts.length > 1
-  const evenShare = Math.max(5, Math.round(minutes / parts.length / 5) * 5)
-  const partMin = (k: string) => split[k] ?? evenShare
+  const workParts = parts.length - (warmDefault ? 1 : 0)
+  const evenShare = Math.max(5, Math.round((minutes - warmDefault) / Math.max(1, workParts) / 5) * 5)
+  const partMin = (k: string) => split[k] ?? (k === 'warmup' ? warmDefault : evenShare)
+  const warmSplit = () => {
+    const w = warmDefault ? partMin('warmup') : 0
+    if (warm.includes('cardio') && warm.includes('mobility')) { const c = Math.round(w * 0.55); return { cardio: c, mobility: w - c } }
+    return warm.includes('cardio') ? { cardio: w } : warm.includes('mobility') ? { mobility: w } : {}
+  }
+  const lifting = styles.some((st) => ['standard', 'strength', 'bodyweight', 'supersets'].includes(st))
   const total0 = showSplit ? parts.reduce((a, k) => a + partMin(k), 0) : minutes
-  const bump = (k: string, d: number) => setSplit((cur) => ({ ...cur, [k]: Math.min(120, Math.max(5, (cur[k] ?? evenShare) + d)) }))
-  const partLabel = (k: string) => (k === 'cardio' ? 'Cardio' : styleInfo(k as WorkoutStyle).label)
+  const bump = (k: string, d: number) => setSplit((cur) => ({ ...cur, [k]: Math.min(120, Math.max(k === 'warmup' ? 2 : 5, (cur[k] ?? partMin(k)) + d)) }))
+  const partLabel = (k: string) => (k === 'cardio' ? 'Cardio' : k === 'warmup' ? 'Warm-up' : styleInfo(k as WorkoutStyle).label)
   const defaultName = `${styleLabel} · ${focusLabel} · ${total0} min`
 
   const generate = (avoid?: PlannedExercise[]) =>
-    commit(generateWorkout(focus, total0, { style: styles[0], styles, ...(showSplit ? { minutesByStyle: Object.fromEntries(styles.map((st) => [st, partMin(st)])), ...(hasCardio ? { cardioMinutes: partMin('cardio') } : {}) } : {}), avoid: new Set(avoid?.map((p) => p.exerciseId)) }))
+    commit(generateWorkout(focus, total0, {
+      style: styles[0], styles, rest,
+      warmup: { ...warmSplit(), sets: warm.includes('sets') && lifting },
+      ...(showSplit ? { minutesByStyle: Object.fromEntries(styles.map((st) => [st, partMin(st)])), ...(hasCardio ? { cardioMinutes: partMin('cardio') } : {}) } : {}),
+      avoid: new Set(avoid?.map((p) => p.exerciseId)),
+    }))
 
   if (!items) {
     return (
@@ -141,6 +158,8 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
             {fullBody ? 'Clear body parts' : 'Select full body'}
           </button>
         )}
+
+        <WarmupRestControls lifting={lifting} onWarmupChange={() => setSplit(({ warmup: _w, ...r }) => (void _w, r))} />
 
         {showSplit ? (
           <>

@@ -1,18 +1,26 @@
 import type { Exercise, PlannedExercise, Units } from '../types'
 import { showDistance } from './units'
 
+/** 90 -> "1:30", 45 -> "45s". */
+export const fmtRest = (sec: number) => (sec < 60 ? `${sec}s` : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`)
+
 /** One-line target for a planned exercise, e.g. "3 × 12", "3 × 45s", "20 min", "4 rounds · 40s on / 20s off". */
 export function describeItem(p: PlannedExercise, ex: Exercise, units: Units = { weight: 'lb', distance: 'mi' }): string {
   const parts: string[] = []
   if (ex.kind === 'cardio') {
     if (p.distance) parts.push(`${showDistance(p.distance, units)} ${units.distance}`)
     if (p.minutes) parts.push(`${p.minutes} min`)
+  } else if (p.warmup) {
+    if (p.seconds) parts.push(`${p.seconds}s`)
+    else if (p.reps) parts.push(`${p.reps} reps`)
   } else if (p.wod) {
     if (p.seconds) parts.push(`${p.seconds}s`)
     else if (p.reps) parts.push(`${p.reps} reps`)
   } else if (p.seconds) parts.push(`${p.sets} × ${p.seconds}s`)
   else if (p.reps) parts.push(`${p.sets} × ${p.reps}`)
   else if (p.sets > 1) parts.push(`${p.sets} ${p.block ? 'rounds' : 'sets'}`)
+  if (p.warmupSets) parts.push(`+${p.warmupSets} warm-up set${p.warmupSets === 1 ? '' : 's'}`)
+  if (p.rest && !p.block && ex.kind === 'strength') parts.push(`rest ${fmtRest(p.rest)}`)
   if (p.note) parts.push(p.note)
   return parts.join(' · ')
 }

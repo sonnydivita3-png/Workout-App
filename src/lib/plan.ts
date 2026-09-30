@@ -7,6 +7,9 @@ export function dayPlanOf(plan: WeekPlan, overrides: PlanOverrides | undefined, 
   return overrides?.[date] ?? plan[weekdayIndex(parseISO(date))]
 }
 
+/** The exercises that count as the workout itself (warm-up moves aren't tracked as things to do). */
+export const workItems = (items: PlannedExercise[]) => items.filter((p) => !p.warmup)
+
 /** A day explicitly marked as rest (an empty date override), as opposed to a day that just has nothing planned. */
 export const isRestDay = (overrides: PlanOverrides | undefined, date: string) => overrides?.[date]?.length === 0
 

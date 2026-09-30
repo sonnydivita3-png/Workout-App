@@ -1,7 +1,7 @@
 import type { BodyweightEntry, Exercise, ExerciseLog, Goal, NotifPrefs, NotificationType, PlanOverrides, Units, WeekPlan } from '../types'
 import { addDays } from './dates'
 import { goalPeriodKey, goalPct, goalTitle } from './goals'
-import { dayPlanOf } from './plan'
+import { dayPlanOf, workItems } from './plan'
 import { cardioSessions, hasData, setSessions, strengthSessions } from './stats'
 import { formatPace, formatSeconds, showDistance, showWeight } from './units'
 
@@ -119,7 +119,7 @@ export function computeNotifications(i: Input): Candidate[] {
   }
 
   if (i.prefs.daily && i.prefs.reminderTime && i.nowMinutes >= timeToMinutes(i.prefs.reminderTime)) {
-    const planned = dayPlanOf(i.plan, i.overrides, today)
+    const planned = workItems(dayPlanOf(i.plan, i.overrides, today))
     const done = new Set(i.logs.filter((l) => l.date === today && hasData(l)).map((l) => l.exerciseId))
     const left = planned.filter((p) => !done.has(p.exerciseId))
     if (left.length > 0) {

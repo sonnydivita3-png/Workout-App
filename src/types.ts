@@ -87,6 +87,12 @@ export interface PlannedExercise {
   distance?: number // target distance in miles (cardio)
   /** Set on every item of a timed block (AMRAP / EMOM / for time). `reps` or `seconds` is per round. */
   wod?: Wod
+  /** Planned rest after each set, in seconds (used for time estimates and the rest timer). */
+  rest?: number
+  /** Light ramp-up sets before the working sets. */
+  warmupSets?: number
+  /** Part of the warm-up (easy cardio or mobility), not the workout itself: not tracked as progress. */
+  warmup?: boolean
 }
 
 /** Plan is a weekly template: 0 = Monday ... 6 = Sunday. */

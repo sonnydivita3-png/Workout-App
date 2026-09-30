@@ -1,7 +1,8 @@
 import type { Exercise, ExerciseLog, PlannedExercise } from '../types'
 import { addDays, parseISO, toISO, weekdayIndex } from './dates'
-import { generateWorkout, styleInfo, type WorkoutStyle } from './randomizer'
-import { FULL_BODY_GROUPS, type Rng } from './randomUtil'
+import { generateWorkout, styleInfo, type WarmupOptions, type WorkoutStyle } from './randomizer'
+import { BY_ID, FULL_BODY_GROUPS, type Rng } from './randomUtil'
+import { liftMinutes, type RestPref } from './timing'
 import { hasData } from './stats'
 
 export type ProgramGoal = 'muscle' | 'strength' | 'fatloss' | 'fitness' | 'functional'
@@ -115,6 +116,9 @@ export interface ProgramInput {
   /** Major muscle groups trained the day before the first date, so the plan doesn't start with a repeat. */
   prevDayGroups?: string[]
   rng?: Rng
+  /** Warm-up on lifting days (its minutes are part of the session) and how long to rest between sets. */
+  warmup?: WarmupOptions
+  rest?: RestPref
 }
 
 export interface ProgramDay {
@@ -141,7 +145,9 @@ export function applyProgression(items: PlannedExercise[], weekIndex: number, we
   return items.map((p) => {
     if (p.block || p.minutes || p.sets <= 1 || (p.seconds === undefined && p.reps === undefined)) return p
     const sets = Math.max(2, Math.min(5, p.sets + delta))
-    return sets === p.sets ? p : { ...p, sets, est: p.est == null ? undefined : p.est + (sets - p.sets) * 2.5 }
+    if (sets === p.sets) return p
+    const next = { ...p, sets }
+    return { ...next, est: Math.round(liftMinutes(next, BY_ID.get(p.exerciseId)) * 10) / 10 }
   })
 }
 
@@ -181,7 +187,7 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
 
     const focus = isCardioDay(type) ? ['Cardio'] : type.generic ? [] : type.groups
     const avoid = new Set(recent.flat())
-    let items = generateWorkout(focus, minutes, { style: type.style, rng, avoid })
+    let items = generateWorkout(focus, minutes, { style: type.style, rng, avoid, rest: input.rest, warmup: isCardioDay(type) ? undefined : input.warmup })
     items = applyProgression(items, weekIndex, weeks)
     recent.push(items.map((p) => p.exerciseId))
     if (recent.length > 6) recent.shift()
@@ -196,9 +202,10 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
 }
 
 /** Regenerate one day with the same session type (used by "reroll this day"). */
-export function rerollDay(day: ProgramDay, minutes: number, weeks: number, avoidIds: Set<string>, rng: Rng = Math.random): ProgramDay {
+export function rerollDay(day: ProgramDay, minutes: number, weeks: number, avoidIds: Set<string>, rng: Rng = Math.random, opts: { warmup?: WarmupOptions; rest?: RestPref } = {}): ProgramDay {
   if (day.rest || !day.style) return day
-  const items = applyProgression(generateWorkout(day.focus, minutes, { style: day.style, rng, avoid: avoidIds }), day.weekIndex, weeks)
+  const cardioDay = day.focus.length === 1 && day.focus[0] === 'Cardio'
+  const items = applyProgression(generateWorkout(day.focus, minutes, { style: day.style, rng, avoid: avoidIds, rest: opts.rest, warmup: cardioDay ? undefined : opts.warmup }), day.weekIndex, weeks)
   return { ...day, items }
 }
 

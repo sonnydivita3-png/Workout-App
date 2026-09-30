@@ -10,7 +10,7 @@ import { useToasts } from '../toastStore'
 import { DayWorkout } from './DayWorkout'
 
 const fmt = (s: number) => `${Math.floor(s / 3600) ? `${Math.floor(s / 3600)}:` : ''}${String(Math.floor((s % 3600) / 60)).padStart(Math.floor(s / 3600) ? 2 : 1, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
-const RESTS = [0, 60, 90, 120, 180]
+const RESTS = [0, -1, 60, 90, 120, 180]
 
 let audio: AudioContext | undefined
 function beep() {
@@ -45,7 +45,11 @@ export function WorkoutSession({ onMinimize }: { onMinimize: () => void }) {
     if (restUntil && restLeft === 0 && !beeped.current) { beeped.current = true; beep() }
   }, [restLeft, restUntil])
 
-  const startRest = () => { if (restSeconds > 0) { beeped.current = false; setRestUntil(Date.now() + restSeconds * 1000) } }
+  // Auto (-1) rests for as long as the plan says for that exercise; otherwise a fixed time.
+  const startRest = (planned: number) => {
+    const secs = restSeconds === -1 ? planned : restSeconds
+    if (secs > 0) { beeped.current = false; setRestUntil(Date.now() + secs * 1000) }
+  }
   const lookup = (id: string) => findExercise(custom, id) ?? BUILTIN_BY_ID.get(id)
   const finish = () => {
     const s = workoutSummary(date, items, logs, lookup)
@@ -106,7 +110,7 @@ export function WorkoutSession({ onMinimize }: { onMinimize: () => void }) {
           <span>Part {at + 1} of {parts.length || 1}</span>
           <label className="flex items-center gap-1">Rest timer
             <select value={restSeconds} onChange={(e) => setPrefs({ restSeconds: Number(e.target.value) })} className="rounded-md bg-neutral-100 px-1.5 py-0.5 text-neutral-700">
-              {RESTS.map((r) => <option key={r} value={r}>{r ? `${r}s` : 'Off'}</option>)}
+              {RESTS.map((r) => <option key={r} value={r}>{r === -1 ? 'As planned' : r ? `${r}s` : 'Off'}</option>)}
             </select>
           </label>
         </div>

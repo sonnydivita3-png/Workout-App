@@ -67,6 +67,9 @@ function cleanItem(x: unknown): PlannedExercise | null {
   const block = str(x.block, 40); if (block) out.block = block
   const blockLabel = str(x.blockLabel, 200); if (blockLabel) out.blockLabel = blockLabel
   const note = str(x.note, 600); if (note) out.note = note
+  const rest = num(x.rest, 0, 600); if (rest !== undefined) out.rest = Math.round(rest)
+  const warmupSets = num(x.warmupSets, 0, 5); if (warmupSets) out.warmupSets = Math.round(warmupSets)
+  if (x.warmup === true) out.warmup = true
   if (isObj(x.wod) && (x.wod.kind === 'amrap' || x.wod.kind === 'emom' || x.wod.kind === 'fortime' || x.wod.kind === 'tabata')) {
     const m = num(x.wod.minutes, 1, 180)
     if (m !== undefined) {
