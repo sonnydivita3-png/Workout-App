@@ -1,13 +1,55 @@
 import { expect, test } from './fixtures'
 import { seed, state } from './helpers'
 
-test('first run: skip social, walkthrough, lands on Home', async ({ page }) => {
-  page.on('dialog', (d) => d.accept())
+test('first run: name, goal and schedule build a first month, then Home shows today', async ({ page }) => {
   await page.goto('/')
-  await page.getByText('Skip for now').click()
-  await expect(page.getByRole('dialog', { name: 'App walkthrough' })).toBeVisible()
+  await page.getByLabel('What should we call you?').fill('Jay')
+  await page.getByRole('button', { name: 'Kilograms (kg)' }).click()
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByRole('button', { name: /Build muscle/ }).click()
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByRole('button', { name: '4', exact: true }).click()
+  await page.getByRole('button', { name: 'Build my plan' }).click()
+  await expect(page.getByRole('heading', { name: 'Your first week' })).toBeVisible()
+  await page.getByRole('button', { name: 'Start my plan' }).click()
+  await expect(page.getByRole('heading', { name: /, Jay$/ })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Today' })).toBeVisible()
+  const s = await state(page)
+  expect(s.programs).toHaveLength(1)
+  expect(Object.keys(s.overrides).length).toBeGreaterThan(20)
+  expect(s.units.weight).toBe('kg')
+  expect(s.onboarded).toBe(true)
+})
+
+test('first run can be skipped straight to Home', async ({ page }) => {
+  await page.goto('/')
   await page.getByRole('button', { name: 'Skip' }).click()
-  await expect(page.getByText('Goals')).toBeVisible()
+  await expect(page.getByText('Nothing planned today')).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'App walkthrough' })).toHaveCount(0)
+})
+
+test('Home with nothing planned: repeat the last workout in one tap', async ({ page }) => {
+  await seed(page, { logs: [{ exerciseId: 'Pushups', date: '2026-01-05', sets: [{ weight: null, reps: 15 }, { weight: null, reps: 12 }] }] })
+  await page.goto('/')
+  await page.getByRole('button', { name: /Repeat last workout/ }).click()
+  await expect(page.getByRole('button', { name: 'Finish', exact: true })).toBeVisible()
+  await expect(page.getByText('Push-Up').first()).toBeVisible()
+  const s = await state(page)
+  const today = Object.entries(s.overrides as Record<string, { exerciseId: string; sets: number; reps?: number }[]>).find(([, v]) => v.length)
+  expect(today?.[1]).toEqual([{ exerciseId: 'Pushups', sets: 2, reps: 15 }])
+  expect(s.plan.flat()).toEqual([])
+})
+
+test('Start empty, then add an exercise mid-workout', async ({ page }) => {
+  await seed(page)
+  await page.goto('/')
+  await page.getByRole('button', { name: /Start empty/ }).click()
+  await expect(page.getByText('Empty workout')).toBeVisible()
+  await page.getByRole('button', { name: '+ Add exercise' }).click()
+  await page.getByPlaceholder(/search/i).fill('bench press')
+  await page.locator('.fixed button', { hasText: /^Bench Press/ }).first().click()
+  await expect(page.getByText('Bench Press').first()).toBeVisible()
+  expect((await state(page)).plan.flat()).toEqual([])
 })
 
 test('plan and log an exercise, then see it in History', async ({ page }) => {

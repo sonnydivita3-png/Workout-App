@@ -60,7 +60,7 @@ export function TimedBlockCard({ items, date, onRemove }: { items: PlannedExerci
           const ex = findExercise(custom, p.exerciseId)
           return (
             <li key={p.exerciseId} className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
-              <span className="min-w-0 truncate">{name(p.exerciseId)}</span>
+              <span className="min-w-0 line-clamp-2">{name(p.exerciseId)}</span>
               <span className="shrink-0 text-xs tabular-nums text-neutral-400">{ex ? describeItem(p, ex, units) : ''}</span>
             </li>
           )

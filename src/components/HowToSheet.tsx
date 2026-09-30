@@ -27,6 +27,7 @@ export function HowToSheet({ exercise, onClose }: { exercise: Exercise; onClose:
 
   return (
     <Sheet title={exercise.name} onClose={onClose}>
+      {exercise.fullName && <p className="-mt-2 mb-3 text-sm text-neutral-400">{exercise.fullName}</p>}
       {info === undefined && <p className="py-8 text-center text-neutral-400">Loading…</p>}
       {info === null && <p className="py-8 text-center text-neutral-400">No instructions for this one yet{exercise.custom ? ' (it’s a custom exercise)' : ''}.</p>}
       {info && (

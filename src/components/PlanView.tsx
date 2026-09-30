@@ -13,6 +13,7 @@ import { rowBtn, Sheet } from './Sheet'
 import { ExercisePicker } from './ExercisePicker'
 import { DayWorkout } from './DayWorkout'
 import { WeekStrip } from './WeekStrip'
+import { Tip } from './Tip'
 
 export function PlanView() {
   const [anchor, setAnchor] = useState(() => new Date())
@@ -44,6 +45,7 @@ export function PlanView() {
         </div>
       </header>
 
+      <Tip id="plan">Tap a day to see or change it. <b className="font-medium">+ Add</b> puts an exercise, a generated workout or a whole plan on that day.</Tip>
       <WeekStrip dates={dates} selected={day} counts={dates.map((d) => workItems(dayPlanOf(s.plan, s.overrides, toISO(d))).length)} rest={dates.map((d) => isRestDay(s.overrides, toISO(d)))} today={today} onSelect={setDay} />
 
       <div className="mt-4 flex justify-end gap-2">

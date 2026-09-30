@@ -7,6 +7,7 @@ import type { Measurement } from '../../types'
 import { LineChart } from '../LineChart'
 import { NumberInput } from '../NumberInput'
 import { Sheet } from '../Sheet'
+import { BodyweightSection } from './BodyweightSection'
 
 type Key = Exclude<keyof Measurement, 'id' | 'date'>
 const FIELDS: { key: Key; label: string; pct?: boolean }[] = [
@@ -34,6 +35,7 @@ export function BodyTab() {
 
   return (
     <div className="space-y-4">
+      <BodyweightSection />
       <section className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
         <div className="mb-3 flex items-center justify-between">
           <p className="text-xs uppercase tracking-wide text-neutral-400">Measurements</p>

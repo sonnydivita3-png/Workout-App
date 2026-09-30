@@ -66,26 +66,35 @@ export interface WeekStats {
   volume: number // lb
   lastVolume: number
   streak: number // consecutive weeks with a workout
+  lastWorkouts: number
+  /** Last week up to the same weekday as today, for a fair "so far" comparison. */
+  lastWorkoutsSoFar: number
+  lastVolumeSoFar: number
 }
 
 export function weekStats(logs: ExerciseLog[], today: string): WeekStats {
   const monday = mondayOf(parseISO(today))
   const range = (offset: number) => [toISO(addDays(monday, offset * 7)), toISO(addDays(monday, offset * 7 + 6))] as const
   const dates = workoutDates(logs)
-  const volume = (offset: number) => {
+  // `until` caps a week at a date: anything dated in the future doesn't count yet, and "last week so far" stops at the same weekday.
+  const volume = (offset: number, until = today) => {
     const [from, to] = range(offset)
     return logs
-      .filter((l) => inRange(l.date, from, to) && l.date <= today) // anything dated in the future doesn't count yet
+      .filter((l) => inRange(l.date, from, to) && l.date <= until)
       .reduce((a, l) => a + (l.sets ?? []).reduce((b, s) => b + (s.warmup ? 0 : (s.weight ?? 0) * (s.reps ?? 0)), 0), 0)
   }
-  const count = (offset: number) => {
+  const count = (offset: number, until = today) => {
     const [from, to] = range(offset)
-    return [...dates].filter((d) => inRange(d, from, to) && d <= today).length
+    return [...dates].filter((d) => inRange(d, from, to) && d <= until).length
   }
+  const sameDayLastWeek = toISO(addDays(parseISO(today), -7))
   // The current week doesn't break a streak until it's over.
   let streak = 0
   for (let w = count(0) > 0 ? 0 : -1; count(w) > 0 && w > -520; w--) streak++
-  return { workouts: count(0), volume: volume(0), lastVolume: volume(-1), streak }
+  return {
+    workouts: count(0), volume: volume(0), lastVolume: volume(-1), streak,
+    lastWorkouts: count(-1), lastWorkoutsSoFar: count(-1, sameDayLastWeek), lastVolumeSoFar: volume(-1, sameDayLastWeek),
+  }
 }
 
 /** Sessions for reps-only or timed exercises; `values` are reps or seconds per set. */

@@ -64,4 +64,47 @@ EXERCISES.push(
   })),
 )
 
+// Everyday names for the most common lifts; the dataset's full name stays available (search, how-to page).
+const SHORT: Record<string, string> = {
+  'Barbell_Bench_Press_-_Medium_Grip': 'Bench Press',
+  'Barbell_Incline_Bench_Press_-_Medium_Grip': 'Incline Bench Press',
+  Barbell_Squat: 'Back Squat',
+  'Front_Squat_Clean_Grip': 'Front Squat',
+  Barbell_Deadlift: 'Deadlift',
+  Standing_Military_Press: 'Overhead Press',
+  Pullups: 'Pull-Up',
+  Pushups: 'Push-Up',
+  'Dips_-_Chest_Version': 'Chest Dip',
+  'Dips_-_Triceps_Version': 'Triceps Dip',
+  'Wide-Grip_Lat_Pulldown': 'Lat Pulldown',
+  Bent_Over_Barbell_Row: 'Barbell Row',
+  Seated_Cable_Rows: 'Seated Cable Row',
+  Lying_Leg_Curls: 'Leg Curl',
+  Leg_Extensions: 'Leg Extension',
+  Standing_Calf_Raises: 'Calf Raise',
+  Barbell_Hip_Thrust: 'Hip Thrust',
+  Dumbbell_Bicep_Curl: 'Dumbbell Curl',
+  'Close-Grip_Barbell_Bench_Press': 'Close-Grip Bench Press',
+  Hammer_Curls: 'Hammer Curl',
+  Side_Lateral_Raise: 'Lateral Raise',
+  Bodyweight_Walking_Lunge: 'Walking Lunge',
+  Split_Squat_with_Dumbbells: 'Dumbbell Split Squat',
+  Dumbbell_Flyes: 'Dumbbell Fly',
+  'Cable_Hammer_Curls_-_Rope_Attachment': 'Rope Hammer Curl',
+  'Bent_Over_Two-Dumbbell_Row': 'Dumbbell Row',
+  'Calf_Press_On_The_Leg_Press_Machine': 'Leg Press Calf Raise',
+}
+// Suffixes that rarely matter day to day ("Bench Press - Powerlifting" keeps its suffix if dropping it would clash).
+const DROP = [/ - Medium Grip$/i, / -\s*Pronated Grip$/i]
+
+const taken = new Set(EXERCISES.map((e) => e.name.toLowerCase()))
+for (const e of EXERCISES) {
+  const short = SHORT[e.id] ?? DROP.reduce((n, re) => n.replace(re, ''), e.name)
+  if (short === e.name) continue
+  if (!SHORT[e.id] && taken.has(short.toLowerCase())) continue
+  e.fullName = e.name
+  e.name = short
+  taken.add(short.toLowerCase())
+}
+
 export const BUILTIN_BY_ID = new Map(EXERCISES.map((e) => [e.id, e]))

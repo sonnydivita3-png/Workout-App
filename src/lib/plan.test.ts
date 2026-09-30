@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ExerciseLog, PlanOverrides, WeekPlan } from '../types'
-import { dayPlanOf, isRestDay, lastWorkout } from './plan'
+import { dayPlanOf, isRestDay, lastWorkout, repeatPlan } from './plan'
+import { BUILTIN_BY_ID } from '../data/exercises'
 import { weekStats } from './stats'
 
 const TODAY = '2026-09-29' // Tuesday
@@ -63,5 +64,33 @@ describe('this week stats ignore future dates', () => {
     const stats = weekStats([lift('2026-09-28'), lift('2026-09-30'), lift('2026-10-02')], TODAY)
     expect(stats.workouts).toBe(1)
     expect(stats.volume).toBe(225 * 5)
+  })
+})
+
+describe('last week so far', () => {
+  it('compares with last week up to the same weekday', () => {
+    // TODAY is Tuesday 2026-09-29: last week's Monday counts toward "so far", its Friday doesn't.
+    const lastMon = '2026-09-21'
+    const lastFri = '2026-09-25'
+    const stats = weekStats([lift(lastMon), lift(lastFri)], TODAY)
+    expect(stats.lastWorkouts).toBe(2)
+    expect(stats.lastWorkoutsSoFar).toBe(1)
+    expect(stats.lastVolumeSoFar).toBe(225 * 5)
+  })
+})
+
+describe('repeatPlan', () => {
+  it('rebuilds a workout: working sets, usual reps, warm-ups, holds and cardio', () => {
+    const logs: ExerciseLog[] = [
+      { date: TODAY, exerciseId: 'Barbell_Squat', sets: [{ weight: 95, reps: 5, warmup: true }, { weight: 185, reps: 8 }, { weight: 185, reps: 8 }, { weight: 185, reps: 6 }] },
+      { date: TODAY, exerciseId: 'Plank', sets: [{ weight: null, reps: null, seconds: 45 }, { weight: null, reps: null, seconds: 45 }] },
+      { date: TODAY, exerciseId: 'running', cardio: { distance: 3, minutes: 27 } },
+      { date: TODAY, exerciseId: 'gone-custom', sets: [{ weight: 10, reps: 10 }] },
+    ]
+    expect(repeatPlan(logs, (id) => BUILTIN_BY_ID.get(id))).toEqual([
+      { exerciseId: 'Barbell_Squat', sets: 3, reps: 8, warmupSets: 1 },
+      { exerciseId: 'Plank', sets: 2, seconds: 45 },
+      { exerciseId: 'running', sets: 1, minutes: 27, distance: 3 },
+    ])
   })
 })

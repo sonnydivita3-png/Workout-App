@@ -27,7 +27,7 @@ export function WorkoutList({ items, onSwap, onChoose, onRemove }: Props) {
               return (
                 <li key={p.exerciseId} className="flex items-center justify-between gap-2 py-2.5">
                   <span className="min-w-0">
-                    <span className="block truncate">{ex.name}</span>
+                    <span className="block line-clamp-2">{ex.name}</span>
                     <span className="text-xs tabular-nums text-neutral-400">
                       {[describeItem(p, ex, units), ex.group].filter(Boolean).join(' · ')}
                     </span>

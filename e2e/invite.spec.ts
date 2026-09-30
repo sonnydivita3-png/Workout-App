@@ -1,20 +1,12 @@
 import { expect, test } from './fixtures'
-import { seed, state } from './helpers'
+import { seed, signUp, state } from './helpers'
 
-async function signUp(page: import('@playwright/test').Page, handle: string) {
-  await page.getByRole('button', { name: 'Set up social features' }).click()
-  await page.getByRole('button', { name: 'Continue without email' }).click()
-  await page.getByPlaceholder('yourname').fill(handle)
-  await page.getByPlaceholder('What friends see').fill('E2E')
-  await page.getByText(/I agree that my handle/).click()
-  await page.getByText('I’m 13 or older.').click()
-  await page.getByRole('button', { name: 'Create my account' }).click()
-}
 
 test('an invite link survives sign-up and adds the inviter in one tap', async ({ page }) => {
   await seed(page, { socialChoice: 'unset' })
   await page.goto('/?add=Maya')
-  await expect(page.getByText('invited you. Set up social to add them')).toBeVisible()
+  await expect(page.getByText('invited you to train together')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Set up social' })).toBeVisible()
   expect(page.url()).not.toContain('add=')
   await signUp(page, 'invitee')
   await expect(page.getByText('invited you to train together')).toBeVisible()

@@ -1,27 +1,18 @@
 import { expect, test } from './fixtures'
-import { iso, seed } from './helpers'
+import { iso, seed, signUp } from './helpers'
 
-async function startSignUp(page: import('@playwright/test').Page, handle: string, name = 'E2E') {
-  await page.getByRole('button', { name: 'Set up social features' }).click()
-  await page.getByRole('button', { name: 'Continue without email' }).click()
-  await page.getByPlaceholder('yourname').fill(handle)
-  await page.getByPlaceholder('What friends see').fill(name)
-  await page.getByText(/I agree that my handle/).click()
-  await page.getByText('I’m 13 or older.').click()
-  await page.getByRole('button', { name: 'Create my account' }).click()
-}
 
 test('offensive handles are refused with a clear message', async ({ page }) => {
   await seed(page, { socialChoice: 'unset' })
   await page.goto('/')
-  await startSignUp(page, 'sh1t_lifter')
+  await signUp(page, 'sh1t_lifter')
   await expect(page.getByText('Please choose a different name')).toBeVisible()
 })
 
 test('a friend request can be reported, which also blocks the sender', async ({ page }) => {
   await seed(page, { socialChoice: 'unset' })
   await page.goto('/')
-  await startSignUp(page, 'reporter')
+  await signUp(page, 'reporter')
   await page.locator('nav').getByText('Social').click()
   await page.getByRole('button', { name: 'Review' }).first().click()
   await page.getByRole('button', { name: 'Report', exact: true }).click()
@@ -44,7 +35,7 @@ test('privacy and account deletion pages open directly, without sign-up', async 
   await page.goto('/#privacy')
   await expect(page.getByRole('heading', { name: 'Privacy policy' })).toBeVisible()
   await page.getByRole('link', { name: 'Open the app' }).click()
-  await expect(page.getByRole('button', { name: 'Set up social features' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Today' })).toBeVisible()
 })
 
 test('Home nudges: install first, then backup once a few days are logged', async ({ page }) => {

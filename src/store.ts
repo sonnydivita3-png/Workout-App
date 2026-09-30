@@ -43,6 +43,14 @@ interface State extends Data {
   /** Handle from an invite link (?add=handle) waiting to be added as a friend. */
   pendingInvite: string | null
   setPendingInvite: (h: string | null) => void
+  /** First-run setup (goal, days, first plan) finished or skipped. */
+  onboarded: boolean
+  setOnboarded: (v: boolean) => void
+  /** One-time tips already shown, by id. */
+  tipsSeen: string[]
+  seeTip: (id: string) => void
+  /** Make a date's exercises the usual plan for that weekday (every week). */
+  setUsualDay: (date: string) => void
   /** When each Home reminder (install, backup) was last dismissed, in ms. */
   nudgeSnooze: Record<string, number>
   snoozeNudge: (id: string) => void
@@ -113,7 +121,7 @@ interface State extends Data {
   /** Wipe everything back to a fresh install, optionally keeping name, units and notification settings. */
   resetAll: (keepProfile: boolean) => void
   deleteBodyweight: (date: string) => void
-  // Plan edits take a date: they change that date's override if it has one, else the weekly template.
+  // Plan edits take a date and change that date only (see setUsualDay for the weekly template).
   addExercise: (date: string, exerciseId: string, kind: ExerciseKind) => void
   removeExercise: (date: string, exerciseId: string) => void
   setSetCount: (date: string, exerciseId: string, sets: number) => void
@@ -151,9 +159,15 @@ const emptyPlan = (): WeekPlan => Array.from({ length: 7 }, () => [])
 
 /** Apply `fn` to a date's exercises, editing its override if present, else the weekly template. */
 function editDay(s: Pick<Data, 'plan' | 'overrides'>, date: string, fn: (items: PlannedExercise[]) => PlannedExercise[]) {
-  if (s.overrides[date]) return { overrides: { ...s.overrides, [date]: fn(s.overrides[date]) } }
-  const day = weekdayIndex(parseISO(date))
-  return { plan: s.plan.map((d, i) => (i === day ? fn(d) : d)) }
+  // Edits apply to this date only; "Repeat every <weekday>" (setUsualDay) is how a day becomes part of the usual week.
+  const template = s.plan[weekdayIndex(parseISO(date))]
+  const next = fn(s.overrides[date] ?? template)
+  if (next.length === 0 && template.length === 0) {
+    // Nothing left and nothing usually planned: just an empty day, not a rest day.
+    const { [date]: _gone, ...rest } = s.overrides
+    return { overrides: rest }
+  }
+  return { overrides: { ...s.overrides, [date]: next } }
 }
 
 const appendMissing = (d: PlannedExercise[], items: PlannedExercise[]) => [
@@ -193,6 +207,8 @@ const defaults = () => ({
   accent: 'lime' as Accent,
   socialChoice: 'unset' as SocialChoice,
   pendingInvite: null as string | null,
+  onboarded: false,
+  tipsSeen: [] as string[],
   nudgeSnooze: {} as Record<string, number>,
   tourDone: false,
   tourVersion: 0,
@@ -215,7 +231,7 @@ export const useStore = create<State>()(
           accent: s.accent,
           plainCopy: s.plainCopy,
           // Erasing turns cloud backup off, so the cloud copy stays as a safety net rather than being wiped too.
-          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone, tourVersion: s.tourVersion } : {}),
+          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone, tourVersion: s.tourVersion, onboarded: s.onboarded, tipsSeen: s.tipsSeen } : {}),
         })),
       pushNotifications: (items) => {
         const existing = new Map(get().notifications.map((n) => [n.id, n]))
@@ -318,6 +334,15 @@ export const useStore = create<State>()(
       applyProgram: (days) => set((s) => ({ overrides: { ...s.overrides, ...days } })),
       setSocialChoice: (socialChoice) => set({ socialChoice }),
       setPendingInvite: (pendingInvite) => set({ pendingInvite }),
+      setOnboarded: (onboarded) => set({ onboarded }),
+      seeTip: (id) => set((s) => (s.tipsSeen.includes(id) ? s : { tipsSeen: [...s.tipsSeen, id] })),
+      setUsualDay: (date) =>
+        set((s) => {
+          const items = dayPlanOf(s.plan, s.overrides, date).map((p) => ({ ...p }))
+          const day = weekdayIndex(parseISO(date))
+          const { [date]: _gone, ...rest } = s.overrides
+          return { plan: s.plan.map((d, i) => (i === day ? items : d)), overrides: rest }
+        }),
       snoozeNudge: (id) => set((s) => ({ nudgeSnooze: { ...s.nudgeSnooze, [id]: Date.now() } })),
       setTourDone: (tourDone) => set(tourDone ? { tourDone, tourVersion: TOUR_VERSION } : { tourDone }),
       setPrefs: (p) => set(p),

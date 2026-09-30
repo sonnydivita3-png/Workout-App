@@ -8,6 +8,8 @@ import { showWeight } from '../lib/units'
 import { findExercise, useStore } from '../store'
 import { useToasts } from '../toastStore'
 import { DayWorkout } from './DayWorkout'
+import { ExercisePicker } from './ExercisePicker'
+import { Tip } from './Tip'
 
 const fmt = (s: number) => `${Math.floor(s / 3600) ? `${Math.floor(s / 3600)}:` : ''}${String(Math.floor((s % 3600) / 60)).padStart(Math.floor(s / 3600) ? 2 : 1, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 const RESTS = [0, -1, 60, 90, 120, 180]
@@ -29,7 +31,8 @@ function useNow(ms = 1000) {
 
 /** Full-screen workout: one exercise at a time, "try this" targets, ✓ per set, optional rest timer, and a beat-last-time summary. */
 export function WorkoutSession({ onMinimize }: { onMinimize: () => void }) {
-  const { session, plan, overrides, logs, custom, units, restSeconds, setPrefs, endSession } = useStore()
+  const { session, plan, overrides, logs, custom, units, restSeconds, setPrefs, endSession, addExercise } = useStore()
+  const [picking, setPicking] = useState(false)
   const now = useNow()
   const [idx, setIdx] = useState(0)
   const [restUntil, setRestUntil] = useState<number | null>(null)
@@ -80,7 +83,7 @@ export function WorkoutSession({ onMinimize }: { onMinimize: () => void }) {
           <ul className="mb-6 divide-y divide-neutral-100 rounded-2xl bg-surface px-4 ring-1 ring-neutral-200/70">
             {summary.results.map((r) => (
               <li key={r.exerciseId} className="flex items-center justify-between gap-3 py-3">
-                <span className="min-w-0 truncate">{r.name}</span>
+                <span className="min-w-0 line-clamp-2">{r.name}</span>
                 <span className={`shrink-0 text-sm font-medium ${color[r.status]}`}>
                   {r.pr && <span className="mr-2 rounded-full bg-accent px-2 py-0.5 text-[10px] uppercase text-on-accent">PR</span>}
                   {icon[r.status]} {r.status === 'up' ? 'better' : r.status === 'down' ? 'lower' : r.status === 'same' ? 'matched' : r.status === 'new' ? 'first time' : 'skipped'}
@@ -120,7 +123,17 @@ export function WorkoutSession({ onMinimize }: { onMinimize: () => void }) {
       </div>
 
       <div className="mx-auto max-w-md space-y-3 px-4 pb-40 pt-4">
-        {items.length === 0 ? <p className="py-16 text-center text-neutral-400">Nothing planned for this day.</p> : <DayWorkout date={date} items={items} only={at} onSetDone={startRest} />}
+        {items.length > 0 && <Tip id="workout">Your target for each set comes from last time. Tap <b className="font-medium">✓</b> when a set is done and the rest timer starts.</Tip>}
+        {items.length === 0 ? (
+          <div className="py-14 text-center">
+            <p className="mb-1 text-lg font-semibold">Empty workout</p>
+            <p className="mb-5 text-sm text-neutral-400">Add your first exercise. Add more any time.</p>
+            <button onClick={() => setPicking(true)} className="rounded-2xl bg-accent px-6 py-3 font-medium text-on-accent">+ Add exercise</button>
+          </div>
+        ) : (
+          <DayWorkout date={date} items={items} only={at} onSetDone={startRest} />
+        )}
+        {items.length > 0 && <button onClick={() => setPicking(true)} className="w-full rounded-2xl border border-dashed border-neutral-300 py-3 text-sm text-neutral-500">+ Add exercise</button>}
         <div className="flex gap-2 pt-2">
           <button disabled={at === 0} onClick={() => setIdx(at - 1)} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium text-neutral-700 disabled:opacity-30">‹ Previous</button>
           {at < parts.length - 1
@@ -129,6 +142,13 @@ export function WorkoutSession({ onMinimize }: { onMinimize: () => void }) {
         </div>
       </div>
 
+      {picking && (
+        <ExercisePicker
+          taken={new Set(items.map((p) => p.exerciseId))}
+          onPick={(e) => { addExercise(date, e.id, e.kind); setIdx(parts.length); setPicking(false) }}
+          onClose={() => setPicking(false)}
+        />
+      )}
       {restUntil && (
         <div className="fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 mx-auto flex max-w-md items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-3 shadow-lg ring-1 ring-accent" role="timer" aria-live="off">
           <span className="text-sm">{restLeft > 0 ? 'Rest' : 'Go! 💪'}</span>

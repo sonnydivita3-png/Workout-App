@@ -78,7 +78,7 @@ describe('exercise modes', () => {
   it('classifies timed and bodyweight moves from the library', () => {
     expect(BUILTIN_BY_ID.get('Plank')!.mode).toBe('time')
     expect(BUILTIN_BY_ID.get('Barbell_Bench_Press_-_Medium_Grip')!.mode).toBe('weight')
-    const pushups = [...BUILTIN_BY_ID.values()].find((e) => e.name === 'Pushups')
+    const pushups = [...BUILTIN_BY_ID.values()].find((e) => e.id === 'Pushups')
     expect(pushups?.mode).toBe('reps')
   })
 

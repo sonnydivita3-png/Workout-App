@@ -7,14 +7,15 @@ import { formatResult } from '../lib/wod'
 import { LineChart } from './LineChart'
 import { BodyTab } from './history/BodyTab'
 import { WorkoutsTab } from './history/WorkoutsTab'
+import { Tip } from './Tip'
 
 const fmtLong = (iso: string) =>
   new Date(iso + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
 
 type HTab = 'workouts' | 'exercises' | 'body'
 
-export function HistoryView() {
-  const [tab, setTab] = useState<HTab>('workouts')
+export function HistoryView({ initialTab }: { initialTab?: string }) {
+  const [tab, setTab] = useState<HTab>(initialTab === 'body' || initialTab === 'exercises' ? initialTab : 'workouts')
   const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
   const tabs = (
     <div className="mb-4 flex gap-2">
@@ -24,6 +25,7 @@ export function HistoryView() {
   return (
     <section>
       <h1 className="mb-4 text-2xl font-semibold tracking-tight">History</h1>
+      <Tip id="progress">Workouts shows every session and how it compared with the time before. Exercises has charts and personal bests. Body tracks weight, measurements and photos.</Tip>
       {tabs}
       {tab === 'workouts' && <WorkoutsTab />}
       {tab === 'exercises' && <ExercisesTab />}

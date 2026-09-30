@@ -35,7 +35,7 @@ export function WarmupCard({ items, onRemove }: { items: PlannedExercise[]; onRe
       <ul className="mb-3 divide-y divide-neutral-100">
         {rows.map(({ p, ex }) => (
           <li key={p.exerciseId} className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
-            <button onClick={() => setHowTo(ex)} className="min-w-0 truncate text-left underline decoration-neutral-300 decoration-dotted underline-offset-4">{ex.name}</button>
+            <button onClick={() => setHowTo(ex)} className="min-w-0 line-clamp-2 text-left underline decoration-neutral-300 decoration-dotted underline-offset-4">{ex.name}</button>
             <span className="shrink-0 text-xs tabular-nums text-neutral-400">{ex.kind === 'cardio' ? `${p.minutes} min easy` : describeItem(p, ex, units)}</span>
           </li>
         ))}

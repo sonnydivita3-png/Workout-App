@@ -4,6 +4,7 @@ import { seed } from './helpers'
 test('social sign-up without email needs the age check, then friends work', async ({ page }) => {
   await seed(page, { socialChoice: 'unset' })
   await page.goto('/')
+  await page.locator('nav').getByText('Social').click()
   await page.getByRole('button', { name: 'Set up social features' }).click()
   await page.getByRole('button', { name: 'Continue without email' }).click()
   await page.getByPlaceholder('yourname').fill('e2e_user')

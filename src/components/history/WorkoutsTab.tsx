@@ -93,7 +93,7 @@ export function WorkoutsTab() {
                 <button onClick={() => setOpenDay(d)} className="flex w-full items-center justify-between gap-3 rounded-2xl bg-surface p-4 text-left shadow-sm ring-1 ring-neutral-200/70">
                   <span className="min-w-0">
                     <span className="block font-medium">{fmtLong(d)}</span>
-                    <span className="block truncate text-xs text-neutral-400">{[...new Set(days.get(d))].map((id) => lookup(id)?.name).filter(Boolean).join(', ')}</span>
+                    <span className="block line-clamp-2 text-xs text-neutral-400">{[...new Set(days.get(d))].map((id) => lookup(id)?.name).filter(Boolean).join(', ')}</span>
                   </span>
                   <span className="shrink-0 text-right text-xs">
                     {s.beat > 0 && <span className="block font-medium text-green-600">▲ {s.beat} improved</span>}

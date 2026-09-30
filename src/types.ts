@@ -6,6 +6,8 @@ export type ExerciseMode = 'weight' | 'reps' | 'time'
 export interface Exercise {
   id: string
   name: string
+  /** The library's full name when `name` is a shorter everyday one (e.g. "Barbell Bench Press - Medium Grip"). */
+  fullName?: string
   kind: ExerciseKind
   mode?: ExerciseMode // lifting only; missing means 'weight'
   group: string // muscle group (strength) or "Cardio"
