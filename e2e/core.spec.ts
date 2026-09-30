@@ -158,3 +158,22 @@ test('workout mode: steppers change weight without the keyboard', async ({ page 
   await expect(page.getByRole('spinbutton', { name: 'Set 1 lb' })).toHaveValue('10')
   await expect(page.getByRole('spinbutton', { name: 'Set 1 reps' })).toHaveValue('6') // steps from the suggested 5
 })
+
+test('exercise picker: muscle plus equipment filters, remembered next time', async ({ page }) => {
+  await seed(page)
+  await page.goto('/')
+  await page.locator('nav').getByText('Plan').click()
+  await page.getByRole('button', { name: 'Add exercises' }).click()
+  const sheet = page.locator('.fixed')
+  await sheet.getByRole('button', { name: 'Chest', exact: true }).click()
+  await sheet.getByRole('group', { name: 'Equipment' }).getByRole('button', { name: /^Dumbbell \d+$/ }).click()
+  const rows = sheet.locator('ul li button')
+  const n = await rows.count()
+  expect(n).toBeGreaterThan(5)
+  for (let i = 0; i < n; i++) await expect(rows.nth(i)).toContainText('Dumbbell')
+  await expect(sheet.getByText(/exercises · dumbbell · chest/)).toBeVisible()
+  await sheet.getByRole('button', { name: 'Done' }).click()
+  await page.getByRole('button', { name: '+ Add' }).click()
+  await page.getByText('Add an exercise').click()
+  await expect(sheet.getByRole('button', { name: /^Dumbbell \d+$/ })).toHaveAttribute('aria-pressed', 'true')
+})
