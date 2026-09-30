@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import type { ExerciseLog } from '../types'
-import { compareSet, platesFor, sessionScore, suggestNext } from './progression'
+import { compareSet, plateau, platesFor, sessionScore, suggestNext } from './progression'
 
 const lb = { weight: 'lb', distance: 'mi' } as const
 const bench = BUILTIN_BY_ID.get('Barbell_Bench_Press_-_Medium_Grip')!
@@ -46,5 +46,26 @@ describe('comparisons and plates', () => {
     expect(platesFor(185, lb).perSide).toEqual([45, 25])
     expect(platesFor(100, { weight: 'kg', distance: 'km' }).perSide).toEqual([25, 15])
     expect(platesFor(47, lb).left).toBe(2)
+  })
+})
+
+describe('plateaus', () => {
+  const at = (date: string, reps: number[], weight = 185): ExerciseLog => ({ date, exerciseId: 'x', sets: reps.map((r) => ({ weight, reps: r })) })
+  it('spots 3 sessions stuck at the same weight and suggests a ~10% deload', () => {
+    const history = [at('2026-09-20', [8, 6]), at('2026-09-13', [8, 7]), at('2026-09-06', [8, 6])]
+    expect(plateau(bench, history)).toBe(3)
+    const s = suggestNext(bench, history[0], { reps: 8 }, lb, history)
+    expect(s.kind).toBe('deload')
+    expect(s.weight).toBe(165)
+  })
+  it('does not call it a plateau while reps are still going up, or after a weight change', () => {
+    expect(plateau(bench, [at('2026-09-20', [8, 7]), at('2026-09-13', [7, 6]), at('2026-09-06', [6, 6])])).toBe(0)
+    expect(plateau(bench, [at('2026-09-20', [8, 6]), at('2026-09-13', [8, 6], 180), at('2026-09-06', [8, 6], 180)])).toBe(0)
+    expect(plateau(bench, [at('2026-09-20', [8, 6]), at('2026-09-13', [8, 6])])).toBe(0)
+    expect(plateau(push, [at('2026-09-20', [8]), at('2026-09-13', [8]), at('2026-09-06', [8])])).toBe(0)
+  })
+  it('hitting the target still means add weight, not deload', () => {
+    const history = [at('2026-09-20', [8, 8]), at('2026-09-13', [8, 8]), at('2026-09-06', [8, 8])]
+    expect(suggestNext(bench, history[0], { reps: 8 }, lb, history).kind).toBe('add-weight')
   })
 })

@@ -1,38 +1,76 @@
-# Turning on social features and cloud backup
+# Turning on friends and cloud backup (Supabase)
 
-The app ships with social features in **preview mode**: friends are simulated on the device (Alex, Sam and Maya) so you can try everything. To connect real people you need a free [Supabase](https://supabase.com) project. This takes about 10 minutes.
+Until this is done the app runs social and backup in **preview mode**: friends are simulated (Alex, Sam, Maya), the sign-in code is always `123456`, and "backups" stay in the browser. Setting up a free [Supabase](https://supabase.com) project makes both real. It takes about 20–30 minutes; a computer is easier than a phone.
 
 ## 1. Create the project
-1. Create a new Supabase project (free tier is fine).
-2. **SQL editor** → run each file in `supabase/migrations/` in order (paste the contents → Run): `20260930000000_social.sql` (friends and sharing), then `20261001000000_sync.sql` (cloud backup).
-3. **Authentication → Providers → Email**: enable it. Turn **Confirm email** on and make sure the email template contains the `{{ .Token }}` (6-digit code) rather than only a link. The app signs people in with the code; there are no passwords.
-4. **Authentication → Sign In / Providers → Allow anonymous sign-ins**: turn this on. It lets people use social **without an email** (their account then lives on their phone). Also set the "Change email" template to include `{{ .Token }}` so people can add an email later. Consider enabling CAPTCHA (Authentication → Attack Protection), since anonymous sign-ups are easier to abuse.
-5. **Authentication → URL configuration**: set the Site URL to your app URL.
+1. Sign up at supabase.com (signing in with GitHub is fine) and create a **New project** on the Free plan.
+2. Name it (e.g. `ez-workout`), set a strong database password (save it in a password manager; the app never needs it) and pick the region closest to your users.
+3. Wait a couple of minutes for it to finish setting up.
 
-## 2. Point the app at it
-In the GitHub repo: **Settings → Secrets and variables → Actions → Variables**, add:
+## 2. Create the database tables and rules
+Run each file in `supabase/migrations/` **once, in order**, in the **SQL Editor** (New query → paste → Run):
+1. `20260930000000_social.sql` (friends, sharing, challenges, emoji)
+2. `20261001000000_sync.sql` (cloud backup)
 
-| Variable | Value |
-| --- | --- |
-| `SUPABASE_URL` | Project URL (Settings → API) |
-| `SUPABASE_ANON_KEY` | the `anon` public key (Settings → API) |
+To copy a file: open it on GitHub, click **Raw**, select all, copy. Each should end with "Success. No rows returned". Running a file a second time fails with "already exists"; that's harmless if the first run succeeded.
 
-Push to `main` (or re-run the deploy workflow). The anon key is meant to be public; all protection comes from row-level security in the migration. **Never** put the `service_role` key in the app or in these variables.
+## 3. Sign-in settings (Authentication)
+- **Sign In / Providers → Email**: enabled (default). Keep "Confirm email" on. Email OTP length 6 (the app accepts 6–8 digits).
+- **Allow anonymous sign-ins**: turn **on**. This is what lets people use friends and backup **without an email**.
+- **Allow new users to sign up**: on (default).
+- **Don't turn on CAPTCHA** yet: the app doesn't send CAPTCHA tokens, so every sign-in would fail. Supabase's built-in rate limits still apply.
 
-For local development, put the same two values in `.env.local` as `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+## 4. Make emails contain a code, not a link
+The app signs people in by typing a 6-digit code. Under **Authentication → Emails → Templates**, change these three templates so they show `{{ .Token }}` and **don't** include `{{ .ConfirmationURL }}`:
+- **Magic Link** (returning users)
+- **Confirm signup** (first-time users get this one)
+- **Change Email Address** (adding an email later)
 
-## Email is optional
-At sign-up people can continue without an email. Their account is then tied to that phone's browser storage: clearing the app or changing phones loses it, and the app warns about this. In Settings they can add an email at any time (a code is sent to confirm), after which they can sign in anywhere. Turning social off keeps them signed in; signing out of an email-less account asks for confirmation.
+Example body:
+```html
+<h2>Your EZ Workout Tracker code</h2>
+<p>Type this code in the app:</p>
+<p style="font-size:28px;font-weight:bold;letter-spacing:4px">{{ .Token }}</p>
+<p>It expires in an hour. If you didn't ask for it, you can ignore this email.</p>
+```
+
+## 5. Email sending (needed before other people can use email)
+Supabase's built-in email is for testing: it only delivers to members of your Supabase team and a handful per hour. That's enough to try it yourself. For everyone else, set up **custom SMTP** under **Authentication → Emails → SMTP Settings**:
+- **With a domain you own:** [Resend](https://resend.com) (free tier ~3,000 emails/month) has a Supabase integration.
+- **Without a domain:** a dedicated Gmail account (e.g. a new `...app@gmail.com`) with 2-Step Verification and an **App Password**: host `smtp.gmail.com`, port `587`, username = that Gmail address, password = the app password, sender = the same address. Gmail allows a few hundred emails a day.
+
+People who choose **Continue without email** don't need any of this.
+
+## 6. URL configuration
+**Authentication → URL Configuration → Site URL**: `https://sonnydivita3-png.github.io/Workout-App/`
+
+## 7. Connect the app
+1. In Supabase, find the **Project URL** (`https://<something>.supabase.co`) and the **publishable key** (`sb_publishable_…`; the legacy `anon` key also works). They're under **Project Settings → API Keys** / **Data API**, or the **Connect** button. **Never** use the secret / `service_role` key.
+2. In GitHub: repo **Settings → Secrets and variables → Actions → Variables → New repository variable**:
+   - `SUPABASE_URL` = the Project URL
+   - `SUPABASE_ANON_KEY` = the publishable key
+   (Adding them as secrets instead also works.)
+3. Re-run the deploy: **Actions → Deploy to GitHub Pages → Run workflow**, or push to `main`.
+
+For local development, put `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env.local`.
+
+## 8. Check it
+Open the app and close/reopen it once or twice so it picks up the new version. **Settings → Social** should no longer say "Preview mode". People who tried the preview get a note that friends and backup are live and are asked to set them up again; their workouts stay on the phone.
+
+## Things to know
+- **Free projects pause after about a week with no activity.** If that happens the app can't reach the server until you press Restore in the Supabase dashboard.
+- The anon/publishable key is public by design; all protection comes from the row-level security in the migrations (tested against a real Postgres in `npm test`).
 
 ## Privacy model (enforced in the database, not the UI)
 - People are found by **exact handle only**. There is no list of users and email addresses are never in the public schema.
-- Being friends shares **nothing**. Each person grants five permissions per friend, all off by default: see my progress, send me workouts, ask me for workouts, challenge me, send me emoji. The grant is chosen by the person accepting the request and can be changed any time.
+- Being friends shares **nothing**. Each person grants five permissions per friend, all off by default: see my progress (recent exercises, weekly count, streak, new personal bests), send me workouts, ask me for workouts, challenge me, send me emoji. The grant is chosen by the person accepting the request and can be changed any time.
 - Messages are one of 12 emoji. There is no free text except a short optional note on a workout request and titles of things you share.
-- Body weight and goals are never shared. Avatars are an emoji, a letter, or a photo shrunk to about 96px (the database rejects anything larger or any non-image data).
+- Body weight, measurements, photos and goals are never shared. Avatars are an emoji, a letter, or a photo shrunk to about 96px (the database rejects anything larger or any non-image data).
 - Friend-sent workouts are validated and clamped on the receiving device before anything touches the calendar, and a friend's custom exercises are imported under new ids so they can't overwrite your own.
-- Sending is rate limited, blocking removes the friendship, and "Delete my social account" removes everything server-side.
+- Cloud backup is one row per account that only its owner can read or write.
+- Sending is rate limited, blocking removes the friendship, and deleting the account removes everything server-side, including the backup.
 
 ## Limits
-- There are no push notifications: new requests appear when the app is open (it checks about every 45 seconds).
-- Challenge progress is computed on the accepter's device from their own logs and reported to the server, so a determined person could report false progress. It's a friendly-competition feature, not a verified one.
-- The database rules are tested against a real Postgres (`npm test`), but the app's Supabase client has not been exercised against a live project in this repo's CI.
+- There are no push notifications yet: new requests appear when the app is open (it checks about every 45 seconds).
+- Challenge progress is computed on the accepter's device from their own logs, so a determined person could report false progress.
+- The app's Supabase client has not yet been run against a live project.

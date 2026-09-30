@@ -16,6 +16,7 @@ npm run e2e      # browser tests (Playwright); set PW_CHROMIUM to a Chromium pat
 Built around one idea: beat what you did last time.
 - "Try this next" on every lift (double progression: hit the reps on every set, then add weight), ▲/▼ per set vs last time, and a Fill button
 - Workout mode (▶ Start workout): one exercise at a time, ✓ per set, optional rest timer (off by default), and a finish summary: what improved, new bests, volume vs last time
+- Plateau spotting: three sessions stuck at the same weight suggests a ~10% deload to build back past it
 - Warm-up sets (tap the set number), optional RPE, notes per exercise (last note shown next time), plate calculator, and how-to steps and pictures for 750+ exercises
 - Home dashboard: greeting, today's upcoming exercises, last workout, body weight log + chart, weekly stats, goals
 - Workout randomizer with eight styles: standard, strength, supersets, HIIT circuit, PHA, Hyrox-style, CrossFit-style, bodyweight. Pick body parts and/or cardio plus a time; swap, choose, or remove exercises, step Back/Forward through versions, add to the day or save as a routine
@@ -40,7 +41,7 @@ Built around one idea: beat what you did last time.
 - lb/kg and mi/km (stored as lb/mi, converted for display)
 - JSON backup export/import, and an Erase all data option (with confirmation) to start over
 - Social (optional, opt-in at first launch or later in Settings): friends by exact handle, share a day/week/4 weeks that a friend adds to their calendar, ask a friend to make you a workout, push-up/pull-up/plank/run/ride challenges (or "beat the workout I did"), and a fixed set of 12 emoji instead of chat. Everyone chooses per friend what that friend may see or send, and nothing is shared by default. See [docs/social-setup.md](docs/social-setup.md)
-- First-run walkthrough of every feature (skippable, replay from Settings → Help)
+- Walkthrough of every feature on first run (and once more when big features land), skippable, replay from Settings → Help
 - Avatars: pick an emoji, a letter, or upload a photo (shrunk on your device to a tiny square before it is stored)
 - Look: dark-first neon theme (or light, or follow your phone) with five accent "vibes", chunky rounded UI, confetti on PRs, goals and finished challenges
 - Cloud backup (Settings → Cloud backup): sign in with an email code and your workouts restore on a new phone; if both a phone and the backup changed, you choose which to keep. Needs the Supabase setup below; in preview mode the "cloud" is this browser

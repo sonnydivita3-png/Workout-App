@@ -22,7 +22,7 @@ export const AVATARS = ['💪', '🏃', '🚴', '🏋️', '🧘', '⚡', '🔥'
 
 /** What a person can let a friend do. All are off until the person agrees. */
 export const PERMISSIONS = [
-  { key: 'progress', label: 'See my progress', hint: 'Recent workouts, weekly count, and streak. Never body weight or goals.' },
+  { key: 'progress', label: 'See my progress', hint: 'Recent workouts, weekly count, streak and new personal bests. Never body weight, measurements, photos or goals.' },
   { key: 'workouts', label: 'Send me workouts', hint: 'Shared days, weeks or months I can add to my calendar.' },
   { key: 'requests', label: 'Ask me to make them a workout', hint: 'Requests appear in my inbox and I can say no.' },
   { key: 'challenges', label: 'Challenge me', hint: 'Simple challenges like push-ups or a run distance.' },

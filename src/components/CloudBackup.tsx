@@ -61,6 +61,9 @@ export function CloudBackup() {
             </span>
             <button disabled={busy} onClick={() => now()} className="rounded-full bg-neutral-100 px-3 py-1 text-sm">{busy ? '…' : 'Sync now'}</button>
           </div>
+          {user === null && (
+            <button onClick={() => setSignIn(true)} className="w-full rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent">Sign in to back up</button>
+          )}
           {user?.anonymous && (
             <button onClick={() => setAddEmail(true)} className={btn}>
               Add an email so you can restore on a new phone

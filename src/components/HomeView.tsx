@@ -33,7 +33,7 @@ function summary(l: ExerciseLog, u: Units): string {
     return [distance ? `${showDistance(distance, u)} ${u.distance}` : null, minutes ? `${minutes} min` : null, formatPace(distance, minutes, u)]
       .filter(Boolean).join(' · ')
   }
-  const all = l.sets ?? []
+  const all = (l.sets ?? []).filter((s) => !s.warmup)
   const sets = all.filter((s) => s.weight && s.reps)
   if (sets.length > 0) {
     const top = sets.reduce((a, s) => (s.weight! > a.weight! ? s : a))

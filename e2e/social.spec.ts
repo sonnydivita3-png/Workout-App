@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 import { seed } from './helpers'
 
 test('social sign-up without email needs the age check, then friends work', async ({ page }) => {

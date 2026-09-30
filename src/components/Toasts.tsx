@@ -33,7 +33,7 @@ function Confetti() {
     })),
   )
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
+    <div aria-hidden className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
       {pieces.map((p, i) => (
         <span
           key={i}
@@ -62,7 +62,7 @@ export function Toasts() {
     <>
       {shown > 0 && <Confetti key={shown} />}
       {toasts.length > 0 && (
-        <div role="status" className="pointer-events-none fixed inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] z-30 mx-auto max-w-md space-y-2 px-4">
+        <div role="status" className="pointer-events-none fixed inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] z-50 mx-auto max-w-md space-y-2 px-4">
           {toasts.map((t) => (
             <div key={t.id} className="pointer-events-auto"><ToastItem toast={t} /></div>
           ))}

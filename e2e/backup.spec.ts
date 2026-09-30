@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 import { iso, seed, state } from './helpers'
 
 test('cloud backup: turn on, back up, restore after erasing, and resolve a conflict', async ({ page }) => {

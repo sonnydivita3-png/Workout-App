@@ -13,4 +13,6 @@ create policy user_data_insert on public.user_data for insert to authenticated w
 create policy user_data_update on public.user_data for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy user_data_delete on public.user_data for delete to authenticated using (user_id = auth.uid());
 
+-- Supabase grants new tables to anon by default; backups are for signed-in owners only.
+revoke all on public.user_data from anon;
 grant select, insert, update, delete on public.user_data to authenticated;

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { syncPayload } from '../lib/sync'
 import { useStore, type Accent } from '../store'
 import { Sheet } from './Sheet'
 import { SocialSettings } from './social/SocialSettings'
@@ -49,7 +50,7 @@ const Row = ({ title, children }: { title: string; children: React.ReactNode }) 
 )
 
 export function SettingsView() {
-  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, plan, overrides, logs, custom, name, setName, bodyweight, routines, goals, timedLogs, measurements, importData, setTourDone, trackRpe, restSeconds, setPrefs, plainCopy, theme, setTheme, accent, setAccent } = useStore()
+  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, name, setName, importData, setTourDone, trackRpe, restSeconds, setPrefs, plainCopy, theme, setTheme, accent, setAccent } = useStore()
   const [installEvt, setInstallEvt] = useState<InstallEvent | null>(null)
   const [msg, setMsg] = useState('')
   const [erasing, setErasing] = useState(false)
@@ -80,7 +81,7 @@ export function SettingsView() {
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent)
 
   const exportData = () => {
-    const blob = new Blob([JSON.stringify({ app: 'workout', plan, overrides, logs, custom, units, name, bodyweight, routines, goals, timedLogs, measurements }, null, 2)], { type: 'application/json' })
+    const blob = new Blob([JSON.stringify({ app: 'workout', ...syncPayload(useStore.getState() as unknown as Record<string, unknown>) }, null, 2)], { type: 'application/json' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
     a.download = `ez-workout-backup-${new Date().toISOString().slice(0, 10)}.json`
@@ -96,10 +97,7 @@ export function SettingsView() {
       const d = JSON.parse(await f.text())
       if (!Array.isArray(d.plan) || d.plan.length !== 7 || !Array.isArray(d.logs)) throw new Error()
       if (!confirm('Replace all current data with this backup?')) return
-      importData({
-        plan: d.plan, overrides: d.overrides ?? {}, logs: d.logs, custom: d.custom ?? [], units: d.units ?? units,
-        name: d.name ?? '', bodyweight: d.bodyweight ?? [], routines: d.routines ?? [], goals: d.goals ?? [], timedLogs: Array.isArray(d.timedLogs) ? d.timedLogs : [], measurements: Array.isArray(d.measurements) ? d.measurements : [],
-      })
+      importData(d)
       setMsg('Backup restored.')
     } catch {
       setMsg('That file isn’t a valid backup.')

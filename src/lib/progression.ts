@@ -20,14 +20,21 @@ export interface Suggestion {
   seconds?: number | null
   /** One-line reason, e.g. "You hit 3 × 8 at 135 last time: add weight". */
   why: string
-  kind: 'add-weight' | 'add-reps' | 'add-time' | 'repeat' | 'first'
+  kind: 'add-weight' | 'add-reps' | 'add-time' | 'repeat' | 'first' | 'deload'
 }
 
 /**
  * "Try this next" from the last session, the classic double progression: once every working set reaches the rep
  * target, add weight; otherwise keep the weight and add a rep. Bodyweight moves add a rep, holds add 5 seconds.
  */
-export function suggestNext(ex: Exercise, last: ExerciseLog | undefined, target: { reps?: number; seconds?: number }, units: Units): Suggestion {
+export function suggestNext(
+  ex: Exercise,
+  last: ExerciseLog | undefined,
+  target: { reps?: number; seconds?: number },
+  units: Units,
+  /** Earlier sessions of this exercise, newest first, starting with `last`. Used to spot a plateau. */
+  history: ExerciseLog[] = [],
+): Suggestion {
   const sets = workSets(last)
   const mode = ex.mode ?? 'weight'
   if (sets.length === 0) return { kind: 'first', why: 'First time: pick a weight you could lift a couple more times, and log it.', reps: target.reps ?? null, seconds: target.seconds ?? null }
@@ -48,9 +55,33 @@ export function suggestNext(ex: Exercise, last: ExerciseLog | undefined, target:
     const next = top + weightStep(ex, units)
     return { kind: 'add-weight', weight: next, reps: goal, why: `You got ${atTop.length} × ${goal} last time. Add weight.` }
   }
+  const stalled = plateau(ex, history)
+  if (stalled) {
+    const step = weightStep(ex, units)
+    const lighter = Math.max(step, Math.round((top * 0.9) / step) * step)
+    return { kind: 'deload', weight: lighter, reps: goal, why: `No progress in your last ${stalled} sessions at ${Math.round(top)}. Drop to about 90% and build back up past it.` }
+  }
   const low = Math.min(...atTop.map((s) => s.reps ?? 0))
   if (tooHard && hit) return { kind: 'repeat', weight: top, reps: goal, why: 'That felt maxed out last time. Repeat it and own every rep.' }
   return { kind: 'add-reps', weight: top, reps: Math.min(goal, low + 1), why: `Same weight. Your lowest set was ${low}: get ${Math.min(goal, low + 1)}+ on every set.` }
+}
+
+/**
+ * Stuck at the same weight for 3+ sessions without beating your best set there: returns how many sessions, else 0.
+ * A short step back (a deload) is the standard fix for a plateau.
+ */
+export function plateau(ex: Exercise, history: ExerciseLog[]): number {
+  if ((ex.mode ?? 'weight') !== 'weight') return 0
+  const recent = history.filter((l) => workSets(l).length > 0).slice(0, 4)
+  if (recent.length < 3) return 0
+  const tops = recent.map((l) => Math.max(...workSets(l).map((s) => s.weight ?? 0)))
+  const same = tops.findIndex((t) => t !== tops[0])
+  const run = same === -1 ? tops.length : same
+  if (run < 3) return 0
+  const best = (l: ExerciseLog) => Math.max(...workSets(l).filter((s) => s.weight === tops[0]).map((s) => s.reps ?? 0))
+  const scores = recent.slice(0, run).map(best) // newest first
+  // No improvement: the newest session is no better than the oldest in the run.
+  return scores[0] <= scores[run - 1] ? run : 0
 }
 
 /** How a set compares with the same set last time: better, same, or worse (null if nothing to compare). */

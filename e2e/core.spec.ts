@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 import { seed, state } from './helpers'
 
 test('first run: skip social, walkthrough, lands on Home', async ({ page }) => {
@@ -42,7 +42,7 @@ test('randomizer builds a timed workout with a clock', async ({ page }) => {
 })
 
 test('damaged saved data does not crash the app', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('workout-app-v1', JSON.stringify({ state: { plan: 'bad', logs: [null, { exerciseId: 1 }], tourDone: true, socialChoice: 'declined', overrides: 5 }, version: 1 })))
+  await page.addInitScript(() => localStorage.setItem('workout-app-v1', JSON.stringify({ state: { plan: 'bad', logs: [null, { exerciseId: 1 }], tourDone: true, tourVersion: 1000, socialChoice: 'declined', overrides: 5 }, version: 1 })))
   await page.goto('/')
   await expect(page.getByText('Goals')).toBeVisible()
 })

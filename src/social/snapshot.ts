@@ -4,8 +4,8 @@ import { hasData, weekStats } from '../lib/stats'
 import type { ProgressSnapshot } from './types'
 
 /**
- * The summary a person can choose to share with friends. It is built from workout logs only:
- * body weight, goals and exact set details are never included.
+ * The summary a person can choose to share with friends: recent exercise names, weekly count, streak and the text of
+ * recent personal-best notifications. Body weight, measurements, photos, goals and full set details are never included.
  */
 export function buildSnapshot(p: { logs: ExerciseLog[]; notifications: AppNotification[]; today: string; lookup: (id: string) => Exercise | undefined; now?: number }): ProgressSnapshot {
   const stats = weekStats(p.logs, p.today)

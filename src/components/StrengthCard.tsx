@@ -35,7 +35,9 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, no
   const [editingNote, setEditingNote] = useState(false)
   const sets = Array.from({ length: setCount }, (_, i) => current?.sets?.[i] ?? { weight: null, reps: null, seconds: null })
   const lastWork = workSets(last)
-  const tip = suggestNext(exercise, last, { reps: targetReps, seconds: targetSeconds }, units)
+  const allLogs = useStore((s) => s.logs)
+  const history = last ? allLogs.filter((l) => l.exerciseId === exercise.id && l.date <= last.date).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4) : []
+  const tip = suggestNext(exercise, last, { reps: targetReps, seconds: targetSeconds }, units, history)
 
   const update = (i: number, patch: Partial<StrengthSet>) => onChange(sets.map((s, j) => (j === i ? { ...s, ...patch } : s)))
   const filled = (s: StrengthSet) => !!(s.weight || s.reps || s.seconds)
@@ -48,7 +50,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, no
   const fillAll = () => onChange(sets.map((s) => (s.warmup || filled(s) ? s : fromTip(s))))
   const done = (i: number) => {
     const s = sets[i]
-    if (!filled(s)) update(i, fromTip(s))
+    if (!filled(s) && !s.warmup) update(i, fromTip(s))
     onSetDone?.()
   }
 
