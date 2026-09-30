@@ -4,6 +4,7 @@ import { BUILTIN_BY_ID } from './data/exercises'
 import { parseISO, weekdayIndex } from './lib/dates'
 import { toPlanned, type CardioDay } from './lib/cardioPlan'
 import { dayPlanOf } from './lib/plan'
+import { repairState, SCHEMA_VERSION } from './lib/migrate'
 import { activePrograms, clearRange, removeProgramDays } from './lib/programs'
 import type {
   AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Program, Routine, Sport, TimedLog, StrengthSet, Units, WeekPlan,
@@ -335,7 +336,13 @@ export const useStore = create<State>()(
           name: d.name ?? '', bodyweight: d.bodyweight ?? [], routines: d.routines ?? [], goals: d.goals ?? [], programs: [], timedLogs: d.timedLogs ?? [],
         }),
     }),
-    { name: 'workout-app-v1', version: 1 },
+    {
+      name: 'workout-app-v1',
+      version: SCHEMA_VERSION,
+      // Every load (old versions, damaged data, restored backups) goes through the same repair step.
+      migrate: (saved) => repairState(saved, defaults()) as unknown as State,
+      merge: (saved, current) => ({ ...current, ...repairState(saved, defaults()) }),
+    },
   ),
 )
 

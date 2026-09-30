@@ -1,0 +1,46 @@
+import { expect, test } from '@playwright/test'
+import { seed, state } from './helpers'
+
+test('first run: skip social, walkthrough, lands on Home', async ({ page }) => {
+  page.on('dialog', (d) => d.accept())
+  await page.goto('/')
+  await page.getByText('Skip for now').click()
+  await expect(page.getByRole('dialog', { name: 'App walkthrough' })).toBeVisible()
+  await page.getByRole('button', { name: 'Skip' }).click()
+  await expect(page.getByText('Goals')).toBeVisible()
+})
+
+test('plan and log an exercise, then see it in History', async ({ page }) => {
+  await seed(page)
+  await page.goto('/')
+  await page.locator('nav').getByText('Plan').click()
+  await page.getByRole('button', { name: '+ Add' }).click()
+  await page.getByText('Add an exercise').click()
+  await page.getByPlaceholder(/search/i).fill('Pushups')
+  await page.locator('.fixed button', { hasText: /^Pushups/ }).first().click()
+  await page.locator('.fixed').getByRole('button', { name: /Done|Close/ }).first().click()
+  await page.locator('input[type=number]').first().fill('20')
+  await expect.poll(async () => (await state(page)).logs.length).toBe(1)
+  await page.locator('nav').getByText('History').click()
+  await expect(page.getByText('Pushups')).toBeVisible()
+})
+
+test('randomizer builds a timed workout with a clock', async ({ page }) => {
+  await seed(page)
+  await page.goto('/')
+  await page.locator('nav').getByText('Plan').click()
+  await page.getByRole('button', { name: '+ Add' }).click()
+  await page.getByText('Randomize a workout').click()
+  await page.locator('.fixed').getByRole('button', { name: 'EMOM', exact: true }).click()
+  await page.locator('.fixed').getByRole('button', { name: /^Generate/ }).click()
+  await page.locator('.fixed').getByRole('button', { name: /^Add to/ }).click()
+  await expect(page.getByText('Timed workout').first()).toBeVisible()
+  await page.getByRole('button', { name: /Start timer/ }).first().click()
+  await expect(page.locator('.fixed').getByText(/Interval 1 of/)).toBeVisible()
+})
+
+test('damaged saved data does not crash the app', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('workout-app-v1', JSON.stringify({ state: { plan: 'bad', logs: [null, { exerciseId: 1 }], tourDone: true, socialChoice: 'declined', overrides: 5 }, version: 1 })))
+  await page.goto('/')
+  await expect(page.getByText('Goals')).toBeVisible()
+})
