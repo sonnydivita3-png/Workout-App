@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useStore, type Accent } from '../store'
 import { Sheet } from './Sheet'
 import { SocialSettings } from './social/SocialSettings'
+import { CloudBackup } from './CloudBackup'
+import { LegalSheet, type LegalDoc } from './LegalSheet'
 
 const ACCENTS: [Accent, string][] = [['lime', '#c8ff3e'], ['pink', '#ff5cae'], ['violet', '#a78bfa'], ['orange', '#ff9f45'], ['blue', '#5eb1ff']]
 
@@ -53,6 +55,7 @@ export function SettingsView() {
   const [erasing, setErasing] = useState(false)
   const [keepProfile, setKeepProfile] = useState(true)
   const [confirmText, setConfirmText] = useState('')
+  const [legal, setLegal] = useState<LegalDoc | null>(null)
   const [backedUp, setBackedUp] = useState(false)
   const file = useRef<HTMLInputElement>(null)
 
@@ -180,7 +183,7 @@ export function SettingsView() {
 
       <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Your data</h2>
       <p className="text-sm text-neutral-500">
-        Everything lives on this device only. Export a backup now and then — clearing browser data erases it.
+        Without cloud backup, everything lives on this device only. Export a file now and then — clearing browser data erases it.
       </p>
       <div className="flex gap-2">
         <button onClick={exportData} className="flex-1 rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent">Export backup</button>
@@ -200,7 +203,8 @@ export function SettingsView() {
         <Sheet title="Erase all data?" onClose={closeErase} closeLabel="Cancel">
           <p className="mb-3 text-sm text-neutral-600">
             This permanently deletes your workout history, weekly plan, routines, goals, body weight entries, custom
-            exercises and notifications from this device. It can’t be undone.
+            exercises and notifications from this device. It can’t be undone. Cloud backup is turned off, and your last cloud
+            backup is left as it is.
           </p>
           <button
             onClick={exportData}
@@ -232,9 +236,17 @@ export function SettingsView() {
         </Sheet>
       )}
 
+      <CloudBackup />
+
       <SocialSettings />
 
       <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Help</h2>
+      {(['privacy', 'terms', 'health'] as const).map((d) => (
+        <button key={d} onClick={() => setLegal(d)} className="w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70">
+          {d === 'privacy' ? 'Privacy policy' : d === 'terms' ? 'Terms of use' : 'Health notice'}
+        </button>
+      ))}
+      {legal && <LegalSheet doc={legal} onClose={() => setLegal(null)} />}
       <button onClick={() => setTourDone(false)} className="w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70">Replay the app walkthrough</button>
 
       {!standalone && (

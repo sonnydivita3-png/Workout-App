@@ -296,6 +296,20 @@ export class SupabaseBackend implements SocialBackend {
     ok(await c.rpc('mark_emoji_read', { p_ids: ids }))
   }
 
+  // ---- cloud backup
+  async pullData(): Promise<{ data: unknown; updatedAt: string } | null> {
+    const id = await this.me()
+    const c = await this.db()
+    const r = ok(await c.from('user_data').select('data, updated_at').eq('user_id', id).maybeSingle()) as Row | null
+    return r ? { data: r.data, updatedAt: r.updated_at } : null
+  }
+  async pushData(data: unknown): Promise<string> {
+    const id = await this.me()
+    const c = await this.db()
+    const r = ok(await c.from('user_data').upsert({ user_id: id, data, updated_at: new Date().toISOString() }).select('updated_at').single()) as Row
+    return r.updated_at
+  }
+
   // ---- progress
   async publishProgress(snapshot: ProgressSnapshot) {
     const id = await this.me()

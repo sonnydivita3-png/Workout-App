@@ -1,9 +1,10 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { mapError } from './supabase'
 import { EMOJI, SocialError } from './types'
 
-const sql = readFileSync('supabase/migrations/20260930000000_social.sql', 'utf8')
+// All migrations together, in order.
+const sql = readdirSync('supabase/migrations').sort().map((f) => readFileSync(`supabase/migrations/${f}`, 'utf8')).join('\n')
 const src = readFileSync('src/social/supabase.ts', 'utf8')
 
 describe('Supabase backend matches the migration', () => {

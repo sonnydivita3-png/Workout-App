@@ -23,6 +23,7 @@ beforeAll(async () => {
   db = new PGlite()
   await db.exec(PRELUDE)
   await db.exec(readFileSync(new URL('../../supabase/migrations/20260930000000_social.sql', import.meta.url), 'utf8'))
+  await db.exec(readFileSync(new URL('../../supabase/migrations/20261001000000_sync.sql', import.meta.url), 'utf8'))
 }, 120000)
 afterAll(async () => { await db.close() })
 
@@ -450,3 +451,24 @@ describe('signed-out and direct-write access', () => {
     await expect(as(a, 'insert into public.friend_requests (from_id, to_id) values ($1, $2)', [a, t])).rejects.toThrow(/rate_limited/)
   })
 })
+
+describe('cloud backup (user_data)', () => {
+  it('only the owner can read or write their backup, and anon sees nothing', async () => {
+    const a = await user()
+    const b = await user()
+    await as(a, `insert into public.user_data (user_id, data) values ($1, '{"logs":[1]}')`, [a])
+    await expect(as(b, `insert into public.user_data (user_id, data) values ($1, '{}')`, [a])).rejects.toThrow(/row-level security|duplicate/)
+    expect(await as(b, 'select * from public.user_data where user_id = $1', [a])).toEqual([])
+    await as(b, `update public.user_data set data = '{"hacked":true}' where user_id = $1`, [a])
+    const [row] = await as<{ data: { logs?: number[] } }>(a, 'select data from public.user_data where user_id = $1', [a])
+    expect(row.data.logs).toEqual([1])
+    await expect(asAnon('select * from public.user_data')).rejects.toThrow(/permission denied/)
+  })
+  it('is removed when the account is deleted', async () => {
+    const a = await user()
+    await as(a, `insert into public.user_data (user_id, data) values ($1, '{}')`, [a])
+    await as(a, 'select public.delete_my_account()')
+    expect(await admin('select * from public.user_data where user_id = $1', [a])).toEqual([])
+  })
+})
+

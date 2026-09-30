@@ -77,6 +77,11 @@ export interface SocialBackend {
   emojiMessages(): Promise<EmojiMessage[]>
   markEmojiRead(ids: string[]): Promise<void>
 
+  // ---- cloud backup of your own workout data
+  pullData(): Promise<{ data: unknown; updatedAt: string } | null>
+  /** Returns the server's new timestamp. */
+  pushData(data: unknown): Promise<string>
+
   // ---- progress sharing
   publishProgress(snapshot: ProgressSnapshot): Promise<void>
   friendProgress(friendId: string): Promise<ProgressSnapshot | null>

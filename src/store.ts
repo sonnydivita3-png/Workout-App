@@ -5,6 +5,7 @@ import { parseISO, weekdayIndex } from './lib/dates'
 import { toPlanned, type CardioDay } from './lib/cardioPlan'
 import { dayPlanOf } from './lib/plan'
 import { repairState, SCHEMA_VERSION } from './lib/migrate'
+import { SYNC_KEYS } from './lib/sync'
 import { activePrograms, clearRange, removeProgramDays } from './lib/programs'
 import type {
   AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Sport, TimedLog, StrengthSet, Units, WeekPlan,
@@ -56,6 +57,11 @@ interface State extends Data {
   /** Add dated exercises (e.g. from a friend's shared plan). They join what's planned unless `replace`. */
   applyDays: (days: Record<string, PlannedExercise[]>, replace: boolean) => void
   addCustomExercises: (list: Exercise[]) => void
+  /** Cloud backup: on/off and where this device is up to. */
+  cloud: { enabled: boolean; lastSyncedAt: string | null; lastHash: string | null; conflict: boolean; error: string | null; checkedAt: number | null }
+  setCloud: (p: Partial<State['cloud']>) => void
+  /** Replace workout data with a copy from the cloud (checked and repaired first). */
+  replaceData: (data: unknown) => void
   measurements: Measurement[]
   saveMeasurement: (m: Omit<Measurement, 'id'>) => void
   deleteMeasurement: (id: string) => void
@@ -162,6 +168,7 @@ const defaults = () => ({
   programs: [] as Program[],
   timedLogs: [] as TimedLog[],
   measurements: [] as Measurement[],
+  cloud: { enabled: false, lastSyncedAt: null, lastHash: null, conflict: false, error: null, checkedAt: null } as State['cloud'],
   theme: 'dark' as ThemeMode,
   accent: 'lime' as Accent,
   socialChoice: 'unset' as SocialChoice,
@@ -182,6 +189,7 @@ export const useStore = create<State>()(
           theme: s.theme,
           accent: s.accent,
           plainCopy: s.plainCopy,
+          // Erasing turns cloud backup off, so the cloud copy stays as a safety net rather than being wiped too.
           ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone } : {}),
         })),
       pushNotifications: (items) => {
@@ -236,6 +244,12 @@ export const useStore = create<State>()(
           const t = s.timedLogs.find((x) => x.id === id)
           if (!t) return s
           return { timedLogs: s.timedLogs.filter((x) => x.id !== id), logs: s.logs.filter((l) => !(l.date === t.date && t.movements.includes(l.exerciseId))) }
+        }),
+      setCloud: (p) => set((s) => ({ cloud: { ...s.cloud, ...p } })),
+      replaceData: (data) =>
+        set((s) => {
+          const fixed = repairState({ ...s, ...(data && typeof data === 'object' ? data : {}) }, defaults()) as Record<string, unknown>
+          return Object.fromEntries(SYNC_KEYS.map((k) => [k, fixed[k]])) as Partial<State>
         }),
       saveMeasurement: (m) =>
         set((s) => {

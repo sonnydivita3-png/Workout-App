@@ -48,7 +48,7 @@ const steps = (social: boolean): Step[] => [
   {
     icon: '⚙️', title: 'You’re set',
     body: 'Settings has units, notifications, backup, and a way to erase everything and start over.',
-    points: ['Replay this walkthrough any time from Settings → Help', 'Make it yours: pick dark or light and an accent colour in Settings → Look', 'Tip: add the app to your home screen so it opens like any other app'],
+    points: ['Workouts and suggestions are general guidance, not medical advice. Check with a doctor before starting something new', 'Replay this walkthrough any time from Settings → Help', 'Make it yours: pick dark or light and an accent colour in Settings → Look', 'Tip: add the app to your home screen so it opens like any other app'],
   },
 ]
 
