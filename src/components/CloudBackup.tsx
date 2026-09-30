@@ -35,7 +35,7 @@ export function CloudBackup() {
 
   return (
     <>
-      <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Cloud backup</h2>
+      <h2 className="pt-4 text-sm font-semibold text-neutral-700">Cloud backup</h2>
       {backend.kind === 'demo' && <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">Preview mode: backups are kept in this browser until the app is connected to a server, so they won’t survive clearing it yet.</p>}
       {!cloud.enabled ? (
         <>

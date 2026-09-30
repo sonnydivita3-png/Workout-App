@@ -24,7 +24,7 @@ export function HistoryView({ initialTab }: { initialTab?: string }) {
   )
   return (
     <section>
-      <h1 className="mb-4 text-2xl font-semibold tracking-tight">History</h1>
+      <h1 className="mb-4 text-2xl font-semibold tracking-tight">Progress</h1>
       <Tip id="progress">Workouts shows every session and how it compared with the time before. Exercises has charts and personal bests. Body tracks weight, measurements and photos.</Tip>
       {tabs}
       {tab === 'workouts' && <WorkoutsTab />}
@@ -63,7 +63,7 @@ function ExercisesTab() {
         <>
         {timedLogs.length > 0 && (
           <div className="mb-5">
-            <h2 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Timed workouts</h2>
+            <h2 className="mb-2 text-sm font-semibold text-neutral-700">Timed workouts</h2>
             <ul className="space-y-2">
               {[...timedLogs].sort((a, b) => b.date.localeCompare(a.date)).map((t) => (
                 <li key={t.id} className="flex items-center justify-between gap-3 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
@@ -80,7 +80,7 @@ function ExercisesTab() {
             </ul>
           </div>
         )}
-        {rows.length > 0 && <h2 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Exercises</h2>}
+        {rows.length > 0 && <h2 className="mb-2 text-sm font-semibold text-neutral-700">Exercises</h2>}
         <ul className="space-y-2">
           {rows.map(({ ex, date, n }) => (
             <li key={ex.id}>
@@ -176,7 +176,7 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
         ) : (
           <>
             <div className="mb-3 flex items-baseline justify-between border-b border-neutral-100 pb-3">
-              <span className="text-xs uppercase tracking-wide text-neutral-400">Best</span>
+              <span className="text-sm font-semibold text-neutral-700">Best</span>
               <span className="tabular-nums text-lg font-semibold">
                 {format(best!)}
                 {pr && <span className="ml-2 rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium uppercase text-on-accent">New PR</span>}
@@ -187,7 +187,7 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
         )}
       </div>
 
-      <h2 className="mb-2 mt-6 text-xs uppercase tracking-wide text-neutral-400">Sessions</h2>
+      <h2 className="mb-2 mt-6 text-sm font-semibold text-neutral-700">Sessions</h2>
       <ul className="space-y-2">
         {(isStrength ? (mode === 'weight' ? [...strength] : [...counted]).reverse() : [...cardio].reverse()).map((s) => (
           <li key={s.date} className="rounded-2xl bg-surface p-4 text-sm shadow-sm ring-1 ring-neutral-200/70">

@@ -17,7 +17,7 @@ export type ThemeMode = 'dark' | 'light' | 'auto'
 export type Accent = 'lime' | 'pink' | 'violet' | 'orange' | 'blue'
 
 /** Bump when the walkthrough gains new content, so people who saw an older version see it once more. */
-export const TOUR_VERSION = 2
+export const TOUR_VERSION = 3
 
 export type WarmupKind = 'cardio' | 'mobility' | 'sets'
 
@@ -70,11 +70,9 @@ interface State extends Data {
   trackRpe: boolean
   /** Rest timer after each set in workout mode, in seconds. 0 = off, -1 = as planned for each exercise. */
   restSeconds: number
-  setPrefs: (p: Partial<Pick<State, 'trackRpe' | 'restSeconds' | 'plainCopy' | 'backendKind'>>) => void
+  setPrefs: (p: Partial<Pick<State, 'trackRpe' | 'restSeconds' | 'backendKind'>>) => void
   /** Which social server this device last used, to notice the switch from preview to a real one. */
   backendKind: 'demo' | 'supabase' | null
-  /** Plain wording instead of the playful copy. */
-  plainCopy: boolean
   /** A workout in progress (workout mode), so reopening the app picks it back up. */
   session: { date: string; startedAt: number } | null
   startSession: (date: string) => void
@@ -218,7 +216,6 @@ const defaults = () => ({
   trackRpe: false,
   genPrefs: { warmup: [], rest: 'normal' } as State['genPrefs'],
   restSeconds: -1,
-  plainCopy: false,
   backendKind: null as 'demo' | 'supabase' | null,
   session: null as { date: string; startedAt: number } | null,
 })
@@ -232,7 +229,6 @@ export const useStore = create<State>()(
           ...defaults(),
           theme: s.theme,
           accent: s.accent,
-          plainCopy: s.plainCopy,
           // Erasing turns cloud backup off, so the cloud copy stays as a safety net rather than being wiped too.
           ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone, tourVersion: s.tourVersion, onboarded: s.onboarded, tipsSeen: s.tipsSeen } : {}),
         })),

@@ -7,7 +7,7 @@ import { NumberInput } from './NumberInput'
 import { Sheet } from './Sheet'
 
 const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
-const h3 = 'mb-2 text-xs uppercase tracking-wide text-neutral-400'
+const h3 = 'mb-2 text-sm font-semibold text-neutral-700'
 
 /** Build your own AMRAP, EMOM or for-time workout and add it to a day. */
 export function WodBuilderSheet({ date, onClose }: { date: string; onClose: () => void }) {

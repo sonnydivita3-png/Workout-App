@@ -22,7 +22,7 @@ const LEVELS: { id: PlanLevel; label: string; blurb: Record<Sport, string> }[] =
 ]
 
 const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
-const h3 = 'mb-2 text-xs uppercase tracking-wide text-neutral-400'
+const h3 = 'mb-2 text-sm font-semibold text-neutral-700'
 
 interface Props {
   onClose: () => void
@@ -254,7 +254,7 @@ export function CardioPlanSheet({ onClose, onApplied }: Props) {
 
           {paces && (
             <div className="mb-4 rounded-2xl bg-neutral-50 p-3 text-sm">
-              <p className="mb-1 text-xs uppercase tracking-wide text-neutral-400">Your training paces</p>
+              <p className="mb-1 text-sm font-semibold text-neutral-700">Your training paces</p>
               <ul className="space-y-0.5 tabular-nums text-neutral-600">
                 <li>Easy <span className="float-right">{formatPace(1, paces.easy[1], units)} – {formatPace(1, paces.easy[0], units)}</span></li>
                 <li>Marathon pace <span className="float-right">{formatPace(1, paces.marathon, units)}</span></li>

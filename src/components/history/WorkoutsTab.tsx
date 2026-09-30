@@ -47,7 +47,7 @@ export function WorkoutsTab() {
           <p className="text-sm font-semibold">{first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })} · {monthCount} workout{monthCount === 1 ? '' : 's'}</p>
           <button onClick={() => shift(1)} aria-label="Next month" className="h-8 w-8 rounded-full text-neutral-500">›</button>
         </div>
-        <div className="grid grid-cols-7 gap-1 text-center text-[11px] text-neutral-400">
+        <div className="grid grid-cols-7 gap-1 text-center text-xs text-neutral-400">
           {WD.map((d, i) => <span key={i}>{d}</span>)}
           {cells.map((d, i) => d === null ? <span key={i} /> : (
             <button
@@ -64,7 +64,7 @@ export function WorkoutsTab() {
       </section>
 
       <section className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
-        <p className="mb-1 text-xs uppercase tracking-wide text-neutral-400">Hard sets per muscle · this week vs last</p>
+        <p className="mb-1 text-sm font-semibold text-neutral-700">Hard sets per muscle · this week vs last</p>
         <p className="mb-3 text-xs text-neutral-400">Many coaches aim for about 10–20 working sets per muscle each week.</p>
         <ul className="space-y-1.5">
           {MUSCLE_GROUPS.map((g) => {

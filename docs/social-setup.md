@@ -85,7 +85,7 @@ Open the app and close/reopen it once or twice so it picks up the new version. *
 - Friend-sent workouts are validated and clamped on the receiving device before anything touches the calendar, and a friend's custom exercises are imported under new ids so they can't overwrite your own.
 - Cloud backup is one row per account that only its owner can read or write.
 - People can report anyone from a friend request or a friend's page (optionally blocking them too). Reports can only be written, never read, through the API.
-- Sending is rate limited, blocking removes the friendship, and deleting the account (**Settings → Account**, shown to anyone signed in, even with social off) removes everything server-side, including the backup.
+- Sending is rate limited, blocking removes the friendship, and deleting the account (**Settings → Friends & account**, shown to anyone signed in, even with social off) removes everything server-side, including the backup.
 - Invite links (`…/Workout-App/?add=handle`) only carry a handle. Opening one offers to send that person a friend request, after sign-up if needed; nothing is shared until each side sets permissions.
 
 ## Limits

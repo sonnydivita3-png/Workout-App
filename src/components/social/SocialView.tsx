@@ -253,7 +253,7 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
                   <li key={f.profile.id}>
                     <button onClick={() => setFriendId(f.profile.id)} className="flex w-full items-center gap-3 py-2 text-left">
                       <Avatar profile={f.profile} /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{f.profile.displayName}</span><span className="block text-xs text-neutral-400">@{f.profile.handle}</span></span>
-                      {!f.iGrant.reviewed && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] text-amber-800">Set permissions</span>}
+                      {!f.iGrant.reviewed && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">Set permissions</span>}
                       <span className="text-neutral-300">›</span>
                     </button>
                   </li>

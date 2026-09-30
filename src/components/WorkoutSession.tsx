@@ -93,11 +93,11 @@ export function WorkoutSession({ onMinimize }: { onMinimize: () => void }) {
             {summary.compared === 0 ? 'Workout logged ✅' : summary.beat === summary.compared ? 'Beat last time on everything 🔥' : summary.beat > 0 ? `Beat last time on ${summary.beat} of ${summary.compared}` : 'Logged. Next time you beat it 💪'}
           </h1>
           <div className="my-4 grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-2xl bg-surface p-3 ring-1 ring-neutral-200/70"><p className="text-2xl font-bold">{summary.beat}</p><p className="text-[11px] text-neutral-400">improved</p></div>
-            <div className="rounded-2xl bg-surface p-3 ring-1 ring-neutral-200/70"><p className="text-2xl font-bold">{summary.prs}</p><p className="text-[11px] text-neutral-400">new bests</p></div>
+            <div className="rounded-2xl bg-surface p-3 ring-1 ring-neutral-200/70"><p className="text-2xl font-bold">{summary.beat}</p><p className="text-xs text-neutral-400">improved</p></div>
+            <div className="rounded-2xl bg-surface p-3 ring-1 ring-neutral-200/70"><p className="text-2xl font-bold">{summary.prs}</p><p className="text-xs text-neutral-400">new bests</p></div>
             <div className="rounded-2xl bg-surface p-3 ring-1 ring-neutral-200/70">
               <p className="text-2xl font-bold">{volDelta == null ? `${Math.round(showWeight(summary.liftVolume, units)!).toLocaleString()}` : `${volDelta >= 0 ? '+' : ''}${volDelta}%`}</p>
-              <p className="text-[11px] text-neutral-400">{volDelta == null ? `volume (${units.weight})` : 'volume vs last'}</p>
+              <p className="text-xs text-neutral-400">{volDelta == null ? `volume (${units.weight})` : 'volume vs last'}</p>
             </div>
           </div>
           <ul className="mb-6 divide-y divide-neutral-100 rounded-2xl bg-surface px-4 ring-1 ring-neutral-200/70">
@@ -125,7 +125,7 @@ export function WorkoutSession({ onMinimize }: { onMinimize: () => void }) {
           <button onClick={onMinimize} className="text-sm text-neutral-500" aria-label="Minimize workout">⌄ Hide</button>
           <div className="text-center">
             <p className="text-xl font-bold tabular-nums">{fmt((now - session!.startedAt) / 1000)}</p>
-            <p className="text-[11px] text-neutral-400">{fmtLong(date)}</p>
+            <p className="text-xs text-neutral-400">{fmtLong(date)}</p>
           </div>
           <button onClick={finish} className="rounded-full bg-accent px-4 py-1.5 text-sm font-medium text-on-accent">Finish</button>
         </div>

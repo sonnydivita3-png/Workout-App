@@ -13,7 +13,7 @@ import type { ExerciseLog, Goal, Units } from '../types'
 import { GoalSheet } from './GoalSheet'
 import { NotificationsSheet } from './NotificationsSheet'
 import { NumberInput } from './NumberInput'
-import type { Tab } from './TabBar'
+import { SETTINGS_ICON, type Tab } from './TabBar'
 import { ChallengeSheet } from './social/ChallengeSheet'
 import { ShareSheet } from './social/ShareSheet'
 import { completedWorkout } from '../social/share'
@@ -87,6 +87,9 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab, sub?: string) =>
           )}
         </div>
         <div className="flex shrink-0">
+          <button onClick={() => onNavigate('settings')} aria-label="Settings" className={iconBtn}>
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d={SETTINGS_ICON} /></svg>
+          </button>
           <button onClick={() => setNotifSheet(true)} aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'} className={iconBtn}>
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
               <path d="M6 9a6 6 0 1112 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9M10 20a2 2 0 004 0" />
@@ -158,7 +161,7 @@ function Stat({ value, label, sub, good }: { value: string; label: string; sub?:
     <div className="rounded-2xl bg-surface px-2 py-3 ring-1 ring-neutral-200/70">
       <div className="text-2xl font-semibold tabular-nums">{value}</div>
       <div className="text-xs text-neutral-500">{label}</div>
-      {sub && <div className={`mt-1 text-[11px] leading-tight ${good ? 'text-green-600' : 'text-neutral-400'}`}>{sub}</div>}
+      {sub && <div className={`mt-1 text-xs leading-tight ${good ? 'text-green-600' : 'text-neutral-400'}`}>{sub}</div>}
     </div>
   )
 }

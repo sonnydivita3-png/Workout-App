@@ -29,7 +29,7 @@ export function WeekStrip({ dates, selected, counts, labels, done, rest, today, 
               active ? 'bg-accent text-on-accent' : 'text-neutral-500 hover:bg-neutral-200/60'
             }`}
           >
-            <span className="text-[11px] uppercase tracking-wide">{DAY_LABELS[i]}</span>
+            <span className="text-xs uppercase tracking-wide">{DAY_LABELS[i]}</span>
             <span className={`text-lg font-semibold ${toISO(d) === today && !active ? 'text-neutral-900' : ''}`}>
               {d.getDate()}
             </span>

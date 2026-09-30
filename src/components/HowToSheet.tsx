@@ -43,7 +43,7 @@ export function HowToSheet({ exercise, onClose }: { exercise: Exercise; onClose:
           <ol className="list-decimal space-y-2 pl-5 text-sm text-neutral-700">
             {info.i.map((step, n) => <li key={n}>{step}</li>)}
           </ol>
-          <p className="mt-4 text-[11px] text-neutral-400">From free-exercise-db (public domain). Pictures need a connection.</p>
+          <p className="mt-4 text-xs text-neutral-400">From free-exercise-db (public domain). Pictures need a connection.</p>
         </>
       )}
     </Sheet>

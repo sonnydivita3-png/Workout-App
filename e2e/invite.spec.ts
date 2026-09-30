@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures'
-import { seed, signUp, state } from './helpers'
+import { openSettings, seed, signUp, state } from './helpers'
 
 
 test('an invite link survives sign-up and adds the inviter in one tap', async ({ page }) => {
@@ -25,7 +25,7 @@ test('invite link can be dismissed, and Settings copies an app link without a sh
   await page.goto('/?add=sam')
   await page.getByRole('button', { name: 'Not now' }).click()
   await expect(page.getByText('invited you to train together')).toHaveCount(0)
-  await page.locator('nav').getByText('Settings').click()
+  await openSettings(page, 'Help & feedback')
   await page.evaluate(() => { Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }) })
   await page.getByRole('button', { name: /Invite a friend to the app/ }).click()
   await expect(page.getByText('Invite copied')).toBeVisible()
@@ -37,7 +37,7 @@ test('an account can be deleted from Settings even with social turned off', asyn
   await seed(page, { socialChoice: 'unset' })
   await page.goto('/')
   await signUp(page, 'leaver')
-  await page.locator('nav').getByText('Settings').click()
+  await openSettings(page, 'Friends & account')
   await page.getByRole('button', { name: 'Turn off social features' }).click()
   await page.getByRole('button', { name: 'Turn off', exact: true }).click()
   await page.getByRole('button', { name: /Delete my account/ }).click()

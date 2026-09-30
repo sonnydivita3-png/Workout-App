@@ -139,7 +139,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
       {tip.kind === 'first' && <p className="mb-3 text-xs text-neutral-400">{tip.why}</p>}
 
       <div className="space-y-2">
-        <div className="grid gap-2 text-[11px] uppercase tracking-wide text-neutral-400" style={{ gridTemplateColumns: cols.replaceAll('_', ' ') }}>
+        <div className="grid gap-2 text-xs font-medium text-neutral-500" style={{ gridTemplateColumns: cols.replaceAll('_', ' ') }}>
           <span>Set</span>
           {mode === 'weight' && <span className="text-center">{units.weight}</span>}
           <span className="text-center">{mode === 'time' ? 'Seconds' : 'Reps'}</span>

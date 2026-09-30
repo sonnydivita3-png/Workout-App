@@ -48,7 +48,7 @@ function LegalBody({ doc }: { doc: LegalDoc }) {
             <h3>What we don’t do</h3>
             <p>No ads, no selling or renting data, no third-party analytics or trackers. Data is stored with our database provider (Supabase) only to run these features. Encrypted copies of the database are kept for up to 90 days to recover from mistakes.</p>
             <h3>Your choices</h3>
-            <p>You can turn off backup or social features at any time in Settings, export your data to a file, erase everything on this device, and delete your account under Settings → Account (which deletes your backup and all social data on the server). See <a className="underline" href="#delete-account">Deleting your account</a>.</p>
+            <p>You can turn off backup or social features at any time in Settings, export your data to a file, erase everything on this device, and delete your account under Settings → Friends &amp; account (which deletes your backup and all social data on the server). See <a className="underline" href="#delete-account">Deleting your account</a>.</p>
             <h3>Children</h3>
             <p>Social features and accounts are only for people 13 and older.</p>
             <h3>Questions</h3>
@@ -80,13 +80,13 @@ function LegalBody({ doc }: { doc: LegalDoc }) {
           <>
             <p className="text-xs text-neutral-400">Last updated {UPDATED}</p>
             <h3>In the app</h3>
-            <p>Open <b>Settings → Account → Delete my account</b> and confirm. It takes effect immediately.</p>
+            <p>Open <b>Settings (the gear on Home) → Friends &amp; account → Delete my account</b> and confirm. It takes effect immediately.</p>
             <h3>Without the app</h3>
             <p>If you can’t open the app (for example, you lost your phone), <a className="underline" href={feedbackLink('feedback', 'Account deletion request')} target="_blank" rel="noreferrer">send a deletion request</a> with your handle and, if you added one, the email on the account. We’ll confirm and delete it within 30 days.</p>
             <h3>What’s deleted</h3>
             <p>Your handle, display name, avatar, email, friends and permissions, workouts and challenges you sent or received, emoji, reports you made, progress summaries and your cloud backup. Encrypted database backups that already contain your data expire within 90 days.</p>
             <h3>What isn’t</h3>
-            <p>Workouts saved on your phone stay there until you delete them (<b>Settings → Erase all data</b>) or remove the app.</p>
+            <p>Workouts saved on your phone stay there until you delete them (<b>Settings → Backup &amp; data → Erase all data</b>) or remove the app.</p>
           </>
         )}
       </div>

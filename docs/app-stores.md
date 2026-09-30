@@ -5,7 +5,7 @@ The app is a web app (PWA). To list it in the stores it gets wrapped in a native
 when you're ready; nothing here has to happen before then.
 
 ## Already in place
-- **Account deletion inside the app** (Settings → Account), required by both stores.
+- **Account deletion inside the app** (Settings → Friends & account), required by both stores.
 - **Public web pages** the store listings ask for (replace the domain if you move off GitHub Pages):
   - Privacy policy: `https://sonnydivita3-png.github.io/Workout-App/#privacy`
   - Account deletion (Google Play's "delete account URL"): `https://sonnydivita3-png.github.io/Workout-App/#delete-account`

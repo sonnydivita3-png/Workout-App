@@ -1,10 +1,10 @@
 import { expect, test } from './fixtures'
-import { iso, seed, state } from './helpers'
+import { iso, openSettings, seed, state } from './helpers'
 
 test('cloud backup: turn on, back up, restore after erasing, and resolve a conflict', async ({ page }) => {
   await seed(page, { logs: [{ date: iso(-1), exerciseId: 'Pushups', sets: [{ weight: null, reps: 30 }] }] })
   await page.goto('/')
-  await page.locator('nav').getByText('Settings').click()
+  await openSettings(page, 'Backup & data')
   await page.getByRole('button', { name: 'Turn on cloud backup' }).click()
   await page.locator('.fixed input[type=email]').fill('me@example.com')
   await page.locator('.fixed').getByRole('button', { name: 'Send code' }).click()

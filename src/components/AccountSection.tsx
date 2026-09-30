@@ -41,7 +41,7 @@ export function AccountSection() {
 
   return (
     <>
-      <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Account</h2>
+      <h2 className="pt-4 text-sm font-semibold text-neutral-700">Account</h2>
       <button onClick={() => { setError(null); setConfirm(true) }} className="w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm text-red-600 shadow-sm ring-1 ring-neutral-200/70">
         Delete my account
         <span className="block text-xs text-neutral-400">{user.email ?? 'Account without an email'}</span>

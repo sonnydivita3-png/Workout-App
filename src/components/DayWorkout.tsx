@@ -22,7 +22,7 @@ export function DayWorkout({ date, items: planned, only, onSetDone }: { date: st
           <TimedBlockCard key={g.block ?? gi} items={g.items.map((x) => x.item)} date={date} onRemove={() => g.items.forEach((x) => s.removeExercise(date, x.item.exerciseId))} />
         ) : (
           <div key={gi} className={g.block ? 'space-y-2 rounded-3xl bg-neutral-200/50 p-2' : 'contents'}>
-            {g.block && g.label && <p className="px-2 pt-1 text-[11px] uppercase tracking-wide text-neutral-500">{g.label}</p>}
+            {g.block && g.label && <p className="px-2 pt-1 text-xs uppercase tracking-wide text-neutral-500">{g.label}</p>}
             {(() => {
               const c = parseCircuit(g.label, g.items.map((x) => x.item))
               if (!c) return null

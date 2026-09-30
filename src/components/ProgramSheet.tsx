@@ -64,7 +64,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
       <Sheet title="Randomize" onClose={onClose} closeLabel="Cancel">
         <ModeSwitch mode="program" onChange={onSwitchMode} />
 
-        <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Plan for</h3>
+        <h3 className="mb-2 text-sm font-semibold text-neutral-700">Plan for</h3>
         <div className="mb-2 flex flex-wrap gap-2">
           <button onClick={() => setWhen('this')} className={chip(when === 'this')}>This week</button>
           <button onClick={() => setWhen('next')} className={chip(when === 'next')}>Next week</button>
@@ -75,7 +75,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
         {when === 'this' && <p className="mb-5 text-xs text-neutral-400">Days that have already passed this week are left alone.</p>}
         {when === 'next' && <div className="mb-5" />}
 
-        <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Goal</h3>
+        <h3 className="mb-2 text-sm font-semibold text-neutral-700">Goal</h3>
         <div className="mb-1 flex flex-wrap gap-2">
           {PROGRAM_GOALS.map((g) => (
             <button key={g.id} onClick={() => setGoal(g.id)} className={chip(g.id === goal)}>{g.label}</button>
@@ -83,7 +83,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
         </div>
         <p className="mb-5 text-xs text-neutral-400">{goalInfo(goal).blurb}</p>
 
-        <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Training days</h3>
+        <h3 className="mb-2 text-sm font-semibold text-neutral-700">Training days</h3>
         <div className="mb-2 flex flex-wrap gap-2">
           {[2, 3, 4, 5, 6].map((n) => (
             <button key={n} onClick={() => setDays(defaultWeekdays(n))} className={chip(days.length === n && days.join() === defaultWeekdays(n).join())}>
@@ -109,7 +109,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
 
         <WarmupRestControls lifting />
 
-        <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Session length</h3>
+        <h3 className="mb-2 text-sm font-semibold text-neutral-700">Session length</h3>
         <div className="mb-5 flex flex-wrap gap-2">
           {DURATIONS.map((m) => (
             <button key={m} onClick={() => setMinutes(m)} className={chip(m === minutes)}>{m} min</button>
@@ -155,7 +155,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
       <div className="space-y-4">
         {byWeek.map((week, wi) => (
           <div key={wi}>
-            <h3 className="mb-1 text-xs uppercase tracking-wide text-neutral-400">
+            <h3 className="mb-1 text-sm font-semibold text-neutral-700">
               Week {week[0].weekIndex + 1} · {fmtShort(week[0].date)} – {fmtShort(week.at(-1)!.date)}
             </h3>
             <ul className="divide-y divide-neutral-100 rounded-2xl bg-neutral-50 px-3">

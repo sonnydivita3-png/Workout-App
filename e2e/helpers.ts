@@ -37,3 +37,10 @@ export async function signUp(page: Page, handle: string, name = 'E2E') {
   await page.getByText('I’m 13 or older.').click()
   await page.getByRole('button', { name: 'Create my account' }).click()
 }
+
+/** Settings opens from the gear on Home; `section` is one of its pages (e.g. 'Backup & data'). */
+export async function openSettings(page: Page, section?: string) {
+  await page.locator('nav').getByText('Home').click()
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  if (section) await page.getByRole('button', { name: new RegExp(`^${section.replace(/[&]/g, '\\$&')}`) }).click()
+}

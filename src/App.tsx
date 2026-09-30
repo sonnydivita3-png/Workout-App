@@ -24,9 +24,13 @@ import { useNotificationEngine } from './lib/useNotificationEngine'
 import { TabBar, type Tab } from './components/TabBar'
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('home')
-  const [historyTab, setHistoryTab] = useState<string | undefined>()
-  const navigate = (t: Tab, sub?: string) => { setHistoryTab(t === 'history' ? sub : undefined); setTab(t); window.scrollTo(0, 0) }
+  const [chosenTab, setTab] = useState<Tab>('home')
+  // Some links open a specific part of a tab (History → Body, Settings → Backup).
+  const [sub, setSub] = useState<string | undefined>()
+  const navigate = (t: Tab, part?: string) => { setSub(part); setTab(t); window.scrollTo(0, 0) }
+  const hideSocial = useStore((s) => s.socialChoice === 'declined')
+  // Turning friends off while on the Social tab lands on Home.
+  const tab: Tab = hideSocial && chosenTab === 'social' ? 'home' : chosenTab
   // Public pages for app store listings and links: …/#privacy, #terms, #health, #delete-account.
   const [page, setPage] = useState<LegalDoc | null>(pageFromHash)
   useEffect(() => {
@@ -62,14 +66,14 @@ export default function App() {
     <>
       <main className="mx-auto min-h-screen max-w-md px-4 pb-40 pt-[max(1.5rem,env(safe-area-inset-top))]">
         {conflict && tab !== 'settings' && (
-          <button onClick={() => setTab('settings')} className="mb-3 w-full rounded-2xl bg-amber-50 px-4 py-2.5 text-left text-sm text-amber-800">⚠️ Your backup and this phone both changed. Tap to choose which to keep.</button>
+          <button onClick={() => navigate('settings', 'data')} className="mb-3 w-full rounded-2xl bg-amber-50 px-4 py-2.5 text-left text-sm text-amber-800">⚠️ Your backup and this phone both changed. Tap to choose which to keep.</button>
         )}
         {tab !== 'settings' && <InviteBanner />}
         {tab === 'home' && <HomeView onNavigate={navigate} />}
         {tab === 'plan' && <PlanView />}
-        {tab === 'history' && <HistoryView key={historyTab ?? 'default'} initialTab={historyTab} />}
-        {tab === 'social' && <SocialView onNavigate={setTab} />}
-        {tab === 'settings' && <SettingsView />}
+        {tab === 'history' && <HistoryView key={sub ?? 'default'} initialTab={sub} />}
+        {tab === 'social' && <SocialView onNavigate={navigate} />}
+        {tab === 'settings' && <SettingsView key={sub ?? 'default'} initialPage={sub} onBack={() => navigate('home')} />}
       </main>
       <TabBar tab={tab} onChange={(t) => navigate(t)} />
       {session && !hidden && <WorkoutSession onMinimize={() => setHidden(true)} />}
