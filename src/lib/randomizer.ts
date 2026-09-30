@@ -3,7 +3,7 @@ import { hasGear } from './equipment'
 import type { Exercise, PlannedExercise } from '../types'
 import { generateCrossfit, generateHyrox, generateTimed } from './functionalStyles'
 import { liftMinutes, REST_SCALE, restFor, transitionMin, WARMUP_SET_MIN, workSeconds, type RestPref } from './timing'
-import { BY_ID, FULL_BODY_GROUPS, isAdvanced, isIsolation, isMainLift, isTechnical, POOL, pick, roundTo5, shuffle, softShuffle, type Rng } from './randomUtil'
+import { BY_ID, familyOf, FULL_BODY_GROUPS, isAdvanced, isIsolation, isMainLift, isQuirky, isStaple, isTechnical, POOL, pick, roundTo5, shuffle, softShuffle, type Rng } from './randomUtil'
 
 export const FOCUS_OPTIONS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Glutes', 'Core', 'Cardio'] as const
 export const LIFT_GROUPS = FOCUS_OPTIONS.filter((g) => g !== 'Cardio')
@@ -225,14 +225,23 @@ const RELATED: Record<string, string[]> = {
 /** Candidate exercises per group, in the order they'll be offered: the group's own first, then related groups. */
 function queuesFor(groups: string[], rng: Rng, avoid: Set<string>, cfg: LiftConfig) {
   // Olympic lifts stay out of random straight-set workouts (CrossFit-style keeps its own list).
-  const strengthPool = (g: string) => POOL.filter((e) => e.kind === 'strength' && e.group === g && !isTechnical(e) && hasGear(e))
+  // Random workouts stick to mainstream moves; niche and advanced ones only if a group would otherwise be empty.
+  const strengthPool = (g: string) => {
+    const all = POOL.filter((e) => e.kind === 'strength' && e.group === g && !isTechnical(e) && hasGear(e))
+    const plain = all.filter((e) => !isQuirky(e) && !isAdvanced(e))
+    return plain.length ? plain : all
+  }
   const own = (g: string) => {
     let pool = strengthPool(g).filter(cfg.filter)
     if (pool.length === 0) {
       if (cfg.fallback === 'any') pool = strengthPool(g)
       else if (cfg.fallback[g]) pool = strengthPool(cfg.fallback[g]).filter(cfg.filter)
     }
-    return softShuffle(pool, avoid, rng)
+    // Staples first (in random order), then the rest of the library as a fallback.
+    // With equipment around, weighted staples before bodyweight versions (bodyweight squats aren't a gym workout).
+    const mixed = softShuffle(pool, avoid, rng)
+    const weighted = (e: Exercise) => equipmentRank(e) <= 2
+    return [...mixed.filter((e) => isStaple(e) && weighted(e)), ...mixed.filter((e) => isStaple(e) && !weighted(e)), ...mixed.filter((e) => !isStaple(e))]
   }
   return new Map(
     groups.map((g) => {
@@ -277,9 +286,15 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
     const t = (main && cfg.mainTargets ? cfg.mainTargets : cfg.targets)(e, rng)
     return { exerciseId: e.id, sets, ...t, rest: restFor(e, t.reps, t.seconds, pref) }
   }
+  // At most two of the same movement family per workout, where the library allows.
+  const family = new Map<string, number>()
+  const tooSimilar = (e: Exercise) => { const f = familyOf(e); return !!f && (family.get(f) ?? 0) >= 2 }
   const nextFrom = (g: string, want?: (e: Exercise) => boolean) => {
     const q = queues.get(g)!
-    const i = q.findIndex((e) => !taken.has(e.id) && (!want || want(e)))
+    const ok = (e: Exercise) => !taken.has(e.id) && (!want || want(e))
+    // Only repeat a movement a third time when nothing else is left (e.g. a bodyweight-only chest day).
+    let i = q.findIndex((e) => ok(e) && !tooSimilar(e))
+    if (i < 0) i = q.findIndex(ok)
     return i < 0 ? undefined : q.splice(i, 1)[0]
   }
   const fits = (limit: number) => cost() <= minutes * limit
@@ -288,6 +303,8 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
     items.push(make(e, sets, main))
     if (!fits(limit)) { items.pop(); return false }
     taken.add(e.id)
+    const f = familyOf(e)
+    if (f) family.set(f, (family.get(f) ?? 0) + 1)
     return true
   }
 
@@ -320,6 +337,25 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
     }
   }
 
+  // Full-body days (3+ major areas) start with one big compound per area, so the session always covers a squat or
+  // hinge, a press and a pull: a main lift with the heaviest equipment available, else any multi-joint move.
+  // Each area has its own movement pattern, so the day doesn't end up with, say, two deadlifts.
+  const PATTERNS: Record<string, RegExp[]> = {
+    Legs: [/squat/i, /leg press|lunge|split squat|step-?up/i, /deadlift/i],
+    Chest: [/bench press/i, /press|dip|push-?up/i],
+    Back: [/row/i, /pull-?up|chin-?up|pulldown/i],
+    Shoulders: [/overhead press|shoulder press|military press|push press|arnold/i, /press/i],
+  }
+  const anchorAreas = Object.keys(PATTERNS).filter((g) => groups.includes(g))
+  if (!cfg.mains && anchorAreas.length >= 3) {
+    for (const g of anchorAreas) {
+      const want = (re: RegExp, heavy: boolean) => (x: Exercise) => re.test(x.name) && !isIsolation(x) && (!heavy || equipmentRank(x) <= 1)
+      let e: Exercise | undefined
+      for (const heavy of [true, false]) for (const re of PATTERNS[g]) e ??= nextFrom(g, want(re, heavy))
+      tryAdd(e ?? nextFrom(g, (x) => !isIsolation(x)), cfg.sets, 1.02)
+    }
+  }
+
   // Then round-robin through the groups adding exercises while they fit.
   const CAP = minutes >= 75 ? 12 : 10
   for (let pass = 0; items.length < CAP; pass++) {
@@ -338,7 +374,10 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
   }
   if (cfg.sortByRank) {
     const heavy = items.slice(0, mains)
-    const rest = items.slice(mains).sort((a, b) => equipmentRank(BY_ID.get(a.exerciseId)!) - equipmentRank(BY_ID.get(b.exerciseId)!))
+    // Big multi-joint lifts first, then single-joint work, core last; heavier equipment first within each.
+    const tier = (e: Exercise) => (e.group === 'Core' ? 3 : isIsolation(e) ? 2 : isMainLift(e) ? 0 : 1)
+    const key = (p: PlannedExercise) => { const e = BY_ID.get(p.exerciseId)!; return tier(e) * 10 + equipmentRank(e) }
+    const rest = items.slice(mains).sort((a, b) => key(a) - key(b))
     items.splice(0, items.length, ...heavy, ...rest)
   }
   warmups()

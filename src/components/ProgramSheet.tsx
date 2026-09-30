@@ -14,6 +14,8 @@ import { WarmupRestControls } from './WarmupRestControls'
 import { defaultWarmup } from '../lib/randomizer'
 import { primaryBtn, Sheet } from './Sheet'
 import { WorkoutList } from './WorkoutList'
+import { GearChoice } from './GearChoice'
+import { withGearFor } from '../lib/equipment'
 
 const DURATIONS = [30, 45, 60, 75, 90]
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -30,7 +32,8 @@ interface Props {
 }
 
 export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props) {
-  const { logs, custom, plan, overrides, programs, startProgram, genPrefs } = useStore()
+  const { logs, custom, plan, overrides, programs, startProgram, genPrefs, equipment } = useStore()
+  const [gear, setGear] = useState<string[] | null>(equipment)
   const today = useToday()
   const [when, setWhen] = useState<'this' | 'next'>(onUse ? 'next' : 'this')
   const [weeks, setWeeks] = useState<1 | 4>(1)
@@ -47,12 +50,12 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
   const build = () => {
     const first = fromDate
     const prev = toISO(addDays(parseISO(first), -1))
-    setResult(
+    setResult(withGearFor(gear, () =>
       generateProgram({
         anchorMonday, weeks, fromDate, trainWeekdays: days, goal, minutes,
         prevDayGroups: majorGroupsLogged(logs, prev, (id) => findExercise(custom, id)),
         warmup: defaultWarmup(genPrefs.warmup, true), rest: genPrefs.rest,
-      }),
+      })),
     )
     setOpen(null)
   }
@@ -109,6 +112,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
 
         <WarmupRestControls lifting />
 
+        <GearChoice value={gear} onChange={setGear} />
         <h3 className="mb-2 text-sm font-semibold text-neutral-700">Session length</h3>
         <div className="mb-5 flex flex-wrap gap-2">
           {DURATIONS.map((m) => (
@@ -132,7 +136,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
   const recentIds = (i: number) => new Set(result.slice(Math.max(0, i - 3), i + 4).flatMap((d) => d.items.map((p) => p.exerciseId)))
 
   const reroll = (date: string) =>
-    setResult((r) => r && r.map((d, i) => (d.date === date ? rerollDay(d, minutes, weeks, recentIds(i), Math.random, { warmup: defaultWarmup(genPrefs.warmup, true), rest: genPrefs.rest }) : d)))
+    setResult((r) => r && r.map((d, i) => (d.date === date ? withGearFor(gear, () => rerollDay(d, minutes, weeks, recentIds(i), Math.random, { warmup: defaultWarmup(genPrefs.warmup, true), rest: genPrefs.rest })) : d)))
 
   const apply = () => {
     if (onUse) {
