@@ -5,6 +5,8 @@ import { Sheet } from './Sheet'
 import { SocialSettings } from './social/SocialSettings'
 import { CloudBackup } from './CloudBackup'
 import { AccountSection } from './AccountSection'
+import { EquipmentPicker } from './EquipmentPicker'
+import { equipmentSummary } from '../lib/equipment'
 import { InviteButton } from './InviteButton'
 import { useSocial } from '../social/store'
 import { LegalSheet } from './LegalSheet'
@@ -54,7 +56,7 @@ const Row = ({ title, children }: { title: string; children: React.ReactNode }) 
 type Page = 'profile' | 'workouts' | 'look' | 'notifications' | 'data' | 'social' | 'help'
 // Line icons (24px grid), matching the tab bar.
 const PAGES: { id: Page; title: string; icon: string }[] = [
-  { id: 'profile', title: 'Profile & units', icon: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21c0-4 4-6 8-6s8 2 8 6' },
+  { id: 'profile', title: 'Profile, units & equipment', icon: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21c0-4 4-6 8-6s8 2 8 6' },
   { id: 'workouts', title: 'Workouts', icon: 'M6 4v16M18 4v16M3 8v8M21 8v8M6 12h12' },
   { id: 'look', title: 'Appearance', icon: 'M12 3a9 9 0 100 18c1 0 1.5-.7 1.5-1.5 0-1.2-1-1.5-1-2.5s.8-1.5 2-1.5H17a4 4 0 004-4c0-4.4-4-8.5-9-8.5zM7.5 12a1 1 0 100-2 1 1 0 000 2zM10 8a1 1 0 100-2 1 1 0 000 2zM15 8a1 1 0 100-2 1 1 0 000 2z' },
   { id: 'notifications', title: 'Notifications', icon: 'M6 9a6 6 0 1112 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9M10 20a2 2 0 004 0' },
@@ -66,7 +68,7 @@ const REST_LABEL = (r: number) => (r === -1 ? 'as planned' : r ? `${r} s` : 'off
 
 /** Settings, grouped into a few short pages instead of one long list. */
 export function SettingsView({ initialPage, onBack }: { initialPage?: string; onBack?: () => void }) {
-  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, name, setName, importData, setTourDone, trackRpe, restSeconds, setPrefs, theme, setTheme, accent, setAccent, cloud, socialChoice } = useStore()
+  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, name, setName, importData, setTourDone, trackRpe, restSeconds, setPrefs, theme, setTheme, accent, setAccent, cloud, socialChoice, equipment } = useStore()
   const [page, setPage] = useState<Page | null>(PAGES.some((p) => p.id === initialPage) ? (initialPage as Page) : null)
   const [advanced, setAdvanced] = useState(false)
   const myHandle = useSocial((s) => s.profile?.handle)
@@ -118,7 +120,7 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
   }
 
   const summary: Record<Page, string> = {
-    profile: `${name || 'No name yet'} · ${units.weight}, ${units.distance}`,
+    profile: `${name || 'No name yet'} · ${units.weight}, ${units.distance} · ${equipmentSummary(equipment)}`,
     workouts: `Rest timer ${REST_LABEL(restSeconds)} · effort ${trackRpe ? 'on' : 'off'}`,
     look: `${theme[0].toUpperCase()}${theme.slice(1)} · ${accent}`,
     notifications: [notifPrefs.goals && 'goals', notifPrefs.pbs && 'bests', notifPrefs.daily && 'daily reminder'].filter(Boolean).join(', ') || 'Off',
@@ -175,6 +177,9 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
       <Row title="Distance">
         <Segmented value={units.distance} options={['mi', 'km']} onChange={(distance) => setUnits({ distance })} />
       </Row>
+      <h2 className="pt-4 text-sm font-semibold text-neutral-700">Your equipment</h2>
+      <p className="text-sm text-neutral-500">Generated workouts and plans only use what you have. You can still add any exercise yourself.</p>
+      <EquipmentPicker />
       </>)}
 
       {page === 'workouts' && (<>

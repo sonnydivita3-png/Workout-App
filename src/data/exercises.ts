@@ -64,6 +64,15 @@ EXERCISES.push(
   })),
 )
 
+// The library files some no-equipment moves under "Other"; they're bodyweight, which matters for home workouts.
+const NO_GEAR = new Set([
+  'Alternate Leg Diagonal Bound', 'Bodyweight Walking Lunge', 'Carioca Quick Step', 'Decline Push-Up', 'Kneeling Arm Drill',
+  'Linear Acceleration Wall Drill', 'Mountain Climbers', 'Moving Claw Series', 'Quick Leap', 'Side Hop-Sprint',
+  'Side Standing Long Jump', 'Single-Leg Hop Progression', 'Single-Leg Lateral Hop', 'Single-Leg Stride Jump',
+  'Single Leg Push-off', 'Stride Jump Crossover', 'Prone Manual Hamstring', 'London Bridges',
+])
+for (const e of EXERCISES) if (e.equipment === 'Other' && NO_GEAR.has(e.name)) e.equipment = 'Bodyweight'
+
 // Everyday names for the most common lifts; the dataset's full name stays available (search, how-to page).
 const SHORT: Record<string, string> = {
   'Barbell_Bench_Press_-_Medium_Grip': 'Bench Press',

@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures'
-import { seed, state } from './helpers'
+import { openSettings, seed, state } from './helpers'
 
 test('first run: name, goal and schedule build a first month, then Home shows today', async ({ page }) => {
   await page.goto('/')
@@ -176,4 +176,24 @@ test('exercise picker: muscle plus equipment filters, remembered next time', asy
   await page.getByRole('button', { name: '+ Add' }).click()
   await page.getByText('Add an exercise').click()
   await expect(sheet.getByRole('button', { name: /^Dumbbell \d+$/ })).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('equipment setting: dumbbells only shapes generated workouts and the picker', async ({ page }) => {
+  await seed(page)
+  await page.goto('/')
+  await openSettings(page, 'Profile, units & equipment')
+  await page.getByRole('radio', { name: 'Dumbbells only' }).click()
+  await page.locator('nav').getByText('Plan').click()
+  await page.getByRole('button', { name: 'Make a workout' }).click()
+  const sheet = page.locator('.fixed')
+  await sheet.getByRole('button', { name: 'Full body', exact: true }).click()
+  await sheet.getByRole('button', { name: /^Generate/ }).click()
+  await sheet.getByRole('button', { name: /^Add to/ }).click()
+  const s = await state(page)
+  const ids = (Object.values(s.overrides).flat() as { exerciseId: string }[]).map((p) => p.exerciseId)
+  expect(ids.length).toBeGreaterThan(3)
+  expect(ids.filter((id) => /Barbell|Cable|Machine|Smith|Leg_Press/i.test(id))).toEqual([])
+  await page.getByRole('button', { name: '+ Add' }).click()
+  await page.getByText('Add an exercise').click()
+  await expect(sheet.getByRole('button', { name: /^My equipment \d+$/ })).toHaveAttribute('aria-pressed', 'true')
 })

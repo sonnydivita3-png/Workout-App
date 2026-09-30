@@ -1,4 +1,5 @@
 import { EXERCISES } from '../data/exercises'
+import { hasGear } from './equipment'
 import type { Exercise, PlannedExercise } from '../types'
 import { generateCrossfit, generateHyrox, generateTimed } from './functionalStyles'
 import { liftMinutes, REST_SCALE, restFor, transitionMin, WARMUP_SET_MIN, workSeconds, type RestPref } from './timing'
@@ -133,7 +134,9 @@ export function generateWarmup(focus: string[], w: WarmupOptions, rng: Rng, avoi
   const out: PlannedExercise[] = []
   const base = { block: 'warmup', blockLabel: 'Warm-up', warmup: true } as const
   if (w.cardio && w.cardio > 0) {
-    const id = WARMUP_CARDIO.find((c) => !avoid.has(c) && BY_ID.has(c)) ?? WARMUP_CARDIO[0]
+    // Machines only if they're available; otherwise a jump rope or a brisk walk outside.
+    const ok = (c: string) => BY_ID.has(c) && hasGear(BY_ID.get(c)!)
+    const id = WARMUP_CARDIO.find((c) => !avoid.has(c) && ok(c)) ?? WARMUP_CARDIO.find(ok) ?? 'walking'
     out.push({ exerciseId: id, sets: 1, minutes: Math.round(w.cardio), est: Math.round(w.cardio), note: 'Easy pace, building up gradually', ...base })
   }
   if (w.mobility && w.mobility > 0) {
@@ -148,7 +151,7 @@ export function generateWarmup(focus: string[], w: WarmupOptions, rng: Rng, avoi
 }
 
 function pickCardio(minutes: number, rng: Rng, avoid: Set<string> = new Set()): PlannedExercise[] {
-  const pool = softShuffle(POOL.filter((e) => e.kind === 'cardio'), avoid, rng)
+  const pool = softShuffle(POOL.filter((e) => e.kind === 'cardio' && hasGear(e)), avoid, rng)
   if (pool.length === 0) return []
   if (minutes <= 45) return [{ exerciseId: pool[0].id, sets: 1, minutes: roundTo5(minutes) }]
   const half = roundTo5(minutes / 2)
@@ -222,7 +225,7 @@ const RELATED: Record<string, string[]> = {
 /** Candidate exercises per group, in the order they'll be offered: the group's own first, then related groups. */
 function queuesFor(groups: string[], rng: Rng, avoid: Set<string>, cfg: LiftConfig) {
   // Olympic lifts stay out of random straight-set workouts (CrossFit-style keeps its own list).
-  const strengthPool = (g: string) => POOL.filter((e) => e.kind === 'strength' && e.group === g && !isTechnical(e))
+  const strengthPool = (g: string) => POOL.filter((e) => e.kind === 'strength' && e.group === g && !isTechnical(e) && hasGear(e))
   const own = (g: string) => {
     let pool = strengthPool(g).filter(cfg.filter)
     if (pool.length === 0) {
@@ -491,7 +494,7 @@ function generateCircuit(groups: string[], minutes: number, rng: Rng, avoid: Set
   const hiitOk = (e: Exercise) =>
     e.kind === 'strength' &&
     (e.tags?.includes('hiit') || (e.suggest && ['Bodyweight', 'Kettlebell', 'Dumbbell'].includes(e.equipment ?? '') && !isIsolation(e)))
-  const poolFor = (g: string) => EXERCISES.filter((e) => e.group === g && hiitOk(e))
+  const poolFor = (g: string) => EXERCISES.filter((e) => e.group === g && hiitOk(e) && hasGear(e))
   const withConditioning = [...new Set([...groups, 'Conditioning'])]
 
   let n = minutes <= 20 ? 5 : minutes <= 35 ? 6 : minutes <= 50 ? 7 : 8
@@ -514,7 +517,7 @@ function generatePha(groups: string[], minutes: number, rng: Rng, avoid: Set<str
   while (n > 4 && roundMin(n) * 2 > minutes) n--
   // Quick, low-skill stations: not barbell lifts, and compound moves where the group has any.
   const poolFor = (g: string) => {
-    const base = POOL.filter((e) => e.kind === 'strength' && e.group === g && equipmentRank(e) >= 1 && !isAdvanced(e))
+    const base = POOL.filter((e) => e.kind === 'strength' && e.group === g && equipmentRank(e) >= 1 && !isAdvanced(e) && hasGear(e))
     const compound = base.filter((e) => !isIsolation(e))
     return compound.length >= 3 ? compound : base
   }
@@ -646,6 +649,7 @@ export function swapExercise(items: PlannedExercise[], index: number, rng: Rng =
       e.kind === cur.kind &&
       e.group === cur.group &&
       !used.has(e.id) &&
+      hasGear(e) &&
       (e.suggest || (cur.tags && e.tags?.some((t) => cur.tags!.includes(t)))),
   )
   if (options.length === 0) return items
