@@ -7,7 +7,7 @@ import { dayPlanOf } from './lib/plan'
 import { repairState, SCHEMA_VERSION } from './lib/migrate'
 import { activePrograms, clearRange, removeProgramDays } from './lib/programs'
 import type {
-  AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Program, Routine, Sport, TimedLog, StrengthSet, Units, WeekPlan,
+  AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Sport, TimedLog, StrengthSet, Units, WeekPlan,
 } from './types'
 
 export type ThemeMode = 'dark' | 'light' | 'auto'
@@ -26,6 +26,7 @@ export interface Data {
   routines: Routine[]
   goals: Goal[]
   timedLogs?: TimedLog[]
+  measurements?: Measurement[]
 }
 
 interface State extends Data {
@@ -55,6 +56,11 @@ interface State extends Data {
   /** Add dated exercises (e.g. from a friend's shared plan). They join what's planned unless `replace`. */
   applyDays: (days: Record<string, PlannedExercise[]>, replace: boolean) => void
   addCustomExercises: (list: Exercise[]) => void
+  measurements: Measurement[]
+  saveMeasurement: (m: Omit<Measurement, 'id'>) => void
+  deleteMeasurement: (id: string) => void
+  /** Delete everything logged on a date (all exercises and timed results). */
+  deleteDay: (date: string) => void
   /** Results of timed blocks (AMRAP / EMOM / for time). */
   timedLogs: TimedLog[]
   /** Save a timed result, replacing an earlier one for the same block that day, along with the per-exercise logs it implies. */
@@ -155,6 +161,7 @@ const defaults = () => ({
   notifPrefs: { system: false, goals: true, pbs: true, daily: true, reminderTime: '17:00' } as NotifPrefs,
   programs: [] as Program[],
   timedLogs: [] as TimedLog[],
+  measurements: [] as Measurement[],
   theme: 'dark' as ThemeMode,
   accent: 'lime' as Accent,
   socialChoice: 'unset' as SocialChoice,
@@ -230,6 +237,14 @@ export const useStore = create<State>()(
           if (!t) return s
           return { timedLogs: s.timedLogs.filter((x) => x.id !== id), logs: s.logs.filter((l) => !(l.date === t.date && t.movements.includes(l.exerciseId))) }
         }),
+      saveMeasurement: (m) =>
+        set((s) => {
+          const prev = s.measurements.find((x) => x.date === m.date)
+          const next: Measurement = { ...prev, ...m, id: prev?.id ?? `m-${Date.now().toString(36)}` }
+          return { measurements: [...s.measurements.filter((x) => x.id !== next.id), next].sort((a, b) => a.date.localeCompare(b.date)) }
+        }),
+      deleteMeasurement: (id) => set((s) => ({ measurements: s.measurements.filter((m) => m.id !== id) })),
+      deleteDay: (date) => set((s) => ({ logs: s.logs.filter((l) => l.date !== date), timedLogs: s.timedLogs.filter((t) => t.date !== date) })),
       deleteLogs: (exerciseId, date) =>
         set((s) => ({ logs: s.logs.filter((l) => !(l.exerciseId === exerciseId && (date === undefined || l.date === date))) })),
       createCustom: (name, kind, mode) => {
@@ -366,7 +381,7 @@ export const useStore = create<State>()(
       importData: (d) =>
         set({
           plan: d.plan, overrides: d.overrides ?? {}, logs: d.logs, custom: d.custom ?? [], units: d.units,
-          name: d.name ?? '', bodyweight: d.bodyweight ?? [], routines: d.routines ?? [], goals: d.goals ?? [], programs: [], timedLogs: d.timedLogs ?? [],
+          name: d.name ?? '', bodyweight: d.bodyweight ?? [], routines: d.routines ?? [], goals: d.goals ?? [], programs: [], timedLogs: d.timedLogs ?? [], measurements: d.measurements ?? [],
         }),
     }),
     {

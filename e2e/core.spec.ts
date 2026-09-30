@@ -22,6 +22,7 @@ test('plan and log an exercise, then see it in History', async ({ page }) => {
   await page.locator('input[type=number]').first().fill('20')
   await expect.poll(async () => (await state(page)).logs.length).toBe(1)
   await page.locator('nav').getByText('History').click()
+  await page.getByRole('button', { name: 'Exercises' }).click()
   await expect(page.getByText('Pushups')).toBeVisible()
 })
 
