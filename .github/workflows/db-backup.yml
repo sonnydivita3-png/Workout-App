@@ -22,7 +22,12 @@ jobs:
           PASS: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
           if [ -z "$DB_URL" ] || [ -z "$PASS" ]; then
-            echo "::notice::Database backups aren't set up yet (add SUPABASE_DB_URL and BACKUP_PASSPHRASE secrets)."
+            missing="$([ -z "$DB_URL" ] && echo 'SUPABASE_DB_URL ')$([ -z "$PASS" ] && echo 'BACKUP_PASSPHRASE')"
+            # Scheduled runs skip quietly until backups are set up; a run started by hand says clearly what's missing.
+            if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+              echo "::error::Missing repository secret(s): $missing (Settings -> Secrets and variables -> Actions -> Secrets)."; exit 1
+            fi
+            echo "::notice::Database backups aren't set up yet (missing secrets: $missing)."
             echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
           set -o pipefail
