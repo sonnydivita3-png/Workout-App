@@ -27,15 +27,17 @@ interface Props {
 }
 
 export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
-  const { addPlanned, saveRoutine, genPrefs } = useStore()
+  const { addPlanned, saveRoutine, genPrefs, setGenPrefs } = useStore()
   const warm = genPrefs.warmup
   const rest = genPrefs.rest
   const dayName = DAY_NAMES[weekdayIndex(parseISO(date))]
-  const [focus, setFocus] = useState<string[]>([])
-  const [minutes, setMinutes] = useState(45)
+  // Starts from the last choices, so a repeat visit is two taps: check, Generate.
+  const [focus, setFocus] = useState<string[]>(genPrefs.focus ?? [])
+  const [minutes, setMinutes] = useState(genPrefs.minutes ?? 45)
+  const [more, setMore] = useState(false)
   // Per-part minutes when mixing styles and/or cardio; unset parts use an even split.
   const [split, setSplit] = useState<Record<string, number>>({})
-  const [styles, setStyles] = useState<WorkoutStyle[]>(['standard'])
+  const [styles, setStyles] = useState<WorkoutStyle[]>(genPrefs.styles?.length ? genPrefs.styles : ['standard'])
   // Every version of the workout, so an accidental reroll or swap can be walked back.
   const [history, setHistory] = useState<{ list: PlannedExercise[][]; at: number }>({ list: [], at: 0 })
   const [pickIndex, setPickIndex] = useState<number | null>(null)
@@ -96,20 +98,71 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const partLabel = (k: string) => (k === 'cardio' ? 'Cardio' : k === 'warmup' ? 'Warm-up' : styleInfo(k as WorkoutStyle).label)
   const defaultName = `${styleLabel} · ${focusLabel} · ${total0} min`
 
-  const generate = (avoid?: PlannedExercise[]) =>
+  const generate = (avoid?: PlannedExercise[]) => {
+    if (!avoid) setGenPrefs({ focus, styles, minutes })
     commit(generateWorkout(focus, total0, {
       style: styles[0], styles, rest,
       warmup: { ...warmSplit(), sets: warm.includes('sets') && lifting },
       ...(showSplit ? { minutesByStyle: Object.fromEntries(styles.map((st) => [st, partMin(st)])), ...(hasCardio ? { cardioMinutes: partMin('cardio') } : {}) } : {}),
       avoid: new Set(avoid?.map((p) => p.exerciseId)),
     }))
+  }
 
   if (!items) {
     return (
       <Sheet title="Randomize" onClose={onClose} closeLabel="Cancel">
         <ModeSwitch mode="one" onChange={onSwitchMode} />
 
-        <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Workout style <span className="normal-case">(pick one or more)</span></h3>
+        <h3 className="mb-2 text-sm font-medium">What are you training?{infos.every((i) => i.focus !== 'required') && <span className="font-normal text-neutral-400"> (optional)</span>}</h3>
+        {focusIgnored ? (
+          <p className="mb-5 text-sm text-neutral-400">{styleLabel} {styles.length > 1 ? 'are full-body formats' : 'is a full-body format'}, so body parts aren’t used.</p>
+        ) : (
+          <>
+            <div className="mb-2 flex flex-wrap gap-2">
+              <button onClick={() => setFocus(fullBody ? focus.filter((g) => g === 'Cardio') : [...LIFT_GROUPS, ...focus.filter((g) => g === 'Cardio')])} aria-pressed={fullBody} className={chip(fullBody)}>Full body</button>
+              {FOCUS_OPTIONS.map((g) => (
+                <button key={g} onClick={() => toggle(g)} aria-pressed={focus.includes(g)} className={chip(focus.includes(g))}>{g}</button>
+              ))}
+            </div>
+            <p className="mb-5 text-xs text-neutral-400">Add <b className="font-medium">Cardio</b> to finish with a run, ride or row.</p>
+          </>
+        )}
+
+        {!showSplit && <h3 className="mb-2 text-sm font-medium">How long?</h3>}
+        {showSplit && (
+          <>
+            <h3 className="mb-2 text-sm font-medium">Time for each part</h3>
+            <ul className="mb-2 divide-y divide-neutral-100 rounded-2xl bg-neutral-50 px-3">
+              {parts.map((k) => (
+                <li key={k} className="flex items-center justify-between py-2">
+                  <span className="text-sm">{partLabel(k)}</span>
+                  <span className="flex items-center gap-2">
+                    <button onClick={() => bump(k, -5)} aria-label={`Less ${partLabel(k)} time`} className="h-8 w-8 rounded-full bg-neutral-100 text-lg">−</button>
+                    <span className="w-16 text-center text-sm tabular-nums">{partMin(k)} min</span>
+                    <button onClick={() => bump(k, 5)} aria-label={`More ${partLabel(k)} time`} className="h-8 w-8 rounded-full bg-neutral-100 text-lg">+</button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mb-2 text-xs text-neutral-400">Total {total0} min. Or pick a total to split evenly:</p>
+          </>
+        )}
+        <div className="mb-5 flex flex-wrap gap-2">
+          {DURATIONS.map((m) => (
+            <button key={m} onClick={() => { setMinutes(m); setSplit({}) }} className={chip(m === minutes && Object.keys(split).length === 0)}>{m} min</button>
+          ))}
+        </div>
+
+        <button onClick={() => setMore(!more)} aria-expanded={more} className="mb-4 flex w-full items-center justify-between rounded-2xl bg-neutral-50 px-4 py-3 text-left">
+          <span>
+            <span className="block text-sm font-medium">More options</span>
+            <span className="block text-xs text-neutral-400">{styleLabel} · {warm.length ? `warm-up: ${warm.join(', ')}` : 'no warm-up'} · {rest} rest</span>
+          </span>
+          <span className="text-neutral-400">{more ? '⌃' : '⌄'}</span>
+        </button>
+        {more && (
+          <div className="mb-2">
+        <h3 className="mb-2 text-sm font-medium">Workout style <span className="font-normal text-neutral-400">(pick one or more)</span></h3>
         <div className="mb-1 flex flex-wrap gap-2">
           {STYLE_GROUPS.map((g) => {
             const on = g.styles.some((st) => styles.includes(st))
@@ -139,53 +192,9 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
           {styles.length > 1 ? `${styleLabel}: the time is split between them, in that order, with cardio last.` : info.blurb}
         </p>
 
-        <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">
-          What are you training?{infos.every((i) => i.focus !== 'required') && ' (optional)'}
-        </h3>
-        <div className="mb-2 flex flex-wrap gap-2">
-          {FOCUS_OPTIONS.map((g) => (
-            <button key={g} disabled={focusIgnored} onClick={() => toggle(g)} className={chip(focus.includes(g), focusIgnored)}>{g}</button>
-          ))}
-        </div>
-        <p className="mb-2 text-xs text-neutral-400">Tip: add <b className="font-medium">Cardio</b> to finish with a run, ride or row.</p>
-        {focusIgnored ? (
-          <p className="mb-5 text-xs text-neutral-400">{styleLabel} {styles.length > 1 ? 'are full-body formats' : 'is a full-body format'}, so body parts aren’t used.</p>
-        ) : (
-          <button
-            onClick={() => setFocus(fullBody ? focus.filter((g) => g === 'Cardio') : [...LIFT_GROUPS, ...focus.filter((g) => g === 'Cardio')])}
-            className="mb-5 text-sm text-neutral-500 underline-offset-2 hover:underline"
-          >
-            {fullBody ? 'Clear body parts' : 'Select full body'}
-          </button>
-        )}
-
         <WarmupRestControls lifting={lifting} onWarmupChange={() => setSplit(({ warmup: _w, ...r }) => (void _w, r))} />
-
-        {showSplit ? (
-          <>
-            <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">Time for each part</h3>
-            <ul className="mb-2 divide-y divide-neutral-100 rounded-2xl bg-neutral-50 px-3">
-              {parts.map((k) => (
-                <li key={k} className="flex items-center justify-between py-2">
-                  <span className="text-sm">{partLabel(k)}</span>
-                  <span className="flex items-center gap-2">
-                    <button onClick={() => bump(k, -5)} aria-label={`Less ${partLabel(k)} time`} className="h-8 w-8 rounded-full bg-neutral-100 text-lg">−</button>
-                    <span className="w-16 text-center text-sm tabular-nums">{partMin(k)} min</span>
-                    <button onClick={() => bump(k, 5)} aria-label={`More ${partLabel(k)} time`} className="h-8 w-8 rounded-full bg-neutral-100 text-lg">+</button>
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <p className="mb-2 text-xs text-neutral-400">Total {total0} min. Or start from a total and split it evenly:</p>
-          </>
-        ) : (
-          <h3 className="mb-2 text-xs uppercase tracking-wide text-neutral-400">How long?</h3>
+          </div>
         )}
-        <div className="mb-6 flex flex-wrap gap-2">
-          {DURATIONS.map((m) => (
-            <button key={m} onClick={() => { setMinutes(m); setSplit({}) }} className={chip(m === minutes && Object.keys(split).length === 0)}>{m} min</button>
-          ))}
-        </div>
 
         <button disabled={!canGenerate} onClick={() => generate()} className={primaryBtn}>Generate workout</button>
       </Sheet>

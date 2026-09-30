@@ -69,6 +69,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
   const done = (i: number) => {
     const s = sets[i]
     if (!filled(s)) update(i, s.warmup ? { ...s, ...(rampFor(i) ?? {}) } : fromTip(s))
+    try { navigator.vibrate?.(15) } catch { /* not supported */ }
     onSetDone?.(s.warmup ? 60 : workRest)
   }
 
@@ -84,10 +85,10 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
   const target = mode === 'time' ? (targetSeconds ? `${setCount} × ${targetSeconds}s` : '') : targetReps ? `${setCount} × ${targetReps}` : ''
   const cols = [
     '2rem',
-    ...(mode === 'weight' ? ['1fr'] : []),
-    '1fr',
+    ...(mode === 'weight' ? ['minmax(0,1.2fr)'] : []),
+    'minmax(0,1fr)',
     ...(trackRpe ? ['3.25rem'] : []),
-    onSetDone ? '2.25rem' : '4.5rem',
+    onSetDone ? '2.75rem' : '4.5rem',
   ].join('_')
   const lastText = (p?: StrengthSet) => {
     if (!p) return '—'
@@ -164,8 +165,10 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
               </button>
               {mode === 'weight' && (
                 <NumberInput
+                  stepper={!!onSetDone}
+                  label={`${label} ${units.weight}`}
                   value={showWeight(s.weight, units)}
-                  step={units.weight === 'kg' ? 1 : 2.5}
+                  step={onSetDone ? (units.weight === 'kg' ? 2.5 : 5) : units.weight === 'kg' ? 1 : 2.5}
                   placeholder={showWeight(s.warmup ? rampFor(i)?.weight ?? null : tip.weight ?? prev?.weight ?? null, units)?.toString() ?? '–'}
                   onChange={(v) => update(i, { weight: storeWeight(v, units) })}
                 />
@@ -176,11 +179,11 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
                   <button onClick={() => setTiming(i)} aria-label={`Time set ${i + 1}`} title="Time this hold" className="h-9 w-9 shrink-0 rounded-lg bg-neutral-100 text-base">⏱</button>
                 </div>
               ) : (
-                <NumberInput value={s.reps} placeholder={(s.warmup ? rampFor(i)?.reps : tip.reps ?? prev?.reps ?? targetReps)?.toString() ?? '–'} onChange={(v) => update(i, { reps: v })} />
+                <NumberInput stepper={!!onSetDone} label={`${label} reps`} value={s.reps} placeholder={(s.warmup ? rampFor(i)?.reps : tip.reps ?? prev?.reps ?? targetReps)?.toString() ?? '–'} onChange={(v) => update(i, { reps: v })} />
               )}
               {trackRpe && <NumberInput value={s.rpe ?? null} placeholder="–" onChange={(v) => update(i, { rpe: v == null ? null : Math.min(10, Math.max(1, v)) })} />}
               {onSetDone ? (
-                <button onClick={() => done(i)} aria-label={`${label} done`} className={`h-9 rounded-lg text-sm font-bold ${filled(s) ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-400'}`}>✓</button>
+                <button onClick={() => done(i)} aria-label={`${label} done`} className={`h-11 rounded-xl text-base font-bold ${filled(s) ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-400'}`}>✓</button>
               ) : (
                 <span className="text-right text-xs tabular-nums text-neutral-400">{lastText(prev)}</span>
               )}

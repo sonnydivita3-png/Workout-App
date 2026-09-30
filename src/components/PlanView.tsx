@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { parseISO, toISO, weekDates, weekdayIndex } from '../lib/dates'
-import { dayPlanOf, isRestDay, workItems } from '../lib/plan'
-import { useStore } from '../store'
+import { dayLabel, dayPlanOf, isRestDay, workItems } from '../lib/plan'
+import { hasData } from '../lib/stats'
+import { findExercise, useStore } from '../store'
 import { WodBuilderSheet } from './WodBuilderSheet'
 import { ProgramsCard } from './ProgramsCard'
 import { CardioPlanSheet } from './CardioPlanSheet'
@@ -22,7 +23,7 @@ export function PlanView() {
   const [picking, setPicking] = useState(false)
   const [addMenu, setAddMenu] = useState(false)
   const [wodBuilder, setWodBuilder] = useState(false)
-  const [dayMenu, setDayMenu] = useState(false)
+  const [dayMenu, setDayMenu] = useState<false | 'menu' | 'load'>(false)
   const [generator, setGenerator] = useState<GeneratorMode | null>(null)
   const s = useStore()
 
@@ -46,7 +47,10 @@ export function PlanView() {
       </header>
 
       <Tip id="plan">Tap a day to see or change it. <b className="font-medium">+ Add</b> puts an exercise, a generated workout or a whole plan on that day.</Tip>
-      <WeekStrip dates={dates} selected={day} counts={dates.map((d) => workItems(dayPlanOf(s.plan, s.overrides, toISO(d))).length)} rest={dates.map((d) => isRestDay(s.overrides, toISO(d)))} today={today} onSelect={setDay} />
+      <WeekStrip dates={dates} selected={day} counts={dates.map((d) => workItems(dayPlanOf(s.plan, s.overrides, toISO(d))).length)}
+        labels={dates.map((d) => dayLabel(dayPlanOf(s.plan, s.overrides, toISO(d)), (id) => findExercise(s.custom, id)))}
+        done={dates.map((d) => s.logs.some((l) => l.date === toISO(d) && hasData(l)))}
+        rest={dates.map((d) => isRestDay(s.overrides, toISO(d)))} today={today} onSelect={setDay} />
 
       <div className="mt-4 flex justify-end gap-2">
         {planned.length > 0 && (
@@ -54,8 +58,8 @@ export function PlanView() {
             {s.session?.date === date ? 'Resume workout' : '▶ Start workout'}
           </button>
         )}
-        <button onClick={() => setDayMenu(true)} className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-600">
-          Day options
+        <button onClick={() => setDayMenu('menu')} aria-label="Day options" className="flex h-8 w-10 items-center justify-center rounded-full bg-neutral-100 text-lg leading-none text-neutral-600">
+          ⋯
         </button>
       </div>
 
@@ -72,7 +76,20 @@ export function PlanView() {
           </div>
         )}
         {planned.length === 0 && !rest && (
-          <p className="py-12 text-center text-neutral-400">Nothing planned yet. Add a move, hit Randomize, or call it a rest day 😴</p>
+          <div className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
+            <p className="mb-3 font-semibold">Nothing planned for this day</p>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                ['Add exercises', () => setPicking(true)],
+                ['Make a workout', () => setGenerator('one')],
+                ...(s.routines.length ? [['Load a routine', () => setDayMenu('load')] as const] : []),
+                ['Rest day', () => s.setRestDay(date)],
+              ] as const).map(([label, go]) => (
+                <button key={label} onClick={go} className="rounded-xl bg-neutral-100 px-3 py-3 text-sm font-medium text-neutral-700">{label}</button>
+              ))}
+            </div>
+            <button onClick={() => setAddMenu(true)} className="mt-3 text-sm text-neutral-500">More: plan a week, timed workouts, run or ride plans ›</button>
+          </div>
         )}
         <DayWorkout date={date} items={planned} />
       </section>
@@ -115,7 +132,7 @@ export function PlanView() {
           onApplied={(first) => { setAnchor(parseISO(first)); setDay(weekdayIndex(parseISO(first))) }}
         />
       )}
-      {dayMenu && <DaySheet date={date} weekDates={dates.map(toISO)} onClose={() => setDayMenu(false)} />}
+      {dayMenu && <DaySheet date={date} weekDates={dates.map(toISO)} initialMode={dayMenu} onClose={() => setDayMenu(false)} />}
 
       {picking && (
         <ExercisePicker

@@ -23,6 +23,21 @@ function beep() {
   } catch { /* optional */ }
 }
 
+/** Keep the screen on while a workout is open, so the phone doesn't lock between sets. Re-acquired on return. */
+function useWakeLock() {
+  useEffect(() => {
+    type Lock = { release: () => Promise<void> }
+    const nav = navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<Lock> } }
+    if (!nav.wakeLock) return
+    let lock: Lock | null = null
+    let live = true
+    const get = () => { if (document.visibilityState === 'visible') nav.wakeLock!.request('screen').then((l) => { if (live) lock = l; else void l.release() }).catch(() => undefined) }
+    get()
+    document.addEventListener('visibilitychange', get)
+    return () => { live = false; document.removeEventListener('visibilitychange', get); void lock?.release().catch(() => undefined) }
+  }, [])
+}
+
 function useNow(ms = 1000) {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), ms); return () => clearInterval(t) }, [ms])
@@ -34,6 +49,7 @@ export function WorkoutSession({ onMinimize }: { onMinimize: () => void }) {
   const { session, plan, overrides, logs, custom, units, restSeconds, setPrefs, endSession, addExercise } = useStore()
   const [picking, setPicking] = useState(false)
   const now = useNow()
+  useWakeLock()
   const [idx, setIdx] = useState(0)
   const [restUntil, setRestUntil] = useState<number | null>(null)
   const [summary, setSummary] = useState<WorkoutSummary | null>(null)
@@ -45,7 +61,11 @@ export function WorkoutSession({ onMinimize }: { onMinimize: () => void }) {
   const restLeft = restUntil ? Math.max(0, Math.ceil((restUntil - now) / 1000)) : 0
 
   useEffect(() => {
-    if (restUntil && restLeft === 0 && !beeped.current) { beeped.current = true; beep() }
+    if (restUntil && restLeft === 0 && !beeped.current) {
+      beeped.current = true
+      beep()
+      try { navigator.vibrate?.([200, 100, 200]) } catch { /* not supported */ }
+    }
   }, [restLeft, restUntil])
 
   // Auto (-1) rests for as long as the plan says for that exercise; otherwise a fixed time.

@@ -7,6 +7,7 @@ import { dayPlanOf } from './lib/plan'
 import { repairState, SCHEMA_VERSION } from './lib/migrate'
 import { SYNC_KEYS } from './lib/sync'
 import type { RestPref } from './lib/timing'
+import type { WorkoutStyle } from './lib/randomizer'
 import { activePrograms, clearRange, removeProgramDays } from './lib/programs'
 import type {
   AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Sport, TimedLog, StrengthSet, Units, WeekPlan,
@@ -51,6 +52,8 @@ interface State extends Data {
   seeTip: (id: string) => void
   /** Make a date's exercises the usual plan for that weekday (every week). */
   setUsualDay: (date: string) => void
+  /** Stop repeating a weekday's usual plan; this date keeps its exercises. */
+  clearUsualDay: (date: string) => void
   /** When each Home reminder (install, backup) was last dismissed, in ms. */
   nudgeSnooze: Record<string, number>
   snoozeNudge: (id: string) => void
@@ -61,11 +64,11 @@ interface State extends Data {
   setTheme: (t: ThemeMode) => void
   setAccent: (a: Accent) => void
   /** Randomizer choices remembered between uses. */
-  genPrefs: { warmup: WarmupKind[]; rest: RestPref }
+  genPrefs: { warmup: WarmupKind[]; rest: RestPref; focus?: string[]; styles?: WorkoutStyle[]; minutes?: number }
   setGenPrefs: (p: Partial<State['genPrefs']>) => void
   /** Show an RPE (effort) column when logging sets. */
   trackRpe: boolean
-  /** Rest timer after each set in workout mode, in seconds. 0 = off. */
+  /** Rest timer after each set in workout mode, in seconds. 0 = off, -1 = as planned for each exercise. */
   restSeconds: number
   setPrefs: (p: Partial<Pick<State, 'trackRpe' | 'restSeconds' | 'plainCopy' | 'backendKind'>>) => void
   /** Which social server this device last used, to notice the switch from preview to a real one. */
@@ -214,7 +217,7 @@ const defaults = () => ({
   tourVersion: 0,
   trackRpe: false,
   genPrefs: { warmup: [], rest: 'normal' } as State['genPrefs'],
-  restSeconds: 0,
+  restSeconds: -1,
   plainCopy: false,
   backendKind: null as 'demo' | 'supabase' | null,
   session: null as { date: string; startedAt: number } | null,
@@ -336,6 +339,12 @@ export const useStore = create<State>()(
       setPendingInvite: (pendingInvite) => set({ pendingInvite }),
       setOnboarded: (onboarded) => set({ onboarded }),
       seeTip: (id) => set((s) => (s.tipsSeen.includes(id) ? s : { tipsSeen: [...s.tipsSeen, id] })),
+      clearUsualDay: (date) =>
+        set((s) => {
+          const day = weekdayIndex(parseISO(date))
+          const items = dayPlanOf(s.plan, s.overrides, date).map((p) => ({ ...p }))
+          return { plan: s.plan.map((d, i) => (i === day ? [] : d)), overrides: { ...s.overrides, [date]: items } }
+        }),
       setUsualDay: (date) =>
         set((s) => {
           const items = dayPlanOf(s.plan, s.overrides, date).map((p) => ({ ...p }))

@@ -4,13 +4,17 @@ interface Props {
   dates: Date[]
   selected: number
   counts: number[]
+  /** One-word summary per day (e.g. "Legs", "Run"). */
+  labels?: string[]
+  /** Days with something logged. */
+  done?: boolean[]
   /** Days explicitly marked as rest. */
   rest?: boolean[]
   today: string
   onSelect: (i: number) => void
 }
 
-export function WeekStrip({ dates, selected, counts, rest, today, onSelect }: Props) {
+export function WeekStrip({ dates, selected, counts, labels, done, rest, today, onSelect }: Props) {
   return (
     <div className="grid grid-cols-7 gap-1">
       {dates.map((d, i) => {
@@ -19,7 +23,9 @@ export function WeekStrip({ dates, selected, counts, rest, today, onSelect }: Pr
           <button
             key={i}
             onClick={() => onSelect(i)}
-            className={`flex flex-col items-center rounded-xl py-2 transition ${
+            aria-label={`${d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}${rest?.[i] ? ', rest day' : labels?.[i] ? `, ${labels[i]}` : counts[i] ? `, ${counts[i]} exercises` : ''}${done?.[i] ? ', done' : ''}`}
+            aria-pressed={active}
+            className={`flex min-w-0 flex-col items-center rounded-xl py-2 transition ${
               active ? 'bg-accent text-on-accent' : 'text-neutral-500 hover:bg-neutral-200/60'
             }`}
           >
@@ -27,11 +33,9 @@ export function WeekStrip({ dates, selected, counts, rest, today, onSelect }: Pr
             <span className={`text-lg font-semibold ${toISO(d) === today && !active ? 'text-neutral-900' : ''}`}>
               {d.getDate()}
             </span>
-            {rest?.[i] ? (
-              <span className={`text-[9px] uppercase leading-none ${active ? 'text-neutral-300' : 'text-neutral-400'}`}>rest</span>
-            ) : (
-              <span className={`mt-0.5 h-1 w-1 rounded-full ${counts[i] ? (active ? 'bg-surface' : 'bg-neutral-400') : 'bg-transparent'}`} />
-            )}
+            <span className={`h-3.5 max-w-full truncate px-0.5 text-[10px] leading-3.5 ${active ? '' : rest?.[i] ? 'text-neutral-400' : 'text-neutral-500'}`}>
+              {done?.[i] ? '✓ ' : ''}{rest?.[i] ? 'Rest' : labels?.[i] || (counts[i] ? '•' : '')}
+            </span>
           </button>
         )
       })}

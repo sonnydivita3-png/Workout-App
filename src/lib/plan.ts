@@ -55,3 +55,24 @@ export function repeatPlan(logs: ExerciseLog[], lookup: (id: string) => Exercise
     }]
   })
 }
+
+/** A one-word label for a day in the week strip: the main muscle group, "Full", "Run", "Ride", "Timed" or "Cardio". */
+export function dayLabel(items: PlannedExercise[], lookup: (id: string) => Exercise | undefined): string {
+  const work = workItems(items)
+  if (work.length === 0) return ''
+  if (work.some((p) => p.wod)) return 'Timed'
+  const exs = work.map((p) => lookup(p.exerciseId)).filter((e): e is Exercise => !!e)
+  const lifts = exs.filter((e) => e.kind === 'strength' && e.group !== 'Conditioning' && e.group !== 'Mobility')
+  if (lifts.length === 0) {
+    const ids = exs.map((e) => e.id.toLowerCase())
+    if (ids.length && ids.every((id) => /run|jog|treadmill|trail/.test(id))) return 'Run'
+    if (ids.length && ids.every((id) => /cycl|bik/.test(id))) return 'Ride'
+    return exs.some((e) => e.group === 'Conditioning') ? 'HIIT' : 'Cardio'
+  }
+  const counts = new Map<string, number>()
+  for (const e of lifts) counts.set(e.group, (counts.get(e.group) ?? 0) + 1)
+  const groups = [...counts].sort((a, b) => b[1] - a[1])
+  // Three or more groups with none dominating reads as a full-body day.
+  if (groups.length >= 3 && groups[0][1] <= lifts.length / 2) return 'Full'
+  return groups[0][0]
+}

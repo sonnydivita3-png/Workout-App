@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ExerciseLog, PlanOverrides, WeekPlan } from '../types'
-import { dayPlanOf, isRestDay, lastWorkout, repeatPlan } from './plan'
+import { dayLabel, dayPlanOf, isRestDay, lastWorkout, repeatPlan } from './plan'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import { weekStats } from './stats'
 
@@ -92,5 +92,17 @@ describe('repeatPlan', () => {
       { exerciseId: 'Plank', sets: 2, seconds: 45 },
       { exerciseId: 'running', sets: 1, minutes: 27, distance: 3 },
     ])
+  })
+})
+
+describe('dayLabel', () => {
+  const look = (id: string) => BUILTIN_BY_ID.get(id)
+  it('names a day by what it trains', () => {
+    expect(dayLabel([], look)).toBe('')
+    expect(dayLabel([{ exerciseId: 'running', sets: 1 }], look)).toBe('Run')
+    expect(dayLabel([{ exerciseId: 'cycling', sets: 1 }], look)).toBe('Ride')
+    expect(dayLabel([{ exerciseId: 'Barbell_Squat', sets: 3 }, { exerciseId: 'Leg_Press', sets: 3 }, { exerciseId: 'Plank', sets: 3 }], look)).toBe('Legs')
+    expect(dayLabel([{ exerciseId: 'Barbell_Squat', sets: 3 }, { exerciseId: 'Barbell_Bench_Press_-_Medium_Grip', sets: 3 }, { exerciseId: 'Pullups', sets: 3 }], look)).toBe('Full')
+    expect(dayLabel([{ exerciseId: 'x-burpee', sets: 1, wod: { kind: 'amrap', minutes: 10 } }], look)).toBe('Timed')
   })
 })
