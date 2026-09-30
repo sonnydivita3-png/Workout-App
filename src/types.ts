@@ -112,6 +112,18 @@ export interface Units {
   distance: 'mi' | 'km'
 }
 
+/** Body measurements. Lengths are stored in inches; body fat is a percentage. */
+export interface Measurement {
+  id: string
+  date: string
+  waist?: number
+  chest?: number
+  arms?: number
+  hips?: number
+  thighs?: number
+  bodyfat?: number
+}
+
 export interface BodyweightEntry {
   date: string
   lb: number
