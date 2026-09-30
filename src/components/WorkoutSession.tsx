@@ -10,6 +10,7 @@ import { useToasts } from '../toastStore'
 import { DayWorkout } from './DayWorkout'
 import { ExercisePicker } from './ExercisePicker'
 import { Tip } from './Tip'
+import { ArrangeSheet } from './ArrangeSheet'
 
 const fmt = (s: number) => `${Math.floor(s / 3600) ? `${Math.floor(s / 3600)}:` : ''}${String(Math.floor((s % 3600) / 60)).padStart(Math.floor(s / 3600) ? 2 : 1, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 const RESTS = [0, -1, 60, 90, 120, 180]
@@ -48,6 +49,7 @@ function useNow(ms = 1000) {
 export function WorkoutSession({ onMinimize }: { onMinimize: () => void }) {
   const { session, plan, overrides, logs, custom, units, restSeconds, setPrefs, endSession, addExercise } = useStore()
   const [picking, setPicking] = useState(false)
+  const [arranging, setArranging] = useState(false)
   const now = useNow()
   useWakeLock()
   const [idx, setIdx] = useState(0)
@@ -153,7 +155,12 @@ export function WorkoutSession({ onMinimize }: { onMinimize: () => void }) {
         ) : (
           <DayWorkout date={date} items={items} only={at} onSetDone={startRest} />
         )}
-        {items.length > 0 && <button onClick={() => setPicking(true)} className="w-full rounded-2xl border border-dashed border-neutral-300 py-3 text-sm text-neutral-500">+ Add exercise</button>}
+        {items.length > 0 && (
+          <div className="flex gap-2">
+            <button onClick={() => setPicking(true)} className="flex-1 rounded-2xl border border-dashed border-neutral-300 py-3 text-sm text-neutral-500">+ Add exercise</button>
+            {items.length > 1 && <button onClick={() => setArranging(true)} className="flex-1 rounded-2xl border border-dashed border-neutral-300 py-3 text-sm text-neutral-500">⇅ Reorder / superset</button>}
+          </div>
+        )}
         <div className="flex gap-2 pt-2">
           <button disabled={at === 0} onClick={() => setIdx(at - 1)} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium text-neutral-700 disabled:opacity-30">‹ Previous</button>
           {at < parts.length - 1
@@ -162,6 +169,7 @@ export function WorkoutSession({ onMinimize }: { onMinimize: () => void }) {
         </div>
       </div>
 
+      {arranging && <ArrangeSheet date={date} onClose={() => setArranging(false)} />}
       {picking && (
         <ExercisePicker
           taken={new Set(items.map((p) => p.exerciseId))}
