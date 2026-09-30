@@ -47,7 +47,7 @@ const Row = ({ title, children }: { title: string; children: React.ReactNode }) 
 )
 
 export function SettingsView() {
-  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, plan, overrides, logs, custom, name, setName, bodyweight, routines, goals, timedLogs, importData, setTourDone, theme, setTheme, accent, setAccent } = useStore()
+  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, plan, overrides, logs, custom, name, setName, bodyweight, routines, goals, timedLogs, importData, setTourDone, trackRpe, restSeconds, setPrefs, plainCopy, theme, setTheme, accent, setAccent } = useStore()
   const [installEvt, setInstallEvt] = useState<InstallEvent | null>(null)
   const [msg, setMsg] = useState('')
   const [erasing, setErasing] = useState(false)
@@ -121,7 +121,17 @@ export function SettingsView() {
         <Segmented value={units.distance} options={['mi', 'km']} onChange={(distance) => setUnits({ distance })} />
       </Row>
 
+      <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Logging</h2>
+      <Row title="Track effort (RPE)"><Toggle on={trackRpe} onChange={(v) => setPrefs({ trackRpe: v })} label="Track effort (RPE)" /></Row>
+      <Row title="Rest timer in workouts">
+        <select value={restSeconds} onChange={(e) => setPrefs({ restSeconds: Number(e.target.value) })} className="rounded-lg bg-neutral-100 px-2 py-1.5 text-sm">
+          {[0, 60, 90, 120, 180].map((r) => <option key={r} value={r}>{r ? `${r} s` : 'Off'}</option>)}
+        </select>
+      </Row>
+      <p className="px-1 text-xs text-neutral-400">RPE is how hard a set felt (10 = nothing left). Sets at RPE 10 won’t trigger a “add weight” suggestion. Tap a set number to mark it as a warm-up.</p>
+
       <h2 className="pt-4 text-xs uppercase tracking-wide text-neutral-400">Look</h2>
+      <Row title="Plain wording"><Toggle on={plainCopy} onChange={(v) => setPrefs({ plainCopy: v })} label="Plain wording" /></Row>
       <Row title="Theme">
         <Segmented value={theme} options={['dark', 'light', 'auto']} onChange={setTheme} />
       </Row>

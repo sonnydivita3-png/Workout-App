@@ -20,8 +20,8 @@ const steps = (social: boolean): Step[] => [
     points: ['Styles: standard, strength, supersets, HIIT, PHA, Hyrox, CrossFit, bodyweight', 'Swap or pick any exercise, step back through versions, then add it or save as a routine', 'Switch to Week / month for a random program with rest days', '+ Add → Start a training plan builds a run or bike plan for a race; stop or replace any program from the Plan tab'],
   },
   {
-    icon: '✍️', title: 'Log as you go',
-    body: 'Open a day and enter what you did. The app shows what you did last time on each exercise.',
+    icon: '✍️', title: 'Beat last time',
+    body: 'Every lift shows what to try next based on last time. Tap ▶ Start workout to go one exercise at a time, then see what you improved.',
     points: ['Lifting: weight × reps. Bodyweight: reps. Planks and holds: seconds', 'Cardio: distance and time, with pace worked out for you', 'Timed workouts (AMRAP, EMOM, Tabata, for time) come with a clock and log rounds, intervals or your finish time'],
   },
   {
