@@ -57,6 +57,9 @@ interface State extends Data {
   /** One-time tips already shown, by id. */
   tipsSeen: string[]
   seeTip: (id: string) => void
+  /** Dates marked "Workout complete" (even if some planned sets weren't logged). */
+  finishedDays: string[]
+  finishDay: (date: string) => void
   /** Replace a date's exercises (reordered, grouped into supersets...). */
   setDayItems: (date: string, items: PlannedExercise[]) => void
   /** Make a date's exercises the usual plan for that weekday (every week). */
@@ -220,6 +223,7 @@ const defaults = () => ({
   onboarded: false,
   tipsSeen: [] as string[],
   pickerEquipment: 'Any',
+  finishedDays: [] as string[],
   equipment: null as string[] | null,
   nudgeSnooze: {} as Record<string, number>,
   tourDone: false,
@@ -350,6 +354,7 @@ export const useStore = create<State>()(
       setEquipment: (equipment) =>
         set((s) => ({ equipment, pickerEquipment: equipment && s.pickerEquipment === 'Any' ? 'Mine' : !equipment && s.pickerEquipment === 'Mine' ? 'Any' : s.pickerEquipment })),
       seeTip: (id) => set((s) => (s.tipsSeen.includes(id) ? s : { tipsSeen: [...s.tipsSeen, id] })),
+      finishDay: (date) => set((s) => (s.finishedDays.includes(date) ? s : { finishedDays: [...s.finishedDays, date].slice(-400) })),
       setDayItems: (date, items) => set((s) => editDay(s, date, () => items)),
       clearUsualDay: (date) =>
         set((s) => {

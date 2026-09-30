@@ -41,11 +41,11 @@ export function TodayCard({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         <button onClick={start} className={big}>Resume workout</button>
       </>
     )
-  } else if (planned.length > 0 && upcoming.length === 0) {
+  } else if (planned.length > 0 && (upcoming.length === 0 || s.finishedDays.includes(today))) {
     body = (
       <>
         <p className="text-lg font-semibold">Done for today ✓</p>
-        <p className="mb-3 text-sm text-neutral-500">All {planned.length} exercise{planned.length === 1 ? '' : 's'} logged. Nice work.</p>
+        <p className="mb-3 text-sm text-neutral-500">{upcoming.length === 0 ? `All ${planned.length} exercise${planned.length === 1 ? '' : 's'} logged.` : `${planned.length - upcoming.length} of ${planned.length} exercises logged.`} Nice work.</p>
         <button onClick={start} className="rounded-full bg-neutral-100 px-4 py-1.5 text-sm text-neutral-600">Add more</button>
       </>
     )
@@ -72,6 +72,7 @@ export function TodayCard({ onNavigate }: { onNavigate: (t: Tab) => void }) {
           {upcoming.length > 5 && <li className="text-sm text-neutral-400">+{upcoming.length - 5} more</li>}
         </ul>
         <button onClick={start} className={big}>▶ Start workout</button>
+        <button onClick={() => onNavigate('plan')} className="mt-2 w-full py-1 text-sm text-neutral-500">or log it on the Plan tab, no timer ›</button>
       </>
     )
   } else {

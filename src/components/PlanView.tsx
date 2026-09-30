@@ -15,6 +15,7 @@ import { ExercisePicker } from './ExercisePicker'
 import { DayWorkout } from './DayWorkout'
 import { WeekStrip } from './WeekStrip'
 import { ArrangeSheet } from './ArrangeSheet'
+import { FinishWorkout } from './FinishWorkout'
 import { Tip } from './Tip'
 
 export function PlanView() {
@@ -26,6 +27,7 @@ export function PlanView() {
   const [wodBuilder, setWodBuilder] = useState(false)
   const [dayMenu, setDayMenu] = useState<false | 'menu' | 'load'>(false)
   const [arranging, setArranging] = useState(false)
+  const [finishing, setFinishing] = useState(false)
   const [generator, setGenerator] = useState<GeneratorMode | null>(null)
   const s = useStore()
 
@@ -97,7 +99,15 @@ export function PlanView() {
           </div>
         )}
         <DayWorkout date={date} items={planned} />
+        {workItems(planned).length > 0 && date <= today && (
+          s.finishedDays.includes(date) ? (
+            <button onClick={() => setFinishing(true)} className="w-full rounded-2xl bg-neutral-100 py-3 text-sm font-medium text-neutral-600">✓ Workout complete · see summary</button>
+          ) : (
+            <button onClick={() => setFinishing(true)} className="w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-on-accent">✓ Workout complete</button>
+          )
+        )}
       </section>
+      {finishing && <FinishWorkout date={date} onBack={() => setFinishing(false)} onDone={() => setFinishing(false)} />}
 
       <button
         onClick={() => setAddMenu(true)}
