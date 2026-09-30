@@ -1,10 +1,10 @@
-# Turning on social features
+# Turning on social features and cloud backup
 
 The app ships with social features in **preview mode**: friends are simulated on the device (Alex, Sam and Maya) so you can try everything. To connect real people you need a free [Supabase](https://supabase.com) project. This takes about 10 minutes.
 
 ## 1. Create the project
 1. Create a new Supabase project (free tier is fine).
-2. **SQL editor** → paste the whole contents of `supabase/migrations/20260930000000_social.sql` → Run.
+2. **SQL editor** → run each file in `supabase/migrations/` in order (paste the contents → Run): `20260930000000_social.sql` (friends and sharing), then `20261001000000_sync.sql` (cloud backup).
 3. **Authentication → Providers → Email**: enable it. Turn **Confirm email** on and make sure the email template contains the `{{ .Token }}` (6-digit code) rather than only a link. The app signs people in with the code; there are no passwords.
 4. **Authentication → Sign In / Providers → Allow anonymous sign-ins**: turn this on. It lets people use social **without an email** (their account then lives on their phone). Also set the "Change email" template to include `{{ .Token }}` so people can add an email later. Consider enabling CAPTCHA (Authentication → Attack Protection), since anonymous sign-ups are easier to abuse.
 5. **Authentication → URL configuration**: set the Site URL to your app URL.

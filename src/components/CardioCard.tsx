@@ -1,3 +1,5 @@
+import { useRef, useState } from 'react'
+import { parseGpx } from '../lib/gpx'
 import { formatPace, showDistance, storeDistance } from '../lib/units'
 import { useStore } from '../store'
 import type { CardioEntry, Exercise, ExerciseLog } from '../types'
@@ -19,6 +21,15 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
   const units = useStore((s) => s.units)
   const c = current?.cardio ?? { distance: null, minutes: null }
   const prev = last?.cardio
+  const file = useRef<HTMLInputElement>(null)
+  const [gpxMsg, setGpxMsg] = useState<string | null>(null)
+  const importGpx = async (f: File | undefined) => {
+    if (!f) return
+    const g = parseGpx(await f.text())
+    if (!g || !g.miles) { setGpxMsg('Couldn’t find a GPS track in that file.'); return }
+    onChange({ distance: g.miles, minutes: g.minutes || c.minutes })
+    setGpxMsg(`Imported ${g.name ? `“${g.name}”: ` : ''}${showDistance(g.miles, units)} ${units.distance} in ${g.minutes} min${g.date ? ` (${g.date})` : ''}`)
+  }
   const target = [targetDistance ? `${showDistance(targetDistance, units)} ${units.distance}` : '', targetMinutes ? `${targetMinutes} min` : ''].filter(Boolean).join(' · ')
   return (
     <div className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
@@ -48,6 +59,11 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
           Pace
           <div className="py-2 text-center text-base normal-case tabular-nums text-neutral-900">{formatPace(c.distance, c.minutes, units) ?? '–'}</div>
         </div>
+      </div>
+      <div className="mt-2 flex items-center gap-3 text-xs text-neutral-500">
+        <button onClick={() => file.current?.click()} className="underline underline-offset-2">Import GPX</button>
+        <input ref={file} type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" aria-label="Import a GPX file" className="hidden" onChange={(e) => { void importGpx(e.target.files?.[0]); e.target.value = '' }} />
+        {gpxMsg && <span role="status">{gpxMsg}</span>}
       </div>
       {prev && (
         <p className="mt-2 text-xs text-neutral-400">

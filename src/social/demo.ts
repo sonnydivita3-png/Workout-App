@@ -33,6 +33,8 @@ interface Store {
   meId: string | null
   code?: { email: string; code: string }
   botSent: string[]
+  /** Demo "cloud" copies of each account's workout data. */
+  cloud?: Record<string, { data: unknown; updatedAt: string }>
   rate: Record<string, number[]>
 }
 
@@ -216,6 +218,7 @@ export class DemoBackend implements SocialBackend {
     s.challenges = s.challenges.filter((x) => x.fromId !== me && x.toId !== me)
     s.emoji = s.emoji.filter((x) => x.fromId !== me && x.toId !== me)
     delete s.snapshots[me]
+    if (s.cloud) delete s.cloud[me]
     s.botSent = s.botSent.filter((k) => !k.endsWith(`>${me}`))
     s.meId = null
     this.save()
@@ -510,6 +513,19 @@ export class DemoBackend implements SocialBackend {
     const me = this.me()
     if (!this.isFriend(me, friendId) || !this.allows(friendId, me, 'progress')) return null
     return this.s.snapshots[friendId] ?? null
+  }
+
+  // ------------------------------------------------------------------ cloud backup (kept in this browser in preview mode)
+  async pullData() {
+    const me = this.me()
+    return this.s.cloud?.[me] ?? null
+  }
+  async pushData(data: unknown) {
+    const me = this.me()
+    const updatedAt = new Date(Math.max(this.clock(), Date.parse(this.s.cloud?.[me]?.updatedAt ?? '0') + 1)).toISOString()
+    this.s.cloud = { ...this.s.cloud, [me]: { data: JSON.parse(JSON.stringify(data)), updatedAt } }
+    this.save()
+    return updatedAt
   }
 
   // ------------------------------------------------------------------ simulated friends

@@ -9,6 +9,7 @@ import { Toasts } from './components/Toasts'
 import { SocialSetup } from './components/social/SocialSetup'
 import { SocialView } from './components/social/SocialView'
 import { useTheme } from './lib/useTheme'
+import { useCloudSync } from './lib/useCloudSync'
 import { useSocialSync } from './social/useSocialSync'
 import { useStore } from './store'
 import { useNotificationEngine } from './lib/useNotificationEngine'
@@ -20,9 +21,11 @@ export default function App() {
   const tourDone = useStore((s) => s.tourDone)
   const session = useStore((s) => s.session)
   const [hidden, setHidden] = useState(false)
+  const conflict = useStore((s) => s.cloud.enabled && s.cloud.conflict)
   useNotificationEngine()
   useSocialSync()
   useTheme()
+  useCloudSync()
   if (choice === 'unset') {
     return (
       <div className="min-h-screen bg-surface">
@@ -33,6 +36,9 @@ export default function App() {
   return (
     <>
       <main className="mx-auto min-h-screen max-w-md px-4 pb-40 pt-[max(1.5rem,env(safe-area-inset-top))]">
+        {conflict && tab !== 'settings' && (
+          <button onClick={() => setTab('settings')} className="mb-3 w-full rounded-2xl bg-amber-50 px-4 py-2.5 text-left text-sm text-amber-800">⚠️ Your backup and this phone both changed. Tap to choose which to keep.</button>
+        )}
         {tab === 'home' && <HomeView onNavigate={setTab} />}
         {tab === 'plan' && <PlanView />}
         {tab === 'history' && <HistoryView />}

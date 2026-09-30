@@ -9,6 +9,7 @@ npm install
 npm run dev      # local dev
 npm run build    # production build (outputs dist/)
 npm test         # unit tests, including database privacy rules run against a real Postgres (PGlite)
+npm run e2e      # browser tests (Playwright); set PW_CHROMIUM to a Chromium path if you don't run `npx playwright install`
 ```
 
 ## Features
@@ -42,6 +43,9 @@ Built around one idea: beat what you did last time.
 - First-run walkthrough of every feature (skippable, replay from Settings → Help)
 - Avatars: pick an emoji, a letter, or upload a photo (shrunk on your device to a tiny square before it is stored)
 - Look: dark-first neon theme (or light, or follow your phone) with five accent "vibes", chunky rounded UI, confetti on PRs, goals and finished challenges
+- Cloud backup (Settings → Cloud backup): sign in with an email code and your workouts restore on a new phone; if both a phone and the backup changed, you choose which to keep. Needs the Supabase setup below; in preview mode the "cloud" is this browser
+- Import a run or ride from a GPX file (Strava, Garmin, Apple Watch exports) into a cardio entry
+- Privacy policy, terms and health notice in Settings; accounts are 13+
 - Offline-capable, installable
 
 ## Deploy (GitHub Pages)

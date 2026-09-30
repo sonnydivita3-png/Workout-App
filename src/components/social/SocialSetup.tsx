@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useStore } from '../../store'
 import { useSocial, describeError } from '../../social/store'
 import { AVATARS, HANDLE_RE, normalizeHandle } from '../../social/types'
+import { LegalSheet, type LegalDoc } from '../LegalSheet'
 import { AvatarPicker } from './AvatarPicker'
 import { input, label, primary, secondary } from './styles'
 import { ErrorNote } from './ui'
@@ -25,6 +26,8 @@ export function SocialSetup({ variant, onDone, onCancel }: Props) {
   const [displayName, setDisplayName] = useState(name)
   const [avatar, setAvatar] = useState(AVATARS[0])
   const [agree, setAgree] = useState(false)
+  const [age, setAge] = useState(false)
+  const [legal, setLegal] = useState<LegalDoc | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const demo = backend.kind === 'demo'
@@ -123,12 +126,20 @@ export function SocialSetup({ variant, onDone, onCancel }: Props) {
           <input value={displayName} maxLength={40} onChange={(e) => setDisplayName(e.target.value)} placeholder="What friends see" className={`${input} mb-4`} />
           <p className={label}>Avatar</p>
           <div className="mb-5"><AvatarPicker value={avatar} onChange={setAvatar} name={displayName} /></div>
-          <label className="mb-5 flex items-start gap-3 text-sm text-neutral-600">
+          <label className="mb-3 flex items-start gap-3 text-sm text-neutral-600">
+            <input type="checkbox" checked={age} onChange={(e) => setAge(e.target.checked)} className="mt-0.5 h-4 w-4" />
+            <span>I’m 13 or older.</span>
+          </label>
+          <label className="mb-2 flex items-start gap-3 text-sm text-neutral-600">
             <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-4 w-4" />
             <span>I agree that my handle and display name are visible to people who look up my exact handle. I decide what each friend can see or send me, and I can turn social features off any time.</span>
           </label>
+          <p className="mb-5 text-xs text-neutral-400">
+            By creating an account you agree to the <button onClick={() => setLegal('terms')} className="underline">terms</button> and <button onClick={() => setLegal('privacy')} className="underline">privacy policy</button>.
+          </p>
+          {legal && <LegalSheet doc={legal} onClose={() => setLegal(null)} />}
           <button
-            disabled={busy || !handleOk || !displayName.trim() || !agree}
+            disabled={busy || !handleOk || !displayName.trim() || !agree || !age}
             onClick={() => run(async () => {
               await backend.createProfile({ handle: cleanHandle, displayName: displayName.trim(), avatar })
               setSocialChoice('enabled'); await init(); onDone()
