@@ -3,6 +3,7 @@ import { hasGear } from './equipment'
 import type { Exercise, PlannedExercise } from '../types'
 import { generateCrossfit, generateHyrox, generateTimed } from './functionalStyles'
 import { liftMinutes, REST_SCALE, restFor, transitionMin, WARMUP_SET_MIN, workSeconds, type RestPref } from './timing'
+import { cardioSplit, likedCardio, wodAmount, wodCardio } from './cardioPrefs'
 import { BY_ID, familyOf, FULL_BODY_GROUPS, isAdvanced, isIsolation, isMainLift, isQuirky, isStaple, isTechnical, POOL, pick, roundTo5, shuffle, softShuffle, type Rng } from './randomUtil'
 
 export const FOCUS_OPTIONS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Glutes', 'Core', 'Cardio'] as const
@@ -117,7 +118,7 @@ export function defaultWarmup(warm: ('cardio' | 'mobility' | 'sets')[], lifting:
   }
 }
 
-const WARMUP_CARDIO = ['Bicycling_Stationary', 'Rowing_Stationary', 'Elliptical_Trainer', 'Rope_Jumping', 'Walking_Treadmill']
+const WARMUP_CARDIO = ['Bicycling_Stationary', 'x-row-erg', 'Elliptical_Trainer', 'Rope_Jumping', 'Walking_Treadmill']
 const MOVE_SECONDS = 30
 const MOVE_SWITCH = 10
 
@@ -135,8 +136,10 @@ export function generateWarmup(focus: string[], w: WarmupOptions, rng: Rng, avoi
   const base = { block: 'warmup', blockLabel: 'Warm-up', warmup: true } as const
   if (w.cardio && w.cardio > 0) {
     // Machines only if they're available; otherwise a jump rope or a brisk walk outside.
+    // Their favourite machine when they have one (easy running is a warm-up too, swimming and cycling outside aren't).
     const ok = (c: string) => BY_ID.has(c) && hasGear(BY_ID.get(c)!)
-    const id = WARMUP_CARDIO.find((c) => !avoid.has(c) && ok(c)) ?? WARMUP_CARDIO.find(ok) ?? 'walking'
+    const mine = (likedCardio() ?? []).map((e) => e.id).filter((id) => id !== 'swimming' && id !== 'cycling')
+    const id = mine.find((c) => !avoid.has(c)) ?? mine[0] ?? WARMUP_CARDIO.find((c) => !avoid.has(c) && ok(c)) ?? WARMUP_CARDIO.find(ok) ?? 'walking'
     out.push({ exerciseId: id, sets: 1, minutes: Math.round(w.cardio), est: Math.round(w.cardio), note: 'Easy pace, building up gradually', ...base })
   }
   if (w.mobility && w.mobility > 0) {
@@ -150,12 +153,19 @@ export function generateWarmup(focus: string[], w: WarmupOptions, rng: Rng, avoi
   return out
 }
 
+/**
+ * Steady cardio for `minutes`: the kinds the person likes (all of them, sharing the time, if they split it),
+ * otherwise anything they can do, with long sessions split over two.
+ */
 function pickCardio(minutes: number, rng: Rng, avoid: Set<string> = new Set()): PlannedExercise[] {
-  const pool = softShuffle(POOL.filter((e) => e.kind === 'cardio' && hasGear(e)), avoid, rng)
+  const liked = likedCardio()
+  const pool = softShuffle(liked ?? POOL.filter((e) => e.kind === 'cardio' && hasGear(e)), avoid, rng)
   if (pool.length === 0) return []
-  if (minutes <= 45) return [{ exerciseId: pool[0].id, sets: 1, minutes: roundTo5(minutes) }]
-  const half = roundTo5(minutes / 2)
-  return pool.slice(0, 2).map((e, i) => ({ exerciseId: e.id, sets: 1, minutes: i === 0 ? half : roundTo5(minutes - half) }))
+  // Split: every liked kind gets a share, at least 5 minutes each.
+  const n = liked && cardioSplit() ? Math.max(1, Math.min(pool.length, Math.floor(minutes / 5))) : !liked && minutes > 45 ? 2 : 1
+  const total = roundTo5(minutes)
+  const each = Math.max(5, roundTo5(total / n))
+  return pool.slice(0, n).map((e, i) => ({ exerciseId: e.id, sets: 1, minutes: i < n - 1 ? each : Math.max(5, total - each * (n - 1)) }))
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -541,6 +551,12 @@ function generateCircuit(groups: string[], minutes: number, rng: Rng, avoid: Set
   while (n > 4 && roundMin(n) * 2 > minutes) n--
   const picked = spreadGroups(roundRobinPick(withConditioning, n, poolFor, avoid, rng))
   if (picked.length === 0) return []
+  // A cardio machine station (bike, rower, SkiErg…) in the middle: always when they've said what they like.
+  const machines = wodCardio().filter((e) => !avoid.has(e.id))
+  if (machines.length && picked.length >= 4 && (likedCardio() || rng() < 0.5)) {
+    picked.pop()
+    picked.splice(Math.floor(picked.length / 2), 0, pick(machines, rng))
+  }
   n = picked.length
   const rounds = Math.max(2, Math.min(6, Math.floor(minutes / roundMin(n))))
   const blockLabel = `HIIT circuit · ${rounds} rounds · ${WORK}s on / ${REST}s off · ${ROUND_REST} min rest between rounds`
@@ -657,7 +673,7 @@ export function generateWorkout(focus: string[], minutes: number, opts: Generate
   if (opts.styles?.length === 1) return generateWorkout(focus, minutes, { style: opts.styles[0], rng, avoid, rest: opts.rest, warmup: { sets: w.sets } })
   if (style === 'hyrox') return generateHyrox(minutes)
   if (style === 'crossfit') return generateCrossfit(minutes, rng, avoid)
-  if (style === 'amrap' || style === 'emom' || style === 'fortime' || style === 'tabata') return generateTimed(style, focus.filter((g) => g !== 'Cardio'), minutes, rng, avoid)
+  if (style === 'amrap' || style === 'emom' || style === 'fortime' || style === 'tabata') return generateTimed(style, focus.filter((g) => g !== 'Cardio'), minutes, rng, avoid, focus.includes('Cardio'))
 
   let groups = focus.filter((g) => g !== 'Cardio')
   const cardio = focus.includes('Cardio')
@@ -683,6 +699,15 @@ export function swapExercise(items: PlannedExercise[], index: number, rng: Rng =
   const cur = BY_ID.get(items[index].exerciseId)
   if (!cur) return items
   const used = new Set(items.map((p) => p.exerciseId))
+  // A cardio station inside a timed piece or circuit swaps for another machine, with its own amount.
+  const prev = items[index]
+  if (cur.kind === 'cardio' && prev.block && !prev.warmup) {
+    const machines = wodCardio().filter((e) => !used.has(e.id))
+    if (machines.length === 0) return items
+    const e = machines[Math.floor(rng() * machines.length)]
+    const next: PlannedExercise = { ...prev, exerciseId: e.id, ...(prev.wod ? { note: wodAmount(e.id, prev.wod.kind === 'fortime' ? 1.25 : 1) } : {}) }
+    return items.map((p, i) => (i === index ? next : p))
+  }
   const options = EXERCISES.filter(
     (e) =>
       e.kind === cur.kind &&

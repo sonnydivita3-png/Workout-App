@@ -32,7 +32,7 @@ interface Props {
 }
 
 export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props) {
-  const { logs, custom, plan, overrides, programs, startProgram, genPrefs, equipment } = useStore()
+  const { logs, custom, plan, overrides, programs, startProgram, genPrefs, equipment, trainingPrefs } = useStore()
   const [gear, setGear] = useState<string[] | null>(equipment)
   const today = useToday()
   const [when, setWhen] = useState<'this' | 'next'>(onUse ? 'next' : 'this')
@@ -54,7 +54,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
       generateProgram({
         anchorMonday, weeks, fromDate, trainWeekdays: days, goal, minutes,
         prevDayGroups: majorGroupsLogged(logs, prev, (id) => findExercise(custom, id)),
-        warmup: defaultWarmup(genPrefs.warmup, true), rest: genPrefs.rest,
+        warmup: defaultWarmup(genPrefs.warmup, true), rest: genPrefs.rest, likedStyles: trainingPrefs.styles,
       })),
     )
     setOpen(null)

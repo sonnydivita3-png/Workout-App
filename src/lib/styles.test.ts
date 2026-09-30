@@ -160,7 +160,7 @@ describe('HIIT circuit', () => {
   it('respects a chosen body part and adds cardio when asked', () => {
     const w = gen('circuit', ['Legs', 'Cardio'], 45, 3)
     expect(ex(w.at(-1)!).kind).toBe('cardio')
-    for (const p of w.filter((p) => p.block === 'circuit')) expect(['Legs', 'Conditioning']).toContain(ex(p).group)
+    for (const p of w.filter((p) => p.block === 'circuit')) expect(['Legs', 'Conditioning', 'Cardio']).toContain(ex(p).group)
   })
 })
 
