@@ -14,6 +14,16 @@ const isLog = (l: unknown): l is Obj =>
 const isPlanned = (p: unknown): p is Obj => isObj(p) && typeof p.exerciseId === 'string'
 const hasId = (x: unknown): x is Obj => isObj(x) && typeof x.id === 'string'
 
+// Exercises that were logged as timed sets in older versions and are cardio (time and distance) now.
+const NOW_CARDIO = new Set(['x-skierg', 'x-row-erg'])
+function toCardioLog(l: Obj): Obj {
+  if (!NOW_CARDIO.has(l.exerciseId as string) || isObj(l.cardio) || !Array.isArray(l.sets)) return l
+  const secs = l.sets.reduce((a: number, x: unknown) => a + (isObj(x) && typeof x.seconds === 'number' ? x.seconds : 0), 0)
+  const { sets: _sets, ...rest } = l
+  void _sets
+  return { ...rest, cardio: { distance: null, minutes: secs > 0 ? Math.max(1, Math.round(secs / 60)) : null } }
+}
+
 /** Repair a saved state object: wrong-typed fields fall back to `defaults`, bad entries are dropped. */
 export function repairState<T extends Obj>(saved: unknown, defaults: T): T {
   if (!isObj(saved)) return defaults
@@ -33,7 +43,7 @@ export function repairState<T extends Obj>(saved: unknown, defaults: T): T {
   const overrides: Obj = {}
   if (isObj(saved.overrides)) for (const [d, items] of Object.entries(saved.overrides)) if (ISO.test(d) && Array.isArray(items)) overrides[d] = items.filter(isPlanned)
   out.overrides = overrides
-  out.logs = arr(saved.logs, isLog)
+  out.logs = arr(saved.logs, isLog).map(toCardioLog)
   for (const k of ['custom', 'routines', 'goals', 'notifications', 'programs', 'timedLogs', 'measurements']) if (k in defaults) out[k] = arr(saved[k], hasId)
   out.bodyweight = arr(saved.bodyweight, (b): b is Obj => isObj(b) && typeof b.date === 'string' && typeof b.lb === 'number')
   // Keep anything the app no longer knows about (e.g. from a newer version) so it isn't lost.

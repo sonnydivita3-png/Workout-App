@@ -12,9 +12,13 @@ import { WarmupRestControls } from './WarmupRestControls'
 import { WorkoutList } from './WorkoutList'
 import { GearChoice } from './GearChoice'
 import { withGearFor } from '../lib/equipment'
+import { withCardioFor } from '../lib/cardioPrefs'
+import { CardioChoice, type CardioPick } from './CardioChoice'
 
 const MAX_HISTORY = 50
 const DURATIONS = [20, 30, 45, 60, 75, 90]
+// Styles that use cardio machines as stations.
+const CONDITIONING: WorkoutStyle[] = ['crossfit', 'amrap', 'emom', 'fortime', 'tabata', 'circuit']
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 const chip = (on: boolean, disabled = false) =>
@@ -29,8 +33,10 @@ interface Props {
 }
 
 export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
-  const { addPlanned, saveRoutine, genPrefs, setGenPrefs, equipment } = useStore()
+  const { addPlanned, saveRoutine, genPrefs, setGenPrefs, equipment, trainingPrefs } = useStore()
   const [gear, setGear] = useState<string[] | null>(equipment)
+  const [cardioPick, setCardioPick] = useState<CardioPick>({ cardio: trainingPrefs.cardio, split: trainingPrefs.cardioSplit })
+  const withChoices = <T,>(fn: () => T) => withGearFor(gear, () => withCardioFor(cardioPick.cardio, cardioPick.split, fn))
   const warm = genPrefs.warmup
   const rest = genPrefs.rest
   const dayName = DAY_NAMES[weekdayIndex(parseISO(date))]
@@ -40,7 +46,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const [more, setMore] = useState(false)
   // Per-part minutes when mixing styles and/or cardio; unset parts use an even split.
   const [split, setSplit] = useState<Record<string, number>>({})
-  const [styles, setStyles] = useState<WorkoutStyle[]>(genPrefs.styles?.length ? genPrefs.styles : ['standard'])
+  const [styles, setStyles] = useState<WorkoutStyle[]>(genPrefs.styles?.length ? genPrefs.styles : trainingPrefs.styles.length ? [trainingPrefs.styles[0]] : ['standard'])
   // Every version of the workout, so an accidental reroll or swap can be walked back.
   const [history, setHistory] = useState<{ list: PlannedExercise[][]; at: number }>({ list: [], at: 0 })
   const [pickIndex, setPickIndex] = useState<number | null>(null)
@@ -103,7 +109,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
 
   const generate = (avoid?: PlannedExercise[]) => {
     if (!avoid) setGenPrefs({ focus, styles, minutes })
-    commit(withGearFor(gear, () => generateWorkout(focus, total0, {
+    commit(withChoices(() => generateWorkout(focus, total0, {
       style: styles[0], styles, rest,
       warmup: { ...warmSplit(), sets: warm.includes('sets') && lifting },
       ...(showSplit ? { minutesByStyle: Object.fromEntries(styles.map((st) => [st, partMin(st)])), ...(hasCardio ? { cardioMinutes: partMin('cardio') } : {}) } : {}),
@@ -132,6 +138,15 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
         )}
 
         <GearChoice value={gear} onChange={setGear} />
+
+        {(focus.includes('Cardio') && !focusIgnored) || styles.some((st) => CONDITIONING.includes(st)) ? (
+          <CardioChoice
+            value={cardioPick}
+            onChange={setCardioPick}
+            gear={gear}
+            hint={focus.includes('Cardio') && !focusIgnored ? 'What to finish on. Pick several to take turns or split the time.' : 'Machines used as stations in timed pieces, e.g. 12 cal on the rower.'}
+          />
+        ) : null}
 
         {!showSplit && <h3 className="mb-2 text-sm font-medium">How long?</h3>}
         {showSplit && (
@@ -238,7 +253,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
         <div className="mb-4">
           <WorkoutList
             items={items}
-            onSwap={(i) => commit(withGearFor(gear, () => swapExercise(items, i)))}
+            onSwap={(i) => commit(withChoices(() => swapExercise(items, i)))}
             onChoose={setPickIndex}
             onRemove={(i) => commit(items.filter((_, j) => j !== i))}
           />

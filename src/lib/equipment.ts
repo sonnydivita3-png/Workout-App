@@ -11,7 +11,9 @@ export const GEAR_LABELS: Record<Gear, string> = {
 
 export const GEAR_PRESETS: { id: string; label: string; gear: Gear[] | null }[] = [
   { id: 'gym', label: 'Full gym', gear: null },
+  { id: 'crossfit', label: 'CrossFit box', gear: ['Barbell', 'Dumbbell', 'Kettlebell', 'Machine', 'Other'] },
   { id: 'home', label: 'Home gym', gear: ['Barbell', 'Dumbbell', 'Kettlebell', 'Bands', 'Other'] },
+  { id: 'hotel', label: 'Hotel gym', gear: ['Dumbbell', 'Machine'] },
   { id: 'dumbbells', label: 'Dumbbells only', gear: ['Dumbbell'] },
   { id: 'bodyweight', label: 'Bodyweight only', gear: [] },
 ]

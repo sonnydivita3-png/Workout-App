@@ -64,6 +64,22 @@ EXERCISES.push(
   })),
 )
 
+// Cardio machines the dataset lacks. The SkiErg and rower started out as Hyrox stations; they're cardio machines
+// like the rest (logged as time and distance), so they show up in cardio, warm-ups and timed workouts too.
+const MACHINES: [string, string, string[]][] = [
+  ['x-air-bike', 'Air Bike (Assault / Echo)', ['crossfit', 'hiit']],
+  ['x-bike-erg', 'BikeErg', ['crossfit', 'hiit']],
+  ['x-versaclimber', 'VersaClimber', ['hiit']],
+]
+for (const [id, name, tags] of MACHINES) EXERCISES.push({ id, name, group: 'Cardio', equipment: 'Machine', kind: 'cardio', suggest: true, tags })
+for (const e of EXERCISES) {
+  if (e.id === 'x-skierg' || e.id === 'x-row-erg') Object.assign(e, { group: 'Cardio', kind: 'cardio', mode: undefined, suggest: true })
+  if (e.id === 'x-row-erg') e.name = 'Rower'
+  if (e.id === 'Rowing_Stationary') e.suggest = false // the same machine as the Rower; kept for old logs
+  // A jump rope isn't a machine: bodyweight-and-a-rope workouts should be able to use it.
+  if (e.id === 'Rope_Jumping') e.equipment = 'Jump rope'
+}
+
 // The library files some no-equipment moves under "Other"; they're bodyweight, which matters for home workouts.
 const NO_GEAR = new Set([
   'Alternate Leg Diagonal Bound', 'Bodyweight Walking Lunge', 'Carioca Quick Step', 'Decline Push-Up', 'Kneeling Arm Drill',
@@ -72,6 +88,8 @@ const NO_GEAR = new Set([
   'Single Leg Push-off', 'Stride Jump Crossover', 'Prone Manual Hamstring', 'London Bridges',
 ])
 for (const e of EXERCISES) if (e.equipment === 'Other' && NO_GEAR.has(e.name)) e.equipment = 'Bodyweight'
+// ...and one listed as bodyweight that needs a dumbbell to push up from.
+for (const e of EXERCISES) if (e.id === 'Close-Grip_Push-Up_off_of_a_Dumbbell') e.equipment = 'Dumbbell'
 
 // Everyday names for the most common lifts; the dataset's full name stays available (search, how-to page).
 const SHORT: Record<string, string> = {

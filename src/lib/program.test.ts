@@ -213,3 +213,19 @@ describe('warm-ups and session length in plans', () => {
     }
   })
 })
+
+describe('liked workout styles', () => {
+  const count = (style: string, liked?: ProgramInput['likedStyles']) => {
+    let n = 0
+    for (let seed = 1; seed <= 10; seed++) {
+      n += generateProgram(base({ weeks: 4, trainWeekdays: [0, 2, 4, 5], rng: mulberry32(seed), likedStyles: liked })).filter((d) => d.style === style).length
+    }
+    return n
+  }
+  it('adds liked formats the goal lacks, and leans towards liked ones it has', () => {
+    expect(count('crossfit')).toBe(0)
+    const liked = count('crossfit', ['crossfit'])
+    expect(liked).toBeGreaterThan(5)
+    expect(count('supersets', ['supersets'])).toBeGreaterThan(count('supersets'))
+  })
+})

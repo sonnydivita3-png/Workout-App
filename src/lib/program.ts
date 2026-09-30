@@ -119,6 +119,33 @@ export interface ProgramInput {
   /** Warm-up on lifting days (its minutes are part of the session) and how long to rest between sets. */
   warmup?: WarmupOptions
   rest?: RestPref
+  /** Workout styles the person enjoys: those sessions come up more, and liked formats the goal lacks are added. */
+  likedStyles?: WorkoutStyle[]
+}
+
+/** Sessions for liked full-body formats that a goal doesn't include on its own. */
+const EXTRA_TYPES: Partial<Record<WorkoutStyle, DayType>> = {
+  hyrox: { name: 'Hyrox-style', groups: FULL, style: 'hyrox', weight: 1, generic: true },
+  crossfit: { name: 'CrossFit-style', groups: FULL, style: 'crossfit', weight: 1, generic: true },
+  circuit: { name: 'Full-body HIIT', groups: FULL, style: 'circuit', weight: 0.9, generic: true },
+  amrap: { name: 'AMRAP', groups: FULL, style: 'amrap', weight: 0.8, generic: true },
+  emom: { name: 'EMOM', groups: FULL, style: 'emom', weight: 0.8, generic: true },
+  fortime: { name: 'Rounds for time', groups: FULL, style: 'fortime', weight: 0.8, generic: true },
+  tabata: { name: 'Tabata', groups: FULL, style: 'tabata', weight: 0.7, generic: true },
+  supersets: { name: 'Full-body supersets', groups: FULL, style: 'supersets', weight: 0.6 },
+  bodyweight: { name: 'Bodyweight', groups: ['Chest', 'Back', 'Legs', 'Core'], style: 'bodyweight', weight: 0.6 },
+}
+
+/** Lean the week towards what someone likes, without dropping what their goal needs. */
+function withLikes(types: DayType[], liked: WorkoutStyle[] = []): DayType[] {
+  if (liked.length === 0) return types
+  const out = types.map((t) => (liked.includes(t.style) && t.groups.length ? { ...t, weight: t.weight * 1.6 } : t))
+  for (const st of liked) {
+    const extra = EXTRA_TYPES[st]
+    // Liked, so it gets the same lift as the goal's own liked sessions: it should show up most weeks.
+    if (extra && !out.some((t) => t.style === st)) out.push({ ...extra, weight: extra.weight * 1.6 })
+  }
+  return out
 }
 
 export interface ProgramDay {
@@ -156,7 +183,7 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
   const first = input.fromDate && input.fromDate > anchorMonday ? input.fromDate : anchorMonday
   const total = weeks * 7
   const dpw = new Set(trainWeekdays).size
-  const types = dayTypes(goal, dpw)
+  const types = withLikes(dayTypes(goal, dpw), input.likedStyles)
 
   const lastTrained = new Map<string, number>() // group -> day offset it was last trained
   const firstOffset = daysBetween(anchorMonday, first)
