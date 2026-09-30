@@ -14,6 +14,7 @@ import { Avatar, Card, ErrorNote } from './ui'
 import type { Tab } from '../TabBar'
 import { ChallengeDetailSheet } from './ChallengeDetailSheet'
 import { MakeForFriendSheet } from './MakeForFriendSheet'
+import { InviteButton } from '../InviteButton'
 
 type Section = 'inbox' | 'friends' | 'challenges'
 
@@ -68,6 +69,7 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
           <p className="mb-1 font-medium">Train with friends</p>
           <p className="mb-4 text-sm text-neutral-500">Share workouts, send challenges and cheer each other on with emoji. You choose what each friend can do. Social is off until you set it up.</p>
           <button onClick={() => setSetup(true)} className={primary}>Set up social features</button>
+          <InviteButton className={`${secondary} mt-2`}>Invite a friend to the app</InviteButton>
         </Card>
         {setup && <SocialSetup variant="sheet" onDone={() => setSetup(false)} onCancel={() => setSetup(false)} />}
       </>
@@ -210,6 +212,12 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
 
       {section === 'friends' && (
         <div className="space-y-3">
+          {profile && (
+            <Card title="Invite friends">
+              <p className="mb-3 text-xs text-neutral-400">Send a link by text or any app. When they open it, they can add you in one tap. It includes your handle, so only send it to people you want to hear from.</p>
+              <InviteButton handle={profile.handle} className={primary}>Share invite link</InviteButton>
+            </Card>
+          )}
           <Card title="Add a friend">
             <p className="mb-2 text-xs text-neutral-400">Type their exact handle. There’s no searching, so people only get found by someone who already knows their handle.</p>
             <div className="flex gap-2">
@@ -239,7 +247,7 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
             </Card>
           )}
           <Card title="Friends">
-            {friends.length === 0 ? <p className="text-sm text-neutral-400">No friends yet. Add someone by handle above.</p> : (
+            {friends.length === 0 ? <p className="text-sm text-neutral-400">No friends yet. Invite someone or add them by handle above.</p> : (
               <ul className="divide-y divide-neutral-100">
                 {friends.map((f) => (
                   <li key={f.profile.id}>

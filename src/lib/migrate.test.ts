@@ -29,4 +29,11 @@ describe('repairState', () => {
     expect(repairState(null, defaults)).toEqual(defaults)
     expect((repairState({ fromTheFuture: [1] }, defaults) as Record<string, unknown>).fromTheFuture).toEqual([1])
   })
+  it('keeps values for fields whose default is null', () => {
+    const d = { ...defaults, backendKind: null as string | null, pendingInvite: null as string | null }
+    const r = repairState({ backendKind: 'supabase', pendingInvite: 'sam' }, d)
+    expect(r.backendKind).toBe('supabase')
+    expect(r.pendingInvite).toBe('sam')
+    expect(repairState({}, d).backendKind).toBeNull()
+  })
 })

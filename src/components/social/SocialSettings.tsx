@@ -10,26 +10,21 @@ import { Avatar, ErrorNote } from './ui'
 const row = 'flex items-center justify-between rounded-2xl bg-surface px-4 py-3 shadow-sm ring-1 ring-neutral-200/70'
 const btn = 'w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70'
 
-/** Settings block: turn social on later, see your handle, sign out, or delete the social account. */
+/** Settings block: turn social on later, see your handle or sign out. Deleting the account lives in AccountSection. */
 export function SocialSettings() {
   const { socialChoice, setSocialChoice } = useStore()
-  const { profile, user, backend, status, signOut, reset, act, updateProfile } = useSocial()
+  const { profile, user, backend, status, signOut, reset, updateProfile } = useSocial()
   const [addEmail, setAddEmail] = useState(false)
   const anonymous = !!user?.anonymous
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [setup, setSetup] = useState(false)
-  const [confirm, setConfirm] = useState<'off' | 'delete' | 'signout' | null>(null)
+  const [confirm, setConfirm] = useState<'off' | 'signout' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const enabled = socialChoice === 'enabled'
 
   // Turning off keeps you signed in, so turning it back on later picks up the same account and friends.
   const turnOff = () => { setSocialChoice('declined'); reset(); setConfirm(null) }
-  const del = async () => {
-    const r = await act((b) => b.deleteAccount())
-    if (!r.ok) { setError(r.error); return }
-    reset(); setSocialChoice('declined'); useStore.getState().setCloud({ enabled: false, lastSyncedAt: null, lastHash: null, conflict: false }); setConfirm(null)
-  }
 
   return (
     <>
@@ -63,7 +58,6 @@ export function SocialSettings() {
           {!profile && <button onClick={() => setSetup(true)} className={btn}>Sign in or finish setup</button>}
           {profile && <button onClick={() => (anonymous ? setConfirm('signout') : void signOut())} className={btn}>Sign out</button>}
           <button onClick={() => setConfirm('off')} className={btn}>Turn off social features</button>
-          {profile && <button onClick={() => setConfirm('delete')} className={`${btn} text-red-600`}>Delete my social account</button>}
         </>
       )}
       {setup && <SocialSetup variant="sheet" onDone={() => setSetup(false)} onCancel={() => setSetup(false)} />}
@@ -91,13 +85,6 @@ export function SocialSettings() {
         <Sheet title="Turn off social?" onClose={() => setConfirm(null)} closeLabel="Cancel">
           <p className="mb-4 text-sm text-neutral-600">Social tabs and notifications go away. Your account and friends stay on the server and you stay signed in, so turning it back on later picks up right where you left off. Your workouts are not affected.</p>
           <button onClick={turnOff} className="w-full rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent">Turn off</button>
-        </Sheet>
-      )}
-      {confirm === 'delete' && (
-        <Sheet title="Delete social account?" onClose={() => setConfirm(null)} closeLabel="Cancel">
-          <p className="mb-4 text-sm text-neutral-600">This deletes your account: your handle, friends, shared workouts, challenges and emoji, and your cloud backup. It can’t be undone. Your workouts on this phone are not affected.</p>
-          {error && <ErrorNote>{error}</ErrorNote>}
-          <button onClick={del} className="w-full rounded-2xl bg-red-600 py-3 text-sm font-medium text-white">Delete account</button>
         </Sheet>
       )}
     </>

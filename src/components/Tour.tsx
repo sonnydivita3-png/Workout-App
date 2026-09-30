@@ -78,7 +78,7 @@ const steps = (social: boolean): Step[] => [
   social
     ? {
         icon: '👥', title: 'Train with friends',
-        body: 'The Social tab is where friends live. Add someone by their exact handle.',
+        body: 'The Social tab is where friends live. Send an invite link, or add someone by their exact handle.',
         points: [
           'Being friends shares nothing. You choose, per friend, what they can see or send you',
           'Share a day, week or month; ask a friend to make you a workout; send challenges and log them',
@@ -88,7 +88,7 @@ const steps = (social: boolean): Step[] => [
     : {
         icon: '👥', title: 'Friends are optional',
         body: 'Social is off. Turn it on any time in Settings to share workouts, send challenges and cheer friends on.',
-        points: ['You choose what each friend can see or send you', 'Emoji only, no chat. Email is optional'],
+        points: ['You choose what each friend can see or send you', 'Emoji only, no chat. Email is optional', 'Invite a friend to the app any time from Settings'],
       },
   {
     icon: '⚙️', title: 'Make it yours',

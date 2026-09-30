@@ -24,6 +24,10 @@ export function useBackendSwitch() {
         useToasts.getState().push({ id: 'went-live', title: 'Friends and backup are live 🎉', body: 'The preview is over. Set them up again to use real accounts. Your workouts are all still here.' })
       }
     }
+    if (kind === 'supabase' && demoData) {
+      // The preview's simulated accounts are useless on a real server; drop them so this can't fire again.
+      try { localStorage.removeItem('ez-social-demo-v1') } catch { /* storage blocked */ }
+    }
     if (s.backendKind !== kind) s.setPrefs({ backendKind: kind })
   }, [])
 }

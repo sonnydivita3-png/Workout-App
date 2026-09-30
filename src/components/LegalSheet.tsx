@@ -26,7 +26,7 @@ export function LegalSheet({ doc, onClose }: { doc: LegalDoc; onClose: () => voi
             <h3>What we don’t do</h3>
             <p>No ads, no selling or renting data, no third-party analytics or trackers. Data is stored with our database provider (Supabase) only to run these features.</p>
             <h3>Your choices</h3>
-            <p>You can turn off backup or social features at any time in Settings, export your data to a file, erase everything on this device, and delete your account (which deletes your backup and all social data on the server).</p>
+            <p>You can turn off backup or social features at any time in Settings, export your data to a file, erase everything on this device, and delete your account under Settings → Account (which deletes your backup and all social data on the server).</p>
             <h3>Children</h3>
             <p>Social features and accounts are only for people 13 and older.</p>
             <h3>Questions</h3>
