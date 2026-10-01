@@ -102,6 +102,48 @@ function dayTypes(goal: ProgramGoal, daysPerWeek: number): DayType[] {
   }
 }
 
+export type SplitId = 'auto' | 'full' | 'upperlower' | 'ppl' | 'arnold' | 'bodypart'
+
+export const SPLITS: { id: SplitId; label: string; blurb: string; fits: number[] }[] = [
+  { id: 'auto', label: 'Auto', blurb: 'Picks the day types for your goal and keeps sore muscles resting.', fits: [1, 2, 3, 4, 5, 6, 7] },
+  { id: 'full', label: 'Full body', blurb: 'Every workout hits the whole body.', fits: [1, 2, 3] },
+  { id: 'upperlower', label: 'Upper / Lower', blurb: 'Upper body, then lower body, back and forth.', fits: [2, 3, 4, 5, 6] },
+  { id: 'ppl', label: 'Push / Pull / Legs', blurb: 'Push (chest, shoulders, triceps), pull (back, biceps), then legs.', fits: [3, 5, 6] },
+  { id: 'arnold', label: 'Arnold', blurb: 'Chest & back, shoulders & arms, then legs.', fits: [3, 6] },
+  { id: 'bodypart', label: 'Body-part split', blurb: 'One or two muscle groups a day.', fits: [4, 5] },
+]
+
+export const splitInfo = (id: SplitId) => SPLITS.find((s) => s.id === id)!
+
+/** The split that suits a number of training days best. */
+export function bestSplit(daysPerWeek: number): SplitId {
+  return daysPerWeek <= 3 ? 'full' : daysPerWeek === 4 ? 'upperlower' : daysPerWeek === 5 ? 'bodypart' : 'ppl'
+}
+
+/** Workout style for split days: the lifting style that matches the goal. */
+const SPLIT_STYLE: Record<ProgramGoal, WorkoutStyle> = { muscle: 'standard', strength: 'strength', fatloss: 'supersets', fitness: 'standard', functional: 'strength' }
+
+/** The days of a split, in the order they repeat. */
+function splitRotation(split: Exclude<SplitId, 'auto'>, daysPerWeek: number, style: WorkoutStyle): DayType[] {
+  const d = (name: string, groups: string[]): DayType => ({ name, groups, style, weight: 1 })
+  const push = d('Push', ['Chest', 'Shoulders', 'Triceps'])
+  const pull = d('Pull', ['Back', 'Biceps', 'Core'])
+  const legs = d('Legs', LOWER_BODY)
+  const upper = d('Upper body', UPPER_BODY)
+  const lower = d('Lower body', LOWER_BODY)
+  switch (split) {
+    case 'full': return [d('Full body', FULL)]
+    case 'upperlower': return [upper, lower]
+    // Five days: a push/pull/legs round, then upper and lower.
+    case 'ppl': return daysPerWeek === 5 ? [push, pull, legs, upper, lower] : [push, pull, legs]
+    case 'arnold': return [d('Chest & back', ['Chest', 'Back']), d('Shoulders & arms', ['Shoulders', ...ARMS]), legs]
+    case 'bodypart':
+      return daysPerWeek <= 4
+        ? [d('Chest & triceps', ['Chest', 'Triceps']), d('Back & biceps', ['Back', 'Biceps']), legs, d('Shoulders & core', ['Shoulders', 'Core'])]
+        : [d('Chest', ['Chest']), d('Back', ['Back']), legs, d('Shoulders & core', ['Shoulders', 'Core']), d('Arms', ARMS)]
+  }
+}
+
 const majorsOf = (t: DayType) => t.groups.filter((g) => MAJOR_GROUPS.includes(g))
 const isCardioDay = (t: DayType) => t.groups.length === 0
 
@@ -125,6 +167,8 @@ export interface ProgramInput {
   likedStyles?: WorkoutStyle[]
   /** Drop sets on the last two lifts of lifting days. */
   dropSets?: boolean
+  /** A named split run in order (push, pull, legs, push…). 'auto' (default) picks day types for the goal. */
+  split?: SplitId
 }
 
 /** Sessions for liked full-body formats that a goal doesn't include on its own. */
@@ -188,6 +232,7 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
   const total = weeks * 7
   const dpw = new Set(trainWeekdays).size
   const types = withLikes(dayTypes(goal, dpw), input.likedStyles)
+  const split = input.split && input.split !== 'auto' ? splitRotation(input.split, dpw, SPLIT_STYLE[goal]) : null
 
   const lastTrained = new Map<string, number>() // group -> day offset it was last trained
   const firstOffset = daysBetween(anchorMonday, first)
@@ -196,6 +241,8 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
   const recentTypes: string[] = [] // names of the last few session types
   const recent: string[][] = []
   const out: ProgramDay[] = []
+  // A split starts on the first day that doesn't hit what was trained yesterday, then runs in order.
+  let turn = split ? Math.max(0, split.findIndex((t) => !majorsOf(t).some((g) => prevMajors.has(g)))) : 0
 
   for (let offset = firstOffset; offset < total; offset++) {
     const date = toISO(addDays(parseISO(anchorMonday), offset))
@@ -214,7 +261,7 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
       return m.reduce((a, g) => a + Math.min(offset - (lastTrained.get(g) ?? -99), 7), 0) / m.length
     }
     const scored = allowed.map((t) => ({ t, s: t.weight * stale(t) * (0.85 + rng() * 0.3) * 0.5 ** recentTypes.filter((n) => n === t.name).length }))
-    const type = scored.reduce((a, b) => (b.s > a.s ? b : a)).t
+    const type = split ? split[turn++ % split.length] : scored.reduce((a, b) => (b.s > a.s ? b : a)).t
 
     const focus = isCardioDay(type) ? ['Cardio'] : type.generic ? [] : type.groups
     const avoid = new Set(recent.flat())

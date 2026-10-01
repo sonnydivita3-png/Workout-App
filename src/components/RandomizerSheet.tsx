@@ -86,7 +86,10 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const body = focus.filter((g) => g !== 'Cardio')
   // One tap for the usual splits; each part can still be picked on its own.
   const same = (parts: string[]) => body.length === parts.length && parts.every((g) => body.includes(g))
-  const presets: [string, string[]][] = [['Full body', LIFT_GROUPS], ['Upper body', UPPER_PARTS], ['Lower body', LOWER_PARTS]]
+  const presets: [string, string[]][] = [
+    ['Full body', LIFT_GROUPS], ['Upper body', UPPER_PARTS], ['Lower body', LOWER_PARTS],
+    ['Push', ['Chest', 'Shoulders', 'Triceps']], ['Pull', ['Back', 'Biceps']],
+  ]
   const setBody = (parts: string[]) => setFocus([...(same(parts) ? [] : parts), ...focus.filter((g) => g === 'Cardio')])
   const cardioOnly = !focusIgnored && body.length === 0 && focus.includes('Cardio')
   const presetName = presets.find(([, parts]) => same(parts))?.[0]
