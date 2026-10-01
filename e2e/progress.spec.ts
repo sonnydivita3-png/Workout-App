@@ -16,6 +16,9 @@ test('suggests the next step and marks sets that beat last time', async ({ page 
   await expect(page.getByText('🎯 Try 140 lb × 8')).toBeVisible()
   await expect(page.getByText('Last note: “felt easy”')).toBeVisible()
   for (let i = 1; i <= 3; i++) await page.getByRole('button', { name: `Set ${i} done` }).click()
+  // Done: the card folds up (with the result); open it again to keep editing.
+  await expect(page.getByText(/3 of 3 sets .*▲ 3 beat last time/)).toBeVisible()
+  await page.getByRole('button', { name: 'Open Bench Press' }).click()
   await expect(page.getByText('▲ Beat last time on 3 sets')).toBeVisible()
   const s = await state(page)
   expect(s.logs.find((l: { date: string }) => l.date === iso(0)).sets.map((x: { weight: number }) => x.weight)).toEqual([140, 140, 140])
