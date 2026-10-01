@@ -73,3 +73,36 @@ test('Hyrox: log a finish time, compare with last time, and see run pace and car
   await track.click()
   await expect(page.getByText('Lower is better (finish time).')).toBeVisible()
 })
+
+test('cardio calories: asks for bodyweight, then shows an estimate labelled as one, and takes a watch number', async ({ page }) => {
+  await seed(page, { overrides: { [iso(0)]: [{ exerciseId: 'running', sets: 1, minutes: 30 }] } })
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByLabel('Running minutes').fill('30')
+  await page.getByLabel('Running distance').fill('3')
+  await expect(page.getByText(/Estimated calories need your bodyweight/)).toBeVisible()
+
+  // Add a bodyweight and the estimate appears, marked as estimated.
+  await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem('workout-app-v1')!)
+    raw.state.bodyweight = [{ date: '2026-01-01', lb: 185 }]
+    localStorage.setItem('workout-app-v1', JSON.stringify(raw))
+  })
+  await page.reload()
+  await page.locator('nav').getByText('Workouts').click()
+  await expect(page.getByText('≈411 cal, estimated')).toBeVisible()
+  await expect(page.getByText(/from your bodyweight \(185 lb\), the activity and its time and pace/)).toBeVisible()
+  await page.locator('nav').getByText('Progress').click()
+  await expect(page.getByText('≈411 cal')).toBeVisible()
+  await expect(page.getByText(/\(estimated\)/)).toBeVisible()
+  await expect(page.getByText(/Estimates use your bodyweight/)).toBeVisible()
+
+  // Their watch's number replaces the estimate.
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByLabel('Running calories').fill('380')
+  await expect(page.getByText('Your number (e.g. from your watch).')).toBeVisible()
+  expect((await state(page)).logs[0].cardio.calories).toBe(380)
+  await page.locator('nav').getByText('Progress').click()
+  await expect(page.getByText('380 cal', { exact: true })).toBeVisible()
+  await expect(page.getByText(/Estimates use your bodyweight/)).toHaveCount(0)
+})

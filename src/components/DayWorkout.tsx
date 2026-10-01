@@ -148,6 +148,7 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
                   targetDistance={p.distance}
                   note={p.note}
                   onChange={(c) => s.saveCardio(date, ex.id, c)}
+                  date={date}
                   onRemove={() => remove(ex)}
                   onSwap={() => { setSwapMsg(null); setSwap({ index, ex, step: 'how' }) }}
                   readOnly={future}

@@ -83,3 +83,14 @@ describe('benchmark results', () => {
     expect(hyroxRunPace(all[2], logs, lookup)).toBe(9)
   })
 })
+
+describe('cardio calories in the week', () => {
+  it('adds their own numbers and estimates, and counts sessions it can\'t estimate', () => {
+    const logs: ExerciseLog[] = [
+      { date: '2026-09-29', exerciseId: 'running', cardio: { distance: 3, minutes: 30 } },
+      { date: '2026-09-30', exerciseId: 'x-row-erg', cardio: { distance: null, minutes: 20, calories: 250 } },
+    ]
+    expect(cardioWeek(logs, [], WEEK, lookup, [{ date: '2026-09-01', lb: 185 }]).calories).toEqual({ total: 661, estimated: 411, missing: 0 })
+    expect(cardioWeek(logs, [], WEEK, lookup, []).calories).toEqual({ total: 250, estimated: 0, missing: 1 })
+  })
+})

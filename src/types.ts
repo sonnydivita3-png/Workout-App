@@ -37,6 +37,8 @@ export interface StrengthSet {
 export interface CardioEntry {
   distance: number | null
   minutes: number | null
+  /** Calories they entered (e.g. from a watch). Without it, the app shows an estimate. */
+  calories?: number | null
 }
 
 /** Time-based workout formats: as many rounds as possible, every minute on the minute, or a fixed amount of work against the clock. */

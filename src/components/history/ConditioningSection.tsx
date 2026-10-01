@@ -45,15 +45,15 @@ interface Track {
 
 /** Cardio and conditioning on the Progress tab: weekly minutes, and benchmark / Hyrox results over time. */
 export function ConditioningSection() {
-  const { logs, timedLogs, custom, plan, overrides, benchmarks, units } = useStore()
+  const { logs, timedLogs, custom, plan, overrides, benchmarks, units, bodyweight } = useStore()
   const today = useToday()
   const [open, setOpen] = useState<string | null>(null)
   const lookup = (id: string) => findExercise(custom, id)
   const thisWeek = weekOf(today)
   const lastWeek = weekOf(today, 1)
 
-  const cardioNow = cardioWeek(logs, timedLogs, thisWeek, lookup)
-  const cardioThen = cardioWeek(logs, timedLogs, lastWeek, lookup)
+  const cardioNow = cardioWeek(logs, timedLogs, thisWeek, lookup, bodyweight)
+  const cardioThen = cardioWeek(logs, timedLogs, lastWeek, lookup, bodyweight)
   const condNow = conditioningWeek(timedLogs, logs, plan, overrides, thisWeek)
   const condThen = conditioningWeek(timedLogs, logs, plan, overrides, lastWeek)
 
@@ -89,6 +89,19 @@ export function ConditioningSection() {
           </div>
         </div>
         {(cardioNow.byType.length > 0 || cardioThen.byType.length > 0) && <Bars rows={merge(cardioNow.byType, cardioThen.byType)} unit="min" />}
+        {(cardioNow.calories.total > 0 || cardioNow.calories.missing > 0) && (() => {
+          const { total, estimated, missing } = cardioNow.calories
+          const all = estimated === total && total > 0
+          return (
+            <p className="mt-3 text-xs text-neutral-500">
+              🔥 <b className="font-medium text-neutral-700">{all ? '≈' : ''}{Math.round(total).toLocaleString()} cal</b> from cardio this week
+              {estimated > 0 && (all ? ' (estimated)' : ` (≈${Math.round(estimated).toLocaleString()} of it estimated)`)}
+              {cardioThen.calories.total > 0 && <span className="text-neutral-400"> · last week {Math.round(cardioThen.calories.total).toLocaleString()}</span>}
+              {estimated > 0 && <span className="block text-neutral-400">Estimates use your bodyweight, the activity, its time and pace. Type your watch’s number on a cardio card to use that instead.</span>}
+              {missing > 0 && <span className="block text-neutral-400">{missing} session{missing === 1 ? ' has' : 's have'} no calories: estimates need your bodyweight (add it in Progress → Body).</span>}
+            </p>
+          )
+        })()}
       </section>
 
       <section className={card}>

@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react'
 import { parseGpx } from '../lib/gpx'
-import { formatPace, showDistance, storeDistance } from '../lib/units'
+import { bodyweightOn, estimateCalories } from '../lib/calories'
+import { formatPace, showDistance, showWeight, storeDistance } from '../lib/units'
+import { useToday } from '../lib/useToday'
 import { useStore } from '../store'
 import type { CardioEntry, Exercise, ExerciseLog } from '../types'
 import { NumberInput } from './NumberInput'
@@ -20,10 +22,14 @@ interface Props {
   onSwap?: () => void
   /** A day that hasn't happened yet: show the target only. */
   readOnly?: boolean
+  /** The day it's logged on (for the bodyweight behind the calorie estimate). */
+  date?: string
 }
 
-export function CardioCard({ exercise, current, last, targetMinutes, targetDistance, note, onChange, onRemove, onSwap, readOnly }: Props) {
+export function CardioCard({ exercise, current, last, targetMinutes, targetDistance, note, onChange, onRemove, onSwap, readOnly, date }: Props) {
   const units = useStore((s) => s.units)
+  const bodyweight = useStore((s) => s.bodyweight)
+  const today = useToday()
   const c = current?.cardio ?? { distance: null, minutes: null }
   const prev = last?.cardio
   const file = useRef<HTMLInputElement>(null)
@@ -35,7 +41,7 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
     if (!f) return
     const g = parseGpx(await f.text())
     if (!g || !g.miles) { setGpxMsg('Couldn’t find a GPS track in that file.'); return }
-    onChange({ distance: g.miles, minutes: g.minutes || c.minutes })
+    onChange({ ...c, distance: g.miles, minutes: g.minutes || c.minutes })
     setGpxMsg(`Imported ${g.name ? `“${g.name}”: ` : ''}${showDistance(g.miles, units)} ${units.distance} in ${g.minutes} min${g.date ? ` (${g.date})` : ''}`)
   }
   const target = [targetDistance ? `${showDistance(targetDistance, units)} ${units.distance}` : '', targetMinutes ? `${targetMinutes} min` : ''].filter(Boolean).join(' · ')
@@ -54,6 +60,7 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
         <label className="text-xs font-medium text-neutral-500">
           {units.distance === 'km' ? 'Km' : 'Miles'}
           <NumberInput
+            label={`${exercise.name} distance`}
             value={showDistance(c.distance, units)}
             step={0.1}
             placeholder={showDistance(prev?.distance ?? targetDistance ?? null, units)?.toString() ?? '–'}
@@ -62,7 +69,7 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
         </label>
         <label className="text-xs font-medium text-neutral-500">
           Minutes
-          <NumberInput value={c.minutes} step={0.5} placeholder={(prev?.minutes ?? targetMinutes)?.toString() ?? '–'} onChange={(v) => onChange({ ...c, minutes: v })} />
+          <NumberInput label={`${exercise.name} minutes`} value={c.minutes} step={0.5} placeholder={(prev?.minutes ?? targetMinutes)?.toString() ?? '–'} onChange={(v) => onChange({ ...c, minutes: v })} />
         </label>
         <div className="text-xs font-medium text-neutral-500">
           Pace
@@ -70,6 +77,26 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
         </div>
       </div>
       )}
+      {!readOnly && (() => {
+        // Calories: theirs (e.g. from a watch) if typed in, else an estimate from bodyweight, activity, time and pace.
+        const lb = bodyweightOn(bodyweight, date ?? current?.date ?? today)
+        const est = estimateCalories(exercise.id, c, lb)
+        const own = c.calories != null && c.calories > 0
+        return (
+          <div className="mt-3 flex items-start gap-3">
+            <label className="w-24 shrink-0 text-xs font-medium text-neutral-500">
+              Calories
+              <NumberInput label={`${exercise.name} calories`} value={c.calories ?? null} step={10} placeholder={est != null ? `≈${est}` : '–'} onChange={(v) => onChange({ ...c, calories: v })} />
+            </label>
+            <p className="pt-5 text-xs text-neutral-400">
+              {own ? 'Your number (e.g. from your watch).'
+                : est != null ? <><b className="font-medium text-neutral-600">≈{est} cal, estimated</b> from your bodyweight ({showWeight(lb, units)} {units.weight}), the activity and its time{c.distance ? ' and pace' : ''}. Type your watch’s number to use that instead.</>
+                : !lb ? <>Estimated calories need your <b className="font-medium text-neutral-600">bodyweight</b> (add it in Progress → Body), plus this workout’s minutes. Or type your watch’s number.</>
+                : 'Log the minutes to see estimated calories, or type your watch’s number.'}
+            </p>
+          </div>
+        )
+      })()}
       {outdoor && <input ref={file} type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" aria-label="Import a GPX file" className="hidden" onChange={(e) => { void importGpx(e.target.files?.[0]); e.target.value = '' }} />}
       {gpxMsg && <p role="status" className="mt-2 text-xs text-neutral-500">{gpxMsg}</p>}
       {menu && (
