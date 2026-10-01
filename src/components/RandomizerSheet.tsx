@@ -124,7 +124,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
 
   if (!items) {
     return (
-      <Sheet title="Make a workout" onClose={onClose} closeLabel="Cancel">
+      <Sheet title="Make me a workout" onClose={onClose} closeLabel="Cancel">
         <ModeSwitch mode="one" onChange={onSwitchMode} />
 
         <h3 className="mb-2 text-sm font-medium">What are you training?{infos.every((i) => i.focus !== 'required') && <span className="font-normal text-neutral-400"> (optional)</span>}</h3>

@@ -69,7 +69,8 @@ export function unfinished(date: string, items: PlannedExercise[], logs: Exercis
       if (!log?.cardio?.distance && !log?.cardio?.minutes) out.push({ exerciseId: ex.id, name: ex.name, done: 0, planned: 1, cardio: true })
       continue
     }
-    const done = (log?.sets ?? []).filter((s) => !s.warmup && (s.weight || s.reps || s.seconds)).length
+    // Ticked sets (older sets without a tick count when they have numbers); typed but unticked ones aren't done yet.
+    const done = (log?.sets ?? []).filter((s) => !s.warmup && (s.done ?? !!(s.weight || s.reps || s.seconds))).length
     if (done < p.sets) out.push({ exerciseId: ex.id, name: ex.name, done, planned: p.sets, cardio: false })
   }
   return out

@@ -13,7 +13,7 @@ const steps = (social: boolean): Step[] => [
     icon: '🏠', title: 'Home',
     body: 'Today’s workout and one Start button.',
     points: [
-      'Nothing planned? Make a workout, repeat your last one, or pick exercises yourself',
+      'Nothing planned? Tap “Make me a workout”, repeat your last one, or pick exercises yourself',
       'Settings is the gear at the top right',
     ],
   },

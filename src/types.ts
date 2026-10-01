@@ -26,6 +26,10 @@ export interface StrengthSet {
   warmup?: boolean
   /** How hard it felt, 1-10 (10 = nothing left). */
   rpe?: number | null
+  /** Ticked ✓ (false = unticked on purpose). Older sets without it count as ticked when they have numbers. */
+  done?: boolean
+  /** The numbers came from ✓ filling in the target, so unticking clears them again. */
+  auto?: boolean
 }
 
 export interface CardioEntry {

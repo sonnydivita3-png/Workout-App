@@ -112,7 +112,7 @@ test('randomizer builds a timed workout with a clock', async ({ page }) => {
   await page.goto('/')
   await page.locator('nav').getByText('Workouts').click()
   await page.getByRole('button', { name: '+ Add', exact: true }).click()
-  await page.locator('.fixed').getByText('Make a workout').click()
+  await page.locator('.fixed').getByText('Make me a workout').click()
   await page.locator('.fixed').getByRole('button', { name: /More options/ }).click()
   await page.locator('.fixed').getByRole('button', { name: 'Timed', exact: true }).click()
   await page.locator('.fixed').getByRole('button', { name: 'EMOM', exact: true }).click()
@@ -134,7 +134,7 @@ test('randomizer: style groups with variations, and several styles with their ow
   await page.goto('/')
   await page.locator('nav').getByText('Workouts').click()
   await page.getByRole('button', { name: '+ Add', exact: true }).click()
-  await page.locator('.fixed').getByText('Make a workout').click()
+  await page.locator('.fixed').getByText('Make me a workout').click()
   const sheet = page.locator('.fixed')
   await sheet.getByRole('button', { name: /More options/ }).click()
   await sheet.getByRole('button', { name: 'Strength', exact: true }).click()
@@ -153,7 +153,7 @@ test('randomizer remembers the last choices, and Full body is one tap', async ({
   await page.goto('/')
   await page.locator('nav').getByText('Workouts').click()
   await page.getByRole('button', { name: '+ Add', exact: true }).click()
-  await page.locator('.fixed').getByText('Make a workout').click()
+  await page.locator('.fixed').getByText('Make me a workout').click()
   const sheet = page.locator('.fixed')
   await sheet.getByRole('button', { name: 'Full body', exact: true }).click()
   await expect(sheet.getByRole('button', { name: 'Hamstrings', exact: true })).toHaveAttribute('aria-pressed', 'true')
@@ -161,7 +161,7 @@ test('randomizer remembers the last choices, and Full body is one tap', async ({
   await sheet.getByRole('button', { name: /^Generate/ }).click()
   await sheet.getByRole('button', { name: 'Close', exact: true }).click()
   await page.getByRole('button', { name: '+ Add', exact: true }).click()
-  await page.locator('.fixed').getByText('Make a workout').click()
+  await page.locator('.fixed').getByText('Make me a workout').click()
   await expect(sheet.getByRole('button', { name: 'Full body', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await expect(sheet.getByRole('button', { name: '30 min', exact: true })).toHaveClass(/bg-accent/)
 })
@@ -201,7 +201,109 @@ test('a set is one tap: ✓ logs the target, and typed numbers win', async ({ pa
   await page.getByRole('spinbutton', { name: 'Set 2 lb' }).fill('190')
   await page.getByRole('button', { name: 'Set 2 done' }).click()
   await expect(page.getByRole('spinbutton', { name: 'Set 2 lb' })).toHaveValue('190')
-  await expect.poll(async () => (await state(page)).logs.find((l: { date: string }) => l.date === iso(0))?.sets).toEqual([{ weight: 195, reps: 5, seconds: null }, { weight: 190, reps: 5, seconds: null }])
+  await expect.poll(async () => (await state(page)).logs.find((l: { date: string }) => l.date === iso(0))?.sets).toEqual([
+    { weight: 195, reps: 5, seconds: null, done: true, auto: true },
+    { weight: 190, reps: 5, seconds: null, done: true, auto: false },
+  ])
+
+  // A tap by mistake comes off again: an auto-filled set empties, a typed one keeps its numbers.
+  await page.getByRole('button', { name: 'Set 1 done' }).click()
+  await expect(page.getByRole('button', { name: 'Set 1 done' })).toHaveAttribute('aria-pressed', 'false')
+  await expect(page.getByRole('spinbutton', { name: 'Set 1 lb' })).toHaveValue('')
+  await page.getByRole('button', { name: 'Set 2 done' }).click()
+  await expect(page.getByRole('button', { name: 'Set 2 done' })).toHaveAttribute('aria-pressed', 'false')
+  await expect(page.getByRole('spinbutton', { name: 'Set 2 lb' })).toHaveValue('190')
+})
+
+test('a set menu: make it a warm-up or delete that one set; future days show the plan without ticks', async ({ page }) => {
+  await seed(page, { overrides: { [iso(0)]: [{ exerciseId: 'Pushups', sets: 3, reps: 10 }], [iso(1)]: [{ exerciseId: 'Pushups', sets: 3, reps: 10 }] } })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Start workout' }).click()
+  await page.getByRole('spinbutton', { name: 'Set 1 reps' }).fill('11')
+  await page.getByRole('spinbutton', { name: 'Set 2 reps' }).fill('12')
+  await page.getByRole('spinbutton', { name: 'Set 3 reps' }).fill('13')
+  await page.getByRole('button', { name: 'Set 2 options' }).click()
+  await page.getByRole('button', { name: 'Delete this set' }).click()
+  await expect(page.getByRole('spinbutton', { name: 'Set 2 reps' })).toHaveValue('13')
+  await expect(page.getByRole('spinbutton', { name: 'Set 3 reps' })).toHaveCount(0)
+  const s = await state(page)
+  expect(s.overrides[iso(0)][0].sets).toBe(2)
+  expect(s.logs.find((l: { date: string }) => l.date === iso(0)).sets.map((x: { reps: number }) => x.reps)).toEqual([11, 13])
+
+  // Tomorrow: the plan is there, but nothing to tick yet.
+  const t = new Date()
+  t.setDate(t.getDate() + 1)
+  if (t.getDay() === 1) await page.getByRole('button', { name: 'Next week' }).click()
+  await page.getByRole('button', { name: new RegExp(`^${t.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}`) }).click()
+  await expect(page.getByText(/Tick the sets off on the day/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Set 1 done' })).toHaveCount(0)
+})
+
+test('exercise search understands gym shorthand and ignores hyphens; recent exercises come first', async ({ page }) => {
+  await seed(page, { logs: [{ date: iso(-2), exerciseId: 'Hammer_Curls', sets: [{ weight: 30, reps: 10 }] }] })
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: 'Add exercises' }).click()
+  const picker = page.locator('.fixed')
+  await expect(picker.locator('ul li').first()).toContainText('Hammer Curl')
+  await picker.getByPlaceholder(/search/i).fill('rdl')
+  await expect(picker.getByRole('button', { name: /^Romanian Deadlift/ }).first()).toBeVisible()
+  await picker.getByPlaceholder(/search/i).fill('pushup')
+  await expect(picker.getByRole('button', { name: /^Push-Up\b/ }).first()).toBeVisible()
+  await picker.getByPlaceholder(/search/i).fill('db shoulder press')
+  await expect(picker.getByRole('button', { name: /^Dumbbell Shoulder Press/ }).first()).toBeVisible()
+})
+
+test('swap an exercise on the day: random from the same body part, or choose one', async ({ page }) => {
+  await seed(page, { overrides: { [iso(0)]: [{ exerciseId: 'Barbell_Bench_Press_-_Medium_Grip', sets: 4, reps: 8 }, { exerciseId: 'Dumbbell_Bicep_Curl', sets: 3, reps: 12 }] } })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Start workout' }).click()
+  const day = async () => (await state(page)).overrides[iso(0)] as { exerciseId: string; sets: number }[]
+
+  await page.getByRole('button', { name: 'Bench Press options' }).click()
+  await page.getByRole('button', { name: 'Swap exercise' }).click()
+  await page.getByRole('button', { name: /^Random chest exercise/ }).click()
+  let d = await day()
+  expect(d[0].exerciseId).not.toBe('Barbell_Bench_Press_-_Medium_Grip')
+  expect(d[0].sets).toBe(4) // same number of sets, same slot
+  expect(d[1].exerciseId).toBe('Dumbbell_Bicep_Curl')
+
+  await page.getByRole('button', { name: 'Dumbbell Curl options' }).click()
+  await page.getByRole('button', { name: 'Swap exercise' }).click()
+  await page.getByRole('button', { name: /^Choose one/ }).click()
+  const picker = page.locator('.fixed')
+  await expect(picker.getByRole('heading', { name: 'Swap Dumbbell Curl' })).toBeVisible()
+  await expect(picker.getByRole('group', { name: 'Body part' }).getByRole('button', { name: 'Biceps', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await picker.getByRole('button', { name: /^Hammer Curl/ }).first().click()
+  d = await day()
+  expect(d[1].exerciseId).toBe('Hammer_Curls')
+})
+
+test('history from the card, and removing an exercise with logged sets asks first', async ({ page }) => {
+  const BENCH = 'Barbell_Bench_Press_-_Medium_Grip'
+  await seed(page, {
+    overrides: { [iso(0)]: [{ exerciseId: BENCH, sets: 2, reps: 8 }] },
+    logs: [{ date: iso(-5), exerciseId: BENCH, sets: [{ weight: 135, reps: 8 }, { weight: 135, reps: 7 }], note: 'shoulder ok' }],
+  })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Start workout' }).click()
+  await page.getByRole('button', { name: 'Bench Press options' }).click()
+  await page.getByRole('button', { name: 'History', exact: true }).click()
+  const sheet = page.locator('.fixed')
+  await expect(sheet.getByText('135×8 · 135×7')).toBeVisible()
+  await expect(sheet.getByText('“shoulder ok”')).toBeVisible()
+  await page.locator('.fixed').getByRole('button', { name: 'Close', exact: true }).click()
+
+  await page.getByRole('button', { name: 'Set 1 done' }).click()
+  let asked = ''
+  page.removeAllListeners('dialog')
+  page.on('dialog', (dlg) => { asked = dlg.message(); void dlg.accept() })
+  await page.getByRole('button', { name: 'Bench Press options' }).click()
+  await page.getByRole('button', { name: 'Remove exercise' }).click()
+  expect(asked).toMatch(/has sets logged/)
+  const s = await state(page)
+  expect(s.overrides[iso(0)] ?? []).toEqual([])
+  expect(s.logs.filter((l: { date: string }) => l.date === iso(0))).toEqual([]) // nothing hidden left behind
 })
 
 test('exercise picker: muscle plus equipment filters, remembered next time', async ({ page }) => {
@@ -229,7 +331,7 @@ test('equipment setting: dumbbells only shapes generated workouts and the picker
   await openSettings(page, 'Profile, units & equipment')
   await page.getByRole('radio', { name: 'Dumbbells only' }).click()
   await page.locator('nav').getByText('Workouts').click()
-  await page.getByRole('button', { name: 'Make a workout' }).click()
+  await page.getByRole('button', { name: 'Make me a workout' }).click()
   const sheet = page.locator('.fixed')
   await sheet.getByRole('button', { name: 'Full body', exact: true }).click()
   await sheet.getByRole('button', { name: /^Generate/ }).click()
@@ -247,7 +349,7 @@ test('randomizer asks where you train: bodyweight just this once, or as the new 
   await seed(page)
   await page.goto('/')
   await page.locator('nav').getByText('Workouts').click()
-  await page.getByRole('button', { name: 'Make a workout' }).click()
+  await page.getByRole('button', { name: 'Make me a workout' }).click()
   const sheet = page.locator('.fixed')
   const gear = sheet.getByRole('radiogroup', { name: 'Equipment' })
   // One line with the usual setup; Change shows the choices.
@@ -266,7 +368,7 @@ test('randomizer asks where you train: bodyweight just this once, or as the new 
   expect(s.equipment ?? null).toBeNull() // the profile is untouched
 
   await page.getByRole('button', { name: '+ Add', exact: true }).click()
-  await page.locator('.fixed').getByText('Make a workout').click()
+  await page.locator('.fixed').getByText('Make me a workout').click()
   await sheet.getByRole('button', { name: 'Change' }).click()
   await expect(gear.getByRole('radio', { name: 'Full gym' })).toHaveAttribute('aria-checked', 'true')
   await gear.getByRole('radio', { name: 'Dumbbells only' }).click()
@@ -280,7 +382,7 @@ test('randomizer: pick cardio machines for a CrossFit WOD, or split a cardio fin
   await seed(page)
   await page.goto('/')
   await page.locator('nav').getByText('Workouts').click()
-  await page.getByRole('button', { name: 'Make a workout' }).click()
+  await page.getByRole('button', { name: 'Make me a workout' }).click()
   const sheet = page.locator('.fixed')
   await sheet.getByRole('button', { name: /More options/ }).click()
   await sheet.getByRole('button', { name: 'Hyrox / CrossFit', exact: true }).click()
@@ -295,7 +397,7 @@ test('randomizer: pick cardio machines for a CrossFit WOD, or split a cardio fin
 
   // A cardio finisher split across two machines, saved as the default.
   await page.getByRole('button', { name: '+ Add', exact: true }).click()
-  await page.locator('.fixed').getByText('Make a workout').click()
+  await page.locator('.fixed').getByText('Make me a workout').click()
   await sheet.getByRole('button', { name: /More options/ }).click()
   await sheet.getByRole('button', { name: 'Standard', exact: true }).click()
   await sheet.getByRole('button', { name: 'Cardio', exact: true }).click()
@@ -311,11 +413,11 @@ test('randomizer: pick cardio machines for a CrossFit WOD, or split a cardio fin
   expect(s.trainingPrefs).toMatchObject({ cardio: ['row', 'ski'], cardioSplit: true })
 })
 
-test('Make a workout: full body is one exercise per body part, and upper or lower body is one tap', async ({ page }) => {
+test('Make me a workout: full body is one exercise per body part, and upper or lower body is one tap', async ({ page }) => {
   await seed(page)
   await page.goto('/')
   await page.locator('nav').getByText('Workouts').click()
-  await page.getByRole('button', { name: 'Make a workout' }).click()
+  await page.getByRole('button', { name: 'Make me a workout' }).click()
   const sheet = page.locator('.fixed')
   await sheet.getByRole('button', { name: 'Upper body', exact: true }).click()
   for (const part of ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps']) await expect(sheet.getByRole('button', { name: part, exact: true })).toHaveAttribute('aria-pressed', 'true')
@@ -435,6 +537,7 @@ test('Finish workout, with a warning when sets are missing', async ({ page }) =>
   await page.goto('/')
   await page.getByRole('button', { name: 'Start workout' }).click()
   await page.getByRole('spinbutton').nth(0).fill('12')
+  await page.getByRole('button', { name: 'Set 1 done' }).click() // typed numbers count once the set is ticked
   await page.getByRole('button', { name: '✓ Finish workout' }).click()
   const dialog = page.getByRole('dialog', { name: 'Finish workout?' })
   await expect(dialog).toContainText('2 sets and 1 cardio session aren’t logged yet')
@@ -447,6 +550,13 @@ test('Finish workout, with a warning when sets are missing', async ({ page }) =>
   await page.getByRole('button', { name: 'Done', exact: true }).last().click()
   expect((await state(page)).finishedDays).toEqual([today])
   await expect(page.getByRole('button', { name: /Workout complete · see summary/ })).toBeVisible()
+  // Finished by mistake? Undo it.
+  await page.getByRole('button', { name: 'Undo', exact: true }).click()
+  expect((await state(page)).finishedDays).toEqual([])
+  await expect(page.getByRole('button', { name: '✓ Finish workout' })).toBeVisible()
+  await page.getByRole('button', { name: '✓ Finish workout' }).click()
+  await page.getByRole('button', { name: 'Finish anyway' }).click()
+  await page.getByRole('button', { name: 'Done', exact: true }).last().click()
   await page.locator('nav').getByText('Home').click()
   await expect(page.getByText('Done for today ✓')).toBeVisible()
 })

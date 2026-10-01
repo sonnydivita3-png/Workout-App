@@ -106,7 +106,7 @@ export function PlanView({ initialAction }: { initialAction?: string }) {
             <div className="grid grid-cols-2 gap-2">
               {([
                 ['Add exercises', () => setPicking(true)],
-                ['Make a workout', () => setGenerator('one')],
+                ['Make me a workout', () => setGenerator('one')],
                 ['Plan my week', () => setGenerator('program')],
                 ...(s.routines.length ? [['Load a routine', () => setDayMenu('load')] as const] : []),
                 ['Rest day', () => s.setRestDay(date)],
@@ -125,7 +125,10 @@ export function PlanView({ initialAction }: { initialAction?: string }) {
         )}
         {work.length > 0 && date <= today && (
           finished ? (
-            <button onClick={() => setFinishing(true)} className="w-full rounded-2xl bg-neutral-100 py-3 text-sm font-medium text-neutral-600">✓ Workout complete · see summary</button>
+            <div className="flex gap-2">
+              <button onClick={() => setFinishing(true)} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium text-neutral-600">✓ Workout complete · see summary</button>
+              <button onClick={() => s.unfinishDay(date)} className="rounded-2xl bg-neutral-100 px-4 py-3 text-sm text-neutral-600">Undo</button>
+            </div>
           ) : (
             <button onClick={() => setFinishing(true)} className="w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-on-accent">✓ Finish workout</button>
           )
@@ -138,7 +141,7 @@ export function PlanView({ initialAction }: { initialAction?: string }) {
         <Sheet title={`Add to ${DAY_NAMES[day]}`} onClose={() => setAddMenu(false)}>
           {([
             ['Add an exercise', 'Search or browse 750+ exercises', () => setPicking(true)],
-            ['Make a workout', 'Pick body parts and time, get a full workout', () => setGenerator('one')],
+            ['Make me a workout', 'Pick body parts and time, get a full workout', () => setGenerator('one')],
             ['Plan a week or month', 'Training and rest days built around a goal', () => setGenerator('program')],
             ['Timed workout', 'AMRAP, EMOM, for time or Tabata, with a clock', () => setWodBuilder(true)],
             ['Run or ride plan', 'Build up to a distance or a race', () => setGenerator('cardio')],

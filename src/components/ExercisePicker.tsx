@@ -10,6 +10,10 @@ interface Props {
   taken: Set<string>
   onPick: (e: Exercise) => void
   onClose: () => void
+  /** e.g. "Swap Bench Press" (default "Add exercise"). */
+  title?: string
+  /** Body part to start on (e.g. the one being swapped). */
+  initialGroup?: string
 }
 
 const GROUPS = ['All', ...BODY_PARTS, 'Forearms', 'Cardio', 'Conditioning', 'Mobility', 'Other']
@@ -24,6 +28,11 @@ const equipOf = (e: Exercise): Equip => {
   return (EQUIPMENT as readonly string[]).includes(k) && k !== 'Any' && k !== 'Mine' ? (k as Equip) : 'Other'
 }
 const PAGE = 50
+const squash = (t: string) => t.toLowerCase().replace(/[-\s]/g, '')
+const ALIASES: Record<string, string> = {
+  rdl: 'romanian deadlift', sldl: 'stiff legged', ohp: 'overhead press', db: 'dumbbell', bb: 'barbell', kb: 'kettlebell',
+  bw: 'bodyweight', tri: 'tricep', bi: 'bicep', ghr: 'glute ham',
+}
 const rank = (e: Exercise) => (e.custom ? 0 : e.fullName ? 1 : e.suggest && isStaple(e) && !isTechnical(e) ? 2 : e.suggest ? 3 : 4)
 const CREATE_AS: [string, 'strength' | 'cardio', ExerciseMode | undefined][] = [
   ['Weights', 'strength', 'weight'],
@@ -32,22 +41,30 @@ const CREATE_AS: [string, 'strength' | 'cardio', ExerciseMode | undefined][] = [
   ['Cardio', 'cardio', undefined],
 ]
 
-export function ExercisePicker({ taken, onPick, onClose }: Props) {
+export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise', initialGroup = 'All' }: Props) {
   const custom = useStore((s) => s.custom)
   const createCustom = useStore((s) => s.createCustom)
   // Remembered between visits: someone with a home gym usually wants the same equipment every time.
   const owned = useStore((s) => s.equipment)
+  const logs = useStore((s) => s.logs)
+  // What you've done lately comes first, most recent on top (like any gym log).
+  const recent = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const l of logs) if ((m.get(l.exerciseId) ?? '') < l.date) m.set(l.exerciseId, l.date)
+    return m
+  }, [logs])
   // "My equipment" only makes sense once someone has said what they have.
   const saved = useStore((s) => s.pickerEquipment) as Equip
   const equip: Equip = saved === 'Mine' && !owned ? 'Any' : saved
   const setEquip = useStore((s) => s.setPickerEquipment)
   const [q, setQ] = useState('')
-  const [group, setGroup] = useState('All')
+  const [group, setGroup] = useState(GROUPS.includes(initialGroup) ? initialGroup : 'All')
   const [limit, setLimit] = useState(PAGE)
 
   const query = q.trim().toLowerCase()
-  const words = query.split(/\s+/)
-  const matches = (e: Exercise) => words.every((w) => `${e.name} ${e.fullName ?? ''}`.toLowerCase().includes(w))
+  // Gym shorthand works too (RDL, OHP, DB…), and hyphens and spaces don't matter (pushup finds Push-Up).
+  const words = query.split(/\s+/).flatMap((w) => (ALIASES[w] ?? w).split(' ')).map(squash).filter(Boolean)
+  const matches = (e: Exercise) => { const hay = squash(`${e.name} ${e.fullName ?? ''}`); return words.every((w) => hay.includes(w)) }
   // Muscle group and search first, so each equipment chip can say how many it would leave.
   const inGroup = useMemo(
     () => [...custom, ...EXERCISES].filter((e) => (group === 'All' || e.group === group) && matches(e)),
@@ -65,8 +82,8 @@ export function ExercisePicker({ taken, onPick, onClose }: Props) {
       inGroup
         .filter((e) => equip === 'Any' || (equip === 'Mine' ? hasGear(e) : equipOf(e) === equip))
         // Your own exercises, then everyday lifts (Back Squat, Leg Curl…), then common moves, then the rest, A to Z.
-        .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name)),
-    [inGroup, equip],
+        .sort((a, b) => (recent.get(b.id) ?? '').localeCompare(recent.get(a.id) ?? '') || rank(a) - rank(b) || a.name.localeCompare(b.name)),
+    [inGroup, equip, recent],
   )
   const exact = results.some((e) => e.name.toLowerCase() === query)
 
@@ -77,7 +94,7 @@ export function ExercisePicker({ taken, onPick, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex shrink-0 items-center justify-between">
-          <h2 className="text-lg font-semibold">Add exercise</h2>
+          <h2 className="text-lg font-semibold">{title}</h2>
           <button onClick={onClose} className="text-sm text-neutral-500">Done</button>
         </div>
         <input

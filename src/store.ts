@@ -73,6 +73,8 @@ interface State extends Data {
   /** Dates marked "Workout complete" (even if some planned sets weren't logged). */
   finishedDays: string[]
   finishDay: (date: string) => void
+  /** Undo "Workout complete" (tapped by mistake, or there's more to do). */
+  unfinishDay: (date: string) => void
   /** Replace a date's exercises (reordered, grouped into supersets...). */
   setDayItems: (date: string, items: PlannedExercise[]) => void
   /** Make a date's exercises the usual plan for that weekday (every week). */
@@ -367,6 +369,7 @@ export const useStore = create<State>()(
         set((s) => ({ equipment, pickerEquipment: equipment && s.pickerEquipment === 'Any' ? 'Mine' : !equipment && s.pickerEquipment === 'Mine' ? 'Any' : s.pickerEquipment })),
       seeTip: (id) => set((s) => (s.tipsSeen.includes(id) ? s : { tipsSeen: [...s.tipsSeen, id] })),
       finishDay: (date) => set((s) => (s.finishedDays.includes(date) ? s : { finishedDays: [...s.finishedDays, date].slice(-400) })),
+      unfinishDay: (date) => set((s) => ({ finishedDays: s.finishedDays.filter((d) => d !== date) })),
       setDayItems: (date, items) => set((s) => editDay(s, date, () => items)),
       clearUsualDay: (date) =>
         set((s) => {

@@ -111,7 +111,7 @@ export function Onboarding() {
         {step === 'likes' && (
           <>
             <h1 className="mb-1 text-2xl font-semibold tracking-tight">What do you like to do?</h1>
-            <p className="mb-5 text-neutral-500">Pick as many as you like. Your plans and “Make a workout” lean towards these.</p>
+            <p className="mb-5 text-neutral-500">Pick as many as you like. Your plans and “Make me a workout” lean towards these.</p>
             <div className="mb-6"><LikedStylesPicker /></div>
             <div className="mt-auto space-y-2">
               <button onClick={() => setStep('cardio')} className={primary}>{s.trainingPrefs.styles.length ? 'Continue' : 'No preference, continue'}</button>

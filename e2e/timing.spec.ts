@@ -5,7 +5,7 @@ async function openRandomizer(page: import('@playwright/test').Page) {
   await page.goto('/')
   await page.locator('nav').getByText('Workouts').click()
   await page.getByRole('button', { name: '+ Add', exact: true }).click()
-  await page.locator('.fixed').getByText('Make a workout').click()
+  await page.locator('.fixed').getByText('Make me a workout').click()
 }
 
 test('a 30-minute strength workout really fills about 30 minutes', async ({ page }) => {
