@@ -1,4 +1,5 @@
-import type { Exercise, ExerciseLog, PlannedExercise, PlanOverrides, TimedLog, WeekPlan } from '../types'
+import { caloriesBetween, type CalorieTotal } from './calories'
+import type { BodyweightEntry, Exercise, ExerciseLog, PlannedExercise, PlanOverrides, TimedLog, WeekPlan } from '../types'
 import { cardioTypeOf } from './cardioPrefs'
 import { addDays, mondayOf, parseISO, toISO } from './dates'
 import { dayPlanOf } from './plan'
@@ -23,10 +24,12 @@ export interface CardioWeek {
   minutes: number
   /** Miles. */
   distance: number
+  /** Calories from all cardio that week, including the cardio inside Hyrox and timed workouts. */
+  calories: CalorieTotal
 }
 
 /** Steady cardio logged in a week. Runs and rows inside a timed workout or Hyrox count as conditioning instead. */
-export function cardioWeek(logs: ExerciseLog[], timedLogs: TimedLog[], range: [string, string], lookup: (id: string) => Exercise | undefined): CardioWeek {
+export function cardioWeek(logs: ExerciseLog[], timedLogs: TimedLog[], range: [string, string], lookup: (id: string) => Exercise | undefined, bodyweight: BodyweightEntry[] = []): CardioWeek {
   const skip = conditioningMoves(timedLogs)
   const by = new Map<string, number>()
   let minutes = 0
@@ -39,7 +42,8 @@ export function cardioWeek(logs: ExerciseLog[], timedLogs: TimedLog[], range: [s
     minutes += m
     distance += l.cardio.distance ?? 0
   }
-  return { byType: [...by].map(([label, m]) => ({ label, minutes: m })).sort((a, b) => b.minutes - a.minutes), minutes, distance }
+  const calories = caloriesBetween(logs, bodyweight, range[0], range[1])
+  return { byType: [...by].map(([label, m]) => ({ label, minutes: m })).sort((a, b) => b.minutes - a.minutes), minutes, distance, calories }
 }
 
 /** How long a timed result took: the finishing time when there is one, else the format's length. */

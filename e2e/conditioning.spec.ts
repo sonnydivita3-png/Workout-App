@@ -68,8 +68,49 @@ test('Hyrox: log a finish time, compare with last time, and see run pace and car
   // The bike ride counts as cardio; the Hyrox run counts as conditioning, not both.
   await expect(page.getByText(/^(30 of 150 min|0 of 150 min)/)).toBeVisible()
   await expect(page.getByText(/^(30 of 150 min|.*last week 30 min)/).first()).toBeVisible()
+  // The Hyrox run still counts toward calories (there's no bodyweight here, so it asks for one).
+  await expect(page.getByText(/sessions? ha(s|ve) no calories: estimates need your bodyweight/)).toBeVisible()
   const track = page.getByRole('button', { name: /Hyrox · 2 × \(500 m run \+ station\)/ })
   await expect(track).toContainText('Best 15:20')
   await track.click()
   await expect(page.getByText('Lower is better (finish time).')).toBeVisible()
+})
+
+test('cardio calories: asks for bodyweight, then shows an estimate labelled as one, and takes a watch number', async ({ page }) => {
+  await seed(page, { overrides: { [iso(0)]: [{ exerciseId: 'running', sets: 1, minutes: 30 }] } })
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByLabel('Running minutes').fill('30')
+  await page.getByLabel('Running distance').fill('3')
+  await expect(page.getByText(/Estimated calories need your bodyweight/)).toBeVisible()
+
+  // Add a bodyweight and the estimate appears, marked as estimated.
+  await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem('workout-app-v1')!)
+    raw.state.bodyweight = [{ date: '2026-01-01', lb: 185 }]
+    localStorage.setItem('workout-app-v1', JSON.stringify(raw))
+  })
+  await page.reload()
+  await page.locator('nav').getByText('Workouts').click()
+  await expect(page.getByText('≈411 cal, estimated')).toBeVisible()
+  await expect(page.getByText(/from your bodyweight \(185 lb\), the activity and its time and pace/)).toBeVisible()
+  await page.locator('nav').getByText('Progress').click()
+  await expect(page.getByText('≈411 cal')).toBeVisible()
+  await expect(page.getByText(/\(estimated\)/)).toBeVisible()
+  await expect(page.getByText(/Estimates use your bodyweight/)).toBeVisible()
+  // …and on Home, next to workouts this week.
+  await page.locator('nav').getByText('Home').click()
+  const week = page.getByRole('region', { name: 'This week' })
+  await expect(week).toContainText('≈411cal burned in cardioestimated from bodyweight')
+
+  // Their watch's number replaces the estimate.
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByLabel('Running calories').fill('380')
+  await expect(page.getByText('Your number (e.g. from your watch).')).toBeVisible()
+  expect((await state(page)).logs[0].cardio.calories).toBe(380)
+  await page.locator('nav').getByText('Progress').click()
+  await expect(page.getByText('380 cal', { exact: true })).toBeVisible()
+  await expect(page.getByText(/Estimates use your bodyweight/)).toHaveCount(0)
+  await page.locator('nav').getByText('Home').click()
+  await expect(page.getByRole('region', { name: 'This week' })).toContainText('380cal burned in cardio')
 })
