@@ -113,7 +113,6 @@ test('randomizer builds a timed workout with a clock', async ({ page }) => {
   await page.locator('nav').getByText('Workouts').click()
   await page.getByRole('button', { name: '+ Add', exact: true }).click()
   await page.locator('.fixed').getByText('Make me a workout').click()
-  await page.locator('.fixed').getByRole('button', { name: /More options/ }).click()
   await page.locator('.fixed').getByRole('button', { name: 'Timed', exact: true }).click()
   await page.locator('.fixed').getByRole('button', { name: 'EMOM', exact: true }).click()
   await page.locator('.fixed').getByRole('button', { name: /^Generate/ }).click()
@@ -136,7 +135,6 @@ test('randomizer: style groups with variations, and several styles with their ow
   await page.getByRole('button', { name: '+ Add', exact: true }).click()
   await page.locator('.fixed').getByText('Make me a workout').click()
   const sheet = page.locator('.fixed')
-  await sheet.getByRole('button', { name: /More options/ }).click()
   await sheet.getByRole('button', { name: 'Strength', exact: true }).click()
   await sheet.getByRole('button', { name: 'HIIT', exact: true }).click()
   await sheet.getByRole('button', { name: 'PHA', exact: true }).click()
@@ -384,7 +382,6 @@ test('randomizer: pick cardio machines for a CrossFit WOD, or split a cardio fin
   await page.locator('nav').getByText('Workouts').click()
   await page.getByRole('button', { name: 'Make me a workout' }).click()
   const sheet = page.locator('.fixed')
-  await sheet.getByRole('button', { name: /More options/ }).click()
   await sheet.getByRole('button', { name: 'Hyrox / CrossFit', exact: true }).click()
   await sheet.getByRole('button', { name: 'CrossFit-style', exact: true }).click()
   const cardio = sheet.getByRole('group', { name: 'Cardio' })
@@ -398,7 +395,6 @@ test('randomizer: pick cardio machines for a CrossFit WOD, or split a cardio fin
   // A cardio finisher split across two machines, saved as the default.
   await page.getByRole('button', { name: '+ Add', exact: true }).click()
   await page.locator('.fixed').getByText('Make me a workout').click()
-  await sheet.getByRole('button', { name: /More options/ }).click()
   await sheet.getByRole('button', { name: 'Standard', exact: true }).click()
   await sheet.getByRole('button', { name: 'Cardio', exact: true }).click()
   await cardio.getByRole('button', { name: 'Rower' }).click()
@@ -461,6 +457,32 @@ test('cardio cards: a GPX import for runs and rides outside, not for machines', 
   await expect(page.getByRole('button', { name: /Import a GPX file/ })).toHaveCount(0)
   await page.getByRole('button', { name: 'Remove exercise' }).click()
   expect((await state(page)).overrides[iso(0)].map((p: { exerciseId: string }) => p.exerciseId)).toEqual(['running'])
+})
+
+test('warm-up sets stay with the first two weight lifts when the day is reordered, never on bodyweight', async ({ page }) => {
+  await seed(page, {
+    overrides: { [iso(0)]: [
+      { exerciseId: 'Barbell_Squat', sets: 3, reps: 5, warmupSets: 3 },
+      { exerciseId: 'Barbell_Bench_Press_-_Medium_Grip', sets: 3, reps: 5, warmupSets: 2 },
+      { exerciseId: 'Pushups', sets: 3, reps: 10 },
+      { exerciseId: 'Dumbbell_Bicep_Curl', sets: 3, reps: 10 },
+    ] },
+    logs: [{ date: iso(-2), exerciseId: 'Hammer_Curls', sets: [{ weight: 30, reps: 10 }] }],
+  })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Start workout' }).click()
+  await page.getByRole('button', { name: '⇅ Reorder' }).click()
+  for (let i = 0; i < 2; i++) await page.getByRole('button', { name: 'Move Push-Up up' }).click()
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Move Dumbbell Curl up' }).click()
+  const day = (await state(page)).overrides[iso(0)] as { exerciseId: string; warmupSets?: number }[]
+  expect(day.map((p) => [p.exerciseId, p.warmupSets ?? 0])).toEqual([
+    ['Dumbbell_Bicep_Curl', 3], ['Pushups', 0], ['Barbell_Squat', 2], ['Barbell_Bench_Press_-_Medium_Grip', 0],
+  ])
+  // Progress lists the day in a few words.
+  await page.locator('.fixed').getByRole('button', { name: 'Done', exact: true }).click()
+  await page.getByRole('spinbutton', { name: 'Set 1 reps' }).first().fill('10')
+  await page.locator('nav').getByText('Progress').click()
+  await expect(page.getByText(/^(Arms|Chest|Legs|Full body|Upper body|Arms & legs)[^,]* · \d+ exercises?$/).first()).toBeVisible()
 })
 
 test('reorder a day and build supersets of any size', async ({ page }) => {

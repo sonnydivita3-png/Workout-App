@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ExerciseLog, PlanOverrides, WeekPlan } from '../types'
-import { dayLabel, dayPlanOf, isRestDay, lastWorkout, repeatPlan } from './plan'
+import { dayLabel, workoutTitle, dayPlanOf, isRestDay, lastWorkout, repeatPlan } from './plan'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import { weekStats } from './stats'
 
@@ -108,5 +108,18 @@ describe('dayLabel', () => {
     expect(dayLabel([{ exerciseId: 'Dumbbell_Bicep_Curl', sets: 3 }, { exerciseId: 'Triceps_Pushdown', sets: 3 }], look)).toBe('Arms')
     expect(dayLabel([{ exerciseId: 'Barbell_Squat', sets: 3 }, { exerciseId: 'Lying_Leg_Curls', sets: 3 }], look)).toBe('Legs')
     expect(dayLabel([{ exerciseId: 'running', sets: 1, block: 'hyrox' }, { exerciseId: 'x-sled-push', sets: 1, block: 'hyrox' }], look)).toBe('Hyrox')
+  })
+})
+
+describe('workoutTitle', () => {
+  const t = (...ids: string[]) => workoutTitle(ids.map((id) => BUILTIN_BY_ID.get(id)!))
+  it('sums a workout up in a few words', () => {
+    expect(t('Barbell_Squat', 'Barbell_Bench_Press_-_Medium_Grip', 'Bent_Over_Barbell_Row', 'Dumbbell_Bicep_Curl')).toBe('Full body')
+    expect(t('Barbell_Bench_Press_-_Medium_Grip', 'Bent_Over_Barbell_Row', 'Standing_Military_Press')).toBe('Upper body')
+    expect(t('Dumbbell_Bicep_Curl', 'Barbell_Squat')).toBe('Arms & legs')
+    expect(t('Barbell_Bench_Press_-_Medium_Grip', 'Dumbbell_Bicep_Curl', 'Triceps_Pushdown')).toBe('Chest & arms')
+    expect(t('Barbell_Squat', 'Lying_Leg_Curls', 'running')).toBe('Legs + cardio')
+    expect(t('running')).toBe('Run')
+    expect(t('Elliptical_Trainer')).toBe('Cardio')
   })
 })

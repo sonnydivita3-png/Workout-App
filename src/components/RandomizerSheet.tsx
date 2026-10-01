@@ -44,7 +44,6 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   // Starts from the last choices, so a repeat visit is two taps: check, Generate.
   const [focus, setFocus] = useState<string[]>(() => expandParts(genPrefs.focus ?? []))
   const [minutes, setMinutes] = useState(genPrefs.minutes ?? 45)
-  const [more, setMore] = useState(false)
   // Per-part minutes when mixing styles and/or cardio; unset parts use an even split.
   const [split, setSplit] = useState<Record<string, number>>({})
   const [styles, setStyles] = useState<WorkoutStyle[]>(genPrefs.styles?.length ? genPrefs.styles : trainingPrefs.styles.length ? [trainingPrefs.styles[0]] : ['standard'])
@@ -146,6 +145,36 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
           </>
         )}
 
+        <h3 className="mb-2 text-sm font-medium">Workout style <span className="font-normal text-neutral-400">(pick one or more)</span></h3>
+        <div className="mb-1 flex flex-wrap gap-2">
+          {STYLE_GROUPS.map((g) => {
+            const on = g.styles.some((st) => styles.includes(st))
+            return (
+              <button key={g.label} onClick={() => (on ? g.styles.filter((st) => styles.includes(st)).forEach(toggleStyle) : toggleStyle(g.styles[0]))} aria-pressed={on} className={chip(on)}>
+                {g.label}
+              </button>
+            )
+          })}
+        </div>
+        {STYLE_GROUPS.filter((g) => g.styles.length > 1 && g.styles.some((st) => styles.includes(st))).map((g) => (
+          <div key={g.label} className="mb-1 mt-2 flex flex-wrap items-center gap-1.5 pl-1">
+            <span className="text-xs text-neutral-400">{g.label}:</span>
+            {g.styles.map((st) => (
+              <button
+                key={st}
+                onClick={() => setStyles((cur) => [...cur.filter((x) => !g.styles.includes(x)), st])}
+                aria-pressed={styles.includes(st)}
+                className={`rounded-full px-2.5 py-1 text-xs ${styles.includes(st) ? 'bg-neutral-900 text-surface' : 'bg-neutral-100 text-neutral-600'}`}
+              >
+                {styleInfo(st).label}
+              </button>
+            ))}
+          </div>
+        ))}
+        <p className="mb-5 text-xs text-neutral-400">
+          {styles.length > 1 ? `${styleLabel}: the time is split between them, in that order, with cardio last.` : info.blurb}
+        </p>
+
         <GearChoice value={gear} onChange={setGear} />
 
         {(focus.includes('Cardio') && !focusIgnored) || styles.some((st) => CONDITIONING.includes(st)) ? (
@@ -182,48 +211,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
           ))}
         </div>
 
-        <button onClick={() => setMore(!more)} aria-expanded={more} className="mb-4 flex w-full items-center justify-between rounded-2xl bg-neutral-50 px-4 py-3 text-left">
-          <span>
-            <span className="block text-sm font-medium">More options</span>
-            <span className="block text-xs text-neutral-400">{styleLabel} · {warm.length ? `warm-up: ${warm.join(', ')}` : 'no warm-up'} · {rest} rest</span>
-          </span>
-          <span className="text-neutral-400">{more ? '⌃' : '⌄'}</span>
-        </button>
-        {more && (
-          <div className="mb-2">
-        <h3 className="mb-2 text-sm font-medium">Workout style <span className="font-normal text-neutral-400">(pick one or more)</span></h3>
-        <div className="mb-1 flex flex-wrap gap-2">
-          {STYLE_GROUPS.map((g) => {
-            const on = g.styles.some((st) => styles.includes(st))
-            return (
-              <button key={g.label} onClick={() => (on ? g.styles.filter((st) => styles.includes(st)).forEach(toggleStyle) : toggleStyle(g.styles[0]))} aria-pressed={on} className={chip(on)}>
-                {g.label}
-              </button>
-            )
-          })}
-        </div>
-        {STYLE_GROUPS.filter((g) => g.styles.length > 1 && g.styles.some((st) => styles.includes(st))).map((g) => (
-          <div key={g.label} className="mb-1 mt-2 flex flex-wrap items-center gap-1.5 pl-1">
-            <span className="text-xs text-neutral-400">{g.label}:</span>
-            {g.styles.map((st) => (
-              <button
-                key={st}
-                onClick={() => setStyles((cur) => [...cur.filter((x) => !g.styles.includes(x)), st])}
-                aria-pressed={styles.includes(st)}
-                className={`rounded-full px-2.5 py-1 text-xs ${styles.includes(st) ? 'bg-neutral-900 text-surface' : 'bg-neutral-100 text-neutral-600'}`}
-              >
-                {styleInfo(st).label}
-              </button>
-            ))}
-          </div>
-        ))}
-        <p className="mb-5 text-xs text-neutral-400">
-          {styles.length > 1 ? `${styleLabel}: the time is split between them, in that order, with cardio last.` : info.blurb}
-        </p>
-
         <WarmupRestControls lifting={lifting} onWarmupChange={() => setSplit(({ warmup: _w, ...r }) => (void _w, r))} />
-          </div>
-        )}
 
         <button disabled={!canGenerate} onClick={() => generate()} className={primaryBtn}>Generate workout</button>
       </Sheet>

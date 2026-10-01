@@ -79,3 +79,30 @@ export function dayLabel(items: PlannedExercise[], lookup: (id: string) => Exerc
   if (groups.length >= 3 && groups[0][1] <= lifts.length / 2) return 'Full'
   return groups[0][0]
 }
+
+/**
+ * A short title for a logged workout, e.g. "Full body", "Upper body", "Chest & arms", "Legs + cardio", "Run": for
+ * lists where every exercise name would be too much.
+ */
+export function workoutTitle(exs: Exercise[]): string {
+  const lifts = exs.filter((e) => e.kind === 'strength' && e.group !== 'Conditioning' && e.group !== 'Mobility')
+  const cardio = exs.filter((e) => e.kind === 'cardio')
+  if (lifts.length === 0) {
+    if (exs.some((e) => e.group === 'Conditioning')) return 'HIIT'
+    const ids = cardio.map((e) => e.id.toLowerCase())
+    if (ids.length && ids.every((id) => /run|jog|treadmill|trail/.test(id))) return 'Run'
+    if (ids.length && ids.every((id) => /cycl|bik/.test(id))) return 'Ride'
+    return exs.some((e) => e.group === 'Mobility') && !cardio.length ? 'Mobility' : 'Cardio'
+  }
+  const ORDER = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core']
+  const areas = new Set(lifts.map((e) => (areaOf(e.group) === 'Glutes' ? 'Legs' : areaOf(e.group))).filter((a) => ORDER.includes(a)))
+  const upper = ['Chest', 'Back', 'Shoulders', 'Arms'].filter((a) => areas.has(a)).length
+  let title: string
+  if (upper >= 2 && areas.has('Legs')) title = 'Full body'
+  else if (upper >= 3) title = 'Upper body'
+  else {
+    const names = ORDER.filter((a) => areas.has(a))
+    title = names.length === 0 ? 'Strength' : names.map((n, i) => (i ? n.toLowerCase() : n)).join(', ').replace(/, ([^,]*)$/, ' & $1')
+  }
+  return cardio.length ? `${title} + cardio` : title
+}
