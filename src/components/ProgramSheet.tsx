@@ -3,7 +3,7 @@ import type { PlannedExercise } from '../types'
 import { addDays, fmtShort, mondayOf, parseISO, toISO, weekdayIndex } from '../lib/dates'
 import { dayPlanOf } from '../lib/plan'
 import {
-  defaultWeekdays, generateProgram, goalInfo, majorGroupsLogged, PROGRAM_GOALS, rerollDay, type ProgramDay, type ProgramGoal,
+  bestSplit, defaultWeekdays, generateProgram, goalInfo, majorGroupsLogged, PROGRAM_GOALS, rerollDay, SPLITS, splitInfo, type ProgramDay, type ProgramGoal, type SplitId,
 } from '../lib/program'
 import { minutesFor, styleInfo } from '../lib/randomizer'
 import { useToday } from '../lib/useToday'
@@ -40,6 +40,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
   const [goal, setGoal] = useState<ProgramGoal>('muscle')
   const [days, setDays] = useState<number[]>(defaultWeekdays(3))
   const [minutes, setMinutes] = useState(45)
+  const [split, setSplit] = useState<SplitId>('auto')
   const [result, setResult] = useState<ProgramDay[] | null>(null)
   const [open, setOpen] = useState<string | null>(null)
 
@@ -54,7 +55,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
       generateProgram({
         anchorMonday, weeks, fromDate, trainWeekdays: days, goal, minutes,
         prevDayGroups: majorGroupsLogged(logs, prev, (id) => findExercise(custom, id)),
-        warmup: defaultWarmup(genPrefs.warmup, true), rest: genPrefs.rest, likedStyles: trainingPrefs.styles, dropSets: !!genPrefs.drops,
+        warmup: defaultWarmup(genPrefs.warmup, true), rest: genPrefs.rest, likedStyles: trainingPrefs.styles, dropSets: !!genPrefs.drops, split,
       })),
     )
     setOpen(null)
@@ -110,6 +111,23 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
           {days.length} training day{days.length === 1 ? '' : 's'}, {7 - days.length} rest day{7 - days.length === 1 ? '' : 's'} a week. Tap days to customize.
         </p>
 
+        <h3 className="mb-2 text-sm font-semibold text-neutral-700">Split</h3>
+        <div className="mb-1 flex flex-wrap gap-2">
+          {SPLITS.map((sp) => (
+            <button key={sp.id} onClick={() => setSplit(sp.id)} aria-pressed={sp.id === split} className={chip(sp.id === split)}>{sp.label}</button>
+          ))}
+        </div>
+        <p className="text-xs text-neutral-400">{splitInfo(split).blurb}{split !== 'auto' && ' Runs in order, week after week.'}</p>
+        {days.length > 0 && !splitInfo(split).fits.includes(days.length) && (
+          <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            {splitInfo(split).label} works best with {splitInfo(split).fits.join(', ').replace(/, (\d)$/, ' or $1')} days a week. {split === 'full' ? 'More than that means full-body days back to back, with no rest for sore muscles.' : `With ${days.length}, the days shift from week to week.`}{' '}
+            {bestSplit(days.length) !== split && (
+              <button onClick={() => setSplit(bestSplit(days.length))} className="font-medium underline">Use {splitInfo(bestSplit(days.length)).label} instead</button>
+            )}
+          </p>
+        )}
+        <div className="mb-5" />
+
         <WarmupRestControls lifting />
 
         <GearChoice value={gear} onChange={setGear} />
@@ -121,7 +139,9 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
         </div>
 
         <p className="mb-4 text-xs text-neutral-400">
-          No major muscle group (chest, back, shoulders, legs, glutes) is trained two days in a row. Arms, core and cardio can overlap.
+          {split === 'auto'
+            ? 'No major muscle group (chest, back, shoulders, legs, glutes) is trained two days in a row. Arms, core and cardio can overlap.'
+            : 'Exercises change each day; the split decides which muscles.'}
           {weeks === 4 && ' Week 3 adds a set to lifts and week 4 is a lighter deload.'}
         </p>
         <button disabled={days.length === 0} onClick={build} className={primaryBtn}>Build my plan</button>
@@ -144,7 +164,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
       onUse(result.map((d) => ({ offset: Math.round((parseISO(d.date).getTime() - t0) / 86400000), items: d.items })), weeks)
       return
     }
-    startProgram(Object.fromEntries(result.map((d) => [d.date, d.items])), `Random ${weeks === 4 ? 'month' : 'week'} plan`, today)
+    startProgram(Object.fromEntries(result.map((d) => [d.date, d.items])), `${split === 'auto' ? 'Random' : splitInfo(split).label} ${weeks === 4 ? 'month' : 'week'} plan`, today)
     onApplied(result[0].date)
     onClose()
   }
@@ -152,7 +172,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
   return (
     <Sheet title="Your plan" onClose={onClose} closeLabel="Close">
       <p className="mb-1 text-sm text-neutral-500">
-        {goalInfo(goal).label} · {workouts.length} workout{workouts.length === 1 ? '' : 's'} · {result.length - workouts.length} rest day{result.length - workouts.length === 1 ? '' : 's'}
+        {goalInfo(goal).label}{split !== 'auto' && ` · ${splitInfo(split).label}`} · {workouts.length} workout{workouts.length === 1 ? '' : 's'} · {result.length - workouts.length} rest day{result.length - workouts.length === 1 ? '' : 's'}
       </p>
       <p className="mb-4 text-xs text-neutral-400">Tap a day to see the exercises or reroll just that day.</p>
 

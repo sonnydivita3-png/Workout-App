@@ -333,7 +333,11 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
     const q = queues.get(g)!
     const ok = (e: Exercise) => !taken.has(e.id) && (!want || want(e))
     // Only repeat a movement when nothing else is left (e.g. a bodyweight-only chest day), and never when strict.
-    let i = q.findIndex((e) => ok(e) && !tooSimilar(e))
+    // The part's own moves come before borrowing a related part's (an arm day stays arms, not rows).
+    const mine = (e: Exercise) => e.group === g
+    let i = q.findIndex((e) => ok(e) && mine(e) && !tooSimilar(e))
+    if (i < 0 && !strict) i = q.findIndex((e) => ok(e) && mine(e))
+    if (i < 0) i = q.findIndex((e) => ok(e) && !tooSimilar(e))
     if (i < 0 && !strict) i = q.findIndex(ok)
     return i < 0 ? undefined : q.splice(i, 1)[0]
   }
@@ -376,7 +380,7 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
     for (const g of order.slice(0, 3)) {
       const e = fullBody
         ? pickFor(g, (x) => (isHeavyLift(x) ? (equipmentRank(x) === 0 ? 6 : 3) : 0))
-        : nextFrom(g, (x) => isHeavyLift(x) && equipmentRank(x) === 0) ?? nextFrom(g, isHeavyLift)
+        : nextFrom(g, (x) => x.group === g && isHeavyLift(x) && equipmentRank(x) === 0) ?? nextFrom(g, (x) => x.group === g && isHeavyLift(x))
       if (tryAdd(g, e, cfg.sets + 1, 0.8, true)) mains++
     }
   }

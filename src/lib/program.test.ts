@@ -229,3 +229,42 @@ describe('liked workout styles', () => {
     expect(count('supersets', ['supersets'])).toBeGreaterThan(count('supersets'))
   })
 })
+
+describe('named splits', () => {
+  const names = (days: { rest: boolean; name?: string }[]) => days.filter((d) => !d.rest).map((d) => d.name)
+
+  it('push / pull / legs runs in order and carries on into the next week', () => {
+    const days = generateProgram(base({ split: 'ppl', weeks: 4, trainWeekdays: [0, 2, 4] }))
+    expect(names(days).slice(0, 6)).toEqual(['Push', 'Pull', 'Legs', 'Push', 'Pull', 'Legs'])
+  })
+
+  it('each split works the right muscles, on every goal', () => {
+    for (const goal of GOALS) {
+      const ul = generateProgram(base({ goal, split: 'upperlower', trainWeekdays: defaultWeekdays(4) }))
+      expect(names(ul)).toEqual(['Upper body', 'Lower body', 'Upper body', 'Lower body'])
+      const bro = generateProgram(base({ goal, split: 'bodypart', trainWeekdays: defaultWeekdays(5) }))
+      expect(names(bro)).toEqual(['Chest', 'Back', 'Legs', 'Shoulders & core', 'Arms'])
+      for (const d of bro) {
+        if (d.rest) continue
+        expect(d.items.length).toBeGreaterThan(2)
+        const parts = new Set(d.items.map((p) => BUILTIN_BY_ID.get(p.exerciseId)?.group))
+        for (const g of parts) expect([...d.focus, undefined]).toContain(g)
+      }
+    }
+  })
+
+  it('five-day push / pull / legs adds an upper and a lower day; Arnold is three days', () => {
+    expect(names(generateProgram(base({ split: 'ppl', trainWeekdays: defaultWeekdays(5) })))).toEqual(['Push', 'Pull', 'Legs', 'Upper body', 'Lower body'])
+    expect(names(generateProgram(base({ split: 'arnold' })))).toEqual(['Chest & back', 'Shoulders & arms', 'Legs'])
+  })
+
+  it('does not start with the muscles trained yesterday', () => {
+    const days = generateProgram(base({ split: 'ppl', prevDayGroups: ['Chest', 'Shoulders'] }))
+    expect(names(days)[0]).toBe('Pull')
+  })
+
+  it('uses the lifting style that fits the goal', () => {
+    expect(generateProgram(base({ goal: 'strength', split: 'ppl' })).find((d) => !d.rest)?.style).toBe('strength')
+    expect(generateProgram(base({ goal: 'muscle', split: 'ppl' })).find((d) => !d.rest)?.style).toBe('standard')
+  })
+})
