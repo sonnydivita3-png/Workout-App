@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BUILTIN_BY_ID } from '../../data/exercises'
 import { fmtLong, parseISO, toISO } from '../../lib/dates'
 import { storeDistance, storeWeight } from '../../lib/units'
@@ -26,6 +26,9 @@ export function ChallengeDetailSheet({ id, onNavigate, onClose }: { id: string; 
   const { logs, custom, units, saveStrength, saveCardio, addCustomExercises, addPlanned } = useStore()
   const { challenges, act } = useSocial()
   const c = challenges.find((x) => x.id === id)
+  const markChallengesSeen = useStore((s) => s.markChallengesSeen)
+  // Opening my own challenge counts as seeing the friend's answer.
+  useEffect(() => { if (c?.mine) markChallengesSeen({ [c.id]: c.status }) }, [c?.id, c?.mine, c?.status, markChallengesSeen])
   const [reps, setReps] = useState<number | null>(null)
   const [secs, setSecs] = useState<number | null>(null)
   const [weight, setWeight] = useState<number | null>(null)
@@ -112,7 +115,9 @@ export function ChallengeDetailSheet({ id, onNavigate, onClose }: { id: string; 
           <button onClick={() => respond(false)} className={secondary}>Decline</button>
         </div>
       )}
-      {c.status === 'pending' && c.mine && <p className="text-sm text-neutral-500">Waiting for {other.displayName} to accept.</p>}
+      {c.status === 'pending' && c.mine && <p className="text-sm text-neutral-500">⏳ Waiting for {other.displayName} to accept.</p>}
+      {c.status === 'active' && c.mine && <p className="mb-2 text-sm font-medium text-green-600">✅ {other.displayName} accepted{c.acceptedAt ? ` on ${fmtLong(c.acceptedAt.slice(0, 10))}` : ''}.</p>}
+      {c.status === 'declined' && c.mine && <p className="text-sm text-neutral-500">{other.displayName} declined this one.</p>}
 
       {canLog && spec.mode !== 'workout' && !isCardio && ex && (
         <div>

@@ -123,7 +123,8 @@ export function ChallengeSheet({ friendId, fromDate, onClose }: Props) {
   if (sent) {
     return (
       <Sheet title="Challenge sent" onClose={onClose} closeLabel="Done">
-        <p className="py-6 text-center text-neutral-600">{emoji} {chosen?.profile.displayName} can accept “{spec?.title}”.</p>
+        <p className="pt-6 text-center text-neutral-600">✓ {emoji} Sent “{spec?.title}” to {chosen?.profile.displayName}.</p>
+        <p className="pb-6 pt-2 text-center text-xs text-neutral-400">You’ll get a notification when they accept or decline. It’s also under Social → Challenges.</p>
         <button onClick={onClose} className={primary}>Done</button>
       </Sheet>
     )

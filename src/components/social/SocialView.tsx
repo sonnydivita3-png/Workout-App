@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { formatAmount } from '../../social/challengeProgress'
 import { describePayload } from '../../social/share'
-import { describeError, pendingCount, useSocial } from '../../social/store'
+import { challengeUpdates, describeError, pendingCount, useSocial } from '../../social/store'
 import { normalizeHandle, type Challenge, type FriendRequest, type Profile, type SharedWorkout, type WorkoutRequest } from '../../social/types'
 import { useStore } from '../../store'
 import { AcceptFriendSheet } from './AcceptFriendSheet'
@@ -16,6 +16,7 @@ import { ChallengeDetailSheet } from './ChallengeDetailSheet'
 import { MakeForFriendSheet } from './MakeForFriendSheet'
 import { InviteButton } from '../InviteButton'
 import { ConnectionStatus } from './ConnectionStatus'
+import { challengeStatus } from '../../social/challengeStatus'
 
 type Section = 'inbox' | 'friends' | 'challenges'
 
@@ -30,7 +31,7 @@ function ChallengeRow({ c, onOpen, onCancel }: { c: Challenge; onOpen: () => voi
         <Avatar profile={other} size="sm" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">{c.emoji} {c.title}</p>
-          <p className="text-xs text-neutral-400">{c.mine ? `to ${other.displayName}` : `from ${other.displayName}`} · {c.status}</p>
+          <p className="text-xs text-neutral-500">{c.mine && <span className="text-neutral-400">To {other.displayName} · </span>}{challengeStatus(c)}</p>
           {(c.status === 'active' || c.status === 'completed') && (
             <>
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-100"><div className="h-full rounded-full bg-accent" style={{ width: `${pct(c)}%` }} /></div>
@@ -46,7 +47,7 @@ function ChallengeRow({ c, onOpen, onCancel }: { c: Challenge; onOpen: () => voi
 }
 
 export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
-  const { socialChoice } = useStore()
+  const { socialChoice, seenChallenges, markChallengesSeen } = useStore()
   const s = useSocial()
   const { status, profile, friends, requests, shares, workoutRequests, challenges, emoji, act, backend } = s
   const [section, setSection] = useState<Section>('inbox')
@@ -101,7 +102,8 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
     )
   }
 
-  const pending = pendingCount(s)
+  const pending = pendingCount(s, seenChallenges)
+  const updates = challengeUpdates(challenges, seenChallenges)
   const incomingShares = shares.filter((x) => !x.mine && x.status === 'pending')
   const incomingReqs = workoutRequests.filter((x) => !x.mine && x.status === 'pending')
   const incomingChallenges = challenges.filter((x) => !x.mine && x.status === 'pending')
@@ -144,6 +146,22 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
       {section === 'inbox' && (
         <div className="space-y-3">
           {pending === 0 && <p className="py-10 text-center text-neutral-400">All caught up. 🙌</p>}
+          {updates.length > 0 && (
+            <Card title="Your challenges">
+              <ul className="divide-y divide-neutral-100">
+                {updates.map((c) => (
+                  <li key={c.id} className="flex items-center gap-3 py-2">
+                    <Avatar profile={c.to} size="sm" />
+                    <button onClick={() => { markChallengesSeen({ [c.id]: c.status }); setOpenChallenge(c.id) }} className="min-w-0 flex-1 text-left">
+                      <span className="block truncate text-sm font-medium">{c.emoji} {c.title}</span>
+                      <span className="block text-xs text-neutral-500">{challengeStatus(c)}</span>
+                    </button>
+                    <button onClick={() => markChallengesSeen({ [c.id]: c.status })} className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-600">OK</button>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
           {requests.incoming.length > 0 && (
             <Card title="Friend requests">
               <ul className="divide-y divide-neutral-100">
