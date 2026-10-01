@@ -1,3 +1,4 @@
+import { ConditioningSection } from './ConditioningSection'
 import { useMemo, useState } from 'react'
 import { BUILTIN_BY_ID } from '../../data/exercises'
 import { addDays, fmtLong, parseISO, toISO } from '../../lib/dates'
@@ -85,6 +86,8 @@ export function WorkoutsTab() {
           })}
         </ul>
       </section>
+
+      <ConditioningSection />
 
       {dates.length === 0 ? <p className="py-10 text-center text-neutral-400">Nothing logged yet. Your workouts show up here.</p> : (
         <ul className="space-y-2">

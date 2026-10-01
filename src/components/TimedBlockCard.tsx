@@ -1,6 +1,7 @@
 import { useToday } from '../lib/useToday'
 import { useState } from 'react'
 import { describeItem } from '../lib/describe'
+import { resultScore, resultsFor } from '../lib/conditioning'
 import { derivedLogs, emomIntervals, formatResult, tabataOf, wodOf, wodSignature, wodTitle } from '../lib/wod'
 import { findExercise, useStore } from '../store'
 import type { PlannedExercise, TimedLog } from '../types'
@@ -9,7 +10,7 @@ import { TimerSheet } from './TimerSheet'
 
 /** An AMRAP / EMOM / for-time block on the Workouts tab: the work, a clock, and a place to log the result. */
 export function TimedBlockCard({ items, date, onRemove }: { items: PlannedExercise[]; date: string; onRemove: () => void }) {
-  const { custom, units, timedLogs, saveTimed, deleteTimed } = useStore()
+  const { custom, units, timedLogs, saveTimed, deleteTimed, benchmarks, saveBenchmark } = useStore()
   const wod = wodOf(items)!
   const block = items[0].block ?? 'wod'
   const saved = timedLogs.find((t) => t.date === date && t.block === block)
@@ -18,6 +19,12 @@ export function TimedBlockCard({ items, date, onRemove }: { items: PlannedExerci
     .filter((t) => t.date < date && wodSignature(t.wod.kind, t.movements) === wodSignature(wod.kind, ids))
     .sort((a, b) => b.date.localeCompare(a.date))[0]
 
+  const sig = wodSignature(wod.kind, ids)
+  const benchmark = benchmarks.find((b) => { const w = wodOf(b.items); return !!w && wodSignature(w.kind, b.items.map((p) => p.exerciseId)) === sig })
+  const past = resultsFor(timedLogs, { kind: wod.kind, movements: ids }).filter((t) => t.date < date)
+  const scores = past.map((t) => resultScore(t, items)).filter((x): x is number => x != null)
+  const bestScore = scores.length ? (wod.kind === 'fortime' ? Math.min(...scores) : Math.max(...scores)) : null
+  const best = past.find((t) => resultScore(t, items) === bestScore)
   const [editing, setEditing] = useState(false)
   const [timer, setTimer] = useState(false)
   const [rounds, setRounds] = useState<number | null>(saved?.rounds ?? null)
@@ -53,7 +60,7 @@ export function TimedBlockCard({ items, date, onRemove }: { items: PlannedExerci
     <div className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
       <div className="mb-2 flex items-start justify-between gap-2">
         <div>
-          <p className="text-xs font-medium text-neutral-500">Timed workout</p>
+          <p className="text-xs font-medium text-neutral-500">{benchmark ? `★ Benchmark · ${benchmark.name}` : 'Timed workout'}</p>
           <h3 className="text-lg font-semibold">{wodTitle(wod)}</h3>
         </div>
         <button onClick={() => confirm('Remove this timed workout from the day?') && onRemove()} aria-label="Remove timed workout" className="text-lg leading-none text-neutral-400">×</button>
@@ -69,7 +76,22 @@ export function TimedBlockCard({ items, date, onRemove }: { items: PlannedExerci
           )
         })}
       </ul>
-      {last && <p className="mb-3 text-xs text-neutral-400">Last time: {formatResult(last)}</p>}
+      {last && (
+        <p className="mb-3 text-xs text-neutral-400">
+          Last time: {formatResult(last)}{best && best !== last ? ` · Best: ${formatResult(best)}` : ''}
+        </p>
+      )}
+      {!benchmark && (
+        <button
+          onClick={() => {
+            const name = prompt('Name this benchmark (repeat it now and then to see your progress):', wodTitle(wod))
+            if (name?.trim()) saveBenchmark(name, items.map(({ block: _b, ...p }) => (void _b, p)))
+          }}
+          className="mb-3 text-xs text-neutral-500 underline underline-offset-2"
+        >
+          ☆ Save as benchmark
+        </button>
+      )}
 
       {future ? <p className="text-sm text-neutral-500">Start the clock and log your result on the day.</p> : <>
       <button onClick={() => setTimer(true)} className="mb-3 w-full rounded-xl bg-neutral-100 py-2 text-sm font-medium text-neutral-700">⏱ Start timer</button>

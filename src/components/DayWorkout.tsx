@@ -16,6 +16,7 @@ import { rowBtn, Sheet } from './Sheet'
 import { IntervalTimerSheet } from './IntervalTimerSheet'
 import { StrengthCard } from './StrengthCard'
 import { TimedBlockCard } from './TimedBlockCard'
+import { HyroxFinish } from './HyroxFinish'
 import { WarmupCard } from './WarmupCard'
 
 /** The exercises planned for a day, ready to log (the Workouts tab). `onSetDone` hears about each ticked set. */
@@ -153,6 +154,7 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
                 />
               )
             })}
+            {g.block === 'hyrox' && <HyroxFinish items={g.items.map((x) => x.item)} date={date} label={g.label ?? 'Hyrox-style'} />}
           </div>
         ))}
       {swap?.step === 'how' && (
