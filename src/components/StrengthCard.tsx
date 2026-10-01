@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { fmtRest } from '../lib/describe'
 import { compareSet, platesFor, suggestNext, weightStep, workSets } from '../lib/progression'
 import { restFor, warmupRamp } from '../lib/timing'
@@ -61,6 +61,8 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
   const [plates, setPlates] = useState(false)
   const [editingNote, setEditingNote] = useState(false)
   const [setOpts, setSetOpts] = useState<number | null>(null)
+  const [fold, setFold] = useState<{ collapsed: boolean; whenDone: boolean } | null>(null)
+  const card = useRef<HTMLDivElement>(null)
   // Planned warm-up sets come first (marked W), then the working sets.
   // Warm-ups first, then the working sets, then any drop sets.
   const firstDrop = warmupSets + setCount
@@ -114,6 +116,8 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
     const next = s.warmup ? { ...s, weight: s.weight ?? r?.weight ?? null, reps: s.reps ?? r?.reps ?? null }
       : s.drop ? { ...s, weight: s.weight ?? d, reps: s.reps ?? targetReps ?? null } : fromTip(s)
     update(i, { ...next, done: true, auto: !filled(s) })
+    // That was the last one: the card folds up; bring it to the top so the next exercise is right below.
+    if (!readOnly && sets.every((x, j) => x.warmup || j === i || ticked(x))) setTimeout(() => card.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60)
     try { navigator.vibrate?.(15) } catch { /* not supported */ }
     const round = sets.slice(0, i + 1).filter((x) => !x.warmup).length
     // No rest before a drop set, nor after one (that's the point of them).
@@ -153,11 +157,25 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
     <button onClick={() => { setMenu(false); go() }} className={`${rowBtn}${danger ? ' text-red-600' : ''}`}><span>{label}</span></button>
   )
 
+  const counted = sets.filter((x) => !x.warmup)
+  const doneCount = counted.filter(ticked).length
+  const allDone = !readOnly && counted.length > 0 && doneCount === counted.length
+  // Finished exercises fold up to one line so the one you're on stays in view. Tap to open it again; the ⌃/⌄ button
+  // folds or opens any card. A choice you make lasts until the card's done-ness changes (e.g. you untick a set).
+  const collapsed = fold && fold.whenDone === allDone ? fold.collapsed : allDone
+  const toggleFold = () => setFold({ collapsed: !collapsed, whenDone: allDone })
+  const summary = counted.filter((x) => filled(x)).map((x) => `${x.drop ? 'D ' : ''}${mode === 'time' ? formatSeconds(x.seconds ?? 0) : mode === 'reps' ? `${x.reps ?? '–'}` : `${showWeight(x.weight, units) ?? '–'}×${x.reps ?? '–'}`}`).join(' · ')
+
   return (
-    <div className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
-      <div className="mb-2 flex items-start justify-between gap-2">
+    <div ref={card} className={`scroll-mt-4 rounded-2xl bg-surface shadow-sm ring-1 ring-neutral-200/70 ${collapsed ? 'px-4 py-3' : 'p-4'}`}>
+      <div className={`${collapsed ? '' : 'mb-2 '}flex items-start justify-between gap-2`}>
         <div className="min-w-0">
-          <button onClick={() => setHowTo(true)} className="text-left font-semibold underline decoration-neutral-300 decoration-dotted underline-offset-4">{exercise.name}</button>
+          <button onClick={() => (collapsed ? toggleFold() : setHowTo(true))} className={`text-left font-semibold ${collapsed ? '' : 'underline decoration-neutral-300 decoration-dotted underline-offset-4'}`}>{allDone && collapsed ? '✓ ' : ''}{exercise.name}</button>
+          {collapsed ? (
+            <button onClick={toggleFold} className="block text-left text-xs text-neutral-400">
+              {doneCount} of {counted.length} sets{summary ? ` · ${summary}` : ''}{beat > 0 ? ` · ▲ ${beat} beat last time` : ''}
+            </button>
+          ) : (
           <p className="text-xs text-neutral-400">
             {exercise.group}
             {mode === 'time' && ' · timed'}
@@ -167,9 +185,12 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
             {restNote ? ` · ${restNote}` : ` · rest ${fmtRest(workRest)}`}
             {note && ` · ${note}`}
           </p>
+          )}
         </div>
+        <button onClick={toggleFold} aria-label={`${collapsed ? 'Open' : 'Fold'} ${exercise.name}`} aria-expanded={!collapsed} className="-mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm leading-none text-neutral-400 hover:bg-neutral-100">{collapsed ? '⌄' : '⌃'}</button>
         <button onClick={() => setMenu(true)} aria-label={`${exercise.name} options`} className="-mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg leading-none text-neutral-400 hover:bg-neutral-100">⋯</button>
       </div>
+      {!collapsed && (<>
 
       {tipText && (
         <div className="mb-3 rounded-xl bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
@@ -257,6 +278,8 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
           })() : 'Enter a weight to see the plates.'}
         </p>
       )}
+
+      </>)}
 
       {menu && (
         <Sheet title={exercise.name} onClose={() => setMenu(false)}>

@@ -198,6 +198,10 @@ test('a set is one tap: ✓ logs the target, and typed numbers win', async ({ pa
   await expect(page.getByRole('spinbutton', { name: 'Set 1 reps' })).toHaveValue('5')
   await page.getByRole('spinbutton', { name: 'Set 2 lb' }).fill('190')
   await page.getByRole('button', { name: 'Set 2 done' }).click()
+  // Every set ticked: the card folds to one line with what was done; tap to open it again.
+  await expect(page.getByRole('button', { name: /2 of 2 sets · 195×5 · 190×5/ })).toBeVisible()
+  await expect(page.getByRole('spinbutton', { name: 'Set 2 lb' })).toHaveCount(0)
+  await page.getByRole('button', { name: /2 of 2 sets/ }).click()
   await expect(page.getByRole('spinbutton', { name: 'Set 2 lb' })).toHaveValue('190')
   await expect.poll(async () => (await state(page)).logs.find((l: { date: string }) => l.date === iso(0))?.sets).toEqual([
     { weight: 195, reps: 5, seconds: null, done: true, auto: true },
@@ -250,6 +254,24 @@ test('exercise search understands gym shorthand and ignores hyphens; recent exer
   await expect(picker.getByRole('button', { name: /^Push-Up\b/ }).first()).toBeVisible()
   await picker.getByPlaceholder(/search/i).fill('db shoulder press')
   await expect(picker.getByRole('button', { name: /^Dumbbell Shoulder Press/ }).first()).toBeVisible()
+})
+
+test('a finished exercise folds up so the next one is in focus; any card folds or opens on demand', async ({ page }) => {
+  await seed(page, { overrides: { [iso(0)]: [{ exerciseId: 'Pushups', sets: 2, reps: 10 }, { exerciseId: 'Dumbbell_Bicep_Curl', sets: 2, reps: 10 }] } })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Start workout' }).click()
+  await page.getByRole('button', { name: 'Set 1 done' }).first().click()
+  await expect(page.getByRole('button', { name: 'Fold Push-Up' })).toHaveAttribute('aria-expanded', 'true') // not done yet
+  await page.getByRole('button', { name: 'Set 2 done' }).first().click()
+  await expect(page.getByRole('button', { name: 'Open Push-Up' })).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.getByText('✓ Push-Up')).toBeVisible()
+  await expect(page.getByRole('spinbutton', { name: 'Set 1 reps' })).toHaveCount(1) // only the curl's sets are showing
+  // Fold the curl by hand, then open both again.
+  await page.getByRole('button', { name: 'Fold Dumbbell Curl' }).click()
+  await expect(page.getByRole('spinbutton')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Open Dumbbell Curl' }).click()
+  await page.getByRole('button', { name: 'Open Push-Up' }).click()
+  await expect(page.getByRole('spinbutton', { name: 'Set 1 reps' })).toHaveCount(2)
 })
 
 test('swap an exercise on the day: random from the same body part, or choose one', async ({ page }) => {
