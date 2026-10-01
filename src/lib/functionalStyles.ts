@@ -3,7 +3,7 @@ import { hasGear } from './equipment'
 import { likedCardio, wodAmount, wodCardio } from './cardioPrefs'
 import type { Exercise, PlannedExercise, Wod, WodKind } from '../types'
 import { buildWodItems, makeTabata } from './wod'
-import { BY_ID, byName, isMainLift, pick, roundTo, roundTo5, softShuffle, type Rng } from './randomUtil'
+import { BY_ID, byName, isMainLift, isQuirky, pick, roundTo, roundTo5, softShuffle, type Rng } from './randomUtil'
 
 const RUN = 'running'
 const minutesOf = (n: number) => Math.round(n * 10) / 10
@@ -149,13 +149,15 @@ export function generateCrossfit(minutes: number, rng: Rng, avoid: Set<string>):
   const wantPrimer = minutes >= 45
   if (wantPrimer) {
     const lifts = softShuffle(
-      EXERCISES.filter((e) => e.suggest && e.kind === 'strength' && e.mode === 'weight' && e.equipment === 'Barbell' && isMainLift(e) && ['Legs', 'Back', 'Chest', 'Shoulders'].includes(e.group) && hasGear(e)),
+      EXERCISES.filter((e) => e.suggest && e.kind === 'strength' && e.mode === 'weight' && e.equipment === 'Barbell' && isMainLift(e) && !isQuirky(e) && ['Quads', 'Hamstrings', 'Back', 'Chest', 'Shoulders'].includes(e.group) && hasGear(e)),
       avoid,
       rng,
     )
-    if (lifts[0]) {
-      used.add(lifts[0].id)
-      out.push({ exerciseId: lifts[0].id, sets: 4, reps: 5, est: PRIMER_MIN - 1, block: 'primer', blockLabel: 'Strength primer · 4 × 5, build to a heavy set' })
+    // An everyday lift (Back Squat, Deadlift, Overhead Press…) rather than an odd variation.
+    const lift = lifts.find((e) => e.fullName && !avoid.has(e.id)) ?? lifts[0]
+    if (lift) {
+      used.add(lift.id)
+      out.push({ exerciseId: lift.id, sets: 4, reps: 5, est: PRIMER_MIN - 1, block: 'primer', blockLabel: 'Strength primer · 4 × 5, build to a heavy set' })
     }
   }
 

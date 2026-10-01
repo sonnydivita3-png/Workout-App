@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { EXERCISES } from '../data/exercises'
 import { hasGear } from '../lib/equipment'
+import { BODY_PARTS } from '../lib/bodyParts'
+import { isStaple, isTechnical } from '../lib/randomUtil'
 import { useStore } from '../store'
 import type { Exercise, ExerciseMode } from '../types'
 
@@ -10,7 +12,9 @@ interface Props {
   onClose: () => void
 }
 
-const GROUPS = ['All', 'Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Glutes', 'Core', 'Cardio', 'Conditioning', 'Mobility', 'Other']
+const GROUPS = ['All', ...BODY_PARTS, 'Forearms', 'Cardio', 'Conditioning', 'Mobility', 'Other']
+// Body parts a new custom exercise can be filed under (the one being browsed).
+const PARTS: string[] = [...BODY_PARTS, 'Forearms']
 // Equipment filters; a few rarer kinds are folded into the closest one or "Other".
 const EQUIPMENT = ['Any', 'Mine', 'Barbell', 'Dumbbell', 'Bodyweight', 'Cable', 'Machine', 'Kettlebell', 'Bands', 'Other'] as const
 type Equip = (typeof EQUIPMENT)[number]
@@ -20,6 +24,7 @@ const equipOf = (e: Exercise): Equip => {
   return (EQUIPMENT as readonly string[]).includes(k) && k !== 'Any' && k !== 'Mine' ? (k as Equip) : 'Other'
 }
 const PAGE = 50
+const rank = (e: Exercise) => (e.custom ? 0 : e.fullName ? 1 : e.suggest && isStaple(e) && !isTechnical(e) ? 2 : e.suggest ? 3 : 4)
 const CREATE_AS: [string, 'strength' | 'cardio', ExerciseMode | undefined][] = [
   ['Weights', 'strength', 'weight'],
   ['Bodyweight reps', 'strength', 'reps'],
@@ -59,8 +64,8 @@ export function ExercisePicker({ taken, onPick, onClose }: Props) {
     () =>
       inGroup
         .filter((e) => equip === 'Any' || (equip === 'Mine' ? hasGear(e) : equipOf(e) === equip))
-        // Your own exercises, then the everyday ones, then the rest alphabetically.
-        .sort((a, b) => Number(!!b.custom) - Number(!!a.custom) || Number(!!b.suggest) - Number(!!a.suggest) || a.name.localeCompare(b.name)),
+        // Your own exercises, then everyday lifts (Back Squat, Leg Curl…), then common moves, then the rest, A to Z.
+        .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name)),
     [inGroup, equip],
   )
   const exact = results.some((e) => e.name.toLowerCase() === query)
@@ -81,11 +86,12 @@ export function ExercisePicker({ taken, onPick, onClose }: Props) {
           placeholder={`Search ${EXERCISES.length}+ exercises`}
           className="mb-3 w-full shrink-0 rounded-xl bg-neutral-100 px-4 py-2.5 outline-none"
         />
-        <div className="mb-3 flex shrink-0 gap-2 overflow-x-auto pb-1">
+        <div className="mb-3 flex shrink-0 gap-2 overflow-x-auto pb-1" role="group" aria-label="Body part">
           {GROUPS.map((g) => (
             <button
               key={g}
               onClick={() => { setGroup(g); setLimit(PAGE) }}
+              aria-pressed={g === group}
               className={`shrink-0 rounded-full px-3 py-1 text-sm ${
                 g === group ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'
               }`}
@@ -117,7 +123,7 @@ export function ExercisePicker({ taken, onPick, onClose }: Props) {
                 {CREATE_AS.map(([label, kind, mode]) => (
                   <button
                     key={label}
-                    onClick={() => { onPick(createCustom(q, kind, mode)); setQ('') }}
+                    onClick={() => { onPick(createCustom(q, kind, mode, PARTS.includes(group) ? group : undefined)); setQ('') }}
                     className="rounded-full bg-accent px-3 py-1 text-on-accent"
                   >
                     {label}
@@ -134,7 +140,7 @@ export function ExercisePicker({ taken, onPick, onClose }: Props) {
                 className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-neutral-50 disabled:opacity-40"
               >
                 <span>{e.name}</span>
-                <span className="shrink-0 text-xs text-neutral-400">{taken.has(e.id) ? 'Added' : e.equipment}</span>
+                <span className="shrink-0 text-xs text-neutral-400">{taken.has(e.id) ? 'Added' : group === 'All' ? `${e.group} · ${e.equipment}` : e.equipment}</span>
               </button>
             </li>
           ))}

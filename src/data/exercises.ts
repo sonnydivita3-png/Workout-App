@@ -1,7 +1,8 @@
 import type { Exercise } from '../types'
 import raw from './exercises.json'
 
-// Built from free-exercise-db (public domain): [id, name, group, equipment, isCardio, suggest, mode 0=weight 1=reps 2=timed]
+// Built from free-exercise-db (public domain): [id, name, body part, equipment, isCardio, suggest, mode 0=weight 1=reps 2=timed].
+// Body parts come from each exercise's primary muscle (scripts/split-groups.py).
 type Row = [string, string, string, string, number, number, number]
 
 const MODES = ['weight', 'reps', 'time'] as const
@@ -29,17 +30,17 @@ const EXTRAS: Extra[] = [
   ['x-sandbag-lunges', 'Sandbag Lunges', 'Conditioning', 'Sandbag', 'reps', false, ['hyrox']],
   ['x-wall-balls', 'Wall Balls', 'Conditioning', 'Medicine ball', 'reps', false, ['hyrox', 'crossfit']],
   ['x-burpee', 'Burpee', 'Conditioning', 'Bodyweight', 'reps', false, ['hiit', 'crossfit']],
-  ['x-jump-squat', 'Jump Squat', 'Legs', 'Bodyweight', 'reps', true, ['hiit']],
+  ['x-jump-squat', 'Jump Squat', 'Quads', 'Bodyweight', 'reps', true, ['hiit']],
   ['x-high-knees', 'High Knees', 'Conditioning', 'Bodyweight', 'time', false, ['hiit']],
   ['x-jumping-jacks', 'Jumping Jacks', 'Conditioning', 'Bodyweight', 'time', false, ['hiit']],
-  ['x-box-jump', 'Box Jump', 'Legs', 'Box', 'reps', true, ['hiit', 'crossfit']],
+  ['x-box-jump', 'Box Jump', 'Quads', 'Box', 'reps', true, ['hiit', 'crossfit']],
   ['x-kb-swing', 'Kettlebell Swing', 'Glutes', 'Kettlebell', 'weight', true, ['hiit', 'crossfit']],
   ['x-thruster', 'Dumbbell Thruster', 'Conditioning', 'Dumbbell', 'weight', false, ['hiit', 'crossfit']],
   ['x-db-snatch', 'Dumbbell Snatch', 'Conditioning', 'Dumbbell', 'weight', false, ['hiit', 'crossfit']],
   ['x-double-unders', 'Double Unders', 'Conditioning', 'Jump rope', 'reps', false, ['crossfit']],
   ['x-toes-to-bar', 'Toes to Bar', 'Core', 'Bodyweight', 'reps', true, ['crossfit']],
-  ['x-air-squat', 'Air Squat', 'Legs', 'Bodyweight', 'reps', true, ['hiit', 'crossfit']],
-  ['x-goblet-squat', 'Goblet Squat', 'Legs', 'Kettlebell', 'weight', true, ['hiit']],
+  ['x-air-squat', 'Air Squat', 'Quads', 'Bodyweight', 'reps', true, ['hiit', 'crossfit']],
+  ['x-goblet-squat', 'Goblet Squat', 'Quads', 'Kettlebell', 'weight', true, ['hiit']],
   // Dynamic warm-up moves (ids match free-exercise-db so the how-to pictures work). Tag says which half they warm.
   ['Arm_Circles', 'Arm Circles', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'upper']],
   ['Shoulder_Circles', 'Shoulder Circles', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'upper']],
@@ -120,6 +121,8 @@ const SHORT: Record<string, string> = {
   'Cable_Hammer_Curls_-_Rope_Attachment': 'Rope Hammer Curl',
   'Bent_Over_Two-Dumbbell_Row': 'Dumbbell Row',
   'Calf_Press_On_The_Leg_Press_Machine': 'Leg Press Calf Raise',
+  // The dataset's "Air Bike" is a crunch, not the Assault/Echo bike.
+  Air_Bike: 'Bicycle Crunch',
 }
 // Suffixes that rarely matter day to day ("Bench Press - Powerlifting" keeps its suffix if dropping it would clash).
 const DROP = [/ - Medium Grip$/i, / -\s*Pronated Grip$/i]

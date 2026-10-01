@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { parseISO, toISO, weekDates, weekdayIndex } from '../lib/dates'
 import { dayLabel, dayPlanOf, isRestDay, workItems } from '../lib/plan'
 import { hasData } from '../lib/stats'
+import { useWakeLock } from '../lib/useWakeLock'
 import { findExercise, useStore } from '../store'
 import { WodBuilderSheet } from './WodBuilderSheet'
 import { ProgramsCard } from './ProgramsCard'
@@ -16,26 +17,49 @@ import { DayWorkout } from './DayWorkout'
 import { WeekStrip } from './WeekStrip'
 import { ArrangeSheet } from './ArrangeSheet'
 import { FinishWorkout } from './FinishWorkout'
+import { RestTimer } from './RestTimer'
 import { Tip } from './Tip'
 
-export function PlanView() {
+const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+/**
+ * The Workouts tab: this week, and the selected day's workout ready to log. There is one way to do a workout: tick
+ * each set here (✓), then Finish. Timed formats (AMRAP, EMOM, circuits…) bring their own clock; the rest timer
+ * between sets is optional (Settings → Workouts).
+ */
+export function PlanView({ initialAction }: { initialAction?: string }) {
   const [anchor, setAnchor] = useState(() => new Date())
   const [day, setDay] = useState(() => weekdayIndex(new Date()))
   const [today] = useState(() => toISO(new Date()))
-  const [picking, setPicking] = useState(false)
+  const [picking, setPicking] = useState(initialAction === 'add')
   const [addMenu, setAddMenu] = useState(false)
   const [wodBuilder, setWodBuilder] = useState(false)
   const [dayMenu, setDayMenu] = useState<false | 'menu' | 'load'>(false)
   const [arranging, setArranging] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [generator, setGenerator] = useState<GeneratorMode | null>(null)
+  // The optional rest countdown belongs to the day it started on.
+  const [restTimer, setRestTimer] = useState<{ date: string; until: number } | null>(null)
   const s = useStore()
 
   const dates = useMemo(() => weekDates(anchor), [anchor])
   const date = toISO(dates[day])
   const planned = dayPlanOf(s.plan, s.overrides, date)
+  const work = workItems(planned)
   const rest = isRestDay(s.overrides, date)
+  const finished = s.finishedDays.includes(date)
   const shiftWeek = (n: number) => setAnchor((a) => new Date(a.getFullYear(), a.getMonth(), a.getDate() + 7 * n))
+  // Mid-workout the phone shouldn't lock between sets.
+  useWakeLock(date === today && work.length > 0 && !finished)
+
+  // Optional rest timer: "As planned" (-1) uses each exercise's own rest; 0 means off.
+  const startRest = (plannedSecs: number) => {
+    if (plannedSecs <= 0 || s.restSeconds === 0) return
+    const secs = s.restSeconds === -1 ? plannedSecs : s.restSeconds
+    setRestTimer({ date, until: Date.now() + secs * 1000 })
+  }
+
+  const dayTitle = `${DAY_NAMES[day]}${date === today ? ' · Today' : `, ${dates[day].toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`}`
 
   return (
     <>
@@ -50,24 +74,18 @@ export function PlanView() {
         </div>
       </header>
 
-      <Tip id="plan">Tap a day to see or change it. <b className="font-medium">+ Add</b> puts an exercise, a generated workout or a whole plan on that day.</Tip>
+      <Tip id="plan">Pick a day to see its workout. Tap <b className="font-medium">✓</b> as you finish each set, then <b className="font-medium">Finish workout</b>.</Tip>
       <WeekStrip dates={dates} selected={day} counts={dates.map((d) => workItems(dayPlanOf(s.plan, s.overrides, toISO(d))).length)}
         labels={dates.map((d) => dayLabel(dayPlanOf(s.plan, s.overrides, toISO(d)), (id) => findExercise(s.custom, id)))}
         done={dates.map((d) => s.logs.some((l) => l.date === toISO(d) && hasData(l)))}
         rest={dates.map((d) => isRestDay(s.overrides, toISO(d)))} today={today} onSelect={setDay} />
 
-      <div className="mt-4 flex justify-end gap-2">
-        {planned.length > 0 && (
-          <button onClick={() => s.startSession(date)} className="rounded-full bg-accent px-3 py-1 text-sm font-medium text-on-accent">
-            {s.session?.date === date ? 'Resume workout' : '▶ Start workout'}
-          </button>
-        )}
-        {planned.length > 1 && (
-          <button onClick={() => setArranging(true)} className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-600">⇅ Reorder</button>
-        )}
-        <button onClick={() => setDayMenu('menu')} aria-label="Day options" className="flex h-8 w-10 items-center justify-center rounded-full bg-neutral-100 text-lg leading-none text-neutral-600">
-          ⋯
-        </button>
+      <div className="mb-3 mt-5 flex items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold">{dayTitle}</h2>
+        <div className="flex shrink-0 gap-2">
+          <button onClick={() => setAddMenu(true)} className="rounded-full bg-accent px-3 py-1.5 text-sm font-medium text-on-accent">+ Add</button>
+          <button onClick={() => setDayMenu('menu')} aria-label="Day options" className="flex h-8 w-10 items-center justify-center rounded-full bg-neutral-100 text-lg leading-none text-neutral-600">⋯</button>
+        </div>
       </div>
 
       <ProgramsCard onReplace={(kind) => setGenerator(kind === 'cardio' ? 'cardio' : 'program')} />
@@ -84,46 +102,46 @@ export function PlanView() {
         )}
         {planned.length === 0 && !rest && (
           <div className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
-            <p className="mb-3 font-semibold">Nothing planned for this day</p>
+            <p className="mb-3 font-semibold">Nothing planned</p>
             <div className="grid grid-cols-2 gap-2">
               {([
                 ['Add exercises', () => setPicking(true)],
                 ['Make a workout', () => setGenerator('one')],
+                ['Plan my week', () => setGenerator('program')],
                 ...(s.routines.length ? [['Load a routine', () => setDayMenu('load')] as const] : []),
                 ['Rest day', () => s.setRestDay(date)],
               ] as const).map(([label, go]) => (
                 <button key={label} onClick={go} className="rounded-xl bg-neutral-100 px-3 py-3 text-sm font-medium text-neutral-700">{label}</button>
               ))}
             </div>
-            <button onClick={() => setAddMenu(true)} className="mt-3 text-sm text-neutral-500">More: plan a week, timed workouts, run or ride plans ›</button>
           </div>
         )}
-        <DayWorkout date={date} items={planned} />
-        {workItems(planned).length > 0 && date <= today && (
-          s.finishedDays.includes(date) ? (
+        <DayWorkout date={date} items={planned} onSetDone={startRest} />
+        {planned.length > 0 && (
+          <div className="flex gap-2">
+            <button onClick={() => setPicking(true)} className="flex-1 rounded-2xl border border-dashed border-neutral-300 py-3 text-sm text-neutral-600">+ Add exercise</button>
+            {planned.length > 1 && <button onClick={() => setArranging(true)} className="flex-1 rounded-2xl border border-dashed border-neutral-300 py-3 text-sm text-neutral-600">⇅ Reorder / superset</button>}
+          </div>
+        )}
+        {work.length > 0 && date <= today && (
+          finished ? (
             <button onClick={() => setFinishing(true)} className="w-full rounded-2xl bg-neutral-100 py-3 text-sm font-medium text-neutral-600">✓ Workout complete · see summary</button>
           ) : (
-            <button onClick={() => setFinishing(true)} className="w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-on-accent">✓ Workout complete</button>
+            <button onClick={() => setFinishing(true)} className="w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-on-accent">✓ Finish workout</button>
           )
         )}
       </section>
-      {finishing && <FinishWorkout date={date} onBack={() => setFinishing(false)} onDone={() => setFinishing(false)} />}
-
-      <button
-        onClick={() => setAddMenu(true)}
-        className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-1/2 z-10 -translate-x-1/2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-on-accent shadow-lg"
-      >
-        + Add
-      </button>
+      {finishing && <FinishWorkout date={date} onBack={() => setFinishing(false)} onDone={() => { setFinishing(false); setRestTimer(null) }} />}
+      {restTimer?.date === date && <RestTimer until={restTimer.until} onChange={(until) => setRestTimer({ date, until })} onClose={() => setRestTimer(null)} />}
 
       {addMenu && (
-        <Sheet title="Add to this day" onClose={() => setAddMenu(false)}>
+        <Sheet title={`Add to ${DAY_NAMES[day]}`} onClose={() => setAddMenu(false)}>
           {([
-            ['Add an exercise', 'Pick from 750+ exercises', () => setPicking(true)],
-            ['Randomize a workout', 'Pick muscles, style and time for this day', () => setGenerator('one')],
-            ['Randomize a week or month', 'Training days, rest days and a goal, built for you', () => setGenerator('program')],
-            ['Build a timed workout', 'AMRAP, EMOM or for time, with a built-in clock', () => setWodBuilder(true)],
-            ['Start a training plan', 'Run or bike plan for a goal or race', () => setGenerator('cardio')],
+            ['Add an exercise', 'Search or browse 750+ exercises', () => setPicking(true)],
+            ['Make a workout', 'Pick body parts and time, get a full workout', () => setGenerator('one')],
+            ['Plan a week or month', 'Training and rest days built around a goal', () => setGenerator('program')],
+            ['Timed workout', 'AMRAP, EMOM, for time or Tabata, with a clock', () => setWodBuilder(true)],
+            ['Run or ride plan', 'Build up to a distance or a race', () => setGenerator('cardio')],
           ] as const).map(([title, hint, go]) => (
             <button key={title} onClick={() => { setAddMenu(false); go() }} className={rowBtn}>
               <span><span className="block text-sm font-medium">{title}</span><span className="block text-xs text-neutral-400">{hint}</span></span>

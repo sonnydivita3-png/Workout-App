@@ -25,7 +25,7 @@ const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accen
 interface Props {
   onClose: () => void
   onSwitchMode: (m: GeneratorMode) => void
-  /** Called with the first planned date after the plan is applied, so the Plan tab can jump to it. */
+  /** Called with the first planned date after the plan is applied, so the Workouts tab can jump to it. */
   onApplied: (firstDate: string) => void
   /** Use the plan for something else (e.g. sending to a friend) instead of adding it to the calendar. */
   onUse?: (days: { offset: number; items: PlannedExercise[] }[], weeks: 1 | 4) => void
@@ -64,7 +64,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
 
   if (!result) {
     return (
-      <Sheet title="Randomize" onClose={onClose} closeLabel="Cancel">
+      <Sheet title="Plan a week or month" onClose={onClose} closeLabel="Cancel">
         <ModeSwitch mode="program" onChange={onSwitchMode} />
 
         <h3 className="mb-2 text-sm font-semibold text-neutral-700">Plan for</h3>

@@ -1,4 +1,5 @@
 import type { Exercise, ExerciseLog, PlannedExercise } from '../types'
+import { partFromName } from './bodyParts'
 import { addDays, parseISO, toISO, weekdayIndex } from './dates'
 import { generateWorkout, styleInfo, type WarmupOptions, type WorkoutStyle } from './randomizer'
 import { BY_ID, FULL_BODY_GROUPS, type Rng } from './randomUtil'
@@ -19,7 +20,7 @@ export const PROGRAM_GOALS: { id: ProgramGoal; label: string; blurb: string }[] 
  * Big muscle groups. Two days in a row never share one of these. Arms, core and cardio are
  * left out on purpose: they recover fast and show up in most sessions.
  */
-export const MAJOR_GROUPS = ['Chest', 'Back', 'Shoulders', 'Legs', 'Glutes']
+export const MAJOR_GROUPS = ['Chest', 'Back', 'Shoulders', 'Quads', 'Hamstrings', 'Glutes']
 
 interface DayType {
   name: string
@@ -31,8 +32,9 @@ interface DayType {
 }
 
 const FULL = FULL_BODY_GROUPS
-const UPPER_BODY = ['Chest', 'Back', 'Shoulders', 'Arms']
-const LOWER_BODY = ['Legs', 'Glutes', 'Core']
+const UPPER_BODY = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps']
+const LOWER_BODY = ['Quads', 'Hamstrings', 'Glutes', 'Calves', 'Core']
+const ARMS = ['Biceps', 'Triceps']
 const CARDIO: DayType = { name: 'Cardio', groups: [], style: 'standard', weight: 0.35 }
 
 /**
@@ -46,12 +48,12 @@ function dayTypes(goal: ProgramGoal, daysPerWeek: number): DayType[] {
   switch (goal) {
     case 'muscle':
       return [
-        { name: 'Chest & arms', groups: ['Chest', 'Arms'], style: 'standard', weight: 1 },
+        { name: 'Chest & arms', groups: ['Chest', ...ARMS], style: 'standard', weight: 1 },
         { name: 'Back & core', groups: ['Back', 'Core'], style: 'standard', weight: 1 },
-        { name: 'Shoulders & arms', groups: ['Shoulders', 'Arms'], style: 'supersets', weight: 1 },
-        { name: 'Legs & glutes', groups: ['Legs', 'Glutes', 'Core'], style: 'standard', weight: 1.2 },
-        { name: 'Push (supersets)', groups: ['Chest', 'Shoulders', 'Arms'], style: 'supersets', weight: 0.8 },
-        { name: 'Pull', groups: ['Back', 'Arms', 'Core'], style: 'standard', weight: 0.8 },
+        { name: 'Shoulders & arms', groups: ['Shoulders', ...ARMS], style: 'supersets', weight: 1 },
+        { name: 'Legs & glutes', groups: LOWER_BODY, style: 'standard', weight: 1.2 },
+        { name: 'Push (supersets)', groups: ['Chest', 'Shoulders', 'Triceps'], style: 'supersets', weight: 0.8 },
+        { name: 'Pull', groups: ['Back', 'Biceps', 'Core'], style: 'standard', weight: 0.8 },
         { name: 'Upper body', groups: UPPER_BODY, style: 'standard', weight: 1 },
         { name: 'Lower body', groups: LOWER_BODY, style: 'standard', weight: 1 },
         { name: 'Full body', groups: FULL, style: 'standard', weight: fullWeight },
@@ -59,11 +61,11 @@ function dayTypes(goal: ProgramGoal, daysPerWeek: number): DayType[] {
       ]
     case 'strength':
       return [
-        { name: 'Full-body strength', groups: ['Chest', 'Back', 'Shoulders', 'Legs'], style: 'strength', weight: fullWeight },
+        { name: 'Full-body strength', groups: ['Chest', 'Back', 'Shoulders', 'Quads', 'Hamstrings'], style: 'strength', weight: fullWeight },
         { name: 'Upper strength', groups: ['Chest', 'Back', 'Shoulders'], style: 'strength', weight: 1 },
-        { name: 'Lower strength', groups: LOWER_BODY, style: 'strength', weight: 1.1 },
+        { name: 'Lower strength', groups: ['Quads', 'Hamstrings', 'Glutes', 'Core'], style: 'strength', weight: 1.1 },
         { name: 'Push strength', groups: ['Chest', 'Shoulders'], style: 'strength', weight: 0.7 },
-        { name: 'Pull strength', groups: ['Back', 'Arms'], style: 'strength', weight: 0.7 },
+        { name: 'Pull strength', groups: ['Back', 'Biceps'], style: 'strength', weight: 0.7 },
         cardio(0.35),
       ]
     case 'fatloss':
@@ -84,17 +86,17 @@ function dayTypes(goal: ProgramGoal, daysPerWeek: number): DayType[] {
         { name: 'Upper body', groups: UPPER_BODY, style: 'standard', weight: 1 },
         { name: 'Lower body', groups: LOWER_BODY, style: 'standard', weight: 1 },
         { name: 'Full-body circuit', groups: FULL, style: 'circuit', weight: fw(0.7), generic: true },
-        { name: 'Bodyweight', groups: ['Chest', 'Back', 'Legs', 'Core'], style: 'bodyweight', weight: 0.7 },
+        { name: 'Bodyweight', groups: ['Chest', 'Back', 'Quads', 'Core'], style: 'bodyweight', weight: 0.7 },
         cardio(0.9),
       ]
     case 'functional':
       return [
         { name: 'Hyrox-style', groups: FULL, style: 'hyrox', weight: fw(1.6), generic: true },
         { name: 'CrossFit-style', groups: FULL, style: 'crossfit', weight: fw(1.6), generic: true },
-        { name: 'Lower strength', groups: LOWER_BODY, style: 'strength', weight: 0.9 },
+        { name: 'Lower strength', groups: ['Quads', 'Hamstrings', 'Glutes', 'Core'], style: 'strength', weight: 0.9 },
         { name: 'Upper strength', groups: ['Chest', 'Back', 'Shoulders'], style: 'strength', weight: 0.9 },
         { name: 'Full-body HIIT', groups: FULL, style: 'circuit', weight: fw(0.7), generic: true },
-        { name: 'Bodyweight', groups: ['Chest', 'Back', 'Legs', 'Core'], style: 'bodyweight', weight: 0.5 },
+        { name: 'Bodyweight', groups: ['Chest', 'Back', 'Quads', 'Core'], style: 'bodyweight', weight: 0.5 },
         { name: 'Run / cardio', groups: [], style: 'standard', weight: 0.8 },
       ]
   }
@@ -133,7 +135,7 @@ const EXTRA_TYPES: Partial<Record<WorkoutStyle, DayType>> = {
   fortime: { name: 'Rounds for time', groups: FULL, style: 'fortime', weight: 0.8, generic: true },
   tabata: { name: 'Tabata', groups: FULL, style: 'tabata', weight: 0.7, generic: true },
   supersets: { name: 'Full-body supersets', groups: FULL, style: 'supersets', weight: 0.6 },
-  bodyweight: { name: 'Bodyweight', groups: ['Chest', 'Back', 'Legs', 'Core'], style: 'bodyweight', weight: 0.6 },
+  bodyweight: { name: 'Bodyweight', groups: ['Chest', 'Back', 'Quads', 'Core'], style: 'bodyweight', weight: 0.6 },
 }
 
 /** Lean the week towards what someone likes, without dropping what their goal needs. */
@@ -241,7 +243,8 @@ export function majorGroupsLogged(logs: ExerciseLog[], date: string, lookup: (id
   const groups = new Set<string>()
   for (const l of logs) {
     if (l.date !== date || !hasData(l)) continue
-    const g = lookup(l.exerciseId)?.group
+    const ex = lookup(l.exerciseId)
+    const g = ex && partFromName(ex.group, ex.name)
     if (g && MAJOR_GROUPS.includes(g)) groups.add(g)
   }
   return [...groups]

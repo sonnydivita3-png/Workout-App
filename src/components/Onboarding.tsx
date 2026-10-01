@@ -111,7 +111,7 @@ export function Onboarding() {
         {step === 'likes' && (
           <>
             <h1 className="mb-1 text-2xl font-semibold tracking-tight">What do you like to do?</h1>
-            <p className="mb-5 text-neutral-500">Pick as many as you like. Your plans and “Make me a workout” lean towards these.</p>
+            <p className="mb-5 text-neutral-500">Pick as many as you like. Your plans and “Make a workout” lean towards these.</p>
             <div className="mb-6"><LikedStylesPicker /></div>
             <div className="mt-auto space-y-2">
               <button onClick={() => setStep('cardio')} className={primary}>{s.trainingPrefs.styles.length ? 'Continue' : 'No preference, continue'}</button>
@@ -151,7 +151,7 @@ export function Onboarding() {
         {step === 'plan' && (
           <>
             <h1 className="mb-1 text-2xl font-semibold tracking-tight">Your first week</h1>
-            <p className="mb-5 text-neutral-500">Four weeks are planned, getting a little harder each week. Swap anything you don’t like on the Plan tab.</p>
+            <p className="mb-5 text-neutral-500">Four weeks are planned, getting a little harder each week. Swap anything you don’t like on the Workouts tab.</p>
             <ul className="mb-6 space-y-2">
               {firstWeek.map((d) => (
                 <li key={d.date} className={`flex items-center justify-between rounded-2xl px-4 py-3 ${d.rest ? 'text-neutral-400' : 'bg-surface ring-1 ring-neutral-200'}`}>

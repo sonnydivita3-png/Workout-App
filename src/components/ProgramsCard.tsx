@@ -12,7 +12,7 @@ const RANGES = [
   { id: 'all', label: 'Everything from today on', days: 3650 },
 ] as const
 
-/** Running programs on the Plan tab: stop or replace them, or clear a stretch of the calendar. */
+/** Running programs on the Workouts tab: stop or replace them, or clear a stretch of the calendar. */
 export function ProgramsCard({ onReplace }: { onReplace: (kind: Program['kind']) => void }) {
   const { programs, overrides, logs, stopProgram, clearPlan } = useStore()
   const today = useToday()
@@ -23,7 +23,8 @@ export function ProgramsCard({ onReplace }: { onReplace: (kind: Program['kind'])
 
   const active = activePrograms(programs, today)
   const upcoming = Object.keys(overrides).filter((d) => d >= today).length
-  if (active.length === 0 && upcoming === 0 && !msg) return null
+  // Only when a generated plan is running: an ordinary planned day needs nothing extra on screen.
+  if (active.length === 0 && !msg) return null
 
   const rangeTo = (id: (typeof RANGES)[number]['id']) => toISO(addDays(parseISO(today), RANGES.find((r) => r.id === id)!.days))
   const clearCount = clearRange(overrides, logs, today, rangeTo(range)).count
@@ -32,7 +33,7 @@ export function ProgramsCard({ onReplace }: { onReplace: (kind: Program['kind'])
   return (
     <section className="mt-3 rounded-2xl bg-surface p-3 shadow-sm ring-1 ring-neutral-200/70">
       <div className="mb-1 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-neutral-700">{active.length ? 'My programs' : 'Planned days'}</h2>
+        <h2 className="text-sm font-semibold text-neutral-700">My plans</h2>
         {upcoming > 0 && <button onClick={() => setClearing(true)} className="text-xs text-neutral-500 underline underline-offset-2">Clear days…</button>}
       </div>
       {msg && <p role="status" className="mb-1 text-xs text-neutral-500">{msg}</p>}

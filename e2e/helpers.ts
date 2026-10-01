@@ -10,7 +10,7 @@ export async function seed(page: Page, state: Record<string, unknown> = {}) {
         units: { weight: 'lb', distance: 'mi' }, name: 'Test', notifPrefs: { system: false, goals: false, pbs: false, daily: false, reminderTime: '23:59' },
         nudgeSnooze: { install: 9e15, backup: 9e15 }, tipsSeen: ['plan', 'workout', 'progress'], onboarded: true, restSeconds: 0, ...extra,
       },
-      version: 2,
+      version: 3,
     }))
   }, state)
   page.on('dialog', (d) => d.accept())
@@ -42,5 +42,5 @@ export async function signUp(page: Page, handle: string, name = 'E2E') {
 export async function openSettings(page: Page, section?: string) {
   await page.locator('nav').getByText('Home').click()
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
-  if (section) await page.getByRole('button', { name: new RegExp(`^${section.replace(/[&]/g, '\\$&')}`) }).click()
+  if (section) await page.getByRole('main').getByRole('button', { name: new RegExp(`^${section.replace(/[&]/g, '\\$&')}`) }).click()
 }

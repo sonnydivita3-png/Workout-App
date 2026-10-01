@@ -6,7 +6,7 @@ import type { PlannedExercise, TimedLog } from '../types'
 import { NumberInput } from './NumberInput'
 import { TimerSheet } from './TimerSheet'
 
-/** An AMRAP / EMOM / for-time block on the Plan tab: the work, a clock, and a place to log the result. */
+/** An AMRAP / EMOM / for-time block on the Workouts tab: the work, a clock, and a place to log the result. */
 export function TimedBlockCard({ items, date, onRemove }: { items: PlannedExercise[]; date: string; onRemove: () => void }) {
   const { custom, units, timedLogs, saveTimed, deleteTimed } = useStore()
   const wod = wodOf(items)!

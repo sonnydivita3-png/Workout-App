@@ -1,8 +1,9 @@
 import type { Exercise, ExerciseLog } from '../types'
 import { addDays, mondayOf, parseISO, toISO } from './dates'
 import { workSets } from './progression'
+import { BODY_PARTS, partFromName } from './bodyParts'
 
-export const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Glutes', 'Core'] as const
+export const MUSCLE_GROUPS = BODY_PARTS
 
 /**
  * Hard sets per muscle group for the week containing `date` and the week before. Warm-ups don't count. This is the
@@ -16,8 +17,9 @@ export function weeklySets(logs: ExerciseLog[], date: string, lookup: (id: strin
     for (const l of logs) {
       if (l.date < from || l.date > to) continue
       const ex = lookup(l.exerciseId)
-      if (!ex || ex.kind !== 'strength' || !(ex.group in out)) continue
-      out[ex.group] += workSets(l).length
+      if (!ex || ex.kind !== 'strength') continue
+      const part = partFromName(ex.group, ex.name)
+      if (part in out) out[part] += workSets(l).length
     }
     return out
   }

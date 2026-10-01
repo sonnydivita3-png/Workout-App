@@ -8,6 +8,7 @@ import type { Exercise, ExerciseLog, StrengthSet } from '../types'
 import { HowToSheet } from './HowToSheet'
 import { HoldTimerSheet } from './IntervalTimerSheet'
 import { NumberInput } from './NumberInput'
+import { rowBtn, Sheet } from './Sheet'
 
 interface Props {
   exercise: Exercise
@@ -25,7 +26,7 @@ interface Props {
   onChange: (sets: StrengthSet[]) => void
   onNote?: (note: string) => void
   onRemove: () => void
-  /** Workout mode: show a ✓ per set that fills in the suggestion and starts the rest timer (for this many seconds). */
+  /** A set was ticked ✓ (starts the rest timer, if it's on, for this many seconds). */
   onSetDone?: (restSeconds: number, set: { round: number; warmup: boolean }) => void
   /** Replaces "rest 1:30" in the subtitle, e.g. for an exercise in a superset. */
   restNote?: string
@@ -33,12 +34,17 @@ interface Props {
 
 const MARK = { up: { t: '▲', c: 'text-green-600', l: 'beat last time' }, same: { t: '=', c: 'text-neutral-400', l: 'matched last time' }, down: { t: '▼', c: 'text-red-600', l: 'below last time' } } as const
 
+/**
+ * One exercise to log: a target from last time, then a row per set. ✓ logs a set (filling in the target if nothing
+ * was typed). Everything else (how-to, note, plates, fewer sets, remove) is under ⋯ so the card stays simple.
+ */
 export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, warmupSets = 0, rest, note, current, last, onSetCount, onChange, onNote, onRemove, onSetDone, restNote }: Props) {
   const units = useStore((s) => s.units)
   const trackRpe = useStore((s) => s.trackRpe)
   const mode = exercise.mode ?? 'weight'
   const [timing, setTiming] = useState<number | null>(null)
   const [howTo, setHowTo] = useState(false)
+  const [menu, setMenu] = useState(false)
   const [plates, setPlates] = useState(false)
   const [editingNote, setEditingNote] = useState(false)
   // Planned warm-up sets come first (marked W), then the working sets.
@@ -66,11 +72,13 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
     const bar = exercise.equipment === 'Barbell' ? (units.weight === 'kg' ? 20 * 2.20462262 : 45) : 0
     return { weight: Math.max(bar, Math.round((top * r.pct) / step) * step), reps: r.reps, warmup: true }
   }
-  const fillAll = () => onChange(sets.map((s, i) => (filled(s) ? s : s.warmup ? { ...s, ...(rampFor(i) ?? {}) } : fromTip(s))))
   const workRest = rest ?? restFor(exercise, targetReps, targetSeconds)
+  // ✓ fills in whatever is missing from the target (typed numbers win), then logs the set.
   const done = (i: number) => {
     const s = sets[i]
-    if (!filled(s)) update(i, s.warmup ? { ...s, ...(rampFor(i) ?? {}) } : fromTip(s))
+    const r = s.warmup ? rampFor(i) : null
+    const next = s.warmup ? { ...s, weight: s.weight ?? r?.weight ?? null, reps: s.reps ?? r?.reps ?? null } : fromTip(s)
+    if (next.weight !== s.weight || next.reps !== s.reps || (next.seconds ?? null) !== (s.seconds ?? null)) update(i, next)
     try { navigator.vibrate?.(15) } catch { /* not supported */ }
     const round = sets.slice(0, i + 1).filter((x) => !x.warmup).length
     onSetDone?.(s.warmup ? 60 : workRest, { round, warmup: !!s.warmup })
@@ -91,13 +99,12 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
     ...(mode === 'weight' ? ['minmax(0,1.2fr)'] : []),
     'minmax(0,1fr)',
     ...(trackRpe ? ['3.25rem'] : []),
-    onSetDone ? '2.75rem' : '4.5rem',
-  ].join('_')
-  const lastText = (p?: StrengthSet) => {
-    if (!p) return '—'
-    if (mode === 'time') return p.seconds ? formatSeconds(p.seconds) : '—'
-    if (mode === 'reps') return p.reps ? `${p.reps} reps` : '—'
-    return p.weight != null ? `${showWeight(p.weight, units)} × ${p.reps ?? '–'}` : '—'
+    '2.75rem',
+  ].join(' ')
+  const setText = (p: StrengthSet) => {
+    if (mode === 'time') return p.seconds ? formatSeconds(p.seconds) : '–'
+    if (mode === 'reps') return p.reps ? `${p.reps}` : '–'
+    return p.weight != null ? `${showWeight(p.weight, units)}×${p.reps ?? '–'}` : '–'
   }
   const tipText =
     tip.kind === 'first' ? null
@@ -106,6 +113,9 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
     : `${showWeight(tip.weight ?? 0, units)} ${units.weight} × ${tip.reps}`
   const barbell = mode === 'weight' && exercise.equipment === 'Barbell'
   const plateWeight = showWeight(sets.find((s) => !s.warmup && s.weight)?.weight ?? tip.weight ?? null, units)
+  const menuItem = (label: string, go: () => void, danger = false) => (
+    <button onClick={() => { setMenu(false); go() }} className={`${rowBtn}${danger ? ' text-red-600' : ''}`}><span>{label}</span></button>
+  )
 
   return (
     <div className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
@@ -115,39 +125,30 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
           <p className="text-xs text-neutral-400">
             {exercise.group}
             {mode === 'time' && ' · timed'}
-            {target && ` · target ${target}`}
+            {target && ` · ${target}`}
             {warmupSets > 0 && ` · +${warmupSets} warm-up`}
             {restNote ? ` · ${restNote}` : ` · rest ${fmtRest(workRest)}`}
             {note && ` · ${note}`}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-3 text-neutral-400">
-          <div className="flex items-center gap-1 text-sm">
-            <button onClick={() => onSetCount(Math.max(1, setCount - 1))} aria-label="Fewer sets" className="h-6 w-6 rounded-full bg-neutral-100">−</button>
-            <span className="w-12 text-center text-neutral-600">{setCount} sets</span>
-            <button onClick={() => onSetCount(setCount + 1)} aria-label="More sets" className="h-6 w-6 rounded-full bg-neutral-100">+</button>
-          </div>
-          <button onClick={onRemove} aria-label="Remove" className="text-lg leading-none">×</button>
-        </div>
+        <button onClick={() => setMenu(true)} aria-label={`${exercise.name} options`} className="-mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg leading-none text-neutral-400 hover:bg-neutral-100">⋯</button>
       </div>
 
       {tipText && (
-        <div className="mb-3 flex items-center gap-2 rounded-xl bg-neutral-50 px-3 py-2">
-          <span className="min-w-0 flex-1 text-xs text-neutral-500">
-            <span className="font-semibold text-neutral-900">🎯 Try {tipText}</span> · {tip.why}
-          </span>
-          <button onClick={fillAll} className="shrink-0 rounded-full bg-accent px-2.5 py-1 text-xs font-medium text-on-accent">Fill</button>
+        <div className="mb-3 rounded-xl bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
+          <span className="font-semibold text-neutral-900">🎯 Try {tipText}</span> · {tip.why}
+          {lastWork.length > 0 && <span className="mt-0.5 block text-neutral-400">Last time: {lastWork.map(setText).join(' · ')}</span>}
         </div>
       )}
       {tip.kind === 'first' && <p className="mb-3 text-xs text-neutral-400">{tip.why}</p>}
 
       <div className="space-y-2">
-        <div className="grid gap-2 text-xs font-medium text-neutral-500" style={{ gridTemplateColumns: cols.replaceAll('_', ' ') }}>
+        <div className="grid gap-2 text-xs font-medium text-neutral-500" style={{ gridTemplateColumns: cols }}>
           <span>Set</span>
           {mode === 'weight' && <span className="text-center">{units.weight}</span>}
           <span className="text-center">{mode === 'time' ? 'Seconds' : 'Reps'}</span>
           {trackRpe && <span className="text-center">RPE</span>}
-          <span className="text-right">{onSetDone ? '' : 'Last'}</span>
+          <span />
         </div>
         {sets.map((s, i) => {
           const prev = last?.sets?.[i]
@@ -156,7 +157,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
           const warmBefore = sets.slice(0, i).filter((x) => x.warmup).length
           const label = s.warmup ? `Warm-up set ${warmBefore + 1}` : `Set ${i + 1 - warmBefore}`
           return (
-            <div key={i} className="grid items-center gap-2" style={{ gridTemplateColumns: cols.replaceAll('_', ' ') }}>
+            <div key={i} className="grid items-center gap-2" style={{ gridTemplateColumns: cols }}>
               <button
                 onClick={() => update(i, { warmup: !s.warmup })}
                 aria-label={s.warmup ? `${label}; tap to make it a working set` : `${label}; tap to mark as warm-up`}
@@ -168,40 +169,34 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
               </button>
               {mode === 'weight' && (
                 <NumberInput
-                  stepper={!!onSetDone}
                   label={`${label} ${units.weight}`}
                   value={showWeight(s.weight, units)}
-                  step={onSetDone ? (units.weight === 'kg' ? 2.5 : 5) : units.weight === 'kg' ? 1 : 2.5}
+                  step={units.weight === 'kg' ? 1 : 2.5}
                   placeholder={showWeight(s.warmup ? rampFor(i)?.weight ?? null : tip.weight ?? prev?.weight ?? null, units)?.toString() ?? '–'}
                   onChange={(v) => update(i, { weight: storeWeight(v, units) })}
                 />
               )}
               {mode === 'time' ? (
                 <div className="flex items-center gap-1">
-                  <NumberInput value={s.seconds ?? null} step={5} placeholder={(tip.seconds ?? prev?.seconds ?? targetSeconds)?.toString() ?? '–'} onChange={(v) => update(i, { seconds: v })} />
+                  <NumberInput label={`${label} seconds`} value={s.seconds ?? null} step={5} placeholder={(tip.seconds ?? prev?.seconds ?? targetSeconds)?.toString() ?? '–'} onChange={(v) => update(i, { seconds: v })} />
                   <button onClick={() => setTiming(i)} aria-label={`Time set ${i + 1}`} title="Time this hold" className="h-9 w-9 shrink-0 rounded-lg bg-neutral-100 text-base">⏱</button>
                 </div>
               ) : (
-                <NumberInput stepper={!!onSetDone} label={`${label} reps`} value={s.reps} placeholder={(s.warmup ? rampFor(i)?.reps : tip.reps ?? prev?.reps ?? targetReps)?.toString() ?? '–'} onChange={(v) => update(i, { reps: v })} />
+                <NumberInput label={`${label} reps`} value={s.reps} placeholder={(s.warmup ? rampFor(i)?.reps : tip.reps ?? prev?.reps ?? targetReps)?.toString() ?? '–'} onChange={(v) => update(i, { reps: v })} />
               )}
-              {trackRpe && <NumberInput value={s.rpe ?? null} placeholder="–" onChange={(v) => update(i, { rpe: v == null ? null : Math.min(10, Math.max(1, v)) })} />}
-              {onSetDone ? (
-                <button onClick={() => done(i)} aria-label={`${label} done`} className={`h-11 rounded-xl text-base font-bold ${filled(s) ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-400'}`}>✓</button>
-              ) : (
-                <span className="text-right text-xs tabular-nums text-neutral-400">{lastText(prev)}</span>
-              )}
+              {trackRpe && <NumberInput label={`${label} RPE`} value={s.rpe ?? null} placeholder="–" onChange={(v) => update(i, { rpe: v == null ? null : Math.min(10, Math.max(1, v)) })} />}
+              <button onClick={() => done(i)} aria-label={`${label} done`} className={`h-10 rounded-xl text-base font-bold ${filled(s) ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-400'}`}>✓</button>
             </div>
           )
         })}
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-500">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-neutral-500">
+        <button onClick={() => onSetCount(setCount + 1)} className="rounded-full bg-neutral-100 px-3 py-1 text-neutral-600">+ Add set</button>
         {beat > 0 && <span className="font-medium text-green-600">▲ Beat last time on {beat} set{beat === 1 ? '' : 's'}</span>}
-        {barbell && <button onClick={() => setPlates((p) => !p)} className="underline underline-offset-2">Plates</button>}
-        {onNote && !editingNote && <button onClick={() => setEditingNote(true)} className="underline underline-offset-2">{current?.note ? 'Edit note' : 'Add note'}</button>}
-        {last?.note && <span className="text-neutral-400">Last note: “{last.note}”</span>}
       </div>
-      {current?.note && !editingNote && <p className="mt-1 text-sm text-neutral-600">📝 {current.note}</p>}
+      {last?.note && <p className="mt-2 text-xs text-neutral-400">Last note: “{last.note}”</p>}
+      {current?.note && !editingNote && <button onClick={() => setEditingNote(true)} className="mt-2 block text-left text-sm text-neutral-600">📝 {current.note}</button>}
       {editingNote && onNote && (
         <input
           autoFocus
@@ -222,6 +217,15 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
         </p>
       )}
 
+      {menu && (
+        <Sheet title={exercise.name} onClose={() => setMenu(false)}>
+          {menuItem('How to do it', () => setHowTo(true))}
+          {onNote && menuItem(current?.note ? 'Edit note' : 'Add a note', () => setEditingNote(true))}
+          {barbell && menuItem(plates ? 'Hide plates' : 'Plates for this weight', () => setPlates((p) => !p))}
+          {setCount > 1 && menuItem('Remove a set', () => onSetCount(setCount - 1))}
+          {menuItem('Remove exercise', onRemove, true)}
+        </Sheet>
+      )}
       {timing !== null && <HoldTimerSheet name={`${exercise.name} · set ${timing + 1}`} target={targetSeconds} onUse={(secs) => { update(timing, { seconds: secs }); setTiming(null) }} onClose={() => setTiming(null)} />}
       {howTo && <HowToSheet exercise={exercise} onClose={() => setHowTo(false)} />}
     </div>
