@@ -659,3 +659,17 @@ test('plan a week as a named split, with a nudge when the days do not fit it', a
   await page.getByRole('button', { name: 'Apply to my plan' }).click()
   expect((await state(page)).programs[0].title).toBe('Upper / Lower week plan')
 })
+
+test('a lift you have never done gets a starting weight from a similar one', async ({ page }) => {
+  await seed(page, {
+    overrides: { [iso(0)]: [{ exerciseId: 'Dumbbell_Bench_Press', sets: 3, reps: 10 }] },
+    logs: [{ date: iso(-3), exerciseId: 'Barbell_Bench_Press_-_Medium_Grip', sets: [{ weight: 185, reps: 5 }, { weight: 185, reps: 5 }] }],
+  })
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await expect(page.getByText('🎯 Try 55 lb × 10')).toBeVisible()
+  await expect(page.getByText(/estimated from your Bench Press \(185×5\)/)).toBeVisible()
+  await page.getByRole('button', { name: 'Set 1 done' }).click()
+  const s = await state(page)
+  expect(s.logs.find((l: { date: string }) => l.date === iso(0)).sets[0]).toMatchObject({ weight: 55, reps: 10 })
+})

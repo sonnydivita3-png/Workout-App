@@ -5,6 +5,8 @@ import { generateWorkout, styleInfo, type WarmupOptions, type WorkoutStyle } fro
 import { BY_ID, FULL_BODY_GROUPS, type Rng } from './randomUtil'
 import { liftMinutes, type RestPref } from './timing'
 import { hasData } from './stats'
+import { plateau, workSets } from './progression'
+import { isMainLift } from './randomUtil'
 
 export type ProgramGoal = 'muscle' | 'strength' | 'fatloss' | 'fitness' | 'functional'
 
@@ -144,6 +146,43 @@ function splitRotation(split: Exclude<SplitId, 'auto'>, daysPerWeek: number, sty
   }
 }
 
+/** Lifting days repeat week to week so the numbers can climb; conditioning formats and cardio stay varied. */
+const repeats = (t: DayType) => !t.generic && t.groups.length > 0 && ['standard', 'strength', 'supersets', 'bodyweight'].includes(t.style)
+
+/**
+ * Lifts logged in the last `weeks` weeks before `before`, most recent first. A new plan starts from these, so a
+ * second month carries on from the first instead of from scratch.
+ */
+export function familiarLifts(logs: ExerciseLog[], before: string, weeks = 8): Set<string> {
+  const from = toISO(addDays(parseISO(before), -7 * weeks))
+  const recent = logs.filter((l) => l.date < before && l.date >= from && !l.cardio && workSets(l).length > 0).sort((a, b) => b.date.localeCompare(a.date))
+  return new Set(recent.map((l) => l.exerciseId))
+}
+
+/**
+ * Accessory lifts due for a change: done for about a month (first logged 4+ weeks ago, 3+ sessions), or stuck for 3
+ * sessions. New plans swap these for fresh moves. Main lifts (squat, bench, deadlift, rows, presses…) stay, since
+ * they're what you measure progress on; a stalled main lift gets a lighter week instead (see `suggestNext`).
+ */
+export function liftsToRotate(logs: ExerciseLog[], before: string, lookup: (id: string) => Exercise | undefined, weeks = 8): Set<string> {
+  const from = toISO(addDays(parseISO(before), -7 * weeks))
+  const monthAgo = toISO(addDays(parseISO(before), -28))
+  const byLift = new Map<string, ExerciseLog[]>()
+  for (const l of logs) {
+    if (l.date >= before || l.date < from || l.cardio || workSets(l).length === 0) continue
+    byLift.set(l.exerciseId, [...(byLift.get(l.exerciseId) ?? []), l])
+  }
+  const out = new Set<string>()
+  for (const [id, ls] of byLift) {
+    const ex = lookup(id)
+    if (!ex || isMainLift(ex)) continue
+    ls.sort((a, b) => b.date.localeCompare(a.date))
+    const longTime = ls.at(-1)!.date <= monthAgo && ls.length >= 3
+    if (longTime || plateau(ex, ls) > 0) out.add(id)
+  }
+  return out
+}
+
 const majorsOf = (t: DayType) => t.groups.filter((g) => MAJOR_GROUPS.includes(g))
 const isCardioDay = (t: DayType) => t.groups.length === 0
 
@@ -169,6 +208,10 @@ export interface ProgramInput {
   dropSets?: boolean
   /** A named split run in order (push, pull, legs, push…). 'auto' (default) picks day types for the goal. */
   split?: SplitId
+  /** Lifts they've been logging (see `familiarLifts`): new plans keep them so progress carries on. */
+  familiar?: Set<string>
+  /** Lifts to swap for something new (see `liftsToRotate`): used only if nothing else fits. */
+  rotate?: Set<string>
 }
 
 /** Sessions for liked full-body formats that a goal doesn't include on its own. */
@@ -206,6 +249,11 @@ export interface ProgramDay {
   focus: string[]
   /** Muscle groups worked, for recovery checks. */
   groups: string[]
+  /**
+   * Which workout this is in the weekly pattern (e.g. the second "Upper body" of the week). Lifting days with the same
+   * slot repeat the same exercises every week, so weights and reps build week to week.
+   */
+  slot?: string
   weekIndex: number
   items: PlannedExercise[]
 }
@@ -241,6 +289,9 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
   const recentTypes: string[] = [] // names of the last few session types
   const recent: string[][] = []
   const out: ProgramDay[] = []
+  // Lifting workouts by slot, so each week repeats them (with the block's extra set / deload) instead of starting over.
+  const templates = new Map<string, PlannedExercise[]>()
+  const slotCount = new Map<string, number>()
   // A split starts on the first day that doesn't hit what was trained yesterday, then runs in order.
   let turn = split ? Math.max(0, split.findIndex((t) => !majorsOf(t).some((g) => prevMajors.has(g)))) : 0
 
@@ -264,9 +315,17 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
     const type = split ? split[turn++ % split.length] : scored.reduce((a, b) => (b.s > a.s ? b : a)).t
 
     const focus = isCardioDay(type) ? ['Cardio'] : type.generic ? [] : type.groups
-    const avoid = new Set(recent.flat())
-    let items = generateWorkout(focus, minutes, { style: type.style, rng, avoid, rest: input.rest, warmup: isCardioDay(type) ? undefined : input.warmup, dropSets: input.dropSets })
-    items = applyProgression(items, weekIndex, weeks)
+    const avoid = new Set([...recent.flat(), ...(input.rotate ?? [])])
+    if (offset % 7 === 0) slotCount.clear()
+    const nth = slotCount.get(type.name) ?? 0
+    slotCount.set(type.name, nth + 1)
+    const slot = repeats(type) ? `${type.name}#${nth}` : undefined
+    let base = slot ? templates.get(slot) : undefined
+    if (!base) {
+      base = generateWorkout(focus, minutes, { style: type.style, rng, avoid, rest: input.rest, warmup: isCardioDay(type) ? undefined : input.warmup, dropSets: input.dropSets, familiar: input.familiar })
+      if (slot) templates.set(slot, base)
+    }
+    const items = applyProgression(base.map((p) => ({ ...p })), weekIndex, weeks)
     recent.push(items.map((p) => p.exerciseId))
     if (recent.length > 6) recent.shift()
 
@@ -274,7 +333,7 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
     prevMajors = new Set(majorsOf(type))
     recentTypes.push(type.name)
     if (recentTypes.length > 3) recentTypes.shift()
-    out.push({ date, rest: items.length === 0, name: type.name, style: type.style, focus, groups: type.groups, weekIndex, items })
+    out.push({ date, rest: items.length === 0, name: type.name, style: type.style, focus, groups: type.groups, weekIndex, items, slot })
   }
   return out
 }
@@ -285,6 +344,15 @@ export function rerollDay(day: ProgramDay, minutes: number, weeks: number, avoid
   const cardioDay = day.focus.length === 1 && day.focus[0] === 'Cardio'
   const items = applyProgression(generateWorkout(day.focus, minutes, { style: day.style, rng, avoid: avoidIds, rest: opts.rest, warmup: cardioDay ? undefined : opts.warmup, dropSets: opts.dropSets }), day.weekIndex, weeks)
   return { ...day, items }
+}
+
+/** Reroll a day and every other week's copy of it (same slot), keeping each week's extra set or deload. */
+export function rerollSlot(days: ProgramDay[], date: string, minutes: number, weeks: number, avoidIds: Set<string>, rng: Rng = Math.random, opts: { warmup?: WarmupOptions; rest?: RestPref; dropSets?: boolean } = {}): ProgramDay[] {
+  const day = days.find((d) => d.date === date)
+  if (!day) return days
+  if (!day.slot) return days.map((d) => (d === day ? rerollDay(d, minutes, weeks, avoidIds, rng, opts) : d))
+  const base = rerollDay({ ...day, weekIndex: 0 }, minutes, weeks, avoidIds, rng, opts).items
+  return days.map((d) => (d.slot === day.slot ? { ...d, items: applyProgression(base.map((p) => ({ ...p })), d.weekIndex, weeks) } : d))
 }
 
 /** Major muscle groups logged on a date, for recovery-aware planning. */

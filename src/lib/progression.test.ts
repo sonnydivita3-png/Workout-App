@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
-import type { ExerciseLog } from '../types'
-import { compareSet, plateau, platesFor, sessionScore, suggestNext } from './progression'
+import type { ExerciseLog, Units } from '../types'
+import { compareSet, estimateStart, plateau, platesFor, sessionScore, suggestNext } from './progression'
 
 const lb = { weight: 'lb', distance: 'mi' } as const
 const bench = BUILTIN_BY_ID.get('Barbell_Bench_Press_-_Medium_Grip')!
@@ -67,5 +67,41 @@ describe('plateaus', () => {
   it('hitting the target still means add weight, not deload', () => {
     const history = [at('2026-09-20', [8, 8]), at('2026-09-13', [8, 8]), at('2026-09-06', [8, 8])]
     expect(suggestNext(bench, history[0], { reps: 8 }, lb, history).kind).toBe('add-weight')
+  })
+})
+
+describe('starting weight for a new lift', () => {
+  const ex = (id: string) => BUILTIN_BY_ID.get(id)!
+  const lbs = { weight: 'lb', distance: 'mi' } as Units
+  const benchLog: ExerciseLog = { date: '2026-09-20', exerciseId: 'Barbell_Bench_Press_-_Medium_Grip', sets: [{ weight: 185, reps: 5 }, { weight: 185, reps: 5 }] }
+  const lookup = (id: string) => BUILTIN_BY_ID.get(id)
+
+  it('scales a similar lift for the equipment, a bit on the safe side', () => {
+    const s = estimateStart(ex('Dumbbell_Bench_Press'), [benchLog], 10, lbs, lookup)!
+    expect(s.kind).toBe('estimate')
+    expect(s.weight).toBe(55) // per dumbbell, for 10 reps
+    expect(s.reps).toBe(10)
+    expect(s.why).toMatch(/your Bench Press \(185×5\)/)
+  })
+
+  it('incline pressing comes from flat, a little lighter', () => {
+    expect(estimateStart(ex('Incline_Dumbbell_Press'), [benchLog], 10, lbs, lookup)!.weight).toBe(45)
+  })
+
+  it('kg users get kg steps', () => {
+    const s = estimateStart(ex('Dumbbell_Bench_Press'), [benchLog], 10, { weight: 'kg', distance: 'km' } as Units, lookup)!
+    expect(Math.round((s.weight! / 2.20462262) * 10) / 10 % 2.5).toBe(0)
+  })
+
+  it('needs the same movement and muscle, with weights', () => {
+    expect(estimateStart(ex('Cable_Crossover'), [benchLog], 12, lbs, lookup)).toBeNull() // a fly isn't a press
+    expect(estimateStart(ex('Leg_Press'), [benchLog], 10, lbs, lookup)).toBeNull()
+    const bodyweightOnly: ExerciseLog = { ...benchLog, sets: [{ weight: null, reps: 20 }] }
+    expect(estimateStart(ex('Dumbbell_Bench_Press'), [bodyweightOnly], 10, lbs, lookup)).toBeNull()
+  })
+
+  it('uses the most recent similar lift', () => {
+    const later: ExerciseLog = { date: '2026-09-27', exerciseId: 'Barbell_Bench_Press_-_Medium_Grip', sets: [{ weight: 225, reps: 5 }] }
+    expect(estimateStart(ex('Dumbbell_Bench_Press'), [benchLog, later], 10, lbs, lookup)!.why).toMatch(/225×5/)
   })
 })

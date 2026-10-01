@@ -197,6 +197,8 @@ export interface LiftOptions {
   noRepeats?: boolean
   /** Add ramp-up warm-up sets before the heavy lifts. */
   warmupSets?: boolean
+  /** Lifts the person has been logging: picked first so their numbers carry over and keep progressing. */
+  familiar?: Set<string>
 }
 
 const STANDARD: LiftConfig = {
@@ -239,7 +241,7 @@ const RELATED: Record<string, string[]> = {
 }
 
 /** Candidate exercises per group, in the order they'll be offered: the group's own first, then related groups. */
-function queuesFor(groups: string[], rng: Rng, avoid: Set<string>, cfg: LiftConfig) {
+function queuesFor(groups: string[], rng: Rng, avoid: Set<string>, cfg: LiftConfig, familiar = new Set<string>()) {
   // Olympic lifts stay out of random straight-set workouts (CrossFit-style keeps its own list).
   // Random workouts stick to mainstream moves; niche and advanced ones only if a group would otherwise be empty.
   const strengthPool = (g: string) => {
@@ -258,7 +260,10 @@ function queuesFor(groups: string[], rng: Rng, avoid: Set<string>, cfg: LiftConf
     // With equipment around, weighted staples before bodyweight versions (bodyweight squats aren't a gym workout).
     const mixed = softShuffle(pool, avoid, rng)
     const weighted = (e: Exercise) => equipmentRank(e) <= 2
-    return [...mixed.filter((e) => isStaple(e) && weighted(e)), ...mixed.filter((e) => isStaple(e) && !weighted(e)), ...mixed.filter((e) => !isStaple(e))]
+    // Lifts they've been logging go first, so the numbers carry over from plan to plan.
+    const known = mixed.filter((e) => familiar.has(e.id) && !avoid.has(e.id))
+    const rest = mixed.filter((e) => !known.includes(e))
+    return [...known, ...rest.filter((e) => isStaple(e) && weighted(e)), ...rest.filter((e) => isStaple(e) && !weighted(e)), ...rest.filter((e) => !isStaple(e))]
   }
   return new Map(
     groups.map((g) => {
@@ -315,7 +320,8 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
   const fullBody = isFullBody(groups)
   const order = fullBody ? [...FULL_BODY_ORDER.filter((g) => groups.includes(g)), ...groups.filter((g) => !FULL_BODY_ORDER.includes(g))] : shuffle(groups, rng)
   const maxSets = fullBody ? Math.max(cfg.maxSets, 5) : cfg.maxSets
-  const queues = queuesFor(order, rng, avoid, cfg)
+  const familiar = opts.familiar ?? new Set<string>()
+  const queues = queuesFor(order, rng, avoid, cfg, familiar)
   const taken = new Set<string>()
   const items: PlannedExercise[] = []
   const perPart = new Map<string, number>()
@@ -357,6 +363,8 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
       const score = (avoid.has(e.id) ? 0 : 16) + (tooSimilar(e) ? 0 : 8)
         + (pats[0]?.test(e.name) ? 4 : pats[1]?.test(e.name) ? 2 : 0) + (equipmentRank(e) <= 1 ? 1.5 : 0)
         + (e.fullName ? 2 : 0) + (isMainLift(e) ? 1 : 0) - (COMPOUND_PARTS.has(g) && isIsolation(e) ? 3 : 0) + bonus(e)
+        // A lift they've been doing keeps its progress going (but not over a squat for quads with a leg extension).
+        + (familiar.has(e.id) && !(COMPOUND_PARTS.has(g) && isIsolation(e)) ? 5 : 0)
       if (score > bestScore) { bestScore = score; best = i }
     })
     return best < 0 ? undefined : q.splice(best, 1)[0]
@@ -481,7 +489,7 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
 function pickSupersets(groups: string[], minutes: number, rng: Rng, avoid: Set<string>, opts: LiftOptions = {}): PlannedExercise[] {
   const pref = opts.rest ?? 'normal'
   // Paired work is quicker, so ask for more exercises than straight sets would fit, then choose from them.
-  const pool = pickLifts(groups, minutes * 1.8, rng, avoid, { ...SUPERSET, maxSets: 3 }, { rest: pref, noRepeats: BODY_PARTS.every((p) => groups.includes(p)) }).map((p) => ({ ...p, sets: 3, warmupSets: undefined }))
+  const pool = pickLifts(groups, minutes * 1.8, rng, avoid, { ...SUPERSET, maxSets: 3 }, { rest: pref, noRepeats: BODY_PARTS.every((p) => groups.includes(p)), familiar: opts.familiar }).map((p) => ({ ...p, sets: 3, warmupSets: undefined }))
   const paired = makeSupersets(pool)
   const pairs: PlannedExercise[][] = []
   for (let i = 0; i < paired.length; ) {
@@ -688,6 +696,8 @@ export interface GenerateOptions {
   warmup?: WarmupOptions
   /** Finish the last two weight lifts with drop sets (their time is part of `minutes`). */
   dropSets?: boolean
+  /** Lifts the person has been logging, picked first so progress carries over. */
+  familiar?: Set<string>
 }
 
 /**
@@ -710,7 +720,7 @@ function generateMixed(focus: string[], minutes: number, styles: WorkoutStyle[],
   const out: PlannedExercise[] = []
   for (const style of styles) {
     // Warm-up sets only before the first lifting part; later parts are already warm.
-    const part = generateWorkout(body, byStyle[style] ?? share, { style, rng, avoid: new Set([...avoid, ...used]), rest: lift.rest, warmup: { sets: !!lift.warmupSets && out.length === 0 } })
+    const part = generateWorkout(body, byStyle[style] ?? share, { style, rng, avoid: new Set([...avoid, ...used]), rest: lift.rest, warmup: { sets: !!lift.warmupSets && out.length === 0 }, familiar: lift.familiar })
     for (const p of part) {
       if (used.has(p.exerciseId)) continue // one entry per exercise across the whole workout
       used.add(p.exerciseId)
@@ -738,13 +748,13 @@ export function generateWorkout(focusIn: string[], minutes: number, opts: Genera
     return [...warm, ...main.filter((p) => !warm.some((x) => x.exerciseId === p.exerciseId))]
   }
   const { style = 'standard', rng = Math.random, avoid = new Set<string>() } = opts
-  const lift: LiftOptions = { rest: opts.rest, warmupSets: w.sets }
+  const lift: LiftOptions = { rest: opts.rest, warmupSets: w.sets, familiar: opts.familiar }
   const custom = opts.cardioMinutes != null || (opts.minutesByStyle && Object.keys(opts.minutesByStyle).length > 0)
   if (opts.styles && (new Set(opts.styles).size > 1 || custom)) {
     const list = [...new Set(opts.styles)].sort((a, b) => STYLE_ORDER.indexOf(a) - STYLE_ORDER.indexOf(b))
     return generateMixed(focus, minutes, list, rng, avoid, opts.minutesByStyle, opts.cardioMinutes, lift)
   }
-  if (opts.styles?.length === 1) return generateWorkout(focus, minutes, { style: opts.styles[0], rng, avoid, rest: opts.rest, warmup: { sets: w.sets } })
+  if (opts.styles?.length === 1) return generateWorkout(focus, minutes, { style: opts.styles[0], rng, avoid, rest: opts.rest, warmup: { sets: w.sets }, familiar: opts.familiar })
   if (style === 'hyrox') return generateHyrox(minutes)
   if (style === 'crossfit') return generateCrossfit(minutes, rng, avoid)
   if (style === 'amrap' || style === 'emom' || style === 'fortime' || style === 'tabata') return generateTimed(style, focus.filter((g) => g !== 'Cardio'), minutes, rng, avoid, focus.includes('Cardio'))

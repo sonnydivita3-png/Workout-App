@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import type { ExerciseLog } from '../types'
 import { addDays, parseISO, toISO, weekdayIndex } from './dates'
-import { applyProgression, defaultWeekdays, generateProgram, majorGroupsLogged, MAJOR_GROUPS, PROGRAM_GOALS, rerollDay, type ProgramGoal, type ProgramInput } from './program'
+import { applyProgression, defaultWeekdays, familiarLifts, generateProgram, liftsToRotate, majorGroupsLogged, rerollSlot, MAJOR_GROUPS, PROGRAM_GOALS, rerollDay, type ProgramGoal, type ProgramInput } from './program'
 import { minutesFor } from './randomizer'
 import { mulberry32 } from './randomUtil'
 
@@ -266,5 +266,95 @@ describe('named splits', () => {
   it('uses the lifting style that fits the goal', () => {
     expect(generateProgram(base({ goal: 'strength', split: 'ppl' })).find((d) => !d.rest)?.style).toBe('strength')
     expect(generateProgram(base({ goal: 'muscle', split: 'ppl' })).find((d) => !d.rest)?.style).toBe('standard')
+  })
+})
+
+describe('progress carries over', () => {
+  const ids = (d: { items: { exerciseId: string }[] }) => d.items.map((p) => p.exerciseId)
+
+  it('a month repeats each lifting workout week to week (with the block\'s extra set and deload)', () => {
+    for (const split of ['ppl', 'upperlower', 'auto'] as const) {
+      const days = generateProgram(base({ weeks: 4, split, trainWeekdays: defaultWeekdays(4), rng: mulberry32(7) }))
+      const bySlot = new Map<string, typeof days>()
+      for (const d of days) if (d.slot) bySlot.set(d.slot, [...(bySlot.get(d.slot) ?? []), d])
+      expect(bySlot.size).toBeGreaterThan(0)
+      for (const same of bySlot.values()) {
+        for (const d of same) expect(ids(d)).toEqual(ids(same[0]))
+        const w1 = same.find((d) => d.weekIndex === 0)
+        const w3 = same.find((d) => d.weekIndex === 2)
+        if (w1 && w3) expect(w3.items.reduce((a, p) => a + p.sets, 0)).toBeGreaterThanOrEqual(w1.items.reduce((a, p) => a + p.sets, 0))
+      }
+    }
+  })
+
+  it('conditioning and cardio days stay varied', () => {
+    const days = generateProgram(base({ weeks: 4, goal: 'functional', trainWeekdays: defaultWeekdays(5) }))
+    for (const d of days) if (d.style && ['hyrox', 'crossfit', 'circuit'].includes(d.style)) expect(d.slot).toBeUndefined()
+  })
+
+  it('a new plan picks the lifts they have been logging', () => {
+    const logs: ExerciseLog[] = [
+      { date: '2026-09-21', exerciseId: 'Dumbbell_Bench_Press', sets: [{ weight: 60, reps: 10 }] },
+      { date: '2026-09-22', exerciseId: 'Seated_Cable_Rows', sets: [{ weight: 120, reps: 10 }] },
+      { date: '2026-09-23', exerciseId: 'Leg_Press', sets: [{ weight: 270, reps: 10 }] },
+    ]
+    const familiar = familiarLifts(logs, MONDAY)
+    expect([...familiar].sort()).toEqual(['Dumbbell_Bench_Press', 'Leg_Press', 'Seated_Cable_Rows'])
+    for (let seed = 1; seed <= 5; seed++) {
+      const all = generateProgram(base({ split: 'ppl', familiar, rng: mulberry32(seed) })).flatMap(ids)
+      for (const id of familiar) expect(all).toContain(id)
+    }
+  })
+
+  it('only counts recent lifting with real sets', () => {
+    const logs: ExerciseLog[] = [
+      { date: '2026-06-01', exerciseId: 'Leg_Press', sets: [{ weight: 270, reps: 10 }] }, // too long ago
+      { date: '2026-09-20', exerciseId: 'Dumbbell_Bench_Press', sets: [{ weight: 30, reps: 10, warmup: true }] }, // warm-up only
+      { date: '2026-09-20', exerciseId: 'Running_Treadmill', sets: [], cardio: { distance: 3, minutes: 30 } },
+      { date: '2026-09-29', exerciseId: 'Seated_Cable_Rows', sets: [{ weight: 120, reps: 10 }] }, // after the plan starts
+    ]
+    expect(familiarLifts(logs, MONDAY).size).toBe(0)
+  })
+
+  it('rerolling a lifting day changes it in every week', () => {
+    const days = generateProgram(base({ weeks: 4, split: 'ppl', rng: mulberry32(3) }))
+    const first = days.find((d) => d.slot)!
+    const next = rerollSlot(days, first.date, 45, 4, new Set(ids(first)), mulberry32(9))
+    const copies = next.filter((d) => d.slot === first.slot)
+    expect(ids(copies[0])).not.toEqual(ids(first))
+    for (const d of copies) expect(ids(d)).toEqual(ids(copies[0]))
+    expect(next.filter((d) => d.slot !== first.slot)).toEqual(days.filter((d) => d.slot !== first.slot))
+  })
+})
+
+describe('new lifts each month', () => {
+  const lookup = (id: string) => BUILTIN_BY_ID.get(id)
+  const session = (date: string, exerciseId: string, weight: number, reps = 10): ExerciseLog => ({ date, exerciseId, sets: [{ weight, reps }, { weight, reps }] })
+
+  it('swaps accessories done for a month, keeps main lifts and newer accessories', () => {
+    const logs = [
+      ...['2026-08-25', '2026-09-08', '2026-09-22'].map((d, i) => session(d, 'Leg_Extensions', 100 + i * 10)),
+      ...['2026-08-25', '2026-09-08', '2026-09-22'].map((d, i) => session(d, 'Barbell_Bench_Press_-_Medium_Grip', 155 + i * 10)),
+      ...['2026-09-15', '2026-09-22'].map((d) => session(d, 'Cable_Crossover', 40)),
+    ]
+    expect([...liftsToRotate(logs, MONDAY, lookup)]).toEqual(['Leg_Extensions'])
+  })
+
+  it('swaps a stalled accessory sooner', () => {
+    const logs = ['2026-09-14', '2026-09-18', '2026-09-22'].map((d) => session(d, 'Cable_Crossover', 40))
+    expect(liftsToRotate(logs, MONDAY, lookup).has('Cable_Crossover')).toBe(true)
+  })
+
+  it('a new plan leaves the swapped lifts out and keeps the rest', () => {
+    const logs = [
+      ...['2026-08-25', '2026-09-08', '2026-09-22'].map((d, i) => session(d, 'Leg_Extensions', 100 + i * 10)),
+      ...['2026-08-25', '2026-09-08', '2026-09-22'].map((d, i) => session(d, 'Barbell_Squat', 185 + i * 10, 5)),
+    ]
+    for (let seed = 1; seed <= 5; seed++) {
+      const all = generateProgram(base({ split: 'ppl', rng: mulberry32(seed), familiar: familiarLifts(logs, MONDAY), rotate: liftsToRotate(logs, MONDAY, lookup) }))
+        .flatMap((d) => d.items.map((p) => p.exerciseId))
+      expect(all).not.toContain('Leg_Extensions')
+      expect(all).toContain('Barbell_Squat')
+    }
   })
 })
