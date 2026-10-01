@@ -13,6 +13,8 @@ const SEC_PER_REP = 3.5
 const SET_SETUP = 15
 /** Warm-up sets are light, with short rests. */
 export const WARMUP_SET_MIN = 1.25
+/** A drop set: strip weight and go again straight away (no rest). */
+export const DROP_SET_MIN = 0.6
 
 /** Seconds of rest after a set of this exercise, before scaling by preference. */
 export function baseRest(ex: Exercise | undefined, reps?: number, seconds?: number): number {
@@ -42,7 +44,7 @@ export function liftMinutes(p: PlannedExercise, ex: Exercise | undefined, pref: 
   const rest = p.rest ?? restFor(ex, p.reps, p.seconds, pref)
   const sets = Math.max(1, p.sets)
   const secs = sets * workSeconds(p) + (sets - 1) * rest
-  return Math.round((secs / 60 + (p.warmupSets ?? 0) * WARMUP_SET_MIN + transitionMin(ex)) * 10) / 10
+  return Math.round((secs / 60 + (p.warmupSets ?? 0) * WARMUP_SET_MIN + (p.dropSets ?? 0) * DROP_SET_MIN + transitionMin(ex)) * 10) / 10
 }
 
 /** Minutes one more working set adds. */

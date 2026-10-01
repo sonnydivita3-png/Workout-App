@@ -24,6 +24,8 @@ export interface StrengthSet {
   seconds?: number | null // timed exercises
   /** Warm-up sets don't count toward records, volume or progress. */
   warmup?: boolean
+  /** A drop set (after the working sets). Doesn't count toward "beat last time" or bests. */
+  drop?: boolean
   /** How hard it felt, 1-10 (10 = nothing left). */
   rpe?: number | null
   /** Ticked ✓ (false = unticked on purpose). Older sets without it count as ticked when they have numbers. */
@@ -97,6 +99,8 @@ export interface PlannedExercise {
   rest?: number
   /** Light ramp-up sets before the working sets. */
   warmupSets?: number
+  /** Drop sets after the last working set: lighter each time, to failure, no rest. */
+  dropSets?: number
   /** Part of the warm-up (easy cardio or mobility), not the workout itself: not tracked as progress. */
   warmup?: boolean
 }

@@ -485,6 +485,41 @@ test('warm-up sets stay with the first two weight lifts when the day is reordere
   await expect(page.getByText(/^(Arms|Chest|Legs|Full body|Upper body|Arms & legs)[^,]* · \d+ exercises?$/).first()).toBeVisible()
 })
 
+test('drop sets: add them to a planned exercise or let Make me a workout add them', async ({ page }) => {
+  await seed(page, { overrides: { [iso(0)]: [{ exerciseId: 'Dumbbell_Bicep_Curl', sets: 2, reps: 10 }] } })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Start workout' }).click()
+  await page.getByRole('button', { name: 'Dumbbell Curl options' }).click()
+  await page.getByRole('button', { name: 'Add a drop set' }).click()
+  await page.getByRole('button', { name: 'Dumbbell Curl options' }).click()
+  await page.getByRole('button', { name: 'Add another drop set' }).click()
+  await expect(page.getByText(/\+2 drop/)).toBeVisible()
+  await page.getByRole('spinbutton', { name: 'Set 2 lb', exact: true }).fill('40')
+  await page.getByRole('button', { name: 'Set 2 done', exact: true }).click()
+  // Each drop is about 20% lighter: 40 → 30 → 25 (rounded to the 5 lb dumbbell step).
+  await page.getByRole('button', { name: 'Drop set 1 done' }).click()
+  await page.getByRole('button', { name: 'Drop set 2 done' }).click()
+  await expect(page.getByRole('spinbutton', { name: 'Drop set 1 lb' })).toHaveValue('30')
+  await expect(page.getByRole('spinbutton', { name: 'Drop set 2 lb' })).toHaveValue('25')
+  let s = await state(page)
+  expect(s.logs[0].sets.slice(-2).map((x: { drop?: boolean; weight: number }) => [x.drop, x.weight])).toEqual([[true, 30], [true, 25]])
+  // Delete one from its set menu.
+  await page.getByRole('button', { name: 'Drop set 2 options' }).click()
+  await page.getByRole('button', { name: 'Delete this drop set' }).click()
+  s = await state(page)
+  expect(s.overrides[iso(0)][0].dropSets).toBe(1)
+  expect(s.logs[0].sets.filter((x: { drop?: boolean }) => x.drop)).toHaveLength(1)
+
+  // The randomizer can add them too.
+  await page.getByRole('button', { name: '+ Add', exact: true }).click()
+  await page.locator('.fixed').getByText('Make me a workout').click()
+  const sheet = page.locator('.fixed')
+  await sheet.getByRole('button', { name: 'Upper body', exact: true }).click()
+  await sheet.getByRole('button', { name: 'Add drop sets' }).click()
+  await sheet.getByRole('button', { name: /^Generate/ }).click()
+  await expect(sheet.getByText(/\+2 drop sets/).first()).toBeVisible()
+})
+
 test('reorder a day and build supersets of any size', async ({ page }) => {
   const today = new Date().toISOString().slice(0, 10)
   const ex = ['Barbell_Bench_Press_-_Medium_Grip', 'Bent_Over_Barbell_Row', 'Dumbbell_Bicep_Curl', 'Triceps_Pushdown']

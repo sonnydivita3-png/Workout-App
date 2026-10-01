@@ -3,7 +3,7 @@ import { hasGear } from './equipment'
 import type { Exercise, PlannedExercise } from '../types'
 import { generateCrossfit, generateHyrox, generateTimed } from './functionalStyles'
 import { liftMinutes, REST_SCALE, restFor, transitionMin, WARMUP_SET_MIN, workSeconds, type RestPref } from './timing'
-import { placeWarmups } from './warmups'
+import { addDropSets, placeWarmups } from './warmups'
 import { cardioSplit, likedCardio, wodAmount, wodCardio } from './cardioPrefs'
 import { expandParts, FULL_BODY_ORDER, isFullBody, LOWER_PARTS, UPPER_PARTS, BODY_PARTS } from './bodyParts'
 import { BY_ID, familyOf, FULL_BODY_GROUPS, isAdvanced, isIsolation, isMainLift, isQuirky, isStaple, isTechnical, POOL, pick, roundTo5, shuffle, softShuffle, type Rng } from './randomUtil'
@@ -682,6 +682,8 @@ export interface GenerateOptions {
   rest?: RestPref
   /** Warm-up before the workout; its minutes are part of `minutes`. */
   warmup?: WarmupOptions
+  /** Finish the last two weight lifts with drop sets (their time is part of `minutes`). */
+  dropSets?: boolean
 }
 
 /**
@@ -717,6 +719,12 @@ function generateMixed(focus: string[], minutes: number, styles: WorkoutStyle[],
 export function generateWorkout(focusIn: string[], minutes: number, opts: GenerateOptions = {}): PlannedExercise[] {
   // Older saved choices (and some plans) say Legs or Arms: those mean every part of them.
   const focus = expandParts(focusIn)
+  if (opts.dropSets) {
+    // Two drops on two lifts take about 2.5 minutes; leave room for them in the time asked for.
+    const lifting = (opts.styles ?? [opts.style ?? 'standard']).some((st) => ['standard', 'strength', 'supersets'].includes(st))
+    const base = generateWorkout(focus, lifting ? minutes - 2.5 : minutes, { ...opts, dropSets: false })
+    return lifting ? addDropSets(base, (id) => BY_ID.get(id)) : base
+  }
   const w = opts.warmup ?? {}
   const warmMin = (w.cardio ?? 0) + (w.mobility ?? 0)
   if (warmMin > 0) {

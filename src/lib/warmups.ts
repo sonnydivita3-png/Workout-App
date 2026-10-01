@@ -1,6 +1,6 @@
 import type { Exercise, PlannedExercise } from '../types'
 
-/** Warm-up sets are for weight lifting: never bodyweight moves, core, cardio, holds or timed blocks. */
+/** Warm-up sets (and drop sets) are for weight lifting: never bodyweight moves, core, cardio, holds or timed blocks. */
 export const takesWarmup = (e?: Exercise) =>
   !!e && e.kind === 'strength' && (e.mode ?? 'weight') === 'weight' && e.group !== 'Core' && e.equipment !== 'Bodyweight'
 
@@ -23,4 +23,16 @@ export function placeWarmups(items: PlannedExercise[], lookup: (id: string) => E
     return want ? { ...rest, warmupSets: want } : rest
   })
   return changed ? out : items
+}
+
+/**
+ * Drop sets for a generated workout: two drops on the last two weight-lifting exercises, where they're most useful and
+ * safest (dumbbells, cables and machines rather than a heavy barbell lift when there's a choice).
+ */
+export function addDropSets(items: PlannedExercise[], lookup: (id: string) => Exercise | undefined, drops = 2): PlannedExercise[] {
+  const ok = (p: PlannedExercise) => !p.warmup && !p.wod && !(p.block && !p.block.includes('ss')) && takesWarmup(lookup(p.exerciseId))
+  const idx = items.map((p, i) => (ok(p) ? i : -1)).filter((i) => i >= 0)
+  const light = idx.filter((i) => lookup(items[i].exerciseId)?.equipment !== 'Barbell')
+  const pick = (light.length >= 2 ? light : idx).slice(-2)
+  return items.map((p, i) => (pick.includes(i) ? { ...p, dropSets: drops } : p))
 }

@@ -1,8 +1,10 @@
 import type { Exercise, ExerciseLog, StrengthSet, Units } from '../types'
 import { epley } from './stats'
 
-/** Working sets with data (warm-ups left out). */
-export const workSets = (l?: ExerciseLog): StrengthSet[] => (l?.sets ?? []).filter((s) => !s.warmup && (s.weight || s.reps || s.seconds))
+/** Working sets with data (warm-ups and drop sets left out). */
+export const workSets = (l?: ExerciseLog): StrengthSet[] => (l?.sets ?? []).filter((s) => !s.warmup && !s.drop && (s.weight || s.reps || s.seconds))
+/** Drop sets with data. */
+export const dropSetsOf = (l?: ExerciseLog): StrengthSet[] => (l?.sets ?? []).filter((s) => s.drop && (s.weight || s.reps))
 
 const LOWER = ['Quads', 'Hamstrings', 'Glutes', 'Legs']
 

@@ -9,6 +9,7 @@ const h3 = 'mb-2 text-sm font-semibold text-neutral-700'
 export function WarmupRestControls({ lifting, onWarmupChange }: { lifting: boolean; onWarmupChange?: () => void }) {
   const warm = useStore((s) => s.genPrefs.warmup)
   const rest = useStore((s) => s.genPrefs.rest)
+  const drops = useStore((s) => !!s.genPrefs.drops)
   const setGenPrefs = useStore((s) => s.setGenPrefs)
   const toggle = (k: WarmupKind) => { setGenPrefs({ warmup: warm.includes(k) ? warm.filter((x) => x !== k) : [...warm, k] }); onWarmupChange?.() }
   const parts = [
@@ -40,6 +41,11 @@ export function WarmupRestControls({ lifting, onWarmupChange }: { lifting: boole
           <p className="mb-5 text-xs text-neutral-400">
             {rest === 'short' ? 'About 1–1.5 min on heavy lifts, 45–60 s otherwise: more work in less time.' : rest === 'long' ? 'About 3+ min on heavy lifts and 2 min otherwise: best for strength.' : 'About 2–2.5 min on heavy lifts, 60–90 s on lighter ones.'} The time estimate uses this.
           </p>
+          <h3 className={h3}>Drop sets</h3>
+          <div className="mb-1 flex gap-2">
+            <button onClick={() => setGenPrefs({ drops: !drops })} aria-pressed={drops} className={chip(drops)}>Add drop sets</button>
+          </div>
+          <p className="mb-5 text-xs text-neutral-400">{drops ? 'The last two weight lifts finish with 2 drop sets: about 20% lighter each time, to failure, no rest.' : 'Finish the last lifts by stripping weight and going again. You can also add them to any exercise from its ⋯ menu.'}</p>
         </>
       )}
     </>
