@@ -15,6 +15,7 @@ import type { Tab } from '../TabBar'
 import { ChallengeDetailSheet } from './ChallengeDetailSheet'
 import { MakeForFriendSheet } from './MakeForFriendSheet'
 import { InviteButton } from '../InviteButton'
+import { ConnectionStatus } from './ConnectionStatus'
 
 type Section = 'inbox' | 'friends' | 'challenges'
 
@@ -132,6 +133,7 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         <h1 className="text-2xl font-semibold tracking-tight">Social</h1>
         {profile && <span className="flex items-center gap-2 text-sm text-neutral-400"><Avatar profile={profile} size="sm" />@{profile.handle}</span>}
       </header>
+      <div className="-mt-3 mb-4"><ConnectionStatus /></div>
       <div className="mb-4 flex gap-2">
         <button onClick={() => setSection('inbox')} className={chip(section === 'inbox')}>Inbox{pending > 0 ? ` (${pending})` : ''}</button>
         <button onClick={() => setSection('friends')} className={chip(section === 'friends')}>Friends</button>
