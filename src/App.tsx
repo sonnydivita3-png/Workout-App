@@ -1,3 +1,4 @@
+import { UpdateBanner } from './components/UpdateBanner'
 import { useEffect, useState } from 'react'
 import { HistoryView } from './components/HistoryView'
 import { HomeView } from './components/HomeView'
@@ -60,6 +61,7 @@ export default function App() {
         {conflict && tab !== 'settings' && (
           <button onClick={() => navigate('settings', 'data')} className="mb-3 w-full rounded-2xl bg-amber-50 px-4 py-2.5 text-left text-sm text-amber-800">⚠️ Your backup and this phone both changed. Tap to choose which to keep.</button>
         )}
+        <UpdateBanner />
         {tab !== 'settings' && <InviteBanner />}
         {tab === 'home' && <HomeView onNavigate={navigate} />}
         {tab === 'plan' && <PlanView key={sub ?? 'default'} initialAction={sub} />}

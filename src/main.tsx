@@ -6,6 +6,7 @@ import { registerSW } from 'virtual:pwa-register'
 import { requestPersistentStorage } from './lib/install'
 import { installErrorLog } from './lib/feedback'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { startUpdateChecks } from './lib/appUpdate'
 
 // Reload onto new versions as soon as they're available, and re-check whenever the app is reopened.
 const updateSW = registerSW({
@@ -17,6 +18,7 @@ const updateSW = registerSW({
   },
 })
 void updateSW
+startUpdateChecks()
 void requestPersistentStorage()
 installErrorLog()
 
