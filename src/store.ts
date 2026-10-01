@@ -14,7 +14,7 @@ import { placeWarmups } from './lib/warmups'
 import { setCardioPrefs } from './lib/cardioPrefs'
 import { activePrograms, clearRange, removeProgramDays } from './lib/programs'
 import type {
-  AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Benchmark, Sport, TimedLog, StrengthSet, Units, WeekPlan,
+  AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Benchmark, AboutMe, Sport, TimedLog, StrengthSet, Units, WeekPlan,
 } from './types'
 
 export interface TrainingPrefs {
@@ -66,6 +66,9 @@ interface State extends Data {
   /** Workout styles and cardio the person likes (from first-run setup or Settings). Empty means no preference. */
   trainingPrefs: TrainingPrefs
   setTrainingPrefs: (p: Partial<TrainingPrefs>) => void
+  /** Optional sex, birth year and height, for personal calorie estimates. */
+  aboutMe: AboutMe
+  setAboutMe: (p: Partial<AboutMe>) => void
   /** Equipment filter last used in the exercise picker ('Any' for no filter). */
   pickerEquipment: string
   setPickerEquipment: (e: string) => void
@@ -248,6 +251,7 @@ const defaults = () => ({
   finishedDays: [] as string[],
   equipment: null as string[] | null,
   trainingPrefs: { styles: [], cardio: [], cardioSplit: false } as TrainingPrefs,
+  aboutMe: { sex: null, birthYear: null, heightIn: null } as AboutMe,
   nudgeSnooze: {} as Record<string, number>,
   tourDone: false,
   tourVersion: 0,
@@ -268,7 +272,7 @@ export const useStore = create<State>()(
           theme: s.theme,
           accent: s.accent,
           // Erasing turns cloud backup off, so the cloud copy stays as a safety net rather than being wiped too.
-          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone, tourVersion: s.tourVersion, onboarded: s.onboarded, tipsSeen: s.tipsSeen, equipment: s.equipment, trainingPrefs: s.trainingPrefs } : {}),
+          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone, tourVersion: s.tourVersion, onboarded: s.onboarded, tipsSeen: s.tipsSeen, equipment: s.equipment, trainingPrefs: s.trainingPrefs, aboutMe: s.aboutMe } : {}),
         })),
       pushNotifications: (items) => {
         const existing = new Map(get().notifications.map((n) => [n.id, n]))
@@ -375,6 +379,7 @@ export const useStore = create<State>()(
       setOnboarded: (onboarded) => set({ onboarded }),
       setPickerEquipment: (pickerEquipment) => set({ pickerEquipment }),
       // Once someone says what they have, the exercise picker starts on "My equipment" too.
+      setAboutMe: (p) => set((s) => ({ aboutMe: { ...s.aboutMe, ...p } })),
       setTrainingPrefs: (p) => set((s) => ({ trainingPrefs: { ...s.trainingPrefs, ...p } })),
       setEquipment: (equipment) =>
         set((s) => ({ equipment, pickerEquipment: equipment && s.pickerEquipment === 'Any' ? 'Mine' : !equipment && s.pickerEquipment === 'Mine' ? 'Any' : s.pickerEquipment })),

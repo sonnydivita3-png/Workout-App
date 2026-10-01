@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { parseGpx } from '../lib/gpx'
-import { bodyweightOn, estimateCalories } from '../lib/calories'
+import { bodyweightOn, estimateCalories, hasPersonalDetails } from '../lib/calories'
 import { formatPace, showDistance, showWeight, storeDistance } from '../lib/units'
 import { useToday } from '../lib/useToday'
 import { useStore } from '../store'
@@ -29,6 +29,7 @@ interface Props {
 export function CardioCard({ exercise, current, last, targetMinutes, targetDistance, note, onChange, onRemove, onSwap, readOnly, date }: Props) {
   const units = useStore((s) => s.units)
   const bodyweight = useStore((s) => s.bodyweight)
+  const aboutMe = useStore((s) => s.aboutMe)
   const today = useToday()
   const c = current?.cardio ?? { distance: null, minutes: null }
   const prev = last?.cardio
@@ -79,8 +80,10 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
       )}
       {!readOnly && (() => {
         // Calories: theirs (e.g. from a watch) if typed in, else an estimate from bodyweight, activity, time and pace.
-        const lb = bodyweightOn(bodyweight, date ?? current?.date ?? today)
-        const est = estimateCalories(exercise.id, c, lb)
+        const day = date ?? current?.date ?? today
+        const lb = bodyweightOn(bodyweight, day)
+        const est = estimateCalories(exercise.id, c, lb, aboutMe, day)
+        const personal = hasPersonalDetails(aboutMe)
         const own = c.calories != null && c.calories > 0
         return (
           <div className="mt-3 flex items-start gap-3">
@@ -90,7 +93,7 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
             </label>
             <p className="pt-5 text-xs text-neutral-400">
               {own ? 'Your number (e.g. from your watch).'
-                : est != null ? <><b className="font-medium text-neutral-600">≈{est} cal, estimated</b> from your bodyweight ({showWeight(lb, units)} {units.weight}), the activity and its time{c.distance ? ' and pace' : ''}. Type your watch’s number to use that instead.</>
+                : est != null ? <><b className="font-medium text-neutral-600">≈{est} cal, estimated</b> from your bodyweight ({showWeight(lb, units)} {units.weight}){personal ? ', sex, age, height' : ''}, the activity and its time{c.distance ? ' and pace' : ''}. {personal ? '' : 'Add sex, age and height in Settings → Profile for a closer estimate. '}Type your watch’s number to use that instead.</>
                 : !lb ? <>Estimated calories need your <b className="font-medium text-neutral-600">bodyweight</b> (add it in Progress → Body), plus this workout’s minutes. Or type your watch’s number.</>
                 : 'Log the minutes to see estimated calories, or type your watch’s number.'}
             </p>

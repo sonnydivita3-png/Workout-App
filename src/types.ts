@@ -144,6 +144,13 @@ export interface Measurement {
   bodyfat?: number
 }
 
+/** Optional details that make calorie estimates personal (resting burn). Height in inches. */
+export interface AboutMe {
+  sex: 'male' | 'female' | null
+  birthYear: number | null
+  heightIn: number | null
+}
+
 export interface BodyweightEntry {
   date: string
   lb: number

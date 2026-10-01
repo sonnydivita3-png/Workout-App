@@ -1,9 +1,13 @@
-import type { BodyweightEntry, CardioEntry, ExerciseLog } from '../types'
+import type { AboutMe, BodyweightEntry, CardioEntry, ExerciseLog } from '../types'
 
 /**
  * Cardio calories, the standard way: MET (how hard the activity is, from the Compendium of Physical Activities)
  * × bodyweight in kg × hours. Speed sets the MET for running, walking and cycling when a distance is logged.
- * Bodyweight is the only personal detail it needs. It's an estimate, about as rough as a watch's.
+ *
+ * That's the gross burn, which includes what the body burns anyway at rest. Like most watches, we show the net:
+ * the exercise on top of resting. Resting burn comes from Mifflin-St Jeor when sex, age and height are set,
+ * else the standard 1 MET (about 1 kcal per kg per hour). Bodyweight is the only detail that's required.
+ * It's an estimate, about as rough as a watch's.
  */
 
 /** [mph, MET] points, interpolated between. */
@@ -55,10 +59,32 @@ export function bodyweightOn(entries: BodyweightEntry[], date: string): number |
   return (before ?? sorted[0])?.lb ?? null
 }
 
-/** Estimated calories for a cardio log, or null without minutes or a bodyweight. */
-export function estimateCalories(exerciseId: string, c: Pick<CardioEntry, 'distance' | 'minutes'>, lb: number | null): number | null {
+const KG_PER_LB = 1 / 2.20462262
+
+/** Age on a date from a birth year (good enough for a resting-burn estimate). */
+const ageOn = (birthYear: number, date: string) => Number(date.slice(0, 4)) - birthYear
+
+/** Whether resting burn can be personal: a believable birth year and height (sex refines it). */
+export const hasPersonalDetails = (me?: AboutMe | null) =>
+  !!me?.birthYear && me.birthYear > 1900 && me.birthYear <= new Date().getFullYear() - 10 && !!me.heightIn && me.heightIn >= 36 && me.heightIn <= 96
+
+/**
+ * Resting burn in kcal per hour. Mifflin-St Jeor with age and height (sex adds +5 for men, −161 for women, halfway
+ * between if not set); without them, 1 MET.
+ */
+export function restingPerHour(lb: number, date: string, me?: AboutMe | null): number {
+  const kg = lb * KG_PER_LB
+  if (!hasPersonalDetails(me)) return kg
+  const s = me!.sex === 'male' ? 5 : me!.sex === 'female' ? -161 : -78
+  return (10 * kg + 6.25 * me!.heightIn! * 2.54 - 5 * ageOn(me!.birthYear!, date) + s) / 24
+}
+
+/** Estimated (net) calories for a cardio log, or null without minutes or a bodyweight. */
+export function estimateCalories(exerciseId: string, c: Pick<CardioEntry, 'distance' | 'minutes'>, lb: number | null, me?: AboutMe | null, date = new Date().toISOString().slice(0, 10)): number | null {
   if (!lb || !c.minutes || c.minutes <= 0) return null
-  return Math.round(metFor(exerciseId, c) * (lb / 2.20462262) * (c.minutes / 60))
+  const hours = c.minutes / 60
+  const gross = metFor(exerciseId, c) * lb * KG_PER_LB * hours
+  return Math.max(0, Math.round(gross - restingPerHour(lb, date, me) * hours))
 }
 
 export interface CalorieTotal {
@@ -73,11 +99,11 @@ export interface CalorieTotal {
  * Calories from every cardio log between two dates (inclusive): steady cardio, and the runs, rows and rides inside
  * Hyrox and timed workouts. Lifting isn't counted (estimates for it are unreliable).
  */
-export function caloriesBetween(logs: ExerciseLog[], bodyweight: BodyweightEntry[], from: string, to: string): CalorieTotal {
+export function caloriesBetween(logs: ExerciseLog[], bodyweight: BodyweightEntry[], from: string, to: string, me?: AboutMe | null): CalorieTotal {
   const out = { total: 0, estimated: 0, missing: 0 }
   for (const l of logs) {
     if (!l.cardio || l.date < from || l.date > to) continue
-    const cal = caloriesOf(l, bodyweight)
+    const cal = caloriesOf(l, bodyweight, me)
     if (cal) {
       out.total += cal.kcal
       if (cal.estimated) out.estimated += cal.kcal
@@ -87,9 +113,9 @@ export function caloriesBetween(logs: ExerciseLog[], bodyweight: BodyweightEntry
 }
 
 /** Calories for a cardio log: what they entered (e.g. from a watch), else the estimate. */
-export function caloriesOf(l: ExerciseLog, bodyweight: BodyweightEntry[]): { kcal: number; estimated: boolean } | null {
+export function caloriesOf(l: ExerciseLog, bodyweight: BodyweightEntry[], me?: AboutMe | null): { kcal: number; estimated: boolean } | null {
   if (!l.cardio) return null
   if (l.cardio.calories != null && l.cardio.calories > 0) return { kcal: l.cardio.calories, estimated: false }
-  const est = estimateCalories(l.exerciseId, l.cardio, bodyweightOn(bodyweight, l.date))
+  const est = estimateCalories(l.exerciseId, l.cardio, bodyweightOn(bodyweight, l.date), me, l.date)
   return est == null ? null : { kcal: est, estimated: true }
 }
