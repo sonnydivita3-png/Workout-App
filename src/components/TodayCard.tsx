@@ -38,7 +38,10 @@ export function TodayCard({ onNavigate }: { onNavigate: (t: Tab, part?: string) 
       <>
         <p className="text-lg font-semibold">Done for today ✓</p>
         <p className="mb-3 text-sm text-neutral-500">{upcoming.length === 0 ? `All ${planned.length} exercise${planned.length === 1 ? '' : 's'} logged.` : `${planned.length - upcoming.length} of ${planned.length} exercises logged.`} Nice work.</p>
-        <button onClick={start} className="rounded-full bg-neutral-100 px-4 py-1.5 text-sm text-neutral-600">Add more</button>
+        <div className="flex gap-2">
+          <button onClick={start} className="rounded-full bg-neutral-100 px-4 py-1.5 text-sm text-neutral-600">Open workout</button>
+          {s.finishedDays.includes(today) && <button onClick={() => s.unfinishDay(today)} className="rounded-full bg-neutral-100 px-4 py-1.5 text-sm text-neutral-600">Not done yet</button>}
+        </div>
       </>
     )
   } else if (planned.length > 0) {
@@ -82,7 +85,7 @@ export function TodayCard({ onNavigate }: { onNavigate: (t: Tab, part?: string) 
             </button>
           )}
           <button onClick={() => setRandomize(true)} className={option}>
-            <span><span className="block font-medium">Make a workout</span><span className="block text-sm text-neutral-500">Pick body parts and time, get a full workout</span></span>
+            <span><span className="block font-medium">Make me a workout</span><span className="block text-sm text-neutral-500">Pick body parts and time, get a full workout</span></span>
             <span className="text-neutral-400">›</span>
           </button>
           <button onClick={() => onNavigate('plan', 'add')} className={option}>

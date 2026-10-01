@@ -20,7 +20,8 @@ test('suggests the next step and marks sets that beat last time', async ({ page 
   const s = await state(page)
   expect(s.logs.find((l: { date: string }) => l.date === iso(0)).sets.map((x: { weight: number }) => x.weight)).toEqual([140, 140, 140])
   // warm-up sets don't count
-  await page.getByRole('button', { name: /Set 1; tap to mark as warm-up/ }).click()
+  await page.getByRole('button', { name: 'Set 1 options' }).click()
+  await page.getByRole('button', { name: /Make it a warm-up/ }).click()
   await expect(page.getByText('▲ Beat last time on 2 sets')).toBeVisible()
   // plates and how-to (plates are under the exercise's ⋯)
   await page.getByRole('button', { name: 'Bench Press options' }).click()

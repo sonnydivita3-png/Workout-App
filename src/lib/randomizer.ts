@@ -3,6 +3,7 @@ import { hasGear } from './equipment'
 import type { Exercise, PlannedExercise } from '../types'
 import { generateCrossfit, generateHyrox, generateTimed } from './functionalStyles'
 import { liftMinutes, REST_SCALE, restFor, transitionMin, WARMUP_SET_MIN, workSeconds, type RestPref } from './timing'
+import { placeWarmups } from './warmups'
 import { cardioSplit, likedCardio, wodAmount, wodCardio } from './cardioPrefs'
 import { expandParts, FULL_BODY_ORDER, isFullBody, LOWER_PARTS, UPPER_PARTS, BODY_PARTS } from './bodyParts'
 import { BY_ID, familyOf, FULL_BODY_GROUPS, isAdvanced, isIsolation, isMainLift, isQuirky, isStaple, isTechnical, POOL, pick, roundTo5, shuffle, softShuffle, type Rng } from './randomUtil'
@@ -382,14 +383,9 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
   // Warm-up sets before the heavy lifts: more before the first one, fewer after (you're already warm).
   const warmups = () => {
     if (!opts.warmupSets) return
-    for (const p of items) delete p.warmupSets
-    let n = 0
-    for (const p of items) {
-      const e = BY_ID.get(p.exerciseId)
-      if (!e || !(isHeavyLift(e) || (e.mode === 'weight' && equipmentRank(e) === 0))) continue
-      p.warmupSets = n === 0 ? (cfg.mains ? 3 : 2) : n === 1 ? 2 : 1
-      if (++n === 3) break
-    }
+    // The first two weight lifts get them (never bodyweight or core), as on any day you edit later.
+    const placed = placeWarmups(items.map(({ warmupSets: _w, ...p }) => (void _w, p)), (id) => BY_ID.get(id), cfg.mains ? 3 : 2)
+    items.splice(0, items.length, ...placed)
   }
   warmups()
   // Strength is about the main lifts: give them up to 5 sets before accessories, within about 60% of the time.
@@ -511,10 +507,7 @@ function pickSupersets(groups: string[], minutes: number, rng: Rng, avoid: Set<s
     }
     if (pick) best = [...best, pick]
   }
-  if (opts.warmupSets && best[0]) {
-    const e = BY_ID.get(best[0].exerciseId)
-    if (e && e.mode === 'weight' && equipmentRank(e) <= 1) best[0] = { ...best[0], warmupSets: 2 }
-  }
+  if (opts.warmupSets) best = placeWarmups(best, (id) => BY_ID.get(id), 2)
   // Spread each pair's time over its two exercises for the per-item estimate.
   for (let i = 0; i < best.length; ) {
     const a = best[i]

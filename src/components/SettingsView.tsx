@@ -182,7 +182,7 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
       <p className="text-sm text-neutral-500">Generated workouts and plans only use what you have. You can still add any exercise yourself.</p>
       <EquipmentPicker />
       <h2 className="pt-4 text-sm font-semibold text-neutral-700">Workouts you like</h2>
-      <p className="text-sm text-neutral-500">Plans and “Make a workout” lean towards these.</p>
+      <p className="text-sm text-neutral-500">Plans and “Make me a workout” lean towards these.</p>
       <LikedStylesPicker />
       <h2 className="pt-4 text-sm font-semibold text-neutral-700">Cardio you like</h2>
       <p className="text-sm text-neutral-500">Used for cardio days, finishers and warm-ups, and as stations in CrossFit-style, HIIT and timed workouts.</p>

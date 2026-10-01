@@ -3,7 +3,9 @@ import { BUILTIN_BY_ID } from '../../data/exercises'
 import { addDays, fmtLong, parseISO, toISO } from '../../lib/dates'
 import { MUSCLE_GROUPS, weeklySets } from '../../lib/muscles'
 import { workSets } from '../../lib/progression'
+import { workoutTitle } from '../../lib/plan'
 import { hasData } from '../../lib/stats'
+import type { Exercise } from '../../types'
 import { workoutSummary } from '../../lib/summary'
 import { formatPace, formatSeconds, showDistance, showWeight } from '../../lib/units'
 import { useToday } from '../../lib/useToday'
@@ -93,7 +95,10 @@ export function WorkoutsTab() {
                 <button onClick={() => setOpenDay(d)} className="flex w-full items-center justify-between gap-3 rounded-2xl bg-surface p-4 text-left shadow-sm ring-1 ring-neutral-200/70">
                   <span className="min-w-0">
                     <span className="block font-medium">{fmtLong(d)}</span>
-                    <span className="block line-clamp-2 text-xs text-neutral-400">{[...new Set(days.get(d))].map((id) => lookup(id)?.name).filter(Boolean).join(', ')}</span>
+                    <span className="block text-xs text-neutral-400">{(() => {
+                      const exs = [...new Set(days.get(d))].map(lookup).filter((e): e is Exercise => !!e)
+                      return `${workoutTitle(exs)} · ${exs.length} exercise${exs.length === 1 ? '' : 's'}`
+                    })()}</span>
                   </span>
                   <span className="shrink-0 text-right text-xs">
                     {s.beat > 0 && <span className="block font-medium text-green-600">▲ {s.beat} improved</span>}

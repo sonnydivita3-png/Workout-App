@@ -35,3 +35,17 @@ describe('unfinished', () => {
     expect(u.map((x) => [x.exerciseId, x.done, x.planned])).toEqual([[B, 2, 3], ['running', 0, 1]])
   })
 })
+
+describe('ticked sets', () => {
+  it('counts ticked sets, and older sets with numbers; typed but unticked sets are not done yet', () => {
+    const items = [{ exerciseId: 'Pushups', sets: 4 }]
+    const sets = [
+      { weight: null, reps: 10, done: true },
+      { weight: null, reps: 10 }, // saved before ticks existed
+      { weight: null, reps: 12, done: false }, // typed, not ticked
+      { weight: null, reps: null, done: false },
+    ]
+    const u = unfinished('d', items, [{ date: 'd', exerciseId: 'Pushups', sets }], (id) => BUILTIN_BY_ID.get(id))
+    expect(u.map((x) => [x.done, x.planned])).toEqual([[2, 4]])
+  })
+})

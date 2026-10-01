@@ -1,3 +1,4 @@
+import { useToday } from '../lib/useToday'
 import { useState } from 'react'
 import { describeItem } from '../lib/describe'
 import { derivedLogs, emomIntervals, formatResult, tabataOf, wodOf, wodSignature, wodTitle } from '../lib/wod'
@@ -27,6 +28,8 @@ export function TimedBlockCard({ items, date, onRemove }: { items: PlannedExerci
   const [capped, setCapped] = useState(saved?.capped ?? false)
 
   const name = (id: string) => findExercise(custom, id)?.name ?? 'Exercise'
+  // A future day shows the workout; the clock and the result are for the day itself.
+  const future = date > useToday()
   const showForm = !saved || editing
 
   const draft = (): Omit<TimedLog, 'id'> | null => {
@@ -68,6 +71,7 @@ export function TimedBlockCard({ items, date, onRemove }: { items: PlannedExerci
       </ul>
       {last && <p className="mb-3 text-xs text-neutral-400">Last time: {formatResult(last)}</p>}
 
+      {future ? <p className="text-sm text-neutral-500">Start the clock and log your result on the day.</p> : <>
       <button onClick={() => setTimer(true)} className="mb-3 w-full rounded-xl bg-neutral-100 py-2 text-sm font-medium text-neutral-700">⏱ Start timer</button>
 
       {showForm ? (
@@ -125,6 +129,7 @@ export function TimedBlockCard({ items, date, onRemove }: { items: PlannedExerci
           </span>
         </div>
       )}
+      </>}
 
       {timer && (
         <TimerSheet

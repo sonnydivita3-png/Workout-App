@@ -10,6 +10,7 @@ import type { RestPref } from './lib/timing'
 import type { WorkoutStyle } from './lib/randomizer'
 
 import { setOwnedGear } from './lib/equipment'
+import { placeWarmups } from './lib/warmups'
 import { setCardioPrefs } from './lib/cardioPrefs'
 import { activePrograms, clearRange, removeProgramDays } from './lib/programs'
 import type {
@@ -73,6 +74,8 @@ interface State extends Data {
   /** Dates marked "Workout complete" (even if some planned sets weren't logged). */
   finishedDays: string[]
   finishDay: (date: string) => void
+  /** Undo "Workout complete" (tapped by mistake, or there's more to do). */
+  unfinishDay: (date: string) => void
   /** Replace a date's exercises (reordered, grouped into supersets...). */
   setDayItems: (date: string, items: PlannedExercise[]) => void
   /** Make a date's exercises the usual plan for that weekday (every week). */
@@ -181,10 +184,11 @@ interface State extends Data {
 const emptyPlan = (): WeekPlan => Array.from({ length: 7 }, () => [])
 
 /** Apply `fn` to a date's exercises, editing its override if present, else the weekly template. */
-function editDay(s: Pick<Data, 'plan' | 'overrides'>, date: string, fn: (items: PlannedExercise[]) => PlannedExercise[]) {
+function editDay(s: Pick<Data, 'plan' | 'overrides' | 'custom'>, date: string, fn: (items: PlannedExercise[]) => PlannedExercise[]) {
   // Edits apply to this date only; "Repeat every <weekday>" (setUsualDay) is how a day becomes part of the usual week.
   const template = s.plan[weekdayIndex(parseISO(date))]
-  const next = fn(s.overrides[date] ?? template)
+  // Warm-up sets stay with the first two lifts, whatever is added, removed, swapped or reordered.
+  const next = placeWarmups(fn(s.overrides[date] ?? template), (id) => findExercise(s.custom, id))
   if (next.length === 0 && template.length === 0) {
     // Nothing left and nothing usually planned: just an empty day, not a rest day.
     const { [date]: _gone, ...rest } = s.overrides
@@ -352,9 +356,9 @@ export const useStore = create<State>()(
       copyDay: (from, to) =>
         set((s) => {
           const items = dayPlanOf(s.plan, s.overrides, from)
-          let next: Pick<Data, 'plan' | 'overrides'> = { plan: s.plan, overrides: s.overrides }
+          let next: Pick<Data, 'plan' | 'overrides' | 'custom'> = { plan: s.plan, overrides: s.overrides, custom: s.custom }
           for (const date of to) if (date !== from) next = { ...next, ...editDay(next, date, () => items.map((p) => ({ ...p }))) }
-          return next
+          return { plan: next.plan, overrides: next.overrides }
         }),
       applyProgram: (days) => set((s) => ({ overrides: { ...s.overrides, ...days } })),
       setSocialChoice: (socialChoice) => set({ socialChoice }),
@@ -367,6 +371,7 @@ export const useStore = create<State>()(
         set((s) => ({ equipment, pickerEquipment: equipment && s.pickerEquipment === 'Any' ? 'Mine' : !equipment && s.pickerEquipment === 'Mine' ? 'Any' : s.pickerEquipment })),
       seeTip: (id) => set((s) => (s.tipsSeen.includes(id) ? s : { tipsSeen: [...s.tipsSeen, id] })),
       finishDay: (date) => set((s) => (s.finishedDays.includes(date) ? s : { finishedDays: [...s.finishedDays, date].slice(-400) })),
+      unfinishDay: (date) => set((s) => ({ finishedDays: s.finishedDays.filter((d) => d !== date) })),
       setDayItems: (date, items) => set((s) => editDay(s, date, () => items)),
       clearUsualDay: (date) =>
         set((s) => {

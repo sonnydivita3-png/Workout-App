@@ -30,6 +30,14 @@ interface Props {
   onSetDone?: (restSeconds: number, set: { round: number; warmup: boolean }) => void
   /** Replaces "rest 1:30" in the subtitle, e.g. for an exercise in a superset. */
   restNote?: string
+  /** Swap for another exercise (same body part, random or chosen). */
+  onSwap?: () => void
+  /** Recent sessions of this exercise. */
+  onHistory?: () => void
+  /** Delete one particular set (its numbers too). */
+  onDeleteSet?: (index: number) => void
+  /** A day that hasn't happened yet: show the plan, log it on the day. */
+  readOnly?: boolean
 }
 
 const MARK = { up: { t: '▲', c: 'text-green-600', l: 'beat last time' }, same: { t: '=', c: 'text-neutral-400', l: 'matched last time' }, down: { t: '▼', c: 'text-red-600', l: 'below last time' } } as const
@@ -38,7 +46,7 @@ const MARK = { up: { t: '▲', c: 'text-green-600', l: 'beat last time' }, same:
  * One exercise to log: a target from last time, then a row per set. ✓ logs a set (filling in the target if nothing
  * was typed). Everything else (how-to, note, plates, fewer sets, remove) is under ⋯ so the card stays simple.
  */
-export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, warmupSets = 0, rest, note, current, last, onSetCount, onChange, onNote, onRemove, onSetDone, restNote }: Props) {
+export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, warmupSets = 0, rest, note, current, last, onSetCount, onChange, onNote, onRemove, onSetDone, restNote, onSwap, onHistory, onDeleteSet, readOnly }: Props) {
   const units = useStore((s) => s.units)
   const trackRpe = useStore((s) => s.trackRpe)
   const mode = exercise.mode ?? 'weight'
@@ -47,6 +55,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
   const [menu, setMenu] = useState(false)
   const [plates, setPlates] = useState(false)
   const [editingNote, setEditingNote] = useState(false)
+  const [setOpts, setSetOpts] = useState<number | null>(null)
   // Planned warm-up sets come first (marked W), then the working sets.
   const sets: StrengthSet[] = Array.from({ length: warmupSets + setCount }, (_, i) => current?.sets?.[i] ?? { weight: null, reps: null, seconds: null, ...(i < warmupSets ? { warmup: true } : {}) })
   const lastWork = workSets(last)
@@ -54,7 +63,10 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
   const history = last ? allLogs.filter((l) => l.exerciseId === exercise.id && l.date <= last.date).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4) : []
   const tip = suggestNext(exercise, last, { reps: targetReps, seconds: targetSeconds }, units, history)
 
-  const update = (i: number, patch: Partial<StrengthSet>) => onChange(sets.map((s, j) => (j === i ? { ...s, ...patch } : s)))
+  // Typing doesn't tick a set (✓ does, like any gym log); typing over numbers ✓ filled in makes them yours.
+  const typed = (patch: Partial<StrengthSet>) => !('auto' in patch) && ('weight' in patch || 'reps' in patch || 'seconds' in patch)
+  const update = (i: number, patch: Partial<StrengthSet>) =>
+    onChange(sets.map((s, j) => (j === i ? { ...s, ...(typed(patch) ? { auto: false, done: s.done ?? false } : {}), ...patch } : s)))
   const filled = (s: StrengthSet) => !!(s.weight || s.reps || s.seconds)
   const fromTip = (s: StrengthSet): StrengthSet => ({
     ...s,
@@ -73,12 +85,19 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
     return { weight: Math.max(bar, Math.round((top * r.pct) / step) * step), reps: r.reps, warmup: true }
   }
   const workRest = rest ?? restFor(exercise, targetReps, targetSeconds)
-  // ✓ fills in whatever is missing from the target (typed numbers win), then logs the set.
+  // ✓ fills in whatever is missing from the target (typed numbers win), then logs the set. Tapping a ticked set
+  // again unticks it (clears it), for a tap by mistake.
+  const ticked = (s: StrengthSet) => s.done ?? filled(s)
   const done = (i: number) => {
     const s = sets[i]
+    if (ticked(s)) {
+      // Untick: numbers ✓ filled in go away again; numbers you typed stay.
+      update(i, s.auto ? { weight: null, reps: null, seconds: null, rpe: null, done: false, auto: false } : { done: false })
+      return
+    }
     const r = s.warmup ? rampFor(i) : null
     const next = s.warmup ? { ...s, weight: s.weight ?? r?.weight ?? null, reps: s.reps ?? r?.reps ?? null } : fromTip(s)
-    if (next.weight !== s.weight || next.reps !== s.reps || (next.seconds ?? null) !== (s.seconds ?? null)) update(i, next)
+    update(i, { ...next, done: true, auto: !filled(s) })
     try { navigator.vibrate?.(15) } catch { /* not supported */ }
     const round = sets.slice(0, i + 1).filter((x) => !x.warmup).length
     onSetDone?.(s.warmup ? 60 : workRest, { round, warmup: !!s.warmup })
@@ -142,6 +161,9 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
       )}
       {tip.kind === 'first' && <p className="mb-3 text-xs text-neutral-400">{tip.why}</p>}
 
+      {readOnly ? (
+        <p className="text-sm text-neutral-500">{target || `${setCount} sets`}{warmupSets > 0 ? ` (+${warmupSets} warm-up)` : ''}. Tick the sets off on the day.</p>
+      ) : (
       <div className="space-y-2">
         <div className="grid gap-2 text-xs font-medium text-neutral-500" style={{ gridTemplateColumns: cols }}>
           <span>Set</span>
@@ -159,10 +181,10 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
           return (
             <div key={i} className="grid items-center gap-2" style={{ gridTemplateColumns: cols }}>
               <button
-                onClick={() => update(i, { warmup: !s.warmup })}
-                aria-label={s.warmup ? `${label}; tap to make it a working set` : `${label}; tap to mark as warm-up`}
-                title="Tap to mark as warm-up"
-                className={`h-8 rounded-lg text-sm ${s.warmup ? 'bg-neutral-100 font-semibold text-amber-700' : 'text-neutral-400'}`}
+                onClick={() => setSetOpts(i)}
+                aria-label={`${label} options`}
+                title="Warm-up or delete"
+                className={`h-8 rounded-lg bg-neutral-50 text-sm ${s.warmup ? 'font-semibold text-amber-700' : 'text-neutral-500'}`}
               >
                 {s.warmup ? 'W' : i + 1 - warmBefore}
                 {mark && <span className={`ml-0.5 text-[10px] ${mark.c}`} aria-label={mark.l}>{mark.t}</span>}
@@ -185,11 +207,12 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
                 <NumberInput label={`${label} reps`} value={s.reps} placeholder={(s.warmup ? rampFor(i)?.reps : tip.reps ?? prev?.reps ?? targetReps)?.toString() ?? '–'} onChange={(v) => update(i, { reps: v })} />
               )}
               {trackRpe && <NumberInput label={`${label} RPE`} value={s.rpe ?? null} placeholder="–" onChange={(v) => update(i, { rpe: v == null ? null : Math.min(10, Math.max(1, v)) })} />}
-              <button onClick={() => done(i)} aria-label={`${label} done`} className={`h-10 rounded-xl text-base font-bold ${filled(s) ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-400'}`}>✓</button>
+              <button onClick={() => done(i)} aria-label={`${label} done`} aria-pressed={ticked(s)} title={ticked(s) ? 'Tap to untick' : 'Tap when done'} className={`h-10 rounded-xl text-base font-bold ${ticked(s) ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-400'}`}>✓</button>
             </div>
           )
         })}
       </div>
+      )}
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-neutral-500">
         <button onClick={() => onSetCount(setCount + 1)} className="rounded-full bg-neutral-100 px-3 py-1 text-neutral-600">+ Add set</button>
@@ -219,13 +242,30 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
 
       {menu && (
         <Sheet title={exercise.name} onClose={() => setMenu(false)}>
+          {onSwap && menuItem('Swap exercise', onSwap)}
+          {onHistory && menuItem('History', onHistory)}
           {menuItem('How to do it', () => setHowTo(true))}
           {onNote && menuItem(current?.note ? 'Edit note' : 'Add a note', () => setEditingNote(true))}
           {barbell && menuItem(plates ? 'Hide plates' : 'Plates for this weight', () => setPlates((p) => !p))}
-          {setCount > 1 && menuItem('Remove a set', () => onSetCount(setCount - 1))}
+          {readOnly && setCount > 1 && menuItem('Remove a set', () => onSetCount(setCount - 1))}
           {menuItem('Remove exercise', onRemove, true)}
         </Sheet>
       )}
+      {setOpts !== null && sets[setOpts] && (() => {
+        const i = setOpts
+        const warm = !!sets[i].warmup
+        const warmBefore = sets.slice(0, i).filter((x) => x.warmup).length
+        return (
+          <Sheet title={warm ? `Warm-up set ${warmBefore + 1}` : `Set ${i + 1 - warmBefore}`} onClose={() => setSetOpts(null)}>
+            <button onClick={() => { update(i, { warmup: !warm }); setSetOpts(null) }} className={rowBtn}>
+              <span><span className="block text-sm">{warm ? 'Make it a working set' : 'Make it a warm-up'}</span><span className="block text-xs text-neutral-400">Warm-ups don’t count toward bests or volume</span></span>
+            </button>
+            {!warm && setCount > 1 && onDeleteSet && (
+              <button onClick={() => { onDeleteSet(i); setSetOpts(null) }} className={`${rowBtn} text-red-600`}><span>Delete this set</span></button>
+            )}
+          </Sheet>
+        )
+      })()}
       {timing !== null && <HoldTimerSheet name={`${exercise.name} · set ${timing + 1}`} target={targetSeconds} onUse={(secs) => { update(timing, { seconds: secs }); setTiming(null) }} onClose={() => setTiming(null)} />}
       {howTo && <HowToSheet exercise={exercise} onClose={() => setHowTo(false)} />}
     </div>

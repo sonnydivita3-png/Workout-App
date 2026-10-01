@@ -16,9 +16,13 @@ interface Props {
   note?: string
   onChange: (c: CardioEntry) => void
   onRemove: () => void
+  /** Swap for another cardio exercise. */
+  onSwap?: () => void
+  /** A day that hasn't happened yet: show the target only. */
+  readOnly?: boolean
 }
 
-export function CardioCard({ exercise, current, last, targetMinutes, targetDistance, note, onChange, onRemove }: Props) {
+export function CardioCard({ exercise, current, last, targetMinutes, targetDistance, note, onChange, onRemove, onSwap, readOnly }: Props) {
   const units = useStore((s) => s.units)
   const c = current?.cardio ?? { distance: null, minutes: null }
   const prev = last?.cardio
@@ -45,6 +49,7 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
         <button onClick={() => setMenu(true)} aria-label={`${exercise.name} options`} className="-mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg leading-none text-neutral-400 hover:bg-neutral-100">⋯</button>
       </div>
       {note && <p className="mb-3 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-neutral-600">{note}</p>}
+      {readOnly ? <p className="text-sm text-neutral-500">Log it on the day.</p> : (
       <div className="grid grid-cols-3 items-end gap-3">
         <label className="text-xs font-medium text-neutral-500">
           {units.distance === 'km' ? 'Km' : 'Miles'}
@@ -64,10 +69,12 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
           <div className="py-2 text-center text-base normal-case tabular-nums text-neutral-900">{formatPace(c.distance, c.minutes, units) ?? '–'}</div>
         </div>
       </div>
+      )}
       {outdoor && <input ref={file} type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" aria-label="Import a GPX file" className="hidden" onChange={(e) => { void importGpx(e.target.files?.[0]); e.target.value = '' }} />}
       {gpxMsg && <p role="status" className="mt-2 text-xs text-neutral-500">{gpxMsg}</p>}
       {menu && (
         <Sheet title={exercise.name} onClose={() => setMenu(false)}>
+          {onSwap && <button onClick={() => { setMenu(false); onSwap() }} className={rowBtn}><span>Swap exercise</span></button>}
           {outdoor && <button onClick={() => { setMenu(false); file.current?.click() }} className={rowBtn}><span>Import a GPX file</span><span className="text-xs text-neutral-400">From a watch or Strava</span></button>}
           <button onClick={() => { setMenu(false); onRemove() }} className={`${rowBtn} text-red-600`}><span>Remove exercise</span></button>
         </Sheet>

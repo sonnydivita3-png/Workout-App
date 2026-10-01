@@ -5,14 +5,13 @@ async function openRandomizer(page: import('@playwright/test').Page) {
   await page.goto('/')
   await page.locator('nav').getByText('Workouts').click()
   await page.getByRole('button', { name: '+ Add', exact: true }).click()
-  await page.locator('.fixed').getByText('Make a workout').click()
+  await page.locator('.fixed').getByText('Make me a workout').click()
 }
 
 test('a 30-minute strength workout really fills about 30 minutes', async ({ page }) => {
   await seed(page)
   await openRandomizer(page)
   const sheet = page.locator('.fixed')
-  await sheet.getByRole('button', { name: /More options/ }).click()
   await sheet.getByRole('button', { name: 'Strength', exact: true }).click()
   await sheet.getByRole('button', { name: 'Chest', exact: true }).click()
   await sheet.getByRole('button', { name: 'Quads', exact: true }).click()
@@ -32,7 +31,6 @@ test('warm-up: easy cardio, mobility and ramp-up sets, with the rest timer follo
   await seed(page, { restSeconds: -1, logs: [{ date: iso(-4), exerciseId: 'Barbell_Squat', sets: [{ weight: 225, reps: 5 }, { weight: 225, reps: 5 }] }] })
   await openRandomizer(page)
   const sheet = page.locator('.fixed')
-  await sheet.getByRole('button', { name: /More options/ }).click()
   await sheet.getByRole('button', { name: 'Strength', exact: true }).click()
   await sheet.getByRole('button', { name: 'Quads', exact: true }).click()
   for (const w of ['Easy cardio', 'Mobility', 'Warm-up sets']) await sheet.getByRole('button', { name: w, exact: true }).click()
