@@ -46,7 +46,7 @@ export function repairState<T extends Obj>(saved: unknown, defaults: T): T {
   if (isObj(saved.overrides)) for (const [d, items] of Object.entries(saved.overrides)) if (ISO.test(d) && Array.isArray(items)) overrides[d] = items.filter(isPlanned)
   out.overrides = overrides
   out.logs = arr(saved.logs, isLog).map(toCardioLog)
-  for (const k of ['custom', 'routines', 'goals', 'notifications', 'programs', 'timedLogs', 'measurements']) if (k in defaults) out[k] = arr(saved[k], hasId)
+  for (const k of ['custom', 'routines', 'goals', 'notifications', 'programs', 'timedLogs', 'measurements', 'benchmarks']) if (k in defaults) out[k] = arr(saved[k], hasId)
   // Legs and Arms became body parts (Quads, Hamstrings, Calves; Biceps, Triceps): file older exercises and choices.
   if (Array.isArray(out.custom)) out.custom = (out.custom as Obj[]).map((e) => (typeof e.group === 'string' && typeof e.name === 'string' ? { ...e, group: partFromName(e.group, e.name) } : e))
   if (isObj(out.genPrefs) && Array.isArray(out.genPrefs.focus)) out.genPrefs = { ...out.genPrefs, focus: expandParts(out.genPrefs.focus.filter((f): f is string => typeof f === 'string')) }

@@ -78,6 +78,8 @@ export interface TimedLog {
   seconds?: number
   /** For time: stopped by the time cap instead of finishing. */
   capped?: boolean
+  /** A Hyrox session's finish time (its runs and stations keep their own logs). */
+  hyrox?: boolean
 }
 
 /** One planned exercise on a weekday template. */
@@ -146,6 +148,13 @@ export interface BodyweightEntry {
 }
 
 export interface Routine {
+  id: string
+  name: string
+  items: PlannedExercise[]
+}
+
+/** A timed workout saved to repeat now and then, so its results can be compared over time. */
+export interface Benchmark {
   id: string
   name: string
   items: PlannedExercise[]

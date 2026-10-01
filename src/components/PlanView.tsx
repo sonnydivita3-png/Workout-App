@@ -5,6 +5,7 @@ import { hasData } from '../lib/stats'
 import { useWakeLock } from '../lib/useWakeLock'
 import { findExercise, useStore } from '../store'
 import { WodBuilderSheet } from './WodBuilderSheet'
+import { BenchmarkSheet } from './BenchmarkSheet'
 import { ProgramsCard } from './ProgramsCard'
 import { CardioPlanSheet } from './CardioPlanSheet'
 import { ProgramSheet } from './ProgramSheet'
@@ -34,6 +35,7 @@ export function PlanView({ initialAction }: { initialAction?: string }) {
   const [picking, setPicking] = useState(initialAction === 'add')
   const [addMenu, setAddMenu] = useState(false)
   const [wodBuilder, setWodBuilder] = useState(false)
+  const [benchSheet, setBenchSheet] = useState(false)
   const [dayMenu, setDayMenu] = useState<false | 'menu' | 'load'>(false)
   const [arranging, setArranging] = useState(false)
   const [finishing, setFinishing] = useState(false)
@@ -144,6 +146,7 @@ export function PlanView({ initialAction }: { initialAction?: string }) {
             ['Make me a workout', 'Pick body parts and time, get a full workout', () => setGenerator('one')],
             ['Plan a week or month', 'Training and rest days built around a goal', () => setGenerator('program')],
             ['Timed workout', 'AMRAP, EMOM, for time or Tabata, with a clock', () => setWodBuilder(true)],
+            ...(s.benchmarks.length ? [['Benchmark workout', `Repeat one of your ${s.benchmarks.length} saved benchmarks`, () => setBenchSheet(true)] as const] : []),
             ['Run or ride plan', 'Build up to a distance or a race', () => setGenerator('cardio')],
           ] as const).map(([title, hint, go]) => (
             <button key={title} onClick={() => { setAddMenu(false); go() }} className={rowBtn}>
@@ -154,6 +157,7 @@ export function PlanView({ initialAction }: { initialAction?: string }) {
         </Sheet>
       )}
       {arranging && <ArrangeSheet date={date} onClose={() => setArranging(false)} />}
+      {benchSheet && <BenchmarkSheet date={date} dayName={DAY_NAMES[day]} onClose={() => setBenchSheet(false)} />}
       {wodBuilder && <WodBuilderSheet date={date} onClose={() => setWodBuilder(false)} />}
       {generator === 'one' && <RandomizerSheet date={date} onClose={() => setGenerator(null)} onSwitchMode={setGenerator} />}
       {generator === 'program' && (

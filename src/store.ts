@@ -14,7 +14,7 @@ import { placeWarmups } from './lib/warmups'
 import { setCardioPrefs } from './lib/cardioPrefs'
 import { activePrograms, clearRange, removeProgramDays } from './lib/programs'
 import type {
-  AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Sport, TimedLog, StrengthSet, Units, WeekPlan,
+  AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Benchmark, Sport, TimedLog, StrengthSet, Units, WeekPlan,
 } from './types'
 
 export interface TrainingPrefs {
@@ -47,6 +47,7 @@ export interface Data {
   goals: Goal[]
   timedLogs?: TimedLog[]
   measurements?: Measurement[]
+  benchmarks?: Benchmark[]
 }
 
 interface State extends Data {
@@ -124,6 +125,12 @@ interface State extends Data {
   /** Save a timed result, replacing an earlier one for the same block that day, along with the per-exercise logs it implies. */
   saveTimed: (log: Omit<TimedLog, 'id'>, derived: ExerciseLog[]) => void
   deleteTimed: (id: string) => void
+  /** Timed workouts saved to repeat, so their results can be compared. */
+  benchmarks: Benchmark[]
+  saveBenchmark: (name: string, items: PlannedExercise[]) => void
+  deleteBenchmark: (id: string) => void
+  /** Add a benchmark to a day (as its own block, so it never merges with another timed workout). */
+  addBenchmark: (date: string, id: string) => void
   /** Plans added in one go (a week/month program or a run/bike plan), so they can be stopped or replaced. */
   programs: Program[]
   /** Add a random week/month program. Any earlier program still running is stopped first. */
@@ -228,6 +235,7 @@ const defaults = () => ({
   notifPrefs: { system: false, goals: true, pbs: true, daily: true, reminderTime: '17:00' } as NotifPrefs,
   programs: [] as Program[],
   timedLogs: [] as TimedLog[],
+  benchmarks: [] as Benchmark[],
   measurements: [] as Measurement[],
   cloud: { enabled: false, lastSyncedAt: null, lastHash: null, conflict: false, error: null, checkedAt: null } as State['cloud'],
   theme: 'dark' as ThemeMode,
@@ -303,8 +311,9 @@ export const useStore = create<State>()(
         set((s) => {
           const prev = s.timedLogs.find((t) => t.date === log.date && t.block === log.block)
           let logs = s.logs
-          // Drop what the earlier result implied, then add the new one (an empty result clears them).
-          if (prev) logs = logs.filter((l) => !(l.date === prev.date && prev.movements.includes(l.exerciseId)))
+          // Drop what the earlier result implied, then add the new one (an empty result clears them). A Hyrox finish
+          // time implies nothing: its runs and stations are logged on their own cards.
+          if (prev && !prev.hyrox) logs = logs.filter((l) => !(l.date === prev.date && prev.movements.includes(l.exerciseId)))
           for (const d of derived) logs = upsertLog(logs, d)
           const next: TimedLog = { ...log, id: prev?.id ?? `tl-${Date.now().toString(36)}` }
           return { logs, timedLogs: [...s.timedLogs.filter((t) => t.id !== next.id), next] }
@@ -313,7 +322,7 @@ export const useStore = create<State>()(
         set((s) => {
           const t = s.timedLogs.find((x) => x.id === id)
           if (!t) return s
-          return { timedLogs: s.timedLogs.filter((x) => x.id !== id), logs: s.logs.filter((l) => !(l.date === t.date && t.movements.includes(l.exerciseId))) }
+          return { timedLogs: s.timedLogs.filter((x) => x.id !== id), logs: t.hyrox ? s.logs : s.logs.filter((l) => !(l.date === t.date && t.movements.includes(l.exerciseId))) }
         }),
       setCloud: (p) => set((s) => ({ cloud: { ...s.cloud, ...p } })),
       replaceData: (data) =>
@@ -474,6 +483,16 @@ export const useStore = create<State>()(
         set((s) => ({
           routines: [...s.routines, { id: `r-${Date.now().toString(36)}`, name: name.trim(), items: items.map((p) => ({ ...p })) }],
         })),
+      saveBenchmark: (name, items) =>
+        set((s) => ({ benchmarks: [...s.benchmarks, { id: `b-${Date.now().toString(36)}`, name: name.trim(), items: items.map((p) => ({ ...p })) }] })),
+      deleteBenchmark: (id) => set((s) => ({ benchmarks: s.benchmarks.filter((b) => b.id !== id) })),
+      addBenchmark: (date, id) =>
+        set((s) => {
+          const b = s.benchmarks.find((x) => x.id === id)
+          if (!b) return s
+          const block = `bm-${id}`
+          return editDay(s, date, (d) => (d.some((p) => p.block === block) ? d : [...d.filter((p) => !b.items.some((x) => x.exerciseId === p.exerciseId)), ...b.items.map((p) => ({ ...p, block }))]))
+        }),
       deleteRoutine: (id) => set((s) => ({ routines: s.routines.filter((r) => r.id !== id) })),
       loadRoutine: (date, id) =>
         set((s) => {
