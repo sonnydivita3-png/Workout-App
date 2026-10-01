@@ -61,6 +61,31 @@ export function estimateCalories(exerciseId: string, c: Pick<CardioEntry, 'dista
   return Math.round(metFor(exerciseId, c) * (lb / 2.20462262) * (c.minutes / 60))
 }
 
+export interface CalorieTotal {
+  total: number
+  /** How much of `total` is estimated. */
+  estimated: number
+  /** Cardio sessions with no calories: no number typed in and no bodyweight to estimate from. */
+  missing: number
+}
+
+/**
+ * Calories from every cardio log between two dates (inclusive): steady cardio, and the runs, rows and rides inside
+ * Hyrox and timed workouts. Lifting isn't counted (estimates for it are unreliable).
+ */
+export function caloriesBetween(logs: ExerciseLog[], bodyweight: BodyweightEntry[], from: string, to: string): CalorieTotal {
+  const out = { total: 0, estimated: 0, missing: 0 }
+  for (const l of logs) {
+    if (!l.cardio || l.date < from || l.date > to) continue
+    const cal = caloriesOf(l, bodyweight)
+    if (cal) {
+      out.total += cal.kcal
+      if (cal.estimated) out.estimated += cal.kcal
+    } else if (l.cardio.minutes) out.missing++
+  }
+  return out
+}
+
 /** Calories for a cardio log: what they entered (e.g. from a watch), else the estimate. */
 export function caloriesOf(l: ExerciseLog, bodyweight: BodyweightEntry[]): { kcal: number; estimated: boolean } | null {
   if (!l.cardio) return null

@@ -94,7 +94,7 @@ export function ConditioningSection() {
           const all = estimated === total && total > 0
           return (
             <p className="mt-3 text-xs text-neutral-500">
-              🔥 <b className="font-medium text-neutral-700">{all ? '≈' : ''}{Math.round(total).toLocaleString()} cal</b> from cardio this week
+              🔥 <b className="font-medium text-neutral-700">{all ? '≈' : ''}{Math.round(total).toLocaleString()} cal</b> burned in cardio this week, including Hyrox and timed workouts
               {estimated > 0 && (all ? ' (estimated)' : ` (≈${Math.round(estimated).toLocaleString()} of it estimated)`)}
               {cardioThen.calories.total > 0 && <span className="text-neutral-400"> · last week {Math.round(cardioThen.calories.total).toLocaleString()}</span>}
               {estimated > 0 && <span className="block text-neutral-400">Estimates use your bodyweight, the activity, its time and pace. Type your watch’s number on a cardio card to use that instead.</span>}

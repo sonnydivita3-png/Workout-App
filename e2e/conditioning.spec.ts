@@ -68,6 +68,8 @@ test('Hyrox: log a finish time, compare with last time, and see run pace and car
   // The bike ride counts as cardio; the Hyrox run counts as conditioning, not both.
   await expect(page.getByText(/^(30 of 150 min|0 of 150 min)/)).toBeVisible()
   await expect(page.getByText(/^(30 of 150 min|.*last week 30 min)/).first()).toBeVisible()
+  // The Hyrox run still counts toward calories (there's no bodyweight here, so it asks for one).
+  await expect(page.getByText(/sessions? ha(s|ve) no calories: estimates need your bodyweight/)).toBeVisible()
   const track = page.getByRole('button', { name: /Hyrox · 2 × \(500 m run \+ station\)/ })
   await expect(track).toContainText('Best 15:20')
   await track.click()
@@ -96,6 +98,10 @@ test('cardio calories: asks for bodyweight, then shows an estimate labelled as o
   await expect(page.getByText('≈411 cal')).toBeVisible()
   await expect(page.getByText(/\(estimated\)/)).toBeVisible()
   await expect(page.getByText(/Estimates use your bodyweight/)).toBeVisible()
+  // …and on Home, next to workouts this week.
+  await page.locator('nav').getByText('Home').click()
+  const week = page.getByRole('region', { name: 'This week' })
+  await expect(week).toContainText('≈411cal burned in cardioestimated from bodyweight')
 
   // Their watch's number replaces the estimate.
   await page.locator('nav').getByText('Workouts').click()
@@ -105,4 +111,6 @@ test('cardio calories: asks for bodyweight, then shows an estimate labelled as o
   await page.locator('nav').getByText('Progress').click()
   await expect(page.getByText('380 cal', { exact: true })).toBeVisible()
   await expect(page.getByText(/Estimates use your bodyweight/)).toHaveCount(0)
+  await page.locator('nav').getByText('Home').click()
+  await expect(page.getByRole('region', { name: 'This week' })).toContainText('380cal burned in cardio')
 })

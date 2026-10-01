@@ -1,4 +1,4 @@
-import { caloriesOf } from './calories'
+import { caloriesBetween, type CalorieTotal } from './calories'
 import type { BodyweightEntry, Exercise, ExerciseLog, PlannedExercise, PlanOverrides, TimedLog, WeekPlan } from '../types'
 import { cardioTypeOf } from './cardioPrefs'
 import { addDays, mondayOf, parseISO, toISO } from './dates'
@@ -24,8 +24,8 @@ export interface CardioWeek {
   minutes: number
   /** Miles. */
   distance: number
-  /** Calories: all of them, how many of those are estimates, and how many sessions had none (no bodyweight yet). */
-  calories: { total: number; estimated: number; missing: number }
+  /** Calories from all cardio that week, including the cardio inside Hyrox and timed workouts. */
+  calories: CalorieTotal
 }
 
 /** Steady cardio logged in a week. Runs and rows inside a timed workout or Hyrox count as conditioning instead. */
@@ -34,7 +34,6 @@ export function cardioWeek(logs: ExerciseLog[], timedLogs: TimedLog[], range: [s
   const by = new Map<string, number>()
   let minutes = 0
   let distance = 0
-  const calories = { total: 0, estimated: 0, missing: 0 }
   for (const l of logs) {
     if (!l.cardio || !inRange(l.date, range) || skip.has(`${l.date}|${l.exerciseId}`)) continue
     const m = l.cardio.minutes ?? 0
@@ -42,12 +41,8 @@ export function cardioWeek(logs: ExerciseLog[], timedLogs: TimedLog[], range: [s
     if (m) by.set(label, (by.get(label) ?? 0) + m)
     minutes += m
     distance += l.cardio.distance ?? 0
-    const cal = caloriesOf(l, bodyweight)
-    if (cal) {
-      calories.total += cal.kcal
-      if (cal.estimated) calories.estimated += cal.kcal
-    } else if (m) calories.missing++
   }
+  const calories = caloriesBetween(logs, bodyweight, range[0], range[1])
   return { byType: [...by].map(([label, m]) => ({ label, minutes: m })).sort((a, b) => b.minutes - a.minutes), minutes, distance, calories }
 }
 

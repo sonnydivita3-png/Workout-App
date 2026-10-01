@@ -94,3 +94,12 @@ describe('cardio calories in the week', () => {
     expect(cardioWeek(logs, [], WEEK, lookup, []).calories).toEqual({ total: 250, estimated: 0, missing: 1 })
   })
 })
+
+describe('calories include Hyrox and timed-workout cardio', () => {
+  it('a row inside an AMRAP adds calories but not steady-cardio minutes', () => {
+    const logs: ExerciseLog[] = [{ date: '2026-09-29', exerciseId: 'x-row-erg', cardio: { distance: null, minutes: 6 } }]
+    const w = cardioWeek(logs, [amrap('2026-09-29', 5, 0, ['x-row-erg'])], WEEK, lookup, [{ date: '2026-09-01', lb: 185 }])
+    expect(w.minutes).toBe(0)
+    expect(w.calories.total).toBe(59) // 7.0 MET × 83.9 kg × 0.1 h
+  })
+})

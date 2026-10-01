@@ -3,6 +3,9 @@ import { fmtLong } from '../lib/dates'
 import { goalDetail, goalPct, goalTitle } from '../lib/goals'
 import { lastWorkout } from '../lib/plan'
 import { weekStats } from '../lib/stats'
+import { caloriesBetween } from '../lib/calories'
+import { weekOf } from '../lib/conditioning'
+import { addDays, parseISO, toISO } from '../lib/dates'
 import { formatPace, formatSeconds, showDistance, showWeight, storeWeight } from '../lib/units'
 import { useToday } from '../lib/useToday'
 import { findExercise, useStore } from '../store'
@@ -66,6 +69,16 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab, sub?: string) =>
   const lastLogs = latest?.logs ?? []
 
   const stats = weekStats(logs, today)
+  // Cardio calories this week (Hyrox and timed workouts included), and last week up to the same weekday.
+  const [monday, sunday] = weekOf(today)
+  const cal = caloriesBetween(logs, s.bodyweight, monday, sunday)
+  const [lastMonday] = weekOf(today, 1)
+  const calLast = caloriesBetween(logs, s.bodyweight, lastMonday, toISO(addDays(parseISO(today), -7))).total
+  const calSub = cal.total === 0
+    ? (cal.missing > 0 ? 'estimates need your bodyweight' : calLast ? `${Math.round(calLast).toLocaleString()} by now last week` : 'from cardio')
+    : cal.estimated === cal.total ? 'estimated from bodyweight'
+    : cal.estimated > 0 ? `≈${Math.round(cal.estimated).toLocaleString()} estimated`
+    : calLast ? `${Math.round(calLast).toLocaleString()} by now last week` : 'from your logs'
   const volDelta = stats.lastVolumeSoFar && stats.volume ? Math.round(((stats.volume - stats.lastVolumeSoFar) / stats.lastVolumeSoFar) * 100) : null
   const fmtVol = (lb: number) => {
     const v = showWeight(lb, units)!
@@ -104,9 +117,10 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab, sub?: string) =>
       <TodayCard onNavigate={onNavigate} />
       <SafetyNudge onNavigate={onNavigate} />
 
-      <section aria-label="This week" className="grid grid-cols-3 gap-2 text-center">
+      <section aria-label="This week" className="grid grid-cols-2 gap-2 text-center">
         <Stat value={String(stats.workouts)} label={stats.workouts === 1 ? 'workout this week' : 'workouts this week'} sub={stats.lastWorkoutsSoFar ? `${stats.lastWorkoutsSoFar} by now last week` : undefined} />
         <Stat value={fmtVol(stats.volume)} label={`${units.weight} lifted`} sub={volDelta == null ? undefined : `${volDelta >= 0 ? '▲' : '▼'} ${Math.abs(volDelta)}% vs last week so far`} good={volDelta != null && volDelta >= 0} />
+        <Stat value={`${cal.estimated > 0 ? '≈' : ''}${Math.round(cal.total).toLocaleString()}`} label="cal burned in cardio" sub={calSub} />
         <Stat value={String(stats.streak)} label={stats.streak === 1 ? 'week streak' : 'weeks streak'} sub={stats.streak > 0 ? '🔥 keep it going' : 'train this week to start one'} />
       </section>
 
