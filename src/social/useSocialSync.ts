@@ -36,6 +36,16 @@ export function useSocialSync() {
         ...s.challenges.filter((x) => !x.mine && x.status === 'pending').map((x) => ({ id: `ch-${x.id}`, title: 'Challenge', body: `${x.from.displayName}: ${x.title}` })),
         ...s.emoji.filter((x) => !x.mine && !x.read).map((x) => ({ id: `em-${x.id}`, title: `${x.emoji} from ${x.from.displayName}`, body: '' })),
       ]
+      // A friend answered a challenge I sent (while the app is open; otherwise it waits in the inbox).
+      if (prev.status === 'ready') {
+        for (const c of s.challenges) {
+          const before = prev.challenges.find((x) => x.id === c.id)
+          if (!c.mine || !before || before.status === c.status) continue
+          const who = c.to.displayName
+          const text = c.status === 'active' ? `${who} accepted your challenge 💪` : c.status === 'declined' ? `${who} declined your challenge` : c.status === 'completed' && c.done ? `${who} finished your challenge 🏆` : null
+          if (text) items.push({ id: `cs-${c.id}-${c.status}`, title: text, body: c.title })
+        }
+      }
       if (seen.current === null || prev.status !== 'ready') { seen.current = new Set(items.map((i) => i.id)); return }
       for (const it of items) {
         if (seen.current.has(it.id)) continue

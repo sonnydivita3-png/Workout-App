@@ -113,8 +113,19 @@ export const useSocial = create<SocialState>()((set, get) => ({
 }))
 
 /** Things waiting on the person: requests to answer, workouts to look at, challenges to accept, unread emoji. */
-export function pendingCount(s: Pick<SocialState, 'requests' | 'shares' | 'workoutRequests' | 'challenges' | 'emoji'>): number {
+/** How long a friend's answer to my challenge stays in the inbox if I never look. */
+const UPDATE_DAYS = 30
+
+/** My challenges a friend has answered (accepted, declined, finished) since I last looked. */
+export function challengeUpdates(challenges: Challenge[], seen: Record<string, string>, now = Date.now()): Challenge[] {
+  return challenges.filter((c) =>
+    c.mine && ['active', 'declined', 'completed'].includes(c.status) && seen[c.id] !== c.status &&
+    now - new Date(c.acceptedAt ?? c.createdAt).getTime() < UPDATE_DAYS * 86400000)
+}
+
+export function pendingCount(s: Pick<SocialState, 'requests' | 'shares' | 'workoutRequests' | 'challenges' | 'emoji'>, seen?: Record<string, string>): number {
   return (
+    (seen ? challengeUpdates(s.challenges, seen).length : 0) +
     s.requests.incoming.length +
     s.shares.filter((x) => !x.mine && x.status === 'pending').length +
     s.workoutRequests.filter((x) => !x.mine && x.status === 'pending').length +

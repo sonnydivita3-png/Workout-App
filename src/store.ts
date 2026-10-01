@@ -56,6 +56,9 @@ interface State extends Data {
   setSocialChoice: (c: SocialChoice) => void
   /** Handle from an invite link (?add=handle) waiting to be added as a friend. */
   pendingInvite: string | null
+  /** Challenges I sent: the last status I've seen for each, so a friend's answer shows up once in the inbox. */
+  seenChallenges: Record<string, string>
+  markChallengesSeen: (seen: Record<string, string>) => void
   setPendingInvite: (h: string | null) => void
   /** First-run setup (goal, days, first plan) finished or skipped. */
   onboarded: boolean
@@ -245,6 +248,7 @@ const defaults = () => ({
   accent: 'lime' as Accent,
   socialChoice: 'unset' as SocialChoice,
   pendingInvite: null as string | null,
+  seenChallenges: {} as Record<string, string>,
   onboarded: false,
   tipsSeen: [] as string[],
   pickerEquipment: 'Any',
@@ -376,6 +380,7 @@ export const useStore = create<State>()(
       applyProgram: (days) => set((s) => ({ overrides: { ...s.overrides, ...days } })),
       setSocialChoice: (socialChoice) => set({ socialChoice }),
       setPendingInvite: (pendingInvite) => set({ pendingInvite }),
+      markChallengesSeen: (seen) => set((s) => ({ seenChallenges: { ...s.seenChallenges, ...seen } })),
       setOnboarded: (onboarded) => set({ onboarded }),
       setPickerEquipment: (pickerEquipment) => set({ pickerEquipment }),
       // Once someone says what they have, the exercise picker starts on "My equipment" too.

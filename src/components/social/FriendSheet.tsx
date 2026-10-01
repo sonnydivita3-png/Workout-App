@@ -9,14 +9,17 @@ import { PermissionToggles } from './PermissionToggles'
 import { RequestWorkoutSheet } from './RequestWorkoutSheet'
 import { ShareSheet } from './ShareSheet'
 import { ReportSheet } from './ReportSheet'
-import { label, secondary } from './styles'
+import { ago, label, secondary } from './styles'
+import { useToasts } from '../../toastStore'
 import { Avatar, ErrorNote } from './ui'
 import { useToday } from '../../lib/useToday'
 
 /** One friend: their progress (if they allow it), things you can send (if they allow them), and what you allow them. */
 export function FriendSheet({ friendId, onClose }: { friendId: string; onClose: () => void }) {
   const today = useToday()
-  const { friends, backend, act } = useSocial()
+  const { friends, backend, act, emoji } = useSocial()
+  const [sending, setSending] = useState<Emoji | null>(null)
+  const [sent, setSent] = useState<Emoji | null>(null)
   const friend = friends.find((f) => f.profile.id === friendId)
   const [snap, setSnap] = useState<ProgressSnapshot | null>(null)
   const [sub, setSub] = useState<'share' | 'challenge' | 'request' | 'report' | null>(null)
@@ -36,10 +39,17 @@ export function FriendSheet({ friendId, onClose }: { friendId: string; onClose: 
   const { profile, theyGrant, iGrant } = friend
 
   const sendEmoji = async (e: Emoji) => {
-    setError(null)
+    setError(null); setSending(e); setSent(null)
     const r = await act((b) => b.sendEmoji({ toId: profile.id, emoji: e }))
-    if (r.ok) setNote(`${e} sent`); else setError(r.error)
+    setSending(null)
+    if (r.ok) {
+      setSent(e)
+      setNote(`✓ ${e} sent to ${profile.displayName}`)
+      useToasts.getState().push({ id: `emoji-sent-${profile.id}-${e}`, title: `${e} sent to ${profile.displayName}`, body: '' })
+    } else setError(r.error)
   }
+  // The last emoji I sent this friend, and whether they've opened it yet.
+  const lastSent = emoji.filter((m) => m.mine && m.to.id === profile.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
   const setPerm = async (k: PermKey, on: boolean) => {
     const r = await act((b) => b.setPermissions(profile.id, { [k]: on }))
     if (!r.ok) setError(r.error)
@@ -91,8 +101,16 @@ export function FriendSheet({ friendId, onClose }: { friendId: string; onClose: 
       </div>
 
       <p className={label}>Send an emoji</p>
-      <div className="mb-1"><EmojiBar disabled={!theyGrant.emoji} onPick={sendEmoji} /></div>
-      <p className="mb-4 text-xs text-neutral-400" aria-live="polite">{note ?? (theyGrant.emoji ? '' : `${profile.displayName} hasn’t allowed emoji.`)}</p>
+      <div className="mb-1"><EmojiBar disabled={!theyGrant.emoji || !!sending} onPick={sendEmoji} selected={sending ?? sent ?? undefined} /></div>
+      <p className={`text-sm ${note ? 'font-medium text-green-600' : 'text-xs text-neutral-400'}`} aria-live="polite">
+        {sending ? `Sending ${sending}…` : note ?? (theyGrant.emoji ? 'Tap one to send it.' : `${profile.displayName} hasn’t allowed emoji.`)}
+      </p>
+      {lastSent && (
+        <p className="mb-4 text-xs text-neutral-400">
+          Last sent: {lastSent.emoji} {ago(lastSent.createdAt)} · {lastSent.read ? '✓✓ Seen' : 'Not seen yet'}
+        </p>
+      )}
+      {!lastSent && <div className="mb-4" />}
 
       <p className={label}>What {profile.displayName} can do</p>
       <PermissionToggles value={iGrant} onChange={setPerm} />
