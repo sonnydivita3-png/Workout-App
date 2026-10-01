@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures'
-import { iso, seed, state } from './helpers'
+import { iso, openSettings, seed, state } from './helpers'
 
 const AMRAP = { kind: 'amrap', minutes: 12 }
 const amrapItems = [
@@ -92,16 +92,16 @@ test('cardio calories: asks for bodyweight, then shows an estimate labelled as o
   })
   await page.reload()
   await page.locator('nav').getByText('Workouts').click()
-  await expect(page.getByText('≈411 cal, estimated')).toBeVisible()
+  await expect(page.getByText('≈369 cal, estimated')).toBeVisible()
   await expect(page.getByText(/from your bodyweight \(185 lb\), the activity and its time and pace/)).toBeVisible()
   await page.locator('nav').getByText('Progress').click()
-  await expect(page.getByText('≈411 cal')).toBeVisible()
+  await expect(page.getByText('≈369 cal')).toBeVisible()
   await expect(page.getByText(/\(estimated\)/)).toBeVisible()
   await expect(page.getByText(/Estimates use your bodyweight/)).toBeVisible()
   // …and on Home, next to workouts this week.
   await page.locator('nav').getByText('Home').click()
   const week = page.getByRole('region', { name: 'This week' })
-  await expect(week).toContainText('≈411cal burned in cardioestimated from bodyweight')
+  await expect(week).toContainText('≈369cal burned in cardioestimated from bodyweight')
 
   // Their watch's number replaces the estimate.
   await page.locator('nav').getByText('Workouts').click()
@@ -113,4 +113,22 @@ test('cardio calories: asks for bodyweight, then shows an estimate labelled as o
   await expect(page.getByText(/Estimates use your bodyweight/)).toHaveCount(0)
   await page.locator('nav').getByText('Home').click()
   await expect(page.getByRole('region', { name: 'This week' })).toContainText('380cal burned in cardio')
+})
+
+test('sex, age and height make the estimate personal, and Help explains how calories are worked out', async ({ page }) => {
+  await seed(page, { overrides: { [iso(0)]: [{ exerciseId: 'running', sets: 1 }] }, bodyweight: [{ date: '2026-01-01', lb: 185 }], logs: [{ date: iso(0), exerciseId: 'running', cardio: { distance: 3, minutes: 30 } }] })
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await expect(page.getByText(/Add sex, age and height in Settings → Profile/)).toBeVisible()
+  await openSettings(page, 'Profile, units & equipment')
+  await page.getByRole('button', { name: 'Female' }).click()
+  await page.getByLabel('Birth year').fill('1990')
+  await page.getByLabel('Height').fill('66')
+  expect((await state(page)).aboutMe).toEqual({ sex: 'female', birthYear: 1990, heightIn: 66 })
+  await page.getByRole('button', { name: 'How calories are estimated' }).click()
+  await page.getByText('What information does it need?').click()
+  await expect(page.getByText(/Your bodyweight \(log it in Progress → Body\)/)).toBeVisible()
+  await page.locator('nav').getByText('Workouts').click()
+  await expect(page.getByText(/from your bodyweight \(185 lb\), sex, age, height, the activity/)).toBeVisible()
+  await expect(page.getByText(/Add sex, age and height/)).toHaveCount(0)
 })

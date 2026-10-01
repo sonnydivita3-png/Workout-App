@@ -45,15 +45,15 @@ interface Track {
 
 /** Cardio and conditioning on the Progress tab: weekly minutes, and benchmark / Hyrox results over time. */
 export function ConditioningSection() {
-  const { logs, timedLogs, custom, plan, overrides, benchmarks, units, bodyweight } = useStore()
+  const { logs, timedLogs, custom, plan, overrides, benchmarks, units, bodyweight, aboutMe } = useStore()
   const today = useToday()
   const [open, setOpen] = useState<string | null>(null)
   const lookup = (id: string) => findExercise(custom, id)
   const thisWeek = weekOf(today)
   const lastWeek = weekOf(today, 1)
 
-  const cardioNow = cardioWeek(logs, timedLogs, thisWeek, lookup, bodyweight)
-  const cardioThen = cardioWeek(logs, timedLogs, lastWeek, lookup, bodyweight)
+  const cardioNow = cardioWeek(logs, timedLogs, thisWeek, lookup, bodyweight, aboutMe)
+  const cardioThen = cardioWeek(logs, timedLogs, lastWeek, lookup, bodyweight, aboutMe)
   const condNow = conditioningWeek(timedLogs, logs, plan, overrides, thisWeek)
   const condThen = conditioningWeek(timedLogs, logs, plan, overrides, lastWeek)
 

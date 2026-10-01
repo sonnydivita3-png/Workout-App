@@ -71,9 +71,9 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab, sub?: string) =>
   const stats = weekStats(logs, today)
   // Cardio calories this week (Hyrox and timed workouts included), and last week up to the same weekday.
   const [monday, sunday] = weekOf(today)
-  const cal = caloriesBetween(logs, s.bodyweight, monday, sunday)
+  const cal = caloriesBetween(logs, s.bodyweight, monday, sunday, s.aboutMe)
   const [lastMonday] = weekOf(today, 1)
-  const calLast = caloriesBetween(logs, s.bodyweight, lastMonday, toISO(addDays(parseISO(today), -7))).total
+  const calLast = caloriesBetween(logs, s.bodyweight, lastMonday, toISO(addDays(parseISO(today), -7)), s.aboutMe).total
   const calSub = cal.total === 0
     ? (cal.missing > 0 ? 'estimates need your bodyweight' : calLast ? `${Math.round(calLast).toLocaleString()} by now last week` : 'from cardio')
     : cal.estimated === cal.total ? 'estimated from bodyweight'
