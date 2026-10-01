@@ -5,7 +5,8 @@ import { generateWorkout, styleInfo, type WarmupOptions, type WorkoutStyle } fro
 import { BY_ID, FULL_BODY_GROUPS, type Rng } from './randomUtil'
 import { liftMinutes, type RestPref } from './timing'
 import { hasData } from './stats'
-import { workSets } from './progression'
+import { plateau, workSets } from './progression'
+import { isMainLift } from './randomUtil'
 
 export type ProgramGoal = 'muscle' | 'strength' | 'fatloss' | 'fitness' | 'functional'
 
@@ -158,6 +159,30 @@ export function familiarLifts(logs: ExerciseLog[], before: string, weeks = 8): S
   return new Set(recent.map((l) => l.exerciseId))
 }
 
+/**
+ * Accessory lifts due for a change: done for about a month (first logged 4+ weeks ago, 3+ sessions), or stuck for 3
+ * sessions. New plans swap these for fresh moves. Main lifts (squat, bench, deadlift, rows, presses…) stay, since
+ * they're what you measure progress on; a stalled main lift gets a lighter week instead (see `suggestNext`).
+ */
+export function liftsToRotate(logs: ExerciseLog[], before: string, lookup: (id: string) => Exercise | undefined, weeks = 8): Set<string> {
+  const from = toISO(addDays(parseISO(before), -7 * weeks))
+  const monthAgo = toISO(addDays(parseISO(before), -28))
+  const byLift = new Map<string, ExerciseLog[]>()
+  for (const l of logs) {
+    if (l.date >= before || l.date < from || l.cardio || workSets(l).length === 0) continue
+    byLift.set(l.exerciseId, [...(byLift.get(l.exerciseId) ?? []), l])
+  }
+  const out = new Set<string>()
+  for (const [id, ls] of byLift) {
+    const ex = lookup(id)
+    if (!ex || isMainLift(ex)) continue
+    ls.sort((a, b) => b.date.localeCompare(a.date))
+    const longTime = ls.at(-1)!.date <= monthAgo && ls.length >= 3
+    if (longTime || plateau(ex, ls) > 0) out.add(id)
+  }
+  return out
+}
+
 const majorsOf = (t: DayType) => t.groups.filter((g) => MAJOR_GROUPS.includes(g))
 const isCardioDay = (t: DayType) => t.groups.length === 0
 
@@ -185,6 +210,8 @@ export interface ProgramInput {
   split?: SplitId
   /** Lifts they've been logging (see `familiarLifts`): new plans keep them so progress carries on. */
   familiar?: Set<string>
+  /** Lifts to swap for something new (see `liftsToRotate`): used only if nothing else fits. */
+  rotate?: Set<string>
 }
 
 /** Sessions for liked full-body formats that a goal doesn't include on its own. */
@@ -288,7 +315,7 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
     const type = split ? split[turn++ % split.length] : scored.reduce((a, b) => (b.s > a.s ? b : a)).t
 
     const focus = isCardioDay(type) ? ['Cardio'] : type.generic ? [] : type.groups
-    const avoid = new Set(recent.flat())
+    const avoid = new Set([...recent.flat(), ...(input.rotate ?? [])])
     if (offset % 7 === 0) slotCount.clear()
     const nth = slotCount.get(type.name) ?? 0
     slotCount.set(type.name, nth + 1)

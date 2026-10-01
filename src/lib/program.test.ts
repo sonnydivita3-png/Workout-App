@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import type { ExerciseLog } from '../types'
 import { addDays, parseISO, toISO, weekdayIndex } from './dates'
-import { applyProgression, defaultWeekdays, familiarLifts, generateProgram, majorGroupsLogged, rerollSlot, MAJOR_GROUPS, PROGRAM_GOALS, rerollDay, type ProgramGoal, type ProgramInput } from './program'
+import { applyProgression, defaultWeekdays, familiarLifts, generateProgram, liftsToRotate, majorGroupsLogged, rerollSlot, MAJOR_GROUPS, PROGRAM_GOALS, rerollDay, type ProgramGoal, type ProgramInput } from './program'
 import { minutesFor } from './randomizer'
 import { mulberry32 } from './randomUtil'
 
@@ -324,5 +324,37 @@ describe('progress carries over', () => {
     expect(ids(copies[0])).not.toEqual(ids(first))
     for (const d of copies) expect(ids(d)).toEqual(ids(copies[0]))
     expect(next.filter((d) => d.slot !== first.slot)).toEqual(days.filter((d) => d.slot !== first.slot))
+  })
+})
+
+describe('new lifts each month', () => {
+  const lookup = (id: string) => BUILTIN_BY_ID.get(id)
+  const session = (date: string, exerciseId: string, weight: number, reps = 10): ExerciseLog => ({ date, exerciseId, sets: [{ weight, reps }, { weight, reps }] })
+
+  it('swaps accessories done for a month, keeps main lifts and newer accessories', () => {
+    const logs = [
+      ...['2026-08-25', '2026-09-08', '2026-09-22'].map((d, i) => session(d, 'Leg_Extensions', 100 + i * 10)),
+      ...['2026-08-25', '2026-09-08', '2026-09-22'].map((d, i) => session(d, 'Barbell_Bench_Press_-_Medium_Grip', 155 + i * 10)),
+      ...['2026-09-15', '2026-09-22'].map((d) => session(d, 'Cable_Crossover', 40)),
+    ]
+    expect([...liftsToRotate(logs, MONDAY, lookup)]).toEqual(['Leg_Extensions'])
+  })
+
+  it('swaps a stalled accessory sooner', () => {
+    const logs = ['2026-09-14', '2026-09-18', '2026-09-22'].map((d) => session(d, 'Cable_Crossover', 40))
+    expect(liftsToRotate(logs, MONDAY, lookup).has('Cable_Crossover')).toBe(true)
+  })
+
+  it('a new plan leaves the swapped lifts out and keeps the rest', () => {
+    const logs = [
+      ...['2026-08-25', '2026-09-08', '2026-09-22'].map((d, i) => session(d, 'Leg_Extensions', 100 + i * 10)),
+      ...['2026-08-25', '2026-09-08', '2026-09-22'].map((d, i) => session(d, 'Barbell_Squat', 185 + i * 10, 5)),
+    ]
+    for (let seed = 1; seed <= 5; seed++) {
+      const all = generateProgram(base({ split: 'ppl', rng: mulberry32(seed), familiar: familiarLifts(logs, MONDAY), rotate: liftsToRotate(logs, MONDAY, lookup) }))
+        .flatMap((d) => d.items.map((p) => p.exerciseId))
+      expect(all).not.toContain('Leg_Extensions')
+      expect(all).toContain('Barbell_Squat')
+    }
   })
 })

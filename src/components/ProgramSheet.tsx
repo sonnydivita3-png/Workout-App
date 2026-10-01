@@ -3,7 +3,7 @@ import type { PlannedExercise } from '../types'
 import { addDays, fmtShort, mondayOf, parseISO, toISO, weekdayIndex } from '../lib/dates'
 import { dayPlanOf } from '../lib/plan'
 import {
-  bestSplit, defaultWeekdays, generateProgram, goalInfo, familiarLifts, majorGroupsLogged, PROGRAM_GOALS, rerollSlot, SPLITS, splitInfo, type ProgramDay, type ProgramGoal, type SplitId,
+  bestSplit, defaultWeekdays, generateProgram, goalInfo, familiarLifts, liftsToRotate, majorGroupsLogged, PROGRAM_GOALS, rerollSlot, SPLITS, splitInfo, type ProgramDay, type ProgramGoal, type SplitId,
 } from '../lib/program'
 import { minutesFor, styleInfo } from '../lib/randomizer'
 import { useToday } from '../lib/useToday'
@@ -57,6 +57,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
         prevDayGroups: majorGroupsLogged(logs, prev, (id) => findExercise(custom, id)),
         warmup: defaultWarmup(genPrefs.warmup, true), rest: genPrefs.rest, likedStyles: trainingPrefs.styles, dropSets: !!genPrefs.drops, split,
         familiar: familiarLifts(logs, first),
+        rotate: liftsToRotate(logs, first, (id) => findExercise(custom, id)),
       })),
     )
     setOpen(null)
@@ -157,6 +158,10 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
   const workouts = result.filter((d) => !d.rest)
   const existing = result.filter((d) => dayPlanOf(plan, overrides, d.date).length > 0).length
   const byWeek = [...new Set(result.map((d) => d.weekIndex))].map((w) => result.filter((d) => d.weekIndex === w))
+  // Lifts in the plan they've never logged: the month's new moves (shown once they have some history to compare with).
+  const logged = new Set(logs.map((l) => l.exerciseId))
+  const newLifts = [...new Set(result.filter((d) => d.slot).flatMap((d) => d.items.map((p) => p.exerciseId)))]
+    .filter((id) => !logged.has(id)).map((id) => findExercise(custom, id)?.name).filter(Boolean)
   const recentIds = (i: number) => new Set(result.slice(Math.max(0, i - 3), i + 4).flatMap((d) => d.items.map((p) => p.exerciseId)))
 
   const reroll = (date: string) =>
@@ -178,6 +183,12 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
       <p className="mb-1 text-sm text-neutral-500">
         {goalInfo(goal).label}{split !== 'auto' && ` · ${splitInfo(split).label}`} · {workouts.length} workout{workouts.length === 1 ? '' : 's'} · {result.length - workouts.length} rest day{result.length - workouts.length === 1 ? '' : 's'}
       </p>
+      {hasHistory && newLifts.length > 0 && (
+        <p className="mb-2 rounded-xl bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
+          <b className="font-medium text-neutral-700">New this time:</b> {newLifts.slice(0, 4).join(', ')}{newLifts.length > 4 ? ` and ${newLifts.length - 4} more` : ''}.
+          {' '}Accessories you’ve done for a month (or stalled on) get swapped; your main lifts stay so you keep progressing. New lifts get a starting weight from a similar one you’ve done.
+        </p>
+      )}
       <p className="mb-4 text-xs text-neutral-400">Tap a day to see the exercises or reroll it{weeks === 4 ? ' (lifting days change in every week, so they still repeat)' : ''}.</p>
 
       <div className="space-y-4">

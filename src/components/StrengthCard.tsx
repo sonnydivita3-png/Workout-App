@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react'
 import { fmtRest } from '../lib/describe'
-import { compareSet, platesFor, suggestNext, weightStep, workSets } from '../lib/progression'
+import { compareSet, estimateStart, platesFor, suggestNext, weightStep, workSets } from '../lib/progression'
 import { restFor, warmupRamp } from '../lib/timing'
 import { formatSeconds, showWeight, storeWeight } from '../lib/units'
-import { useStore } from '../store'
+import { findExercise, useStore } from '../store'
 import type { Exercise, ExerciseLog, StrengthSet } from '../types'
 import { HowToSheet } from './HowToSheet'
 import { HoldTimerSheet } from './IntervalTimerSheet'
@@ -70,7 +70,10 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
   const lastWork = workSets(last)
   const allLogs = useStore((s) => s.logs)
   const history = last ? allLogs.filter((l) => l.exerciseId === exercise.id && l.date <= last.date).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4) : []
-  const tip = suggestNext(exercise, last, { reps: targetReps, seconds: targetSeconds }, units, history)
+  const custom = useStore((s) => s.custom)
+  const fromLast = suggestNext(exercise, last, { reps: targetReps, seconds: targetSeconds }, units, history)
+  // Never done this one: start from the most recent similar lift they have logged.
+  const tip = (fromLast.kind === 'first' && estimateStart(exercise, allLogs, targetReps, units, (id) => findExercise(custom, id))) || fromLast
 
   // Typing doesn't tick a set (✓ does, like any gym log); typing over numbers ✓ filled in makes them yours.
   const typed = (patch: Partial<StrengthSet>) => !('auto' in patch) && ('weight' in patch || 'reps' in patch || 'seconds' in patch)

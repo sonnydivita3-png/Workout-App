@@ -1,5 +1,7 @@
 import type { Exercise, ExerciseLog, StrengthSet, Units } from '../types'
 import { epley } from './stats'
+import { familyOf } from './randomUtil'
+import { showWeight } from './units'
 
 /** Working sets with data (warm-ups and drop sets left out). */
 export const workSets = (l?: ExerciseLog): StrengthSet[] => (l?.sets ?? []).filter((s) => !s.warmup && !s.drop && (s.weight || s.reps || s.seconds))
@@ -22,7 +24,7 @@ export interface Suggestion {
   seconds?: number | null
   /** One-line reason, e.g. "You hit 3 × 8 at 135 last time: add weight". */
   why: string
-  kind: 'add-weight' | 'add-reps' | 'add-time' | 'repeat' | 'first' | 'deload'
+  kind: 'add-weight' | 'add-reps' | 'add-time' | 'repeat' | 'first' | 'deload' | 'estimate'
 }
 
 /**
@@ -66,6 +68,52 @@ export function suggestNext(
   const low = Math.min(...atTop.map((s) => s.reps ?? 0))
   if (tooHard && hit) return { kind: 'repeat', weight: top, reps: goal, why: 'That felt maxed out last time. Repeat it and own every rep.' }
   return { kind: 'add-reps', weight: top, reps: Math.min(goal, low + 1), why: `Same weight. Your lowest set was ${low}: get ${Math.min(goal, low + 1)}+ on every set.` }
+}
+
+/**
+ * Rough load per piece of kit compared with a barbell, for the same movement: each dumbbell is about 40% of the bar
+ * (a 185 bench ≈ 70s), cables a bit over half. Rough on purpose; the estimate is then trimmed to stay on the safe side.
+ */
+const LOAD: Record<string, number> = { Barbell: 1, 'EZ bar': 0.9, Machine: 1, Cable: 0.6, Dumbbell: 0.4, Kettlebell: 0.4 }
+/** Close movements in different families (incline pressing is about 80% of flat). */
+const NEAR: Record<string, [string, number][]> = { incline: [['bench', 0.8]], bench: [['incline', 1.2]] }
+
+/**
+ * A starting weight for a lift they've never logged, from the most recent similar lift they have (same movement, same
+ * muscle): its best set's estimated max, scaled for the equipment, cut 10% to be safe, then worked back to `reps`.
+ * Null when there's nothing close enough to go on.
+ */
+export function estimateStart(
+  ex: Exercise,
+  logs: ExerciseLog[],
+  reps: number | undefined,
+  units: Units,
+  lookup: (id: string) => Exercise | undefined,
+): Suggestion | null {
+  if ((ex.mode ?? 'weight') !== 'weight' || !LOAD[ex.equipment ?? '']) return null
+  const fam = familyOf(ex)
+  if (!fam) return null
+  const near = new Map<string, number>([[fam, 1], ...(NEAR[fam] ?? [])])
+  const goal = reps ?? 10
+  const recent = [...logs].sort((a, b) => b.date.localeCompare(a.date))
+  for (const l of recent) {
+    if (l.exerciseId === ex.id) continue
+    const src = lookup(l.exerciseId)
+    const f = src && familyOf(src)
+    if (!src || !f || !near.has(f) || src.group !== ex.group || (src.mode ?? 'weight') !== 'weight' || !LOAD[src.equipment ?? '']) continue
+    const sets = workSets(l).filter((s) => s.weight && s.reps)
+    if (sets.length === 0) continue
+    const best = sets.reduce((a, s) => (epley(s.weight!, s.reps!) > epley(a.weight!, a.reps!) ? s : a))
+    const max = epley(best.weight!, best.reps!) * near.get(f)! * (LOAD[ex.equipment!] / LOAD[src.equipment!]) * 0.9
+    const step = weightStep(ex, units)
+    const weight = Math.floor(max / (1 + goal / 30) / step) * step
+    if (weight <= 0) return null
+    return {
+      kind: 'estimate', weight, reps: goal,
+      why: `New lift: estimated from your ${src.name} (${showWeight(best.weight!, units)}×${best.reps}). Go lighter if it feels heavy.`,
+    }
+  }
+  return null
 }
 
 /**
