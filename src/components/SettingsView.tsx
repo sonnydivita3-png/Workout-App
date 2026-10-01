@@ -15,6 +15,7 @@ import { LEGAL_TITLES, type LegalDoc } from '../lib/legal'
 import { isIos, isStandalone, useInstallPrompt } from '../lib/install'
 import { APP_VERSION, feedbackLink } from '../lib/feedback'
 import { CaloriesFaq } from './CaloriesFaq'
+import { VersionRow } from './VersionRow'
 import { NumberInput } from './NumberInput'
 
 const ACCENTS: [Accent, string][] = [['lime', '#c8ff3e'], ['pink', '#ff5cae'], ['violet', '#a78bfa'], ['orange', '#ff9f45'], ['blue', '#5eb1ff']]
@@ -345,6 +346,7 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
       <h2 className="text-sm font-semibold text-neutral-700">Calories FAQ</h2>
       <CaloriesFaq />
       <h2 className="pt-4 text-sm font-semibold text-neutral-700">More</h2>
+      <VersionRow />
       {(['privacy', 'terms', 'health'] as const).map((d) => (
         <button key={d} onClick={() => setLegal(d)} className="w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70">
           {LEGAL_TITLES[d]}

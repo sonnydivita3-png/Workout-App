@@ -6,6 +6,7 @@ import { AddEmailSheet } from './AddEmailSheet'
 import { SocialSetup } from './SocialSetup'
 import { AvatarPicker } from './AvatarPicker'
 import { Avatar, ErrorNote } from './ui'
+import { ConnectionStatus } from './ConnectionStatus'
 
 const row = 'flex items-center justify-between rounded-2xl bg-surface px-4 py-3 shadow-sm ring-1 ring-neutral-200/70'
 const btn = 'w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70'
@@ -29,6 +30,7 @@ export function SocialSettings() {
   return (
     <>
       <h2 className="pt-4 text-sm font-semibold text-neutral-700">Social</h2>
+      <ConnectionStatus />
       {backend.kind === 'demo' && <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">Preview mode: friends are simulated on this device until the app is connected to a server.</p>}
       {!enabled ? (
         <>

@@ -16,6 +16,8 @@ test('social sign-up without email needs the age check, then friends work', asyn
   await create.click()
   await page.locator('nav').getByText('Social').click()
   await expect(page.getByText('@e2e_user')).toBeVisible()
+  // This test build has no server, so it says so (on the live site it reads "Live server").
+  await expect(page.getByLabel('Connection status')).toContainText('Preview only: accounts stay on this phone · version')
   await page.getByRole('button', { name: 'Review' }).first().click()
   await page.getByRole('button', { name: 'Allow all' }).click()
   await page.getByRole('button', { name: 'Accept' }).click()
