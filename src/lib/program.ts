@@ -123,6 +123,8 @@ export interface ProgramInput {
   rest?: RestPref
   /** Workout styles the person enjoys: those sessions come up more, and liked formats the goal lacks are added. */
   likedStyles?: WorkoutStyle[]
+  /** Drop sets on the last two lifts of lifting days. */
+  dropSets?: boolean
 }
 
 /** Sessions for liked full-body formats that a goal doesn't include on its own. */
@@ -216,7 +218,7 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
 
     const focus = isCardioDay(type) ? ['Cardio'] : type.generic ? [] : type.groups
     const avoid = new Set(recent.flat())
-    let items = generateWorkout(focus, minutes, { style: type.style, rng, avoid, rest: input.rest, warmup: isCardioDay(type) ? undefined : input.warmup })
+    let items = generateWorkout(focus, minutes, { style: type.style, rng, avoid, rest: input.rest, warmup: isCardioDay(type) ? undefined : input.warmup, dropSets: input.dropSets })
     items = applyProgression(items, weekIndex, weeks)
     recent.push(items.map((p) => p.exerciseId))
     if (recent.length > 6) recent.shift()
@@ -231,10 +233,10 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
 }
 
 /** Regenerate one day with the same session type (used by "reroll this day"). */
-export function rerollDay(day: ProgramDay, minutes: number, weeks: number, avoidIds: Set<string>, rng: Rng = Math.random, opts: { warmup?: WarmupOptions; rest?: RestPref } = {}): ProgramDay {
+export function rerollDay(day: ProgramDay, minutes: number, weeks: number, avoidIds: Set<string>, rng: Rng = Math.random, opts: { warmup?: WarmupOptions; rest?: RestPref; dropSets?: boolean } = {}): ProgramDay {
   if (day.rest || !day.style) return day
   const cardioDay = day.focus.length === 1 && day.focus[0] === 'Cardio'
-  const items = applyProgression(generateWorkout(day.focus, minutes, { style: day.style, rng, avoid: avoidIds, rest: opts.rest, warmup: cardioDay ? undefined : opts.warmup }), day.weekIndex, weeks)
+  const items = applyProgression(generateWorkout(day.focus, minutes, { style: day.style, rng, avoid: avoidIds, rest: opts.rest, warmup: cardioDay ? undefined : opts.warmup, dropSets: opts.dropSets }), day.weekIndex, weeks)
   return { ...day, items }
 }
 

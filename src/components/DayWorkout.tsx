@@ -100,9 +100,23 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
                   current={current}
                   last={last}
                   onSetCount={(n) => {
-                    // Fewer sets: the removed set's numbers go too, so they don't count anywhere unseen.
-                    if (n < p.sets && current?.sets) s.saveStrength(date, ex.id, current.sets.slice(0, (p.warmupSets ?? 0) + n))
+                    // Fewer sets: the removed set's numbers go too, so they don't count anywhere unseen. Drop sets
+                    // (after the working sets) keep their place either way.
+                    const cur = current?.sets
+                    if (cur && cur.length > (p.warmupSets ?? 0) + Math.min(n, p.sets)) {
+                      const keep = (p.warmupSets ?? 0) + Math.min(n, p.sets)
+                      const pad = Array.from({ length: Math.max(0, n - p.sets) }, () => ({ weight: null, reps: null }))
+                      s.saveStrength(date, ex.id, [...cur.slice(0, keep), ...pad, ...cur.slice((p.warmupSets ?? 0) + p.sets)])
+                    }
                     s.setSetCount(date, ex.id, n)
+                  }}
+                  dropSets={p.dropSets}
+                  onDropSets={(n) => s.setDayItems(date, planned.map((q, j) => (j === index ? { ...q, dropSets: n || undefined } : q)))}
+                  onDeleteDrop={(i) => {
+                    const cur = useStore.getState().logs.find((l) => l.date === date && l.exerciseId === ex.id)?.sets
+                    if (cur) s.saveStrength(date, ex.id, cur.filter((_, j) => j !== i))
+                    const n = (p.dropSets ?? 1) - 1
+                    s.setDayItems(date, planned.map((q, j) => (j === index ? { ...q, dropSets: n || undefined } : q)))
                   }}
                   onSwap={() => { setSwapMsg(null); setSwap({ index, ex, step: 'how' }) }}
                   onHistory={() => setHistory(ex)}

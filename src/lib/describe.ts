@@ -20,6 +20,7 @@ export function describeItem(p: PlannedExercise, ex: Exercise, units: Units = { 
   else if (p.reps) parts.push(`${p.sets} × ${p.reps}`)
   else if (p.sets > 1) parts.push(`${p.sets} ${p.block ? 'rounds' : 'sets'}`)
   if (p.warmupSets) parts.push(`+${p.warmupSets} warm-up set${p.warmupSets === 1 ? '' : 's'}`)
+  if (p.dropSets) parts.push(`+${p.dropSets} drop set${p.dropSets === 1 ? '' : 's'}`)
   if (p.rest && !p.block && ex.kind === 'strength') parts.push(`rest ${fmtRest(p.rest)}`)
   if (p.note) parts.push(p.note)
   return parts.join(' · ')

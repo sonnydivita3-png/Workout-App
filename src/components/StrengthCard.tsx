@@ -38,6 +38,11 @@ interface Props {
   onDeleteSet?: (index: number) => void
   /** A day that hasn't happened yet: show the plan, log it on the day. */
   readOnly?: boolean
+  /** Planned drop sets after the working sets. */
+  dropSets?: number
+  onDropSets?: (n: number) => void
+  /** Delete one drop set (its numbers too). */
+  onDeleteDrop?: (index: number) => void
 }
 
 const MARK = { up: { t: '▲', c: 'text-green-600', l: 'beat last time' }, same: { t: '=', c: 'text-neutral-400', l: 'matched last time' }, down: { t: '▼', c: 'text-red-600', l: 'below last time' } } as const
@@ -46,7 +51,7 @@ const MARK = { up: { t: '▲', c: 'text-green-600', l: 'beat last time' }, same:
  * One exercise to log: a target from last time, then a row per set. ✓ logs a set (filling in the target if nothing
  * was typed). Everything else (how-to, note, plates, fewer sets, remove) is under ⋯ so the card stays simple.
  */
-export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, warmupSets = 0, rest, note, current, last, onSetCount, onChange, onNote, onRemove, onSetDone, restNote, onSwap, onHistory, onDeleteSet, readOnly }: Props) {
+export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, warmupSets = 0, rest, note, current, last, onSetCount, onChange, onNote, onRemove, onSetDone, restNote, onSwap, onHistory, onDeleteSet, readOnly, dropSets = 0, onDropSets, onDeleteDrop }: Props) {
   const units = useStore((s) => s.units)
   const trackRpe = useStore((s) => s.trackRpe)
   const mode = exercise.mode ?? 'weight'
@@ -57,7 +62,9 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
   const [editingNote, setEditingNote] = useState(false)
   const [setOpts, setSetOpts] = useState<number | null>(null)
   // Planned warm-up sets come first (marked W), then the working sets.
-  const sets: StrengthSet[] = Array.from({ length: warmupSets + setCount }, (_, i) => current?.sets?.[i] ?? { weight: null, reps: null, seconds: null, ...(i < warmupSets ? { warmup: true } : {}) })
+  // Warm-ups first, then the working sets, then any drop sets.
+  const firstDrop = warmupSets + setCount
+  const sets: StrengthSet[] = Array.from({ length: firstDrop + dropSets }, (_, i) => current?.sets?.[i] ?? { weight: null, reps: null, seconds: null, ...(i < warmupSets ? { warmup: true } : {}), ...(i >= firstDrop ? { drop: true } : {}) })
   const lastWork = workSets(last)
   const allLogs = useStore((s) => s.logs)
   const history = last ? allLogs.filter((l) => l.exerciseId === exercise.id && l.date <= last.date).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4) : []
@@ -84,6 +91,13 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
     const bar = exercise.equipment === 'Barbell' ? (units.weight === 'kg' ? 20 * 2.20462262 : 45) : 0
     return { weight: Math.max(bar, Math.round((top * r.pct) / step) * step), reps: r.reps, warmup: true }
   }
+  // Each drop about 20% lighter than the set before it, rounded to what you can load.
+  const dropFor = (i: number): number | null => {
+    const base = sets[firstDrop - 1]?.weight ?? tip.weight ?? workSets(last).at(-1)?.weight ?? null
+    if (mode !== 'weight' || !base) return null
+    const step = weightStep(exercise, units)
+    return Math.max(step, Math.round((base * 0.8 ** (i - firstDrop + 1)) / step) * step)
+  }
   const workRest = rest ?? restFor(exercise, targetReps, targetSeconds)
   // ✓ fills in whatever is missing from the target (typed numbers win), then logs the set. Tapping a ticked set
   // again unticks it (clears it), for a tap by mistake.
@@ -96,17 +110,20 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
       return
     }
     const r = s.warmup ? rampFor(i) : null
-    const next = s.warmup ? { ...s, weight: s.weight ?? r?.weight ?? null, reps: s.reps ?? r?.reps ?? null } : fromTip(s)
+    const d = s.drop ? dropFor(i) : null
+    const next = s.warmup ? { ...s, weight: s.weight ?? r?.weight ?? null, reps: s.reps ?? r?.reps ?? null }
+      : s.drop ? { ...s, weight: s.weight ?? d, reps: s.reps ?? targetReps ?? null } : fromTip(s)
     update(i, { ...next, done: true, auto: !filled(s) })
     try { navigator.vibrate?.(15) } catch { /* not supported */ }
     const round = sets.slice(0, i + 1).filter((x) => !x.warmup).length
-    onSetDone?.(s.warmup ? 60 : workRest, { round, warmup: !!s.warmup })
+    // No rest before a drop set, nor after one (that's the point of them).
+    onSetDone?.(s.drop || sets[i + 1]?.drop ? 0 : s.warmup ? 60 : workRest, { round, warmup: !!s.warmup || !!s.drop })
   }
 
   // Compare working sets in order with last time's working sets (warm-ups skipped on both sides).
   let workIndex = -1
   const vsLast = sets.map((s) => {
-    if (s.warmup || !filled(s)) return null
+    if (s.warmup || s.drop || !filled(s)) return null
     workIndex++
     return compareSet(s, lastWork[workIndex], mode)
   })
@@ -146,6 +163,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
             {mode === 'time' && ' · timed'}
             {target && ` · ${target}`}
             {warmupSets > 0 && ` · +${warmupSets} warm-up`}
+            {dropSets > 0 && ` · +${dropSets} drop`}
             {restNote ? ` · ${restNote}` : ` · rest ${fmtRest(workRest)}`}
             {note && ` · ${note}`}
           </p>
@@ -177,7 +195,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
           const mark = vsLast[i] ? MARK[vsLast[i]!] : null
           // Warm-ups and working sets are numbered separately: W W W, then 1 2 3.
           const warmBefore = sets.slice(0, i).filter((x) => x.warmup).length
-          const label = s.warmup ? `Warm-up set ${warmBefore + 1}` : `Set ${i + 1 - warmBefore}`
+          const label = s.warmup ? `Warm-up set ${warmBefore + 1}` : s.drop ? `Drop set ${i - firstDrop + 1}` : `Set ${i + 1 - warmBefore}`
           return (
             <div key={i} className="grid items-center gap-2" style={{ gridTemplateColumns: cols }}>
               <button
@@ -186,7 +204,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
                 title="Warm-up or delete"
                 className={`h-8 rounded-lg bg-neutral-50 text-sm ${s.warmup ? 'font-semibold text-amber-700' : 'text-neutral-500'}`}
               >
-                {s.warmup ? 'W' : i + 1 - warmBefore}
+                {s.warmup ? 'W' : s.drop ? 'D' : i + 1 - warmBefore}
                 {mark && <span className={`ml-0.5 text-[10px] ${mark.c}`} aria-label={mark.l}>{mark.t}</span>}
               </button>
               {mode === 'weight' && (
@@ -194,7 +212,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
                   label={`${label} ${units.weight}`}
                   value={showWeight(s.weight, units)}
                   step={units.weight === 'kg' ? 1 : 2.5}
-                  placeholder={showWeight(s.warmup ? rampFor(i)?.weight ?? null : tip.weight ?? prev?.weight ?? null, units)?.toString() ?? '–'}
+                  placeholder={showWeight(s.warmup ? rampFor(i)?.weight ?? null : s.drop ? dropFor(i) : tip.weight ?? prev?.weight ?? null, units)?.toString() ?? '–'}
                   onChange={(v) => update(i, { weight: storeWeight(v, units) })}
                 />
               )}
@@ -244,6 +262,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
         <Sheet title={exercise.name} onClose={() => setMenu(false)}>
           {onSwap && menuItem('Swap exercise', onSwap)}
           {onHistory && menuItem('History', onHistory)}
+          {onDropSets && mode === 'weight' && menuItem(dropSets ? 'Add another drop set' : 'Add a drop set', () => onDropSets(dropSets + 1))}
           {menuItem('How to do it', () => setHowTo(true))}
           {onNote && menuItem(current?.note ? 'Edit note' : 'Add a note', () => setEditingNote(true))}
           {barbell && menuItem(plates ? 'Hide plates' : 'Plates for this weight', () => setPlates((p) => !p))}
@@ -255,6 +274,12 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
         const i = setOpts
         const warm = !!sets[i].warmup
         const warmBefore = sets.slice(0, i).filter((x) => x.warmup).length
+        if (sets[i].drop) return (
+          <Sheet title={`Drop set ${i - firstDrop + 1}`} onClose={() => setSetOpts(null)}>
+            <p className="px-3 pb-2 text-sm text-neutral-500">Straight after your last set: strip about 20% off and go to failure. Doesn’t count toward “beat last time”.</p>
+            {onDeleteDrop && <button onClick={() => { onDeleteDrop(i); setSetOpts(null) }} className={`${rowBtn} text-red-600`}><span>Delete this drop set</span></button>}
+          </Sheet>
+        )
         return (
           <Sheet title={warm ? `Warm-up set ${warmBefore + 1}` : `Set ${i + 1 - warmBefore}`} onClose={() => setSetOpts(null)}>
             <button onClick={() => { update(i, { warmup: !warm }); setSetOpts(null) }} className={rowBtn}>

@@ -32,3 +32,28 @@ describe('warm-up sets', () => {
     expect(placeWarmups(day, look)).toBe(day)
   })
 })
+
+describe('drop sets in generated workouts', () => {
+  it('go on the last two weight lifts, preferring non-barbell ones, never bodyweight or core', async () => {
+    const { addDropSets } = await import('./warmups')
+    const day = [
+      { exerciseId: 'Barbell_Squat', sets: 3 },
+      { exerciseId: 'Barbell_Bench_Press_-_Medium_Grip', sets: 3 },
+      { exerciseId: 'Dumbbell_Bicep_Curl', sets: 3 },
+      { exerciseId: 'Triceps_Pushdown', sets: 3 },
+      { exerciseId: 'Pushups', sets: 3 },
+      { exerciseId: 'Cable_Crunch', sets: 3 },
+    ]
+    expect(addDropSets(day, look).map((p) => p.dropSets ?? 0)).toEqual([0, 0, 2, 2, 0, 0])
+  })
+  it('come with the randomizer option and still fit the time', async () => {
+    const { generateWorkout, liftsMinutes } = await import('./randomizer')
+    const { mulberry32 } = await import('./randomUtil')
+    for (let seed = 1; seed <= 10; seed++) {
+      const w = generateWorkout(['Chest', 'Back', 'Biceps', 'Triceps'], 60, { rng: mulberry32(seed), dropSets: true })
+      expect(w.filter((p) => p.dropSets).length, `seed ${seed}`).toBe(2)
+      expect(liftsMinutes(w)).toBeLessThanOrEqual(66)
+      expect(liftsMinutes(w)).toBeGreaterThanOrEqual(51)
+    }
+  })
+})

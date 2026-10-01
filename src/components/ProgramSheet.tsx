@@ -54,7 +54,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
       generateProgram({
         anchorMonday, weeks, fromDate, trainWeekdays: days, goal, minutes,
         prevDayGroups: majorGroupsLogged(logs, prev, (id) => findExercise(custom, id)),
-        warmup: defaultWarmup(genPrefs.warmup, true), rest: genPrefs.rest, likedStyles: trainingPrefs.styles,
+        warmup: defaultWarmup(genPrefs.warmup, true), rest: genPrefs.rest, likedStyles: trainingPrefs.styles, dropSets: !!genPrefs.drops,
       })),
     )
     setOpen(null)
@@ -136,7 +136,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
   const recentIds = (i: number) => new Set(result.slice(Math.max(0, i - 3), i + 4).flatMap((d) => d.items.map((p) => p.exerciseId)))
 
   const reroll = (date: string) =>
-    setResult((r) => r && r.map((d, i) => (d.date === date ? withGearFor(gear, () => rerollDay(d, minutes, weeks, recentIds(i), Math.random, { warmup: defaultWarmup(genPrefs.warmup, true), rest: genPrefs.rest })) : d)))
+    setResult((r) => r && r.map((d, i) => (d.date === date ? withGearFor(gear, () => rerollDay(d, minutes, weeks, recentIds(i), Math.random, { warmup: defaultWarmup(genPrefs.warmup, true), rest: genPrefs.rest, dropSets: !!genPrefs.drops })) : d)))
 
   const apply = () => {
     if (onUse) {

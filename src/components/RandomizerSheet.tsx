@@ -116,6 +116,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
     commit(withChoices(() => generateWorkout(focus, total0, {
       style: styles[0], styles, rest,
       warmup: { ...warmSplit(), sets: warm.includes('sets') && lifting },
+      dropSets: !!genPrefs.drops && lifting,
       ...(showSplit ? { minutesByStyle: Object.fromEntries(styles.map((st) => [st, partMin(st)])), ...(hasCardio ? { cardioMinutes: partMin('cardio') } : {}) } : {}),
       avoid: new Set(avoid?.map((p) => p.exerciseId)),
     })))

@@ -1,5 +1,5 @@
 import { fmtLong } from '../lib/dates'
-import { workSets } from '../lib/progression'
+import { dropSetsOf, workSets } from '../lib/progression'
 import { formatPace, formatSeconds, showDistance, showWeight } from '../lib/units'
 import { useStore } from '../store'
 import type { Exercise, StrengthSet } from '../types'
@@ -27,7 +27,7 @@ export function ExerciseHistorySheet({ exercise, before, onClose }: { exercise: 
               <p className="text-sm tabular-nums text-neutral-500">
                 {l.cardio
                   ? `${showDistance(l.cardio.distance, units) ?? '–'} ${units.distance} · ${l.cardio.minutes ?? '–'} min${formatPace(l.cardio.distance, l.cardio.minutes, units) ? ` · ${formatPace(l.cardio.distance, l.cardio.minutes, units)}` : ''}`
-                  : workSets(l).map(setText).join(' · ')}
+                  : `${workSets(l).map(setText).join(' · ')}${dropSetsOf(l).length ? ` · drops ${dropSetsOf(l).map(setText).join(', ')}` : ''}`}
               </p>
               {l.note && <p className="text-xs text-neutral-400">“{l.note}”</p>}
             </li>
