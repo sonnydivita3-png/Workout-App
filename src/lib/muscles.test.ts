@@ -9,10 +9,16 @@ describe('weeklySets', () => {
       { date: '2026-09-30', exerciseId: 'Pushups', sets: [{ weight: null, reps: 20 }] },
       { date: '2026-09-22', exerciseId: 'Barbell_Bench_Press_-_Medium_Grip', sets: [{ weight: 135, reps: 8 }] },
       { date: '2026-09-29', exerciseId: 'running', cardio: { distance: 3, minutes: 27 } },
+      { date: '2026-09-30', exerciseId: 'Barbell_Squat', sets: [{ weight: 185, reps: 5 }, { weight: 185, reps: 5 }] },
+      { date: '2026-09-30', exerciseId: 'Dumbbell_Bicep_Curl', sets: [{ weight: 30, reps: 10 }] },
     ]
     const w = weeklySets(logs, '2026-09-30', (id) => BUILTIN_BY_ID.get(id))
     expect(w.thisWeek.Chest).toBe(3)
     expect(w.lastWeek.Chest).toBe(1)
-    expect(w.thisWeek.Legs).toBe(0)
+    // Legs and arms are split into parts.
+    expect(w.thisWeek.Quads).toBe(2)
+    expect(w.thisWeek.Biceps).toBe(1)
+    expect(w.thisWeek.Hamstrings).toBe(0)
+    expect('Legs' in w.thisWeek).toBe(false)
   })
 })

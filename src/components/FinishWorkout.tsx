@@ -8,17 +8,16 @@ import { findExercise, useStore } from '../store'
 import { useToasts } from '../toastStore'
 
 /**
- * "Workout complete": if some planned sets aren't logged, ask first (finish anyway, or keep going); then show how
- * the workout went against last time. Works with or without workout mode (`startedAt` adds the duration).
+ * "Finish workout": if some planned sets aren't logged, ask first (finish anyway, or keep going); then show how
+ * the workout went against last time.
  */
-export function FinishWorkout({ date, startedAt, onBack, onDone }: { date: string; startedAt?: number; onBack: () => void; onDone: () => void }) {
+export function FinishWorkout({ date, onBack, onDone }: { date: string; onBack: () => void; onDone: () => void }) {
   const s = useStore()
   const lookup = (id: string) => findExercise(s.custom, id) ?? BUILTIN_BY_ID.get(id)
   const items = dayPlanOf(s.plan, s.overrides, date)
   const [missing] = useState(() => unfinished(date, items, s.logs, lookup))
   const [confirmed, setConfirmed] = useState(missing.length === 0)
   const [summary, setSummary] = useState(() => (missing.length === 0 ? celebrate(date, workoutSummary(date, items, s.logs, lookup)) : null))
-  const [endedAt] = useState(() => Date.now())
 
   if (!confirmed || !summary) {
     const sets = missing.filter((m) => !m.cardio).reduce((a, m) => a + (m.planned - m.done), 0)
@@ -45,14 +44,13 @@ export function FinishWorkout({ date, startedAt, onBack, onDone }: { date: strin
   }
 
   const units = s.units
-  const mins = startedAt ? Math.max(1, Math.round((endedAt - startedAt) / 60000)) : null
   const volDelta = summary.lastLiftVolume ? Math.round(((summary.liftVolume - summary.lastLiftVolume) / summary.lastLiftVolume) * 100) : null
   const icon = { up: '▲', same: '=', down: '▼', new: '🆕', skipped: '–' } as const
   const color = { up: 'text-green-600', same: 'text-neutral-400', down: 'text-red-600', new: 'text-neutral-500', skipped: 'text-neutral-300' } as const
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-neutral-50">
       <div className="mx-auto max-w-md px-5 pb-10 pt-[max(1.5rem,env(safe-area-inset-top))]">
-        <p className="text-sm text-neutral-400">{fmtLong(date)}{mins ? ` · ${mins} min` : ''}</p>
+        <p className="text-sm text-neutral-400">{fmtLong(date)}</p>
         <h1 className="mb-1 text-3xl tracking-tight">
           {summary.compared === 0 ? 'Workout logged ✅' : summary.beat === summary.compared ? 'Beat last time on everything 🔥' : summary.beat > 0 ? `Beat last time on ${summary.beat} of ${summary.compared}` : 'Logged. Next time you beat it 💪'}
         </h1>
@@ -75,7 +73,7 @@ export function FinishWorkout({ date, startedAt, onBack, onDone }: { date: strin
             </li>
           ))}
         </ul>
-        <button onClick={() => { s.finishDay(date); if (s.session?.date === date) s.endSession(); onDone() }} className="w-full rounded-2xl bg-accent py-3 font-medium text-on-accent">Done</button>
+        <button onClick={() => { s.finishDay(date); onDone() }} className="w-full rounded-2xl bg-accent py-3 font-medium text-on-accent">Done</button>
         <button onClick={onBack} className="mt-2 w-full py-2 text-sm text-neutral-500">Back to the workout</button>
       </div>
     </div>

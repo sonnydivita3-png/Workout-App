@@ -19,30 +19,34 @@ async function onTop(page: Page, selector: string) {
   }, selector)
 }
 
-test('notifications show on top of workout mode', async ({ page }) => {
+test('notifications show on top of the workout', async ({ page }) => {
   await seed(page, { ...plannedBench, notifPrefs: { system: false, goals: false, pbs: true, daily: false, reminderTime: '23:59' } })
   await page.goto('/')
-  await page.getByRole('button', { name: '▶ Start workout' }).click()
-  await page.getByRole('button', { name: 'Fill' }).click()
+  await page.getByRole('button', { name: 'Start workout' }).click()
+  // ✓ logs the suggested target (more than last time), which is a new best.
+  await page.getByRole('button', { name: 'Set 1 done' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'New PR' })).toBeVisible()
   expect(await onTop(page, '[role=status] button')).toBe(true)
 })
 
-test('the "Back to your workout" button does not cover + Add', async ({ page }) => {
-  await seed(page, plannedBench)
+test('with the rest timer turned on, ticking a set starts it and Finish workout stays reachable', async ({ page }) => {
+  await seed(page, { ...plannedBench, restSeconds: 60 })
   await page.goto('/')
-  await page.getByRole('button', { name: '▶ Start workout' }).click()
-  await page.getByRole('button', { name: 'Minimize workout' }).click()
-  await page.locator('nav').getByText('Plan').click()
-  await expect(page.getByRole('button', { name: '▶ Back to your workout' })).toBeVisible()
-  expect(await onTop(page, 'button.fixed.left-1\\/2')).toBe(true) // + Add
+  await page.getByRole('button', { name: 'Start workout' }).click()
+  await page.getByRole('button', { name: 'Set 1 done' }).click()
+  await expect(page.getByRole('timer')).toContainText('Rest')
+  await page.getByRole('button', { name: '✓ Finish workout' }).click()
+  await expect(page.getByRole('dialog', { name: 'Finish workout?' })).toBeVisible()
 })
 
-test('a workout left running for hours does not take over the app', async ({ page }) => {
-  await seed(page, { ...plannedBench, session: { date: iso(-1), startedAt: Date.now() - 20 * 3600 * 1000 } })
+test('the rest timer is off unless turned on, and there is no workout clock', async ({ page }) => {
+  await seed(page, { ...plannedBench, restSeconds: undefined, session: { date: iso(0), startedAt: Date.now() - 3600 * 1000 } })
   await page.goto('/')
-  await expect(page.getByText('Goals')).toBeVisible()
-  expect((await state(page)).session).toBeNull()
+  await expect(page.getByText('Goals')).toBeVisible() // an old saved workout-mode session doesn't take over
+  await page.getByRole('button', { name: 'Start workout' }).click()
+  await page.getByRole('button', { name: 'Set 1 done' }).click()
+  await expect(page.getByRole('timer')).toHaveCount(0)
+  expect((await state(page)).restSeconds).toBe(0)
 })
 
 test('cloud backup that is on but signed out offers a way to sign in', async ({ page }) => {
@@ -68,10 +72,10 @@ test('a backup file restores programs too, and a damaged file cannot break the a
   expect(s.logs.every((l: unknown) => l && typeof (l as { exerciseId: unknown }).exerciseId === 'string')).toBe(true)
 })
 
-test('how-to and the hold timer open on top of workout mode', async ({ page }) => {
+test('how-to and the hold timer open from the workout', async ({ page }) => {
   await seed(page, { overrides: { [iso(0)]: [{ exerciseId: 'Plank', sets: 2, seconds: 30 }] } })
   await page.goto('/')
-  await page.getByRole('button', { name: '▶ Start workout' }).click()
+  await page.getByRole('button', { name: 'Start workout' }).click()
   await page.getByRole('button', { name: 'Plank', exact: true }).click()
   await expect(page.getByText(/Get into a prone position/i)).toBeVisible()
   await page.locator('.fixed').getByRole('button', { name: 'Close', exact: true }).last().click()
@@ -84,7 +88,7 @@ test('a plateau suggests a deload', async ({ page }) => {
   const at = (d: number) => ({ date: iso(d), exerciseId: B, sets: [{ weight: 185, reps: 8 }, { weight: 185, reps: 6 }] })
   await seed(page, { overrides: { [iso(0)]: [{ exerciseId: B, sets: 2, reps: 8 }] }, logs: [at(-3), at(-6), at(-9)] })
   await page.goto('/')
-  await page.locator('nav').getByText('Plan').click()
+  await page.locator('nav').getByText('Workouts').click()
   await expect(page.getByText('🎯 Try 165 lb × 8')).toBeVisible()
   await expect(page.getByText(/No progress in your last 3 sessions/)).toBeVisible()
 })

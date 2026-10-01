@@ -1,5 +1,6 @@
 import { EXERCISES } from '../data/exercises'
 import type { Exercise } from '../types'
+import { FULL_BODY_ORDER } from './bodyParts'
 
 export type Rng = () => number
 
@@ -8,7 +9,8 @@ export const BY_ID = new Map(EXERCISES.map((e) => [e.id, e]))
 export const POOL = EXERCISES.filter((e) => e.suggest)
 export const byName = (name: string) => EXERCISES.find((e) => e.name === name)
 
-export const FULL_BODY_GROUPS = ['Chest', 'Back', 'Shoulders', 'Legs', 'Glutes', 'Arms', 'Core']
+/** Every body part, biggest movements first (see bodyParts.ts). */
+export const FULL_BODY_GROUPS = [...FULL_BODY_ORDER]
 
 export function shuffle<T>(arr: T[], rng: Rng): T[] {
   const a = [...arr]
@@ -76,7 +78,7 @@ export const isStaple = perExercise((e) => STAPLES.test(`${e.name} ${e.fullName 
 
 // Movement families, so a workout doesn't repeat the same thing (three squats, three incline presses...).
 const FAMILIES: [string, RegExp][] = [
-  ['squat', /squat/i], ['hinge', /deadlift|good morning|pull through/i], ['lunge', /lunge|split squat|step-?up/i],
+  ['squat', /squat/i], ['hinge', /deadlift|good morning|pull through|swing/i], ['lunge', /lunge|split squat|step-?up/i],
   ['incline', /incline.*(press|bench)/i], ['bench', /bench press|chest press|floor press/i], ['pushup', /push-?up/i],
   ['row', /\brows?\b/i], ['vertical pull', /pulldown|pull-?up|chin-?up/i], ['overhead', /overhead press|shoulder press|military|arnold|push press/i],
   ['raise', /lateral raise|front raise|rear delt|reverse fly/i], ['fly', /\bfly|flyes|crossover/i], ['curl', /(?<!leg )curl/i],
@@ -87,7 +89,7 @@ export const familyOf = perExercise((e) => FAMILIES.find(([, re]) => re.test(`${
 
 /** Niche or gimmicky moves that make a random workout feel odd. Still available to pick by hand. */
 export const isQuirky = perExercise((e) =>
-  /\b(bands?|chains?|isometric|around the worlds?|turkish|windmill|get-?up|wipers?|body-up|butt-ups|halo|pass between|otis|london bridges|conan)\b/i.test(e.name))
+  /\b(bands?|chains?|isometric|around the worlds?|turkish|windmill|get-?up|wipers?|body-up|butt-ups|halo|pass between|otis|london bridges|conan|plate movers)\b/i.test(e.name))
 
 /** Olympic lifts and their variations: great, but too technical to hand out at random for sets of 6-12. */
 export const isTechnical = perExercise((e) => /\b(clean|snatch|jerk)\b/i.test(e.name))

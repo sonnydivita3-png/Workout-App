@@ -12,10 +12,10 @@ const big = 'w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-on
 const option = 'flex w-full items-center justify-between gap-3 rounded-2xl bg-neutral-100 px-4 py-3 text-left'
 
 /**
- * The first thing on Home: today's workout with one big Start button, or, with nothing planned, three quick ways to
- * train anyway (do the last workout again, generate one, or start empty and add exercises as you go).
+ * The first thing on Home: today's workout with one big Start button (it opens the workout to tick off, no clock),
+ * or, with nothing planned, three quick ways to train anyway (repeat the last workout, make one, or add exercises).
  */
-export function TodayCard({ onNavigate }: { onNavigate: (t: Tab) => void }) {
+export function TodayCard({ onNavigate }: { onNavigate: (t: Tab, part?: string) => void }) {
   const s = useStore()
   const today = useToday()
   const [randomize, setRandomize] = useState(false)
@@ -25,23 +25,15 @@ export function TodayCard({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   const done = new Set(s.logs.filter((l) => l.date === today && hasData(l)).map((l) => l.exerciseId))
   const upcoming = planned.filter((p) => !done.has(p.exerciseId))
   const rest = isRestDay(s.overrides, today)
-  const inSession = s.session?.date === today
   const previous = lastWorkout(s.logs, s.overrides, toISO(addDays(parseISO(today), -1)))
   const repeatItems = previous ? repeatPlan(previous.logs, lookup) : []
   const minutes = Math.round(minutesFor(dayPlanOf(s.plan, s.overrides, today)))
 
-  const start = () => s.startSession(today)
+  const start = () => onNavigate('plan')
   const repeat = () => { s.addPlanned(today, repeatItems); start() }
 
   let body: React.ReactNode
-  if (inSession) {
-    body = (
-      <>
-        <p className="mb-3 text-lg font-semibold">Workout in progress</p>
-        <button onClick={start} className={big}>Resume workout</button>
-      </>
-    )
-  } else if (planned.length > 0 && (upcoming.length === 0 || s.finishedDays.includes(today))) {
+  if (planned.length > 0 && (upcoming.length === 0 || s.finishedDays.includes(today))) {
     body = (
       <>
         <p className="text-lg font-semibold">Done for today ✓</p>
@@ -71,8 +63,7 @@ export function TodayCard({ onNavigate }: { onNavigate: (t: Tab) => void }) {
           })}
           {upcoming.length > 5 && <li className="text-sm text-neutral-400">+{upcoming.length - 5} more</li>}
         </ul>
-        <button onClick={start} className={big}>▶ Start workout</button>
-        <button onClick={() => onNavigate('plan')} className="mt-2 w-full py-1 text-sm text-neutral-500">or log it on the Plan tab, no timer ›</button>
+        <button onClick={start} className={big}>Start workout</button>
       </>
     )
   } else {
@@ -91,11 +82,11 @@ export function TodayCard({ onNavigate }: { onNavigate: (t: Tab) => void }) {
             </button>
           )}
           <button onClick={() => setRandomize(true)} className={option}>
-            <span><span className="block font-medium">Make me a workout</span><span className="block text-sm text-neutral-500">Pick muscles and time, get a full workout</span></span>
+            <span><span className="block font-medium">Make a workout</span><span className="block text-sm text-neutral-500">Pick body parts and time, get a full workout</span></span>
             <span className="text-neutral-400">›</span>
           </button>
-          <button onClick={start} className={option}>
-            <span><span className="block font-medium">Start empty</span><span className="block text-sm text-neutral-500">Add exercises as you go</span></span>
+          <button onClick={() => onNavigate('plan', 'add')} className={option}>
+            <span><span className="block font-medium">Pick exercises</span><span className="block text-sm text-neutral-500">Add them yourself, as you go</span></span>
             <span className="text-neutral-400">›</span>
           </button>
         </div>

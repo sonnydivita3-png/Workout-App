@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures'
-import { openSettings, seed, state } from './helpers'
+import { iso, openSettings, seed, state } from './helpers'
 
 test('first run: name, goal and schedule build a first month, then Home shows today', async ({ page }) => {
   await page.goto('/')
@@ -67,7 +67,7 @@ test('Home with nothing planned: repeat the last workout in one tap', async ({ p
   await seed(page, { logs: [{ exerciseId: 'Pushups', date: '2026-01-05', sets: [{ weight: null, reps: 15 }, { weight: null, reps: 12 }] }] })
   await page.goto('/')
   await page.getByRole('button', { name: /Repeat last workout/ }).click()
-  await expect(page.getByRole('button', { name: 'Finish', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '✓ Finish workout' })).toBeVisible()
   await expect(page.getByText('Push-Up').first()).toBeVisible()
   const s = await state(page)
   const today = Object.entries(s.overrides as Record<string, { exerciseId: string; sets: number; reps?: number }[]>).find(([, v]) => v.length)
@@ -75,23 +75,27 @@ test('Home with nothing planned: repeat the last workout in one tap', async ({ p
   expect(s.plan.flat()).toEqual([])
 })
 
-test('Start empty, then add an exercise mid-workout', async ({ page }) => {
+test('Pick exercises from Home, then add another mid-workout', async ({ page }) => {
   await seed(page)
   await page.goto('/')
-  await page.getByRole('button', { name: /Start empty/ }).click()
-  await expect(page.getByText('Empty workout')).toBeVisible()
-  await page.getByRole('button', { name: '+ Add exercise' }).click()
+  await page.getByRole('button', { name: /Pick exercises/ }).click()
   await page.getByPlaceholder(/search/i).fill('bench press')
   await page.locator('.fixed button', { hasText: /^Bench Press/ }).first().click()
-  await expect(page.getByText('Bench Press').first()).toBeVisible()
+  await page.locator('.fixed').getByRole('button', { name: 'Done' }).click()
+  await expect(page.getByRole('button', { name: 'Bench Press', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '+ Add exercise' }).click()
+  await page.getByPlaceholder(/search/i).fill('lat pulldown')
+  await page.locator('.fixed button', { hasText: /^Lat Pulldown/ }).first().click()
+  await page.locator('.fixed').getByRole('button', { name: 'Done' }).click()
+  await expect(page.getByRole('button', { name: 'Lat Pulldown', exact: true })).toBeVisible()
   expect((await state(page)).plan.flat()).toEqual([])
 })
 
 test('plan and log an exercise, then see it in History', async ({ page }) => {
   await seed(page)
   await page.goto('/')
-  await page.locator('nav').getByText('Plan').click()
-  await page.getByRole('button', { name: '+ Add' }).click()
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: '+ Add', exact: true }).click()
   await page.getByText('Add an exercise').click()
   await page.getByPlaceholder(/search/i).fill('Pushups')
   await page.locator('.fixed button', { hasText: /^Pushups/ }).first().click()
@@ -106,9 +110,9 @@ test('plan and log an exercise, then see it in History', async ({ page }) => {
 test('randomizer builds a timed workout with a clock', async ({ page }) => {
   await seed(page)
   await page.goto('/')
-  await page.locator('nav').getByText('Plan').click()
-  await page.getByRole('button', { name: '+ Add' }).click()
-  await page.getByText('Randomize a workout').click()
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: '+ Add', exact: true }).click()
+  await page.locator('.fixed').getByText('Make a workout').click()
   await page.locator('.fixed').getByRole('button', { name: /More options/ }).click()
   await page.locator('.fixed').getByRole('button', { name: 'Timed', exact: true }).click()
   await page.locator('.fixed').getByRole('button', { name: 'EMOM', exact: true }).click()
@@ -128,9 +132,9 @@ test('damaged saved data does not crash the app', async ({ page }) => {
 test('randomizer: style groups with variations, and several styles with their own minutes', async ({ page }) => {
   await seed(page)
   await page.goto('/')
-  await page.locator('nav').getByText('Plan').click()
-  await page.getByRole('button', { name: '+ Add' }).click()
-  await page.getByText('Randomize a workout').click()
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: '+ Add', exact: true }).click()
+  await page.locator('.fixed').getByText('Make a workout').click()
   const sheet = page.locator('.fixed')
   await sheet.getByRole('button', { name: /More options/ }).click()
   await sheet.getByRole('button', { name: 'Strength', exact: true }).click()
@@ -147,17 +151,17 @@ test('randomizer: style groups with variations, and several styles with their ow
 test('randomizer remembers the last choices, and Full body is one tap', async ({ page }) => {
   await seed(page)
   await page.goto('/')
-  await page.locator('nav').getByText('Plan').click()
-  await page.getByRole('button', { name: '+ Add' }).click()
-  await page.getByText('Randomize a workout').click()
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: '+ Add', exact: true }).click()
+  await page.locator('.fixed').getByText('Make a workout').click()
   const sheet = page.locator('.fixed')
   await sheet.getByRole('button', { name: 'Full body', exact: true }).click()
-  await expect(sheet.getByRole('button', { name: 'Legs', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(sheet.getByRole('button', { name: 'Hamstrings', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await sheet.getByRole('button', { name: '30 min', exact: true }).click()
   await sheet.getByRole('button', { name: /^Generate/ }).click()
   await sheet.getByRole('button', { name: 'Close', exact: true }).click()
-  await page.getByRole('button', { name: '+ Add' }).click()
-  await page.getByText('Randomize a workout').click()
+  await page.getByRole('button', { name: '+ Add', exact: true }).click()
+  await page.locator('.fixed').getByText('Make a workout').click()
   await expect(sheet.getByRole('button', { name: 'Full body', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await expect(sheet.getByRole('button', { name: '30 min', exact: true })).toHaveClass(/bg-accent/)
 })
@@ -165,7 +169,7 @@ test('randomizer remembers the last choices, and Full body is one tap', async ({
 test('plan edits change one date; Repeat every weekday makes it the usual week', async ({ page }) => {
   await seed(page)
   await page.goto('/')
-  await page.locator('nav').getByText('Plan').click()
+  await page.locator('nav').getByText('Workouts').click()
   await page.getByRole('button', { name: 'Add exercises' }).click()
   await page.getByPlaceholder(/search/i).fill('push-up')
   await page.locator('.fixed button', { hasText: /^Push-Up/ }).first().click()
@@ -183,21 +187,27 @@ test('plan edits change one date; Repeat every weekday makes it the usual week',
   await expect(page.getByRole('button', { name: /^Stop repeating every/ })).toBeVisible()
 })
 
-test('workout mode: steppers change weight without the keyboard', async ({ page }) => {
-  await seed(page, { overrides: { [new Date().toISOString().slice(0, 10)]: [{ exerciseId: 'Barbell_Squat', sets: 2, reps: 5 }] } })
+test('a set is one tap: ✓ logs the target, and typed numbers win', async ({ page }) => {
+  await seed(page, {
+    overrides: { [iso(0)]: [{ exerciseId: 'Barbell_Squat', sets: 2, reps: 5 }] },
+    logs: [{ date: iso(-4), exerciseId: 'Barbell_Squat', sets: [{ weight: 185, reps: 5 }, { weight: 185, reps: 5 }] }],
+  })
   await page.goto('/')
-  await page.getByRole('button', { name: '▶ Start workout' }).click()
-  await page.getByRole('button', { name: 'More Set 1 lb' }).click()
-  await page.getByRole('button', { name: 'More Set 1 lb' }).click()
-  await page.getByRole('button', { name: 'More Set 1 reps' }).click()
-  await expect(page.getByRole('spinbutton', { name: 'Set 1 lb' })).toHaveValue('10')
-  await expect(page.getByRole('spinbutton', { name: 'Set 1 reps' })).toHaveValue('6') // steps from the suggested 5
+  await page.getByRole('button', { name: 'Start workout' }).click()
+  await expect(page.getByText(/Last time: 185×5 · 185×5/)).toBeVisible()
+  await page.getByRole('button', { name: 'Set 1 done' }).click()
+  await expect(page.getByRole('spinbutton', { name: 'Set 1 lb' })).toHaveValue('195') // 2 × 5 last time: add weight
+  await expect(page.getByRole('spinbutton', { name: 'Set 1 reps' })).toHaveValue('5')
+  await page.getByRole('spinbutton', { name: 'Set 2 lb' }).fill('190')
+  await page.getByRole('button', { name: 'Set 2 done' }).click()
+  await expect(page.getByRole('spinbutton', { name: 'Set 2 lb' })).toHaveValue('190')
+  await expect.poll(async () => (await state(page)).logs.find((l: { date: string }) => l.date === iso(0))?.sets).toEqual([{ weight: 195, reps: 5, seconds: null }, { weight: 190, reps: 5, seconds: null }])
 })
 
 test('exercise picker: muscle plus equipment filters, remembered next time', async ({ page }) => {
   await seed(page)
   await page.goto('/')
-  await page.locator('nav').getByText('Plan').click()
+  await page.locator('nav').getByText('Workouts').click()
   await page.getByRole('button', { name: 'Add exercises' }).click()
   const sheet = page.locator('.fixed')
   await sheet.getByRole('button', { name: 'Chest', exact: true }).click()
@@ -208,7 +218,7 @@ test('exercise picker: muscle plus equipment filters, remembered next time', asy
   for (let i = 0; i < n; i++) await expect(rows.nth(i)).toContainText('Dumbbell')
   await expect(sheet.getByText(/exercises · dumbbell · chest/)).toBeVisible()
   await sheet.getByRole('button', { name: 'Done' }).click()
-  await page.getByRole('button', { name: '+ Add' }).click()
+  await page.getByRole('button', { name: '+ Add', exact: true }).click()
   await page.getByText('Add an exercise').click()
   await expect(sheet.getByRole('button', { name: /^Dumbbell \d+$/ })).toHaveAttribute('aria-pressed', 'true')
 })
@@ -218,7 +228,7 @@ test('equipment setting: dumbbells only shapes generated workouts and the picker
   await page.goto('/')
   await openSettings(page, 'Profile, units & equipment')
   await page.getByRole('radio', { name: 'Dumbbells only' }).click()
-  await page.locator('nav').getByText('Plan').click()
+  await page.locator('nav').getByText('Workouts').click()
   await page.getByRole('button', { name: 'Make a workout' }).click()
   const sheet = page.locator('.fixed')
   await sheet.getByRole('button', { name: 'Full body', exact: true }).click()
@@ -228,7 +238,7 @@ test('equipment setting: dumbbells only shapes generated workouts and the picker
   const ids = (Object.values(s.overrides).flat() as { exerciseId: string }[]).map((p) => p.exerciseId)
   expect(ids.length).toBeGreaterThan(3)
   expect(ids.filter((id) => /Barbell|Cable|Machine|Smith|Leg_Press/i.test(id))).toEqual([])
-  await page.getByRole('button', { name: '+ Add' }).click()
+  await page.getByRole('button', { name: '+ Add', exact: true }).click()
   await page.getByText('Add an exercise').click()
   await expect(sheet.getByRole('button', { name: /^My equipment \d+$/ })).toHaveAttribute('aria-pressed', 'true')
 })
@@ -236,10 +246,13 @@ test('equipment setting: dumbbells only shapes generated workouts and the picker
 test('randomizer asks where you train: bodyweight just this once, or as the new default', async ({ page }) => {
   await seed(page)
   await page.goto('/')
-  await page.locator('nav').getByText('Plan').click()
+  await page.locator('nav').getByText('Workouts').click()
   await page.getByRole('button', { name: 'Make a workout' }).click()
   const sheet = page.locator('.fixed')
   const gear = sheet.getByRole('radiogroup', { name: 'Equipment' })
+  // One line with the usual setup; Change shows the choices.
+  await expect(sheet.getByText('Full gym', { exact: true })).toBeVisible()
+  await sheet.getByRole('button', { name: 'Change' }).click()
   await expect(gear.getByRole('radio', { name: 'Full gym' })).toHaveAttribute('aria-checked', 'true')
   await gear.getByRole('radio', { name: 'Bodyweight only' }).click()
   await expect(sheet.getByText('Just for this workout.')).toBeVisible()
@@ -252,8 +265,9 @@ test('randomizer asks where you train: bodyweight just this once, or as the new 
   expect(ids.filter((id) => /Barbell|Dumbbell|Kettlebell|Cable|Machine|Smith|Leg_Press/i.test(id))).toEqual([])
   expect(s.equipment ?? null).toBeNull() // the profile is untouched
 
-  await page.getByRole('button', { name: '+ Add' }).click()
-  await page.getByText('Randomize a workout').click()
+  await page.getByRole('button', { name: '+ Add', exact: true }).click()
+  await page.locator('.fixed').getByText('Make a workout').click()
+  await sheet.getByRole('button', { name: 'Change' }).click()
   await expect(gear.getByRole('radio', { name: 'Full gym' })).toHaveAttribute('aria-checked', 'true')
   await gear.getByRole('radio', { name: 'Dumbbells only' }).click()
   await sheet.getByRole('button', { name: 'Make it my default' }).click()
@@ -265,7 +279,7 @@ test('randomizer asks where you train: bodyweight just this once, or as the new 
 test('randomizer: pick cardio machines for a CrossFit WOD, or split a cardio finisher', async ({ page }) => {
   await seed(page)
   await page.goto('/')
-  await page.locator('nav').getByText('Plan').click()
+  await page.locator('nav').getByText('Workouts').click()
   await page.getByRole('button', { name: 'Make a workout' }).click()
   const sheet = page.locator('.fixed')
   await sheet.getByRole('button', { name: /More options/ }).click()
@@ -280,8 +294,8 @@ test('randomizer: pick cardio machines for a CrossFit WOD, or split a cardio fin
   await sheet.getByRole('button', { name: /^Add to/ }).click()
 
   // A cardio finisher split across two machines, saved as the default.
-  await page.getByRole('button', { name: '+ Add' }).click()
-  await page.getByText('Randomize a workout').click()
+  await page.getByRole('button', { name: '+ Add', exact: true }).click()
+  await page.locator('.fixed').getByText('Make a workout').click()
   await sheet.getByRole('button', { name: /More options/ }).click()
   await sheet.getByRole('button', { name: 'Standard', exact: true }).click()
   await sheet.getByRole('button', { name: 'Cardio', exact: true }).click()
@@ -297,17 +311,70 @@ test('randomizer: pick cardio machines for a CrossFit WOD, or split a cardio fin
   expect(s.trainingPrefs).toMatchObject({ cardio: ['row', 'ski'], cardioSplit: true })
 })
 
+test('Make a workout: full body is one exercise per body part, and upper or lower body is one tap', async ({ page }) => {
+  await seed(page)
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: 'Make a workout' }).click()
+  const sheet = page.locator('.fixed')
+  await sheet.getByRole('button', { name: 'Upper body', exact: true }).click()
+  for (const part of ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps']) await expect(sheet.getByRole('button', { name: part, exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(sheet.getByRole('button', { name: 'Quads', exact: true })).toHaveAttribute('aria-pressed', 'false')
+  await sheet.getByRole('button', { name: 'Full body', exact: true }).click()
+  await sheet.getByRole('button', { name: '75 min', exact: true }).click()
+  await sheet.getByRole('button', { name: /^Generate/ }).click()
+  await expect(sheet.getByText(/Standard · Full body · about \d+ min/)).toBeVisible()
+  // Each row ends with its body part: no part twice.
+  const parts = (await sheet.locator('li .text-xs').allInnerTexts()).map((t) => t.split('·').at(-1)!.trim())
+  expect(parts.length).toBeGreaterThanOrEqual(8)
+  expect(new Set(parts).size).toBe(parts.length)
+  for (const big of ['Quads', 'Hamstrings', 'Chest', 'Back', 'Shoulders']) expect(parts).toContain(big)
+})
+
+test('exercise picker: legs and arms are split into parts, and a new exercise lands in the part you browse', async ({ page }) => {
+  await seed(page)
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: 'Add exercises' }).click()
+  const picker = page.locator('.fixed')
+  const parts = picker.getByRole('group', { name: 'Body part' })
+  for (const part of ['Quads', 'Hamstrings', 'Calves', 'Biceps', 'Triceps']) await expect(parts.getByRole('button', { name: part, exact: true })).toBeVisible()
+  await expect(parts.getByRole('button', { name: 'Legs', exact: true })).toHaveCount(0)
+  await parts.getByRole('button', { name: 'Hamstrings', exact: true }).click()
+  await expect(picker.getByRole('button', { name: /^Leg Curl/ }).first()).toBeVisible()
+  await picker.getByPlaceholder(/search/i).fill('Nordic curl band')
+  await picker.getByRole('button', { name: 'Bodyweight reps' }).click()
+  const s = await state(page)
+  expect(s.custom[0]).toMatchObject({ name: 'Nordic curl band', group: 'Hamstrings' })
+})
+
+test('cardio cards: a GPX import for runs and rides outside, not for machines', async ({ page }) => {
+  await seed(page, { overrides: { [iso(0)]: [{ exerciseId: 'running', sets: 1, minutes: 20 }, { exerciseId: 'x-row-erg', sets: 1, minutes: 10 }] } })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Start workout' }).click()
+  await page.getByRole('button', { name: 'Running options' }).click()
+  await expect(page.getByRole('button', { name: /Import a GPX file/ })).toBeVisible()
+  await page.locator('.fixed').getByRole('button', { name: 'Close', exact: true }).click()
+  await page.getByRole('button', { name: 'Rower options' }).click()
+  await expect(page.getByRole('button', { name: /Import a GPX file/ })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Remove exercise' }).click()
+  expect((await state(page)).overrides[iso(0)].map((p: { exerciseId: string }) => p.exerciseId)).toEqual(['running'])
+})
+
 test('reorder a day and build supersets of any size', async ({ page }) => {
   const today = new Date().toISOString().slice(0, 10)
   const ex = ['Barbell_Bench_Press_-_Medium_Grip', 'Bent_Over_Barbell_Row', 'Dumbbell_Bicep_Curl', 'Triceps_Pushdown']
   await seed(page, { overrides: { [today]: ex.map((id) => ({ exerciseId: id, sets: 3, reps: 10 })) } })
   await page.goto('/')
-  await page.locator('nav').getByText('Plan').click()
+  await page.locator('nav').getByText('Workouts').click()
   const order = async () => ((await state(page)).overrides[today] as { exerciseId: string; block?: string }[])
 
-  // One tap joins neighbours into a superset; Split undoes it.
-  await page.getByRole('button', { name: '⤓ Superset with next' }).first().click()
+  // Tick two in Reorder to make a superset; Split on the day undoes it.
+  await page.getByRole('button', { name: '⇅ Reorder' }).click()
+  for (const n of ['Bench Press', 'Barbell Row']) await page.getByRole('checkbox', { name: `Select ${n}` }).check()
+  await page.getByRole('button', { name: 'Superset the 2 ticked' }).click()
   expect((await order()).slice(0, 2).map((p) => p.block)).toEqual(['ss1', 'ss1'])
+  await page.locator('.fixed').getByRole('button', { name: 'Done', exact: true }).click()
   await page.getByRole('button', { name: 'Split' }).click()
   expect((await order()).every((p) => !p.block)).toBe(true)
 
@@ -346,7 +413,7 @@ test('supersets rest once per round, not after every exercise', async ({ page })
     overrides: { [today]: [{ exerciseId: 'Dumbbell_Bicep_Curl', sets: 2, reps: 10, ...ss }, { exerciseId: 'Triceps_Pushdown', sets: 2, reps: 10, ...ss }] },
   })
   await page.goto('/')
-  await page.getByRole('button', { name: '▶ Start workout' }).click()
+  await page.getByRole('button', { name: 'Start workout' }).click()
   await expect(page.getByText(/straight into the next/)).toBeVisible()
   await expect(page.getByText(/Do one set of each, back to back, then rest/)).toBeVisible()
   const done = page.getByRole('button', { name: 'Set 1 done' })
@@ -362,19 +429,19 @@ test('supersets rest once per round, not after every exercise', async ({ page })
   await expect(page.getByRole('timer')).toContainText('Rest')
 })
 
-test('Workout complete on the Plan tab, with a warning when sets are missing', async ({ page }) => {
+test('Finish workout, with a warning when sets are missing', async ({ page }) => {
   const today = new Date().toISOString().slice(0, 10)
   await seed(page, { overrides: { [today]: [{ exerciseId: 'Pushups', sets: 3, reps: 10 }, { exerciseId: 'running', sets: 1, minutes: 20 }] } })
   await page.goto('/')
-  await page.getByRole('button', { name: /no timer/ }).click()
+  await page.getByRole('button', { name: 'Start workout' }).click()
   await page.getByRole('spinbutton').nth(0).fill('12')
-  await page.getByRole('button', { name: '✓ Workout complete' }).click()
+  await page.getByRole('button', { name: '✓ Finish workout' }).click()
   const dialog = page.getByRole('dialog', { name: 'Finish workout?' })
   await expect(dialog).toContainText('2 sets and 1 cardio session aren’t logged yet')
   await expect(dialog).toContainText('1 of 3 sets')
   await dialog.getByRole('button', { name: 'Keep going' }).click()
   await expect(dialog).toHaveCount(0)
-  await page.getByRole('button', { name: '✓ Workout complete' }).click()
+  await page.getByRole('button', { name: '✓ Finish workout' }).click()
   await page.getByRole('button', { name: 'Finish anyway' }).click()
   await expect(page.getByText('Workout logged ✅')).toBeVisible()
   await page.getByRole('button', { name: 'Done', exact: true }).last().click()

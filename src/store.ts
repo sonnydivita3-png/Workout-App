@@ -28,7 +28,7 @@ export type ThemeMode = 'dark' | 'light' | 'auto'
 export type Accent = 'lime' | 'pink' | 'violet' | 'orange' | 'blue'
 
 /** Bump when the walkthrough gains new content, so people who saw an older version see it once more. */
-export const TOUR_VERSION = 3
+export const TOUR_VERSION = 4
 
 export type WarmupKind = 'cardio' | 'mobility' | 'sets'
 
@@ -98,10 +98,6 @@ interface State extends Data {
   setPrefs: (p: Partial<Pick<State, 'trackRpe' | 'restSeconds' | 'backendKind'>>) => void
   /** Which social server this device last used, to notice the switch from preview to a real one. */
   backendKind: 'demo' | 'supabase' | null
-  /** A workout in progress (workout mode), so reopening the app picks it back up. */
-  session: { date: string; startedAt: number } | null
-  startSession: (date: string) => void
-  endSession: () => void
   saveNote: (date: string, exerciseId: string, note: string) => void
   tourDone: boolean
   /** Which walkthrough version was last finished or skipped. */
@@ -155,7 +151,8 @@ interface State extends Data {
   saveCardio: (date: string, exerciseId: string, cardio: CardioEntry) => void
   /** Delete one logged session, or every session of an exercise when no date is given. */
   deleteLogs: (exerciseId: string, date?: string) => void
-  createCustom: (name: string, kind: ExerciseKind, mode?: ExerciseMode) => Exercise
+  /** `group` files it under a body part (e.g. the one being browsed when it was created). */
+  createCustom: (name: string, kind: ExerciseKind, mode?: ExerciseMode, group?: string) => Exercise
   setUnits: (u: Partial<Units>) => void
   setName: (name: string) => void
   logBodyweight: (date: string, lb: number) => void
@@ -244,9 +241,9 @@ const defaults = () => ({
   tourVersion: 0,
   trackRpe: false,
   genPrefs: { warmup: [], rest: 'normal' } as State['genPrefs'],
-  restSeconds: -1,
+  // Rest timer after a ticked set: off unless turned on (timers are for timed workouts).
+  restSeconds: 0,
   backendKind: null as 'demo' | 'supabase' | null,
-  session: null as { date: string; startedAt: number } | null,
 })
 
 export const useStore = create<State>()(
@@ -330,13 +327,13 @@ export const useStore = create<State>()(
       deleteDay: (date) => set((s) => ({ logs: s.logs.filter((l) => l.date !== date), timedLogs: s.timedLogs.filter((t) => t.date !== date) })),
       deleteLogs: (exerciseId, date) =>
         set((s) => ({ logs: s.logs.filter((l) => !(l.exerciseId === exerciseId && (date === undefined || l.date === date))) })),
-      createCustom: (name, kind, mode) => {
+      createCustom: (name, kind, mode, group) => {
         const ex: Exercise = {
           id: `custom-${Date.now().toString(36)}`,
           name: name.trim(),
           kind,
           mode: kind === 'strength' ? (mode ?? 'weight') : undefined,
-          group: kind === 'cardio' ? 'Cardio' : 'Other',
+          group: kind === 'cardio' ? 'Cardio' : group ?? 'Other',
           equipment: 'Custom',
           custom: true,
         }
@@ -388,8 +385,6 @@ export const useStore = create<State>()(
       setTourDone: (tourDone) => set(tourDone ? { tourDone, tourVersion: TOUR_VERSION } : { tourDone }),
       setPrefs: (p) => set(p),
       setGenPrefs: (p) => set((s) => ({ genPrefs: { ...s.genPrefs, ...p } })),
-      startSession: (date) => set({ session: { date, startedAt: Date.now() } }),
-      endSession: () => set({ session: null }),
       saveNote: (date, exerciseId, note) =>
         set((s) => {
           const cur = s.logs.find((l) => l.date === date && l.exerciseId === exerciseId)
@@ -496,7 +491,12 @@ export const useStore = create<State>()(
       name: 'workout-app-v1',
       version: SCHEMA_VERSION,
       // Every load (old versions, damaged data, restored backups) goes through the same repair step.
-      migrate: (saved) => repairState(saved, defaults()) as unknown as State,
+      migrate: (saved, version) => {
+        const fixed = repairState(saved, defaults()) as unknown as State
+        // Version 3 dropped workout mode's clock; the rest timer it started after every set is now opt-in.
+        if (version < 3) fixed.restSeconds = 0
+        return fixed
+      },
       merge: (saved, current) => ({ ...current, ...repairState(saved, defaults()) }),
     },
   ),

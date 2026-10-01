@@ -10,76 +10,33 @@ interface Step {
 
 const steps = (social: boolean): Step[] => [
   {
-    icon: '🏠', title: 'Start from Home',
-    body: 'Home shows today’s workout with one big Start button.',
+    icon: '🏠', title: 'Home',
+    body: 'Today’s workout and one Start button.',
     points: [
-      'Nothing planned? Repeat your last workout, let the app make one, or start empty and add exercises as you go',
-      'Your week at a glance, compared with the same point last week',
-      'Body weight is one tap to log; the trend is in Progress → Body',
+      'Nothing planned? Make a workout, repeat your last one, or pick exercises yourself',
       'Settings is the gear at the top right',
     ],
   },
   {
-    icon: '🎯', title: 'Beat last time',
-    body: 'Every set has a target based on what you did last time.',
+    icon: '💪', title: 'Workouts',
+    body: 'Your week, and each day’s workout ready to log. No clock to manage.',
     points: [
-      'Tap ✓ when a set is done: it logs the target and starts the rest timer',
-      'Use − and + to change weight or reps without typing',
-      '▲ ▼ show where you beat or missed last time; tap a set number to mark a warm-up',
-      'The screen stays on during a workout, and the phone buzzes when rest is over',
+      'Tap ✓ when a set is done. It fills in a target that beats last time, so most sets are one tap',
+      '+ Add puts an exercise, a generated workout or a whole week or month plan on a day',
+      'Timed workouts (AMRAP, EMOM, Tabata, circuits) come with their own clock',
     ],
   },
   {
-    icon: '📅', title: 'Plan your week',
-    body: 'The Plan tab shows what each day trains (Legs, Full, Run, Rest).',
-    points: [
-      'An empty day offers Add exercises, Make a workout, Load a routine or Rest day',
-      'Changes apply to that date only. Use ⋯ → Repeat every Monday (or any day) for your usual week',
-      '⇅ Reorder: drag or use arrows, and tick any exercises to make a superset (or tap “Superset with next”)',
-      '+ Add has more: a week or month plan, timed workouts (AMRAP, EMOM, Tabata) and run or ride plans',
-    ],
+    icon: '📈', title: 'Progress',
+    body: 'Every workout, charts and bests for each exercise, and your body stats.',
+    points: ['Set goals on Home, from a lift to a race'],
   },
   {
-    icon: '🎲', title: 'Make me a workout',
-    body: 'Pick what to train and how long. That’s it.',
+    icon: social ? '👥' : '☁️', title: 'Good to know',
+    body: social ? 'Friends see only what you choose to share with each of them.' : 'Workouts are saved on this phone.',
     points: [
-      'Full body is one tap, and it remembers your last choices',
-      'It only uses equipment you have: set it in Settings → Profile, units & equipment',
-      'More options: style (strength, supersets, HIIT, timed, Hyrox/CrossFit), warm-up and rest',
-      'Swap any exercise, step back through versions, or save it as a routine',
-    ],
-  },
-  {
-    icon: '📈', title: 'See your progress',
-    body: 'The Progress tab has every workout, every exercise and your body stats.',
-    points: [
-      'Workouts: a calendar, and each session compared with the time before',
-      'Exercises: charts and personal bests; Body: weight, measurements and photos that stay on your phone',
-      'Set goals on Home, from a lift to a race, and a race goal builds its training plan',
-    ],
-  },
-  social
-    ? {
-        icon: '👥', title: 'Train with friends',
-        body: 'Invite friends with a link, or add them by their exact handle.',
-        points: [
-          'Being friends shares nothing until you choose what each friend can see or send you',
-          'Share workouts, ask for one, send challenges and emoji',
-          'Report or block anyone from their profile or friend request',
-        ],
-      }
-    : {
-        icon: '👥', title: 'Friends are optional',
-        body: 'Turn them on in Settings → Friends & account to share workouts and send challenges.',
-        points: ['You choose what each friend can see or send you', 'Email is optional'],
-      },
-  {
-    icon: '☁️', title: 'Keep your workouts safe',
-    body: 'Workouts are saved on this phone.',
-    points: [
-      'Add the app to your home screen so the browser doesn’t clear it',
-      'Turn on cloud backup in Settings → Backup & data to restore on a new phone',
-      'Workouts and suggestions are general guidance, not medical advice',
+      'Turn on cloud backup in Settings → Backup & data to keep them safe',
+      ...(social ? [] : ['Friends are optional: Settings → Friends & account']),
       'This guide is in Settings → Help & feedback',
     ],
   },

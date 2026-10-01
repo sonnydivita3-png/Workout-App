@@ -182,7 +182,7 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
       <p className="text-sm text-neutral-500">Generated workouts and plans only use what you have. You can still add any exercise yourself.</p>
       <EquipmentPicker />
       <h2 className="pt-4 text-sm font-semibold text-neutral-700">Workouts you like</h2>
-      <p className="text-sm text-neutral-500">Plans and “Make me a workout” lean towards these.</p>
+      <p className="text-sm text-neutral-500">Plans and “Make a workout” lean towards these.</p>
       <LikedStylesPicker />
       <h2 className="pt-4 text-sm font-semibold text-neutral-700">Cardio you like</h2>
       <p className="text-sm text-neutral-500">Used for cardio days, finishers and warm-ups, and as stations in CrossFit-style, HIIT and timed workouts.</p>
@@ -191,12 +191,12 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
 
       {page === 'workouts' && (<>
       <Row title="Track effort (RPE)"><Toggle on={trackRpe} onChange={(v) => setPrefs({ trackRpe: v })} label="Track effort (RPE)" /></Row>
-      <Row title="Rest timer in workouts">
-        <select value={restSeconds} onChange={(e) => setPrefs({ restSeconds: Number(e.target.value) })} className="rounded-lg bg-neutral-100 px-2 py-1.5 text-sm">
+      <Row title="Rest timer after each set">
+        <select aria-label="Rest timer after each set" value={restSeconds} onChange={(e) => setPrefs({ restSeconds: Number(e.target.value) })} className="rounded-lg bg-neutral-100 px-2 py-1.5 text-sm">
           {[0, -1, 60, 90, 120, 180].map((r) => <option key={r} value={r}>{r === -1 ? 'As planned' : r ? `${r} s` : 'Off'}</option>)}
         </select>
       </Row>
-      <p className="px-1 text-sm text-neutral-500">The rest timer starts when you tick a set in a workout. “As planned” uses each exercise’s planned rest (longer for heavy sets). RPE is how hard a set felt (10 = nothing left); sets at 10 won’t trigger an “add weight” suggestion.</p>
+      <p className="px-1 text-sm text-neutral-500">Off unless you turn it on: ticking ✓ on a set then counts down your rest and buzzes when it’s over. “As planned” uses each exercise’s planned rest (longer for heavy sets). Timed workouts (AMRAP, EMOM, circuits) always have their own clock. RPE is how hard a set felt (10 = nothing left); sets at 10 won’t trigger an “add weight” suggestion.</p>
       </>)}
 
       {page === 'look' && (<>

@@ -1,4 +1,5 @@
 import { BUILTIN_BY_ID } from '../data/exercises'
+import { partFromName } from '../lib/bodyParts'
 import type { Exercise, ExerciseLog, PlanOverrides, PlannedExercise, WeekPlan } from '../types'
 import { addDays, mondayOf, parseISO, toISO } from '../lib/dates'
 import { dayPlanOf } from '../lib/plan'
@@ -95,7 +96,8 @@ function cleanCustom(x: unknown): Exercise | null {
   const id = str(x.id, 100)
   const name = str(x.name, 60)
   if (!id || !name || (x.kind !== 'strength' && x.kind !== 'cardio')) return null
-  const ex: Exercise = { id, name, kind: x.kind, group: str(x.group, 30) ?? (x.kind === 'cardio' ? 'Cardio' : 'Other'), custom: true }
+  // Friends on older versions send Legs or Arms: file those under the right part.
+  const ex: Exercise = { id, name, kind: x.kind, group: partFromName(str(x.group, 30) ?? (x.kind === 'cardio' ? 'Cardio' : 'Other'), name), custom: true }
   if (x.mode === 'weight' || x.mode === 'reps' || x.mode === 'time') ex.mode = x.mode
   const eq = str(x.equipment, 30); if (eq) ex.equipment = eq
   return ex

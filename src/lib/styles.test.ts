@@ -160,7 +160,7 @@ describe('HIIT circuit', () => {
   it('respects a chosen body part and adds cardio when asked', () => {
     const w = gen('circuit', ['Legs', 'Cardio'], 45, 3)
     expect(ex(w.at(-1)!).kind).toBe('cardio')
-    for (const p of w.filter((p) => p.block === 'circuit')) expect(['Legs', 'Conditioning', 'Cardio']).toContain(ex(p).group)
+    for (const p of w.filter((p) => p.block === 'circuit')) expect(['Quads', 'Hamstrings', 'Calves', 'Conditioning', 'Cardio']).toContain(ex(p).group)
   })
 })
 
@@ -297,7 +297,7 @@ describe('AMRAP, EMOM and for time', () => {
     for (let seed = 1; seed <= 20; seed++) {
       const w = gen('amrap', ['Legs'], 20, seed)
       expect(w.length).toBeGreaterThan(1)
-      for (const p of w) expect(ex(p).group).toBe('Legs')
+      for (const p of w) expect(['Quads', 'Hamstrings', 'Calves']).toContain(ex(p).group)
     }
   })
 })

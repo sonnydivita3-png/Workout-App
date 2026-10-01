@@ -4,7 +4,7 @@ import { epley } from './stats'
 /** Working sets with data (warm-ups left out). */
 export const workSets = (l?: ExerciseLog): StrengthSet[] => (l?.sets ?? []).filter((s) => !s.warmup && (s.weight || s.reps || s.seconds))
 
-const LOWER = ['Legs', 'Glutes']
+const LOWER = ['Quads', 'Hamstrings', 'Glutes', 'Legs']
 
 /** The weight step for a lift, in pounds: bigger jumps for heavy lower-body barbell work, small ones for dumbbells. */
 export function weightStep(ex: Exercise, units: Units): number {

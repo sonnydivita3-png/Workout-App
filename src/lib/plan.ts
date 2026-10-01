@@ -1,4 +1,5 @@
 import type { Exercise, ExerciseLog, PlanOverrides, PlannedExercise, WeekPlan } from '../types'
+import { areaOf } from './bodyParts'
 import { parseISO, weekdayIndex } from './dates'
 import { hasData } from './stats'
 
@@ -61,6 +62,7 @@ export function dayLabel(items: PlannedExercise[], lookup: (id: string) => Exerc
   const work = workItems(items)
   if (work.length === 0) return ''
   if (work.some((p) => p.wod)) return 'Timed'
+  if (work.some((p) => p.block === 'hyrox' || p.block?.endsWith('-hyrox'))) return 'Hyrox'
   const exs = work.map((p) => lookup(p.exerciseId)).filter((e): e is Exercise => !!e)
   const lifts = exs.filter((e) => e.kind === 'strength' && e.group !== 'Conditioning' && e.group !== 'Mobility')
   if (lifts.length === 0) {
@@ -70,7 +72,8 @@ export function dayLabel(items: PlannedExercise[], lookup: (id: string) => Exerc
     return exs.some((e) => e.group === 'Conditioning') ? 'HIIT' : 'Cardio'
   }
   const counts = new Map<string, number>()
-  for (const e of lifts) counts.set(e.group, (counts.get(e.group) ?? 0) + 1)
+  // By area, so a leg day reads Legs rather than Quads.
+  for (const e of lifts) counts.set(areaOf(e.group), (counts.get(areaOf(e.group)) ?? 0) + 1)
   const groups = [...counts].sort((a, b) => b[1] - a[1])
   // Three or more groups with none dominating reads as a full-body day.
   if (groups.length >= 3 && groups[0][1] <= lifts.length / 2) return 'Full'

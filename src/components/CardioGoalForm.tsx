@@ -182,7 +182,7 @@ export function CardioGoalForm({ onDone }: { onDone: () => void }) {
               ) : planPreview ? (
                 <p className="text-xs text-neutral-500">
                   {planPreview.weeks} weeks, {planPreview.sessions.length} {specific === 'run' ? 'runs' : 'rides'}, starting {fmtShort(planPreview.start!)}
-                  {date ? ` and building to your event on ${fmtShort(date)}` : ''}. It fills your calendar automatically. Fine-tune it any time with Training plan on the Plan tab.
+                  {date ? ` and building to your event on ${fmtShort(date)}` : ''}. It fills your calendar automatically. Fine-tune it any time on the Workouts tab.
                   {runningPlan ? ` This replaces your current ${runningPlan.title}.` : ''}
                 </p>
               ) : null}

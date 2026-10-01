@@ -3,6 +3,7 @@ import { parseISO, weekdayIndex } from '../lib/dates'
 import {
   FOCUS_OPTIONS, generateWorkout, LIFT_GROUPS, minutesFor, replaceExercise, STYLE_GROUPS, styleInfo, swapExercise, type WorkoutStyle,
 } from '../lib/randomizer'
+import { expandParts, isFullBody, LOWER_PARTS, UPPER_PARTS } from '../lib/bodyParts'
 import { useStore } from '../store'
 import type { PlannedExercise } from '../types'
 import { ExercisePicker } from './ExercisePicker'
@@ -41,7 +42,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const rest = genPrefs.rest
   const dayName = DAY_NAMES[weekdayIndex(parseISO(date))]
   // Starts from the last choices, so a repeat visit is two taps: check, Generate.
-  const [focus, setFocus] = useState<string[]>(genPrefs.focus ?? [])
+  const [focus, setFocus] = useState<string[]>(() => expandParts(genPrefs.focus ?? []))
   const [minutes, setMinutes] = useState(genPrefs.minutes ?? 45)
   const [more, setMore] = useState(false)
   // Per-part minutes when mixing styles and/or cardio; unset parts use an even split.
@@ -83,10 +84,14 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   }
 
   const toggle = (g: string) => setFocus((f) => (f.includes(g) ? f.filter((x) => x !== g) : [...f, g]))
-  const fullBody = LIFT_GROUPS.every((g) => focus.includes(g))
   const body = focus.filter((g) => g !== 'Cardio')
+  // One tap for the usual splits; each part can still be picked on its own.
+  const same = (parts: string[]) => body.length === parts.length && parts.every((g) => body.includes(g))
+  const presets: [string, string[]][] = [['Full body', LIFT_GROUPS], ['Upper body', UPPER_PARTS], ['Lower body', LOWER_PARTS]]
+  const setBody = (parts: string[]) => setFocus([...(same(parts) ? [] : parts), ...focus.filter((g) => g === 'Cardio')])
   const cardioOnly = !focusIgnored && body.length === 0 && focus.includes('Cardio')
-  const focusLabel = focusIgnored ? 'Full body' : cardioOnly ? 'Cardio' : body.length === 0 ? 'Full body' : body.length > 3 ? 'Full body' : body.join(' + ')
+  const presetName = presets.find(([, parts]) => same(parts))?.[0]
+  const focusLabel = focusIgnored || body.length === 0 ? 'Full body' : cardioOnly ? 'Cardio' : presetName ?? (isFullBody(body) ? 'Full body' : body.join(' + '))
   // Mixing parts (several styles, or lifting + cardio): let each part have its own time.
   const hasCardio = !focusIgnored && focus.includes('Cardio') && !cardioOnly
   // Warm-up cardio and mobility take their own minutes (5 each by default); warm-up sets live inside the lifting.
@@ -119,7 +124,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
 
   if (!items) {
     return (
-      <Sheet title="Randomize" onClose={onClose} closeLabel="Cancel">
+      <Sheet title="Make a workout" onClose={onClose} closeLabel="Cancel">
         <ModeSwitch mode="one" onChange={onSwitchMode} />
 
         <h3 className="mb-2 text-sm font-medium">What are you training?{infos.every((i) => i.focus !== 'required') && <span className="font-normal text-neutral-400"> (optional)</span>}</h3>
@@ -128,12 +133,16 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
         ) : (
           <>
             <div className="mb-2 flex flex-wrap gap-2">
-              <button onClick={() => setFocus(fullBody ? focus.filter((g) => g === 'Cardio') : [...LIFT_GROUPS, ...focus.filter((g) => g === 'Cardio')])} aria-pressed={fullBody} className={chip(fullBody)}>Full body</button>
-              {FOCUS_OPTIONS.map((g) => (
-                <button key={g} onClick={() => toggle(g)} aria-pressed={focus.includes(g)} className={chip(focus.includes(g))}>{g}</button>
+              {presets.map(([label, parts]) => (
+                <button key={label} onClick={() => setBody(parts)} aria-pressed={same(parts)} className={chip(same(parts))}>{label}</button>
               ))}
             </div>
-            <p className="mb-5 text-xs text-neutral-400">Add <b className="font-medium">Cardio</b> to finish with a run, ride or row.</p>
+            <div className="mb-2 flex flex-wrap gap-1.5" role="group" aria-label="Body parts">
+              {FOCUS_OPTIONS.map((g) => (
+                <button key={g} onClick={() => toggle(g)} aria-pressed={focus.includes(g)} className={`rounded-full px-2.5 py-1 text-sm ${focus.includes(g) ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`}>{g}</button>
+              ))}
+            </div>
+            <p className="mb-5 text-xs text-neutral-400">{same(LIFT_GROUPS) ? 'Full body: one exercise for each part, big lifts first.' : <>Add <b className="font-medium">Cardio</b> to finish with a run, ride or row.</>}</p>
           </>
         )}
 

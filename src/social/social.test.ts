@@ -84,7 +84,8 @@ describe('receiving a plan is safe', () => {
 
   it('cleans custom exercises and ignores malformed ones', () => {
     const clean = sanitizePayload({ ...good, custom: [{ id: 'c1', name: 'Sled drag', kind: 'strength', mode: 'time', group: 'Legs', bogus: 1 }, { id: 'c2', name: '', kind: 'strength' }, { id: 'c3', name: 'X', kind: 'flying' }, 7] })!
-    expect(clean.custom).toEqual([{ id: 'c1', name: 'Sled drag', kind: 'strength', mode: 'time', group: 'Legs', custom: true }])
+    // A friend on an older version files it under Legs: it lands in the matching part here.
+    expect(clean.custom).toEqual([{ id: 'c1', name: 'Sled drag', kind: 'strength', mode: 'time', group: 'Quads', custom: true }])
   })
 
   it('places days by offset from the start date and never lets a friend’s rest days override your plans', () => {

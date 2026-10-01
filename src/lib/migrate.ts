@@ -1,8 +1,10 @@
+import { expandParts, partFromName } from './bodyParts'
+
 /**
  * Saved data is read back on every launch. Older versions of the app saved fewer fields, and a crash mid-save or a
  * hand-edited backup can leave odd values, so everything is checked here and repaired instead of crashing the app.
  */
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 
 type Obj = Record<string, unknown>
 const isObj = (x: unknown): x is Obj => !!x && typeof x === 'object' && !Array.isArray(x)
@@ -45,6 +47,9 @@ export function repairState<T extends Obj>(saved: unknown, defaults: T): T {
   out.overrides = overrides
   out.logs = arr(saved.logs, isLog).map(toCardioLog)
   for (const k of ['custom', 'routines', 'goals', 'notifications', 'programs', 'timedLogs', 'measurements']) if (k in defaults) out[k] = arr(saved[k], hasId)
+  // Legs and Arms became body parts (Quads, Hamstrings, Calves; Biceps, Triceps): file older exercises and choices.
+  if (Array.isArray(out.custom)) out.custom = (out.custom as Obj[]).map((e) => (typeof e.group === 'string' && typeof e.name === 'string' ? { ...e, group: partFromName(e.group, e.name) } : e))
+  if (isObj(out.genPrefs) && Array.isArray(out.genPrefs.focus)) out.genPrefs = { ...out.genPrefs, focus: expandParts(out.genPrefs.focus.filter((f): f is string => typeof f === 'string')) }
   out.bodyweight = arr(saved.bodyweight, (b): b is Obj => isObj(b) && typeof b.date === 'string' && typeof b.lb === 'number')
   // Keep anything the app no longer knows about (e.g. from a newer version) so it isn't lost.
   for (const [k, v] of Object.entries(saved)) if (!(k in out) && typeof v !== 'function') out[k] = v

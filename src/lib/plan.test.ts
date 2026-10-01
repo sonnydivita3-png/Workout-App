@@ -104,5 +104,9 @@ describe('dayLabel', () => {
     expect(dayLabel([{ exerciseId: 'Barbell_Squat', sets: 3 }, { exerciseId: 'Leg_Press', sets: 3 }, { exerciseId: 'Plank', sets: 3 }], look)).toBe('Legs')
     expect(dayLabel([{ exerciseId: 'Barbell_Squat', sets: 3 }, { exerciseId: 'Barbell_Bench_Press_-_Medium_Grip', sets: 3 }, { exerciseId: 'Pullups', sets: 3 }], look)).toBe('Full')
     expect(dayLabel([{ exerciseId: 'x-burpee', sets: 1, wod: { kind: 'amrap', minutes: 10 } }], look)).toBe('Timed')
+    // Body parts roll up to an area: biceps and triceps make an arm day, quads and hamstrings a leg day.
+    expect(dayLabel([{ exerciseId: 'Dumbbell_Bicep_Curl', sets: 3 }, { exerciseId: 'Triceps_Pushdown', sets: 3 }], look)).toBe('Arms')
+    expect(dayLabel([{ exerciseId: 'Barbell_Squat', sets: 3 }, { exerciseId: 'Lying_Leg_Curls', sets: 3 }], look)).toBe('Legs')
+    expect(dayLabel([{ exerciseId: 'running', sets: 1, block: 'hyrox' }, { exerciseId: 'x-sled-push', sets: 1, block: 'hyrox' }], look)).toBe('Hyrox')
   })
 })

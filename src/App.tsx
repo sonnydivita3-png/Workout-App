@@ -4,7 +4,6 @@ import { HomeView } from './components/HomeView'
 import { PlanView } from './components/PlanView'
 import { SettingsView } from './components/SettingsView'
 import { Tour } from './components/Tour'
-import { WorkoutSession } from './components/WorkoutSession'
 import { Toasts } from './components/Toasts'
 import { Onboarding } from './components/Onboarding'
 import { SocialView } from './components/social/SocialView'
@@ -41,13 +40,6 @@ export default function App() {
   // New installs get the goal-based setup first; people who used the app before it existed never see it.
   const needsSetup = useStore((s) => !s.onboarded && !s.tourDone)
   const showTour = useStore((s) => !s.tourDone || s.tourVersion < TOUR_VERSION)
-  const session = useStore((s) => s.session)
-  const [hidden, setHidden] = useState(false)
-  // A workout left open for half a day was almost certainly forgotten: close it instead of reopening it every launch.
-  useEffect(() => {
-    const s = useStore.getState().session
-    if (s && Date.now() - s.startedAt > 12 * 3600 * 1000) useStore.getState().endSession()
-  }, [])
   // Opened from an invite link: remember who invited them until they add that person or say not now.
   useEffect(() => {
     const h = readInvite(window.location.search)
@@ -70,18 +62,12 @@ export default function App() {
         )}
         {tab !== 'settings' && <InviteBanner />}
         {tab === 'home' && <HomeView onNavigate={navigate} />}
-        {tab === 'plan' && <PlanView />}
+        {tab === 'plan' && <PlanView key={sub ?? 'default'} initialAction={sub} />}
         {tab === 'history' && <HistoryView key={sub ?? 'default'} initialTab={sub} />}
         {tab === 'social' && <SocialView onNavigate={navigate} />}
         {tab === 'settings' && <SettingsView key={sub ?? 'default'} initialPage={sub} onBack={() => navigate('home')} />}
       </main>
       <TabBar tab={tab} onChange={(t) => navigate(t)} />
-      {session && !hidden && <WorkoutSession onMinimize={() => setHidden(true)} />}
-      {session && hidden && (
-        <button onClick={() => setHidden(false)} className="fixed inset-x-4 bottom-[calc(8.25rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-md rounded-full bg-accent py-3 text-sm font-medium text-on-accent shadow-lg">
-          ▶ Back to your workout
-        </button>
-      )}
       <Toasts />
       {showTour && <Tour />}
     </>
