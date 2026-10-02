@@ -29,7 +29,7 @@ The app signs people in by typing a 6-digit code. Under **Authentication → Ema
 
 Example body:
 ```html
-<h2>Your EZ Workout Tracker code</h2>
+<h2>Your Durata code</h2>
 <p>Type this code in the app:</p>
 <p style="font-size:28px;font-weight:bold;letter-spacing:4px">{{ .Token }}</p>
 <p>It expires in an hour. If you didn't ask for it, you can ignore this email.</p>

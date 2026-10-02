@@ -25,8 +25,8 @@ export default defineConfig({
       injectRegister: false,
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'EZ Workout Tracker',
-        short_name: 'EZ Workout',
+        name: 'Durata',
+        short_name: 'Durata',
         description: 'Minimal weekly workout tracker',
         theme_color: '#0d0a15',
         background_color: '#0d0a15',

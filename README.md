@@ -1,4 +1,4 @@
-# EZ Workout Tracker
+# Durata
 
 Minimal weekly workout tracker, installable as a phone app (PWA). Plan exercises per weekday from a 750+ exercise library, log sets (weight × reps) or cardio (distance, time, auto pace), see what you did last time inline, and track progress over time.
 

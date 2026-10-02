@@ -155,7 +155,7 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
             </li>
           ))}
         </ul>
-        <p className="mt-4 text-center text-xs text-neutral-400">EZ Workout Tracker · version {APP_VERSION}</p>
+        <p className="mt-4 text-center text-xs text-neutral-400">Durata · version {APP_VERSION}</p>
       </section>
     )
   }

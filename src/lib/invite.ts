@@ -1,6 +1,6 @@
 import { HANDLE_RE, normalizeHandle } from '../social/types'
 
-const APP_NAME = 'EZ Workout Tracker'
+const APP_NAME = 'Durata'
 
 /** Link to the app. With a handle, opening it offers to add that person as a friend. */
 export function inviteUrl(handle?: string, from = window.location.href, base = import.meta.env.BASE_URL): string {

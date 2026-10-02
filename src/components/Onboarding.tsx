@@ -66,7 +66,7 @@ export function Onboarding() {
         {step === 'welcome' && (
           <>
             <p className="mb-2 text-5xl" aria-hidden>💪</p>
-            <h1 className="mb-2 text-3xl font-semibold tracking-tight">Welcome to EZ Workout Tracker</h1>
+            <h1 className="mb-2 text-3xl font-semibold tracking-tight">Welcome to Durata</h1>
             <p className="mb-6 text-neutral-600">Plan workouts, log them in a few taps, and beat what you did last time.</p>
             {invite && <p className="mb-6 rounded-2xl bg-accent/15 px-4 py-3 text-sm">👋 <b className="font-medium">@{invite}</b> invited you. You can add them as a friend once you’re set up.</p>}
             <label className="mb-2 block text-sm font-medium" htmlFor="ob-name">What should we call you?</label>
