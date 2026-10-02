@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures'
-import { openSettings, seed } from './helpers'
+import { iso, openSettings, seed } from './helpers'
 
 test('social sign-up without email needs the age check, then friends work', async ({ page }) => {
   await seed(page, { socialChoice: 'unset' })
@@ -69,4 +69,51 @@ test('a challenge you send shows when it is accepted; emoji show sent and seen',
   await expect(page.getByText('Your challenges', { exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Challenges', exact: true }).click()
   await expect(page.getByText(/To .+ · ✅ .+ accepted/)).toBeVisible()
+})
+
+test('a shared workout: reply with an emoji, keep it, add it later; the sender sees what happened', async ({ page }) => {
+  await seed(page, { socialChoice: 'unset', overrides: { [iso(0)]: [{ exerciseId: 'Pushups', sets: 3, reps: 15 }] } })
+  await page.goto('/')
+  await page.locator('nav').getByText('Social').click()
+  await page.getByRole('button', { name: 'Set up social features' }).click()
+  await page.getByRole('button', { name: 'Continue without email' }).click()
+  await page.getByPlaceholder('yourname').fill('e2e_share')
+  await page.getByPlaceholder('What friends see').fill('E2E')
+  await page.getByText(/I agree that my handle/).click()
+  await page.getByText('I’m 13 or older.').click()
+  await page.getByRole('button', { name: 'Create my account' }).click()
+  await page.locator('nav').getByText('Social').click()
+  await page.getByRole('button', { name: 'Review' }).first().click()
+  await page.getByRole('button', { name: 'Allow all' }).click()
+  await page.getByRole('button', { name: 'Accept' }).click()
+
+  // Alex sends a week of workouts. Open it, react, and keep it for later.
+  await page.getByRole('button', { name: /^Inbox/ }).click()
+  await page.getByRole('listitem').filter({ hasText: 'Push / pull / legs week' }).getByRole('button', { name: 'View' }).click()
+  const sheet = page.locator('.fixed')
+  await sheet.getByRole('button', { name: 'Send 🙌' }).click()
+  await expect(sheet.getByText(/✓ 🙌 sent to /)).toBeVisible()
+  await sheet.getByRole('button', { name: 'Keep in my inbox' }).click()
+  await expect(page.getByText('Workouts for you')).toBeVisible()
+
+  // Later: add it. It moves to "Shared with you earlier" and can be opened again.
+  await page.getByRole('listitem').filter({ hasText: 'Push / pull / legs week' }).getByRole('button', { name: 'View' }).click()
+  await expect(sheet.getByText(/✓ 🙌 sent to /)).toBeVisible()
+  await sheet.getByRole('button', { name: 'Add to my calendar' }).click()
+  await expect(page.getByText('Workouts for you')).toHaveCount(0)
+  await expect(page.getByText('Shared with you earlier')).toBeVisible()
+  await expect(page.getByText(/· added$/)).toBeVisible()
+
+  // Send one to Alex: the inbox shows it, and Alex's 🔥 reply on it.
+  await page.getByRole('button', { name: 'Friends', exact: true }).click()
+  await page.getByText('@alex').click()
+  await page.getByRole('button', { name: 'Send a workout', exact: true }).click()
+  await page.locator('.fixed').getByRole('button', { name: 'Send', exact: true }).click()
+  await page.locator('.fixed').getByRole('button', { name: 'Done' }).first().click()
+  await page.getByRole('button', { name: 'Close', exact: true }).click()
+  await page.getByRole('button', { name: /^Inbox/ }).click()
+  await expect(page.getByText('Workouts you sent')).toBeVisible()
+  await expect(page.getByText(/to .+ · not added yet/)).toBeVisible()
+  await expect(page.getByLabel('Replies: 🔥')).toBeVisible()
+  await expect(page.getByText(/on your workout “/)).toBeVisible()
 })

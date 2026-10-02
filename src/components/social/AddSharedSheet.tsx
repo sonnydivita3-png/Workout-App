@@ -5,7 +5,8 @@ import { dayPlanOf } from '../../lib/plan'
 import { useToday } from '../../lib/useToday'
 import { describePayload, planFromPayload, sanitizePayload, startFor } from '../../social/share'
 import { useSocial } from '../../social/store'
-import type { SharedWorkout } from '../../social/types'
+import type { Emoji, SharedWorkout } from '../../social/types'
+import { EmojiBar } from './EmojiBar'
 import { findExercise, useStore } from '../../store'
 import { Sheet } from '../Sheet'
 import { chip, label, primary, secondary } from './styles'
@@ -16,6 +17,19 @@ export function AddSharedSheet({ share, onClose }: { share: SharedWorkout; onClo
   const today = useToday()
   const { plan, overrides, custom, units, applyDays, addCustomExercises } = useStore()
   const act = useSocial((s) => s.act)
+  // Replying with an emoji: only if the sender lets you send them emoji.
+  const sender = useSocial((s) => s.friends.find((f) => f.profile.id === share.from.id))
+  const allEmoji = useSocial((s) => s.emoji)
+  const replies = useMemo(() => allEmoji.filter((m) => m.mine && m.contextType === 'share' && m.contextId === share.id), [allEmoji, share.id])
+  const [sending, setSending] = useState<Emoji | null>(null)
+  const [sent, setSent] = useState<Emoji | null>(null)
+  const react = async (e: Emoji) => {
+    setError(null); setSending(e)
+    const r = await act((b) => b.sendEmoji({ toId: share.from.id, emoji: e, contextType: 'share', contextId: share.id }))
+    setSending(null)
+    if (r.ok) setSent(e); else setError(r.error)
+  }
+  const lastReply = sent ?? [...replies].sort((a, b) => a.createdAt.localeCompare(b.createdAt)).at(-1)?.emoji
   const clean = useMemo(() => sanitizePayload(share.payload), [share.payload]) // received from another person: never trusted as-is
   const [start, setStart] = useState(share.scope === 'day' ? today : toISO(mondayOf(parseISO(today))))
   const [replace, setReplace] = useState(false)
@@ -91,9 +105,29 @@ export function AddSharedSheet({ share, onClose }: { share: SharedWorkout; onClo
           {clashes > 0 && !replace && <p className="mb-3 text-xs text-neutral-400">Otherwise these are added alongside your own exercises.</p>}
         </>
       )}
+      <div className="mb-4 rounded-2xl bg-neutral-50 p-3">
+        <p className="mb-2 text-sm font-semibold text-neutral-700">Reply to {share.from.displayName}</p>
+        <EmojiBar disabled={!sender?.theyGrant.emoji || !!sending} onPick={react} selected={sending ?? lastReply ?? undefined} />
+        <p role="status" className="mt-2 text-xs text-neutral-500">
+          {sending ? `Sending ${sending}…`
+            : lastReply ? `✓ ${lastReply} sent to ${share.from.displayName}. Tap another to send more.`
+            : sender?.theyGrant.emoji ? 'Say thanks or congrats with an emoji. You don’t have to add the workout.'
+            : `${share.from.displayName} hasn’t allowed emoji.`}
+        </p>
+      </div>
       {error && <ErrorNote>{error}</ErrorNote>}
-      <button disabled={busy || !preview || dates.length === 0} onClick={() => respond(true)} className={primary}>Add to my calendar</button>
-      <button disabled={busy} onClick={() => respond(false)} className={`${secondary} mt-2`}>Not now</button>
+      {share.status === 'pending' ? (
+        <>
+          <button disabled={busy || !preview || dates.length === 0} onClick={() => respond(true)} className={primary}>Add to my calendar</button>
+          <button disabled={busy} onClick={onClose} className={`${secondary} mt-2`}>Keep in my inbox</button>
+          <button disabled={busy} onClick={() => respond(false)} className="mt-1 w-full py-2 text-sm text-neutral-500">Dismiss (remove from inbox)</button>
+        </>
+      ) : (
+        <>
+          <p className="mb-2 text-center text-sm text-neutral-500">{share.status === 'added' ? '✅ You added this to your calendar.' : 'You dismissed this one.'}</p>
+          <button disabled={busy || !preview || dates.length === 0} onClick={() => { if (preview) { applyDays(preview.days, replace); addCustomExercises(preview.newCustom); onClose() } }} className={secondary}>Add it to my calendar{share.status === 'added' ? ' again' : ''}</button>
+        </>
+      )}
     </Sheet>
   )
 }
