@@ -147,7 +147,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
             : 'The split decides which muscles each day.'}
           {' '}Lifting days keep the same exercises week to week, and each one shows a target from last time, so you keep adding weight or reps.
           {hasHistory && ' It starts from the lifts you’ve been logging, so your numbers carry over.'}
-          {weeks === 4 && ' Week 3 adds a set to lifts and week 4 is a lighter deload.'}
+          {weeks === 4 && ' Week 3 adds a set to the main lifts (about 5 more minutes) and week 4 is a lighter, shorter deload.'}
         </p>
         <button disabled={days.length === 0} onClick={build} className={primaryBtn}>Build my plan</button>
       </Sheet>

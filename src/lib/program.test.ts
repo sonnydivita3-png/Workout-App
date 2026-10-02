@@ -161,6 +161,13 @@ describe('progression (4-week block)', () => {
     expect(w3[2]).toEqual(items()[2])
     expect(applyProgression(items(), 3, 4)[0].sets).toBe(2)
   })
+  it('keeps week 3 close to the session length: extra sets go to the first lifts, about two sets in all', () => {
+    const days = generateProgram(base({ goal: 'muscle', trainWeekdays: [0, 1, 3, 4, 5], weeks: 4, minutes: 45, rng: mulberry32(7), warmup: { sets: true } }))
+    const bySlot = new Map(days.filter((d) => d.slot && d.weekIndex === 0).map((d) => [d.slot, minutesFor(d.items)]))
+    const w3 = days.filter((d) => d.slot && d.weekIndex === 2 && bySlot.has(d.slot))
+    expect(w3.length).toBeGreaterThan(0)
+    for (const d of w3) expect(minutesFor(d.items) - bySlot.get(d.slot)!).toBeLessThanOrEqual(7)
+  })
   it('does nothing for one-week plans', () => {
     expect(applyProgression(items(), 2, 1)).toEqual(items())
   })
