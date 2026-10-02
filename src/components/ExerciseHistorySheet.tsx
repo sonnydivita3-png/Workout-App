@@ -1,6 +1,6 @@
 import { fmtLong } from '../lib/dates'
-import { dropSetsOf, workSets } from '../lib/progression'
-import { formatPace, formatSeconds, showDistance, showWeight } from '../lib/units'
+import { dropSetsOf, formatSet, workSets } from '../lib/progression'
+import { formatPace, showDistance } from '../lib/units'
 import { useStore } from '../store'
 import type { Exercise, StrengthSet } from '../types'
 import { Sheet } from './Sheet'
@@ -13,8 +13,7 @@ export function ExerciseHistorySheet({ exercise, before, onClose }: { exercise: 
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 8)
   const mode = exercise.mode ?? 'weight'
-  const setText = (p: StrengthSet) =>
-    mode === 'time' ? formatSeconds(p.seconds ?? 0) : mode === 'reps' ? `${p.reps ?? '–'}` : `${showWeight(p.weight, units) ?? '–'}×${p.reps ?? '–'}`
+  const setText = (p: StrengthSet) => formatSet(p, mode, units)
   return (
     <Sheet title={`${exercise.name} · history`} onClose={onClose}>
       {logs.length === 0 ? (

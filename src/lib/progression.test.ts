@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import type { ExerciseLog, Units } from '../types'
-import { compareSet, estimateStart, plateau, platesFor, sessionScore, suggestNext } from './progression'
+import { compareSet, estimateStart, formatSet, plateau, platesFor, sessionBasis, sessionScore, suggestNext } from './progression'
 
 const lb = { weight: 'lb', distance: 'mi' } as const
 const bench = BUILTIN_BY_ID.get('Barbell_Bench_Press_-_Medium_Grip')!
@@ -103,5 +103,44 @@ describe('starting weight for a new lift', () => {
   it('uses the most recent similar lift', () => {
     const later: ExerciseLog = { date: '2026-09-27', exerciseId: 'Barbell_Bench_Press_-_Medium_Grip', sets: [{ weight: 225, reps: 5 }] }
     expect(estimateStart(ex('Dumbbell_Bench_Press'), [benchLog, later], 10, lbs, lookup)!.why).toMatch(/225×5/)
+  })
+})
+
+describe('bodyweight sets on weighted lifts (no weight, or 0)', () => {
+  const dips = BUILTIN_BY_ID.get('Dips_-_Chest_Version')!
+  const bw = (reps: number, weight: number | null = 0) => ({ weight, reps })
+  const lbs = { weight: 'lb', distance: 'mi' } as const
+
+  it('a session with only bodyweight sets is measured in reps; any weighted set makes it a load session', () => {
+    const now: ExerciseLog = { date: 'd', exerciseId: dips.id, sets: [bw(12), bw(10, null)] }
+    expect(sessionBasis(now, 'weight', 'strength')).toBe('reps')
+    expect(sessionScore(now, 'weight', 'strength')).toBe(12)
+    const weighted: ExerciseLog = { date: 'd', exerciseId: dips.id, sets: [bw(12), { weight: 25, reps: 8 }] }
+    expect(sessionBasis(weighted, 'weight', 'strength')).toBe('load')
+    expect(sessionScore(weighted, 'weight', 'strength')).toBeCloseTo(25 * (1 + 8 / 30))
+  })
+
+  it('compares bodyweight sets by reps, and never weighted against bodyweight', () => {
+    expect(compareSet(bw(12), bw(10), 'weight')).toBe('up')
+    expect(compareSet(bw(10, null), bw(10), 'weight')).toBe('same')
+    expect(compareSet({ weight: 25, reps: 8 }, bw(15), 'weight')).toBeNull()
+    expect(compareSet({ weight: 25, reps: 8 }, { weight: 25, reps: 6 }, 'weight')).toBe('up')
+  })
+
+  it('suggests one more rep, not "add 5 lb", and never a deload', () => {
+    const last: ExerciseLog = { date: 'd', exerciseId: dips.id, sets: [bw(10), bw(10), bw(9)] }
+    const s = suggestNext(dips, last, { reps: 10 }, lbs, [last, last, last])
+    expect(s).toMatchObject({ kind: 'add-reps', weight: null, reps: 11 })
+    expect(plateau(dips, [last, last, last, last])).toBe(0)
+  })
+
+  it('shows "12 reps" rather than "0×12"', () => {
+    expect(formatSet(bw(12), 'weight', lbs)).toBe('12 reps')
+    expect(formatSet({ weight: 135, reps: 5 }, 'weight', lbs)).toBe('135×5')
+    expect(formatSet({ weight: null, reps: 15 }, 'reps', lbs)).toBe('15')
+  })
+
+  it('the ab roller is a reps move', () => {
+    expect(BUILTIN_BY_ID.get('Ab_Roller')!.mode).toBe('reps')
   })
 })

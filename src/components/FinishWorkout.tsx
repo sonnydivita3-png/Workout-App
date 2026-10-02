@@ -45,8 +45,9 @@ export function FinishWorkout({ date, onBack, onDone }: { date: string; onBack: 
 
   const units = s.units
   const volDelta = summary.lastLiftVolume ? Math.round(((summary.liftVolume - summary.lastLiftVolume) / summary.lastLiftVolume) * 100) : null
-  const icon = { up: '▲', same: '=', down: '▼', new: '🆕', skipped: '–' } as const
-  const color = { up: 'text-green-600', same: 'text-neutral-400', down: 'text-red-600', new: 'text-neutral-500', skipped: 'text-neutral-300' } as const
+  const icon = { up: '▲', same: '=', down: '▼', new: '🆕', done: '✓', skipped: '–' } as const
+  const color = { up: 'text-green-600', same: 'text-neutral-400', down: 'text-red-600', new: 'text-neutral-500', done: 'text-neutral-500', skipped: 'text-neutral-300' } as const
+  const word = { up: 'better', same: 'matched', down: 'lower', new: 'first time', done: 'done', skipped: 'skipped' } as const
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-neutral-50">
       <div className="mx-auto max-w-md px-5 pb-10 pt-[max(1.5rem,env(safe-area-inset-top))]">
@@ -68,7 +69,7 @@ export function FinishWorkout({ date, onBack, onDone }: { date: string; onBack: 
               <span className="min-w-0 line-clamp-2">{r.name}</span>
               <span className={`shrink-0 text-sm font-medium ${color[r.status]}`}>
                 {r.pr && <span className="mr-2 rounded-full bg-accent px-2 py-0.5 text-[10px] uppercase text-on-accent">PR</span>}
-                {icon[r.status]} {r.status === 'up' ? 'better' : r.status === 'down' ? 'lower' : r.status === 'same' ? 'matched' : r.status === 'new' ? 'first time' : 'skipped'}
+                {icon[r.status]} {word[r.status]}
               </span>
             </li>
           ))}

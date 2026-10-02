@@ -1,12 +1,16 @@
 import type { Exercise, ExerciseLog, PlannedExercise } from '../types'
-import { sessionScore, sessionVolume } from './progression'
+import { sessionBasis, sessionScore, sessionVolume } from './progression'
 import { hasData } from './stats'
+import { isTicked, setRows, workingRows } from './setRows'
 
 export interface ExerciseResult {
   exerciseId: string
   name: string
-  /** Compared with the last time you did it. */
-  status: 'up' | 'same' | 'down' | 'new' | 'skipped'
+  /**
+   * Compared with the last time you did it. 'done': logged, but not comparable with last time (e.g. weighted last
+   * time, bodyweight today).
+   */
+  status: 'up' | 'same' | 'down' | 'new' | 'done' | 'skipped'
   /** New best ever (not just better than last time). */
   pr: boolean
   score: number
@@ -25,6 +29,16 @@ export interface WorkoutSummary {
   lastLiftVolume: number
 }
 
+/**
+ * Whether an exercise was done today: cardio with a distance or time; a lift with a working set ticked or filled in.
+ * A bodyweight set (reps, no weight) counts like any other.
+ */
+function did(l: ExerciseLog | undefined, ex: Exercise): boolean {
+  if (!l) return false
+  if (ex.kind === 'cardio') return hasData(l)
+  return (l.sets ?? []).some((s) => !s.warmup && !s.drop && isTicked(s))
+}
+
 /** How today went against your previous efforts, exercise by exercise. */
 export function workoutSummary(date: string, items: PlannedExercise[], logs: ExerciseLog[], lookup: (id: string) => Exercise | undefined): WorkoutSummary {
   const results: ExerciseResult[] = []
@@ -40,10 +54,13 @@ export function workoutSummary(date: string, items: PlannedExercise[], logs: Exe
     const lastScore = sessionScore(last, ex.mode, ex.kind)
     const volume = ex.kind === 'cardio' ? now?.cardio?.distance ?? now?.cardio?.minutes ?? 0 : sessionVolume(now, ex.mode)
     const lastVolume = ex.kind === 'cardio' ? last?.cardio?.distance ?? last?.cardio?.minutes ?? 0 : sessionVolume(last, ex.mode)
-    const best = Math.max(0, ...before.map((l) => sessionScore(l, ex.mode, ex.kind)))
+    const basis = sessionBasis(now, ex.mode, ex.kind)
+    // Bests only count sessions measured the same way (weighted vs bodyweight).
+    const best = Math.max(0, ...before.filter((l) => sessionBasis(l, ex.mode, ex.kind) === basis).map((l) => sessionScore(l, ex.mode, ex.kind)))
     let status: ExerciseResult['status']
-    if (!now || !hasData(now) || score === 0) status = 'skipped'
-    else if (!last || lastScore === 0) status = 'new'
+    if (!did(now, ex)) status = 'skipped'
+    else if (!last) status = 'new'
+    else if (!basis || basis !== sessionBasis(last, ex.mode, ex.kind) || score === 0 || lastScore === 0) status = 'done'
     else status = score > lastScore + 0.01 ? 'up' : score < lastScore - 0.01 ? 'down' : 'same'
     if (ex.kind === 'strength' && (ex.mode ?? 'weight') === 'weight' && status !== 'skipped') { liftVolume += volume; if (last) lastLiftVolume += lastVolume }
     results.push({ exerciseId: id, name: ex.name, status, pr: status === 'up' && score > best + 0.01, score, lastScore, volume, lastVolume })
@@ -69,9 +86,11 @@ export function unfinished(date: string, items: PlannedExercise[], logs: Exercis
       if (!log?.cardio?.distance && !log?.cardio?.minutes) out.push({ exerciseId: ex.id, name: ex.name, done: 0, planned: 1, cardio: true })
       continue
     }
-    // Ticked sets (older sets without a tick count when they have numbers); typed but unticked ones aren't done yet.
-    const done = (log?.sets ?? []).filter((s) => !s.warmup && !s.drop && (s.done ?? !!(s.weight || s.reps || s.seconds))).length
-    if (done < p.sets) out.push({ exerciseId: ex.id, name: ex.name, done, planned: p.sets, cardio: false })
+    // The working sets exactly as the card shows them: a set made into a warm-up isn't a missing working set. Ticked
+    // sets are done (older sets without a tick count when they have numbers); typed but unticked ones aren't yet.
+    const work = workingRows(setRows(p, log?.sets))
+    const done = work.filter(isTicked).length
+    if (done < work.length) out.push({ exerciseId: ex.id, name: ex.name, done, planned: work.length, cardio: false })
   }
   return out
 }
