@@ -14,6 +14,10 @@ test('history by workout: calendar, day comparison, muscle sets, delete a day', 
   await page.goto('/')
   await page.locator('nav').getByText('Progress').click()
   await expect(page.getByText('Hard sets per muscle')).toBeVisible()
+  // No goal yet: the usual 10 a week, less for smaller muscles. Two bench sets and push-ups this week, one set last week.
+  await expect(page.getByLabel('Chest: 3 of 10 sets this week, 1 last week')).toBeVisible()
+  await expect(page.getByLabel('Biceps: 0 of 6 sets this week, 0 last week')).toBeVisible()
+  await expect(page.getByText(/set your goal in Settings/)).toBeVisible()
   await expect(page.getByText('▲ 1 improved')).toBeVisible()
   await page.getByRole('button', { name: /workout logged/ }).last().click()
   await expect(page.getByText(/Beat the time before on/)).toBeVisible()
@@ -32,4 +36,25 @@ test('body: log measurements and see the trend', async ({ page }) => {
   await page.locator('.fixed').getByRole('button', { name: 'Save' }).click()
   await expect(page.getByText(/-1 in since/)).toBeVisible()
   await expect(page.getByText('Progress photos')).toBeVisible()
+})
+
+test('weekly targets follow your goal, or your own number, and Settings is a tap away on every tab', async ({ page }) => {
+  await seed(page, { logs: [{ date: iso(0), exerciseId: B, sets: [{ weight: 145, reps: 8 }, { weight: 145, reps: 8 }] }] })
+  await page.goto('/')
+  for (const tab of ['Workouts', 'Progress']) {
+    await page.locator('nav').getByText(tab).click()
+    await page.getByRole('button', { name: 'Settings', exact: true }).click()
+    await expect(page.getByRole('main').getByRole('button', { name: /^Profile, units & equipment/ })).toBeVisible()
+  }
+  await page.getByRole('main').getByRole('button', { name: /^Profile, units & equipment/ }).click()
+  await page.getByRole('radiogroup', { name: 'Main goal' }).getByRole('radio', { name: 'Build muscle' }).click()
+  await page.locator('nav').getByText('Progress').click()
+  await expect(page.getByLabel('Chest: 2 of 12 sets this week, 0 last week')).toBeVisible()
+  await expect(page.getByText(/Target for build muscle: 12 a week/)).toBeVisible()
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await page.getByRole('main').getByRole('button', { name: /^Profile, units & equipment/ }).click()
+  await page.getByLabel('Weekly sets per muscle').fill('16')
+  await page.locator('nav').getByText('Progress').click()
+  await expect(page.getByLabel('Chest: 2 of 16 sets this week, 0 last week')).toBeVisible()
+  expect((await state(page)).trainingPrefs).toMatchObject({ goal: 'muscle', setTarget: 16 })
 })

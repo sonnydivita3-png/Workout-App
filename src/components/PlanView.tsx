@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { SettingsGear } from './SettingsGear'
 import { parseISO, toISO, weekDates, weekdayIndex } from '../lib/dates'
 import { dayLabel, dayPlanOf, isRestDay, workItems } from '../lib/plan'
 import { hasData } from '../lib/stats'
@@ -28,7 +29,7 @@ const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satu
  * each set here (✓), then Finish. Timed formats (AMRAP, EMOM, circuits…) bring their own clock; the rest timer
  * between sets is optional (Settings → Workouts).
  */
-export function PlanView({ initialAction }: { initialAction?: string }) {
+export function PlanView({ initialAction, onSettings }: { initialAction?: string; onSettings?: () => void }) {
   const [anchor, setAnchor] = useState(() => new Date())
   const [day, setDay] = useState(() => weekdayIndex(new Date()))
   const [today] = useState(() => toISO(new Date()))
@@ -70,9 +71,10 @@ export function PlanView({ initialAction }: { initialAction?: string }) {
           {dates[0].toLocaleDateString(undefined, { month: 'long', day: 'numeric' })} –{' '}
           {dates[6].toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
         </h1>
-        <div className="flex gap-1 text-neutral-500">
+        <div className="flex items-center gap-1 text-neutral-500">
           <button onClick={() => shiftWeek(-1)} aria-label="Previous week" className="h-8 w-8 rounded-full hover:bg-neutral-200/60">‹</button>
           <button onClick={() => shiftWeek(1)} aria-label="Next week" className="h-8 w-8 rounded-full hover:bg-neutral-200/60">›</button>
+          {onSettings && <SettingsGear onClick={onSettings} />}
         </div>
       </header>
 

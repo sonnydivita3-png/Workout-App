@@ -37,7 +37,7 @@ test('first run: name, goal and schedule build a first month, then Home shows to
   expect(s.units.weight).toBe('kg')
   expect(s.onboarded).toBe(true)
   expect(s.equipment).toEqual(['Barbell', 'Dumbbell', 'Kettlebell', 'Machine', 'Other'])
-  expect(s.trainingPrefs).toEqual({ styles: ['crossfit', 'strength'], cardio: ['row', 'airbike'], cardioSplit: true, moves: { free: 1, machine: -1 } })
+  expect(s.trainingPrefs).toEqual({ styles: ['crossfit', 'strength'], cardio: ['row', 'airbike'], cardioSplit: true, moves: { free: 1, machine: -1 }, goal: 'muscle' })
 })
 
 test('first run with no plan still asks where you train and what you like', async ({ page }) => {

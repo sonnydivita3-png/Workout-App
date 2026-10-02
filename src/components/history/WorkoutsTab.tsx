@@ -2,7 +2,8 @@ import { ConditioningSection } from './ConditioningSection'
 import { useMemo, useState } from 'react'
 import { BUILTIN_BY_ID } from '../../data/exercises'
 import { addDays, fmtLong, parseISO, toISO } from '../../lib/dates'
-import { MUSCLE_GROUPS, weeklySets } from '../../lib/muscles'
+import { baseTarget, MUSCLE_GROUPS, weeklySets, weeklyTarget } from '../../lib/muscles'
+import { PROGRAM_GOALS } from '../../lib/program'
 import { dropSetsOf, workSets } from '../../lib/progression'
 import { workoutTitle } from '../../lib/plan'
 import { hasData } from '../../lib/stats'
@@ -32,7 +33,12 @@ export function WorkoutsTab() {
   }, [logs, timedLogs])
   const dates = [...days.keys()].sort().reverse()
   const sets = weeklySets(logs, today, lookup)
-  const maxSets = Math.max(10, ...Object.values(sets.thisWeek), ...Object.values(sets.lastWeek))
+  // Weekly targets from their goal (or their own number); the tick on each bar.
+  const { goal, setTarget } = useStore((st) => st.trainingPrefs)
+  const goalLabel = PROGRAM_GOALS.find((g) => g.id === goal)?.label.toLowerCase()
+  const targets = Object.fromEntries(MUSCLE_GROUPS.map((g) => [g, weeklyTarget(g, goal, setTarget)])) as Record<string, number>
+  const onTarget = MUSCLE_GROUPS.filter((g) => sets.thisWeek[g] >= targets[g]).length
+  const maxSets = Math.max(10, ...Object.values(targets).map((t) => t * 1.2), ...Object.values(sets.thisWeek), ...Object.values(sets.lastWeek))
 
   // Month grid starting on Monday.
   const first = parseISO(`${month}-01`)
@@ -67,20 +73,25 @@ export function WorkoutsTab() {
       </section>
 
       <section className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
-        <p className="mb-1 text-sm font-semibold text-neutral-700">Hard sets per muscle · this week vs last</p>
-        <p className="mb-3 text-xs text-neutral-400">Many coaches aim for about 10–20 working sets per muscle each week.</p>
+        <p className="mb-1 text-sm font-semibold text-neutral-700">Hard sets per muscle · this week</p>
+        <p className="mb-3 text-xs text-neutral-400">
+          {onTarget} of {MUSCLE_GROUPS.length} on target. {setTarget ? `Your target: ${baseTarget(goal, setTarget)} a week` : goal ? `Target for ${goalLabel}: ${baseTarget(goal)} a week` : `Target: ${baseTarget(null)} a week (set your goal in Settings to tailor it)`}, less for smaller muscles. Grey is last week.
+        </p>
         <ul className="space-y-1.5">
           {MUSCLE_GROUPS.map((g) => {
             const now = sets.thisWeek[g]
             const then = sets.lastWeek[g]
+            const target = targets[g]
+            const met = now >= target
             return (
-              <li key={g} className="grid grid-cols-[4.5rem_1fr_3.5rem] items-center gap-2 text-xs">
+              <li key={g} className="grid grid-cols-[4.5rem_1fr_3.5rem] items-center gap-2 text-xs" aria-label={`${g}: ${now} of ${target} sets this week, ${then} last week`}>
                 <span className="text-neutral-600">{g}</span>
                 <span className="relative h-3 rounded-full bg-neutral-100">
                   <span className="absolute inset-y-0 left-0 rounded-full bg-neutral-300" style={{ width: `${(then / maxSets) * 100}%` }} />
-                  <span className="absolute inset-y-0.5 left-0 rounded-full bg-accent" style={{ width: `${(now / maxSets) * 100}%` }} />
+                  <span className={`absolute inset-y-0.5 left-0 rounded-full ${met ? 'bg-green-500' : 'bg-accent'}`} style={{ width: `${(now / maxSets) * 100}%` }} />
+                  <span aria-hidden className="absolute -inset-y-0.5 w-0.5 rounded-full bg-neutral-500" style={{ left: `${(target / maxSets) * 100}%` }} />
                 </span>
-                <span className="text-right tabular-nums">{now}<span className="text-neutral-400"> / {then}</span></span>
+                <span className={`text-right tabular-nums ${met ? 'font-medium text-green-600' : ''}`}>{now}<span className={met ? '' : 'text-neutral-400'}> / {target}</span>{met ? ' ✓' : ''}</span>
               </li>
             )
           })}

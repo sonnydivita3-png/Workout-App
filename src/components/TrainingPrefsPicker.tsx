@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { MOVE_TYPES, movePrefsSummary, type Lean, type MoveType } from '../lib/movePrefs'
 import { cardioFor } from '../lib/cardioPrefs'
+import { baseTarget } from '../lib/muscles'
+import { PROGRAM_GOALS } from '../lib/program'
+import { NumberInput } from './NumberInput'
 import type { WorkoutStyle } from '../lib/randomizer'
 import { useStore } from '../store'
 
@@ -125,6 +128,31 @@ export function MoveChoice() {
       <h3 className="mb-2 text-sm font-medium">Exercise types you prefer</h3>
       <MovePrefsPicker />
       <p className="mt-2 text-xs text-neutral-400">Saved as your default (also in Settings → Profile). Workouts lean towards “More” and away from “Less”, without dropping a body part.</p>
+    </div>
+  )
+}
+
+/** Main goal, and the weekly hard sets per muscle it sets (or their own number). */
+export function GoalPicker() {
+  const { goal, setTarget } = useStore((s) => s.trainingPrefs)
+  const setTrainingPrefs = useStore((s) => s.setTrainingPrefs)
+  const auto = baseTarget(goal)
+  return (
+    <div>
+      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Main goal">
+        {PROGRAM_GOALS.map((g) => <button key={g.id} role="radio" aria-checked={goal === g.id} onClick={() => setTrainingPrefs({ goal: g.id })} className={chip(goal === g.id)}>{g.label}</button>)}
+        <button role="radio" aria-checked={!goal} onClick={() => setTrainingPrefs({ goal: null })} className={chip(!goal)}>Not set</button>
+      </div>
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <span className="min-w-0">
+          <span className="block text-sm font-medium">Weekly sets per muscle</span>
+          <span className="block text-xs text-neutral-400">{setTarget ? `Your own number (your goal suggests ${auto}).` : `${auto}, from ${goal ? 'your goal' : 'the usual advice'}. Type your own to change it.`}</span>
+        </span>
+        <span className="w-20 shrink-0">
+          <NumberInput label="Weekly sets per muscle" value={setTarget ?? null} placeholder={String(auto)} onChange={(v) => setTrainingPrefs({ setTarget: v && v > 0 ? Math.min(40, Math.round(v)) : null })} />
+        </span>
+      </div>
+      <p className="mt-2 text-xs text-neutral-400">Hard sets are working sets taken close to failure (warm-ups don’t count). Arms, glutes, calves and core also work in the big lifts, so their targets are about 60% of this.</p>
     </div>
   )
 }

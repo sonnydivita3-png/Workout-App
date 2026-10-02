@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SettingsGear } from '../SettingsGear'
 import { formatAmount } from '../../social/challengeProgress'
 import { describePayload } from '../../social/share'
 import { challengeUpdates, describeError, pendingCount, useSocial } from '../../social/store'
@@ -66,7 +67,10 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   if (socialChoice !== 'enabled') {
     return (
       <>
-        <h1 className="mb-4 text-2xl font-semibold tracking-tight">Social</h1>
+        <header className="mb-4 flex items-center justify-between">
+          <h1 className="text-2xl font-semibold tracking-tight">Social</h1>
+          <SettingsGear onClick={() => onNavigate('settings')} />
+        </header>
         <Card>
           <p className="mb-1 font-medium">Train with friends</p>
           <p className="mb-4 text-sm text-neutral-500">Share workouts, send challenges and cheer each other on with emoji. You choose what each friend can do. Social is off until you set it up.</p>
@@ -81,7 +85,10 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   if (status === 'signed-out' || status === 'needs-profile' || status === 'idle') {
     return (
       <>
-        <h1 className="mb-4 text-2xl font-semibold tracking-tight">Social</h1>
+        <header className="mb-4 flex items-center justify-between">
+          <h1 className="text-2xl font-semibold tracking-tight">Social</h1>
+          <SettingsGear onClick={() => onNavigate('settings')} />
+        </header>
         <Card>
           <p className="mb-4 text-sm text-neutral-500">{status === 'needs-profile' ? 'Finish creating your profile to continue.' : 'Sign in to see your friends.'}</p>
           <button onClick={() => setSetup(true)} className={primary}>{status === 'needs-profile' ? 'Finish setup' : 'Sign in'}</button>
@@ -95,7 +102,10 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   if (status === 'error') {
     return (
       <>
-        <h1 className="mb-4 text-2xl font-semibold tracking-tight">Social</h1>
+        <header className="mb-4 flex items-center justify-between">
+          <h1 className="text-2xl font-semibold tracking-tight">Social</h1>
+          <SettingsGear onClick={() => onNavigate('settings')} />
+        </header>
         <ErrorNote>{s.error ?? 'Something went wrong.'}</ErrorNote>
         <button onClick={() => s.init()} className={secondary}>Try again</button>
       </>
@@ -133,7 +143,10 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
     <>
       <header className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Social</h1>
-        {profile && <span className="flex items-center gap-2 text-sm text-neutral-400"><Avatar profile={profile} size="sm" />@{profile.handle}</span>}
+        <span className="flex items-center gap-2">
+          {profile && <span className="flex items-center gap-2 text-sm text-neutral-400"><Avatar profile={profile} size="sm" />@{profile.handle}</span>}
+          <SettingsGear onClick={() => onNavigate('settings')} />
+        </span>
       </header>
       <div className="-mt-3 mb-4"><ConnectionStatus /></div>
       <div className="mb-4 flex gap-2">
