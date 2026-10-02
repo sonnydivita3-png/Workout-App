@@ -55,7 +55,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
       generateProgram({
         anchorMonday, weeks, fromDate, trainWeekdays: days, goal, minutes,
         prevDayGroups: majorGroupsLogged(logs, prev, (id) => findExercise(custom, id)),
-        warmup: defaultWarmup(genPrefs.warmup, true), rest: genPrefs.rest, likedStyles: trainingPrefs.styles, dropSets: !!genPrefs.drops, split,
+        warmup: defaultWarmup(genPrefs.warmup, true, genPrefs.warmMinutes), rest: genPrefs.rest, likedStyles: trainingPrefs.styles, dropSets: !!genPrefs.drops, split,
         familiar: familiarLifts(logs, first),
         rotate: liftsToRotate(logs, first, (id) => findExercise(custom, id)),
       })),
@@ -131,7 +131,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
         )}
         <div className="mb-5" />
 
-        <WarmupRestControls lifting />
+        <WarmupRestControls lifting lengthControl ownWarmupNote />
 
         <GearChoice value={gear} onChange={setGear} />
         <h3 className="mb-2 text-sm font-semibold text-neutral-700">Session length</h3>
@@ -165,7 +165,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
   const recentIds = (i: number) => new Set(result.slice(Math.max(0, i - 3), i + 4).flatMap((d) => d.items.map((p) => p.exerciseId)))
 
   const reroll = (date: string) =>
-    setResult((r) => r && withGearFor(gear, () => rerollSlot(r, date, minutes, weeks, recentIds(r.findIndex((d) => d.date === date)), Math.random, { warmup: defaultWarmup(genPrefs.warmup, true), rest: genPrefs.rest, dropSets: !!genPrefs.drops })))
+    setResult((r) => r && withGearFor(gear, () => rerollSlot(r, date, minutes, weeks, recentIds(r.findIndex((d) => d.date === date)), Math.random, { warmup: defaultWarmup(genPrefs.warmup, true, genPrefs.warmMinutes), rest: genPrefs.rest, dropSets: !!genPrefs.drops })))
 
   const apply = () => {
     if (onUse) {

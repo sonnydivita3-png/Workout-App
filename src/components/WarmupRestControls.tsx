@@ -1,16 +1,25 @@
 import type { RestPref } from '../lib/timing'
+import { defaultWarmMinutes } from '../lib/randomizer'
 import { useStore, type WarmupKind } from '../store'
 
 const chip = (on: boolean, disabled = false) =>
   `rounded-full px-3 py-1.5 text-sm ${disabled ? 'bg-neutral-100 text-neutral-300' : on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
 const h3 = 'mb-2 text-sm font-semibold text-neutral-700'
 
-/** Warm-up choices and rest length, remembered between uses. Shared by the randomizer and the week/month planner. */
-export function WarmupRestControls({ lifting, onWarmupChange }: { lifting: boolean; onWarmupChange?: () => void }) {
+/**
+ * Warm-up choices and rest length, remembered between uses. Shared by the randomizer and the week/month planner.
+ * `lengthControl` adds a warm-up length (the planner; the randomizer sets it in its time split); `ownWarmupNote` says
+ * that HIIT and timed sessions bring a short warm-up of their own when none is picked.
+ */
+export function WarmupRestControls({ lifting, onWarmupChange, lengthControl, ownWarmupNote }: { lifting: boolean; onWarmupChange?: () => void; lengthControl?: boolean; ownWarmupNote?: boolean }) {
   const warm = useStore((s) => s.genPrefs.warmup)
   const rest = useStore((s) => s.genPrefs.rest)
   const drops = useStore((s) => !!s.genPrefs.drops)
   const setGenPrefs = useStore((s) => s.setGenPrefs)
+  const warmMinutes = useStore((s) => s.genPrefs.warmMinutes)
+  const timed = warm.includes('cardio') || warm.includes('mobility')
+  const length = warmMinutes ?? defaultWarmMinutes(warm)
+  const setLength = (m: number) => setGenPrefs({ warmMinutes: Math.min(20, Math.max(3, m)) })
   const toggle = (k: WarmupKind) => { setGenPrefs({ warmup: warm.includes(k) ? warm.filter((x) => x !== k) : [...warm, k] }); onWarmupChange?.() }
   const parts = [
     warm.includes('cardio') && 'easy cardio',
@@ -26,7 +35,18 @@ export function WarmupRestControls({ lifting, onWarmupChange }: { lifting: boole
           <button key={k} onClick={() => toggle(k)} aria-pressed={warm.includes(k)} disabled={k === 'sets' && !lifting} className={chip(warm.includes(k), k === 'sets' && !lifting)}>{l}</button>
         ))}
       </div>
+      {lengthControl && timed && (
+        <div className="mb-1 mt-2 flex items-center justify-between rounded-2xl bg-neutral-50 px-3 py-2">
+          <span className="text-sm">Warm-up length</span>
+          <span className="flex items-center gap-2">
+            <button onClick={() => setLength(length - 1)} disabled={length <= 3} aria-label="Shorter warm-up" className="h-8 w-8 rounded-full bg-neutral-100 text-lg disabled:opacity-30">−</button>
+            <span className="w-14 text-center text-sm tabular-nums">{length} min</span>
+            <button onClick={() => setLength(length + 1)} disabled={length >= 20} aria-label="Longer warm-up" className="h-8 w-8 rounded-full bg-neutral-100 text-lg disabled:opacity-30">+</button>
+          </span>
+        </div>
+      )}
       <p className="mb-5 text-xs text-neutral-400">
+        {ownWarmupNote && !timed && 'HIIT and timed sessions start with a short warm-up of their own (about 5 minutes). '}
         {parts.length === 0
           ? lifting
             ? 'None picked. Warm-up sets are light ramp-up sets before your first two lifts, with weights suggested from your working weight. Easy cardio and mobility come first, with their own time.'

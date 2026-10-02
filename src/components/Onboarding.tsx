@@ -41,7 +41,7 @@ export function Onboarding() {
     const result = generateProgram({
       anchorMonday: toISO(mondayOf(parseISO(today))), fromDate: today, weeks: 4,
       trainWeekdays: defaultWeekdays(days), goal: goals, minutes,
-      warmup: defaultWarmup(s.genPrefs.warmup, true), rest: s.genPrefs.rest, likedStyles: s.trainingPrefs.styles,
+      warmup: defaultWarmup(s.genPrefs.warmup, true, s.genPrefs.warmMinutes), rest: s.genPrefs.rest, likedStyles: s.trainingPrefs.styles,
     })
     setWeek(result)
     setStep('plan')

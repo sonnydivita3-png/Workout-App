@@ -113,12 +113,18 @@ export interface WarmupOptions {
   sets?: boolean
 }
 
-/** Warm-up minutes for a session when there's no per-part control (week/month plans). */
-export function defaultWarmup(warm: ('cardio' | 'mobility' | 'sets')[], lifting: boolean): WarmupOptions {
+/** Usual warm-up length: 5 minutes of either easy cardio or mobility, 9 for both. */
+export const defaultWarmMinutes = (warm: ('cardio' | 'mobility' | 'sets')[]) =>
+  (warm.includes('cardio') ? 5 : 0) + (warm.includes('mobility') ? (warm.includes('cardio') ? 4 : 5) : 0)
+
+/** Warm-up for a session when there's no per-part control (week/month plans), optionally `total` minutes long. */
+export function defaultWarmup(warm: ('cardio' | 'mobility' | 'sets')[], lifting: boolean, total?: number): WarmupOptions {
   const both = warm.includes('cardio') && warm.includes('mobility')
+  const t = total ?? defaultWarmMinutes(warm)
+  const cardio = both ? Math.round(t * 0.55) : t
   return {
-    ...(warm.includes('cardio') ? { cardio: 5 } : {}),
-    ...(warm.includes('mobility') ? { mobility: both ? 4 : 5 } : {}),
+    ...(warm.includes('cardio') ? { cardio } : {}),
+    ...(warm.includes('mobility') ? { mobility: both ? t - cardio : t } : {}),
     sets: warm.includes('sets') && lifting,
   }
 }
@@ -766,7 +772,8 @@ function generatePha(groups: string[], minutes: number, rng: Rng, avoid: Set<str
   if (upperGroups.length && lowerGroups.length) {
     const up = roundRobinPick(upperGroups, Math.ceil(n / 2), poolFor, avoid, rng)
     const low = roundRobinPick(lowerGroups, Math.floor(n / 2), poolFor, avoid, rng, 1, up)
-    const first = rng() < 0.5 ? up : low
+    // With an odd count the longer half goes first, or the circuit would end with two of a kind back to back.
+    const first = up.length !== low.length ? (up.length > low.length ? up : low) : rng() < 0.5 ? up : low
     const second = first === up ? low : up
     picked = []
     for (let i = 0; picked.length < up.length + low.length; i++) {
@@ -844,6 +851,18 @@ function generateMixed(focus: string[], minutes: number, styles: WorkoutStyle[],
   return cardio ? [...out, ...pickCardio(cardioMin, rng, new Set([...avoid, ...used]), lift.cardio).filter((p) => !used.has(p.exerciseId))] : out
 }
 
+/**
+ * Warm-ups that conditioning formats bring with them when none was picked (minutes of easy cardio and mobility),
+ * for sessions of at least `from` minutes.
+ */
+const OWN_WARMUP: Partial<Record<WorkoutStyle, { cardio: number; mobility: number; from: number }>> = {
+  hyrox: { cardio: 4, mobility: 4, from: 30 },
+  crossfit: { cardio: 4, mobility: 4, from: 30 },
+  ...Object.fromEntries((['amrap', 'emom', 'fortime', 'tabata', 'circuit', 'pha'] as const).map((st) => [st, { cardio: 3, mobility: 2, from: 20 }])),
+}
+/** Whether a style adds its own short warm-up when none is picked. */
+export const bringsOwnWarmup = (style: WorkoutStyle) => !!OWN_WARMUP[style]
+
 export function generateWorkout(focusIn: string[], minutes: number, opts: GenerateOptions = {}): PlannedExercise[] {
   // Older saved choices (and some plans) say Legs or Arms: those mean every part of them.
   const focus = expandParts(focusIn)
@@ -875,17 +894,19 @@ export function generateWorkout(focusIn: string[], minutes: number, opts: Genera
   if (cardioOnly && ['amrap', 'emom', 'tabata', 'circuit', 'pha', 'fortime'].includes(style)) {
     return pickCardio(minutes, rng, avoid, { exerciseId: opts.cardio?.exerciseId, kind: opts.cardio?.kind ?? (style === 'fortime' ? 'trial' : 'intervals') })
   }
-  if (style === 'hyrox' || style === 'crossfit') {
-    // Like a class, these start with their own general warm-up (easy cardio, then mobility), unless the person
-    // already asked for one or this comes after another part of the workout.
-    const own = !opts.warmed && minutes >= 30 ? 8 : 0
-    const main = style === 'hyrox' ? generateHyrox(minutes - own, rng) : generateCrossfit(minutes - own, rng, avoid)
-    if (!own) return main
+  // Like a class, hard conditioning starts with its own general warm-up (easy cardio, then mobility) unless the person
+  // already asked for one or this comes after another part of the workout: going all-out cold is how people get hurt.
+  const own = opts.warmed ? undefined : OWN_WARMUP[style]
+  if (own && minutes >= own.from) {
+    const mins = own.cardio + own.mobility
+    const main = generateWorkout(focus, minutes - mins, { ...opts, rng, warmup: { sets: w.sets }, warmed: true })
     const ids = new Set(main.map((p) => p.exerciseId))
+    const body = focus.filter((g) => g !== 'Cardio')
     // Never the same exercise twice in a day: if the warm-up picked the WOD's machine, it warms up without it.
-    const warm = generateWarmup(FULL_BODY_GROUPS, { cardio: 4, mobility: 4 }, rng, ids).filter((p) => !ids.has(p.exerciseId))
+    const warm = generateWarmup(body.length ? body : FULL_BODY_GROUPS, own, rng, ids).filter((p) => !ids.has(p.exerciseId))
     return [...warm, ...main]
   }
+  if (style === 'hyrox' || style === 'crossfit') return style === 'hyrox' ? generateHyrox(minutes, rng) : generateCrossfit(minutes, rng, avoid)
   if (style === 'amrap' || style === 'emom' || style === 'fortime' || style === 'tabata') return generateTimed(style, focus.filter((g) => g !== 'Cardio'), minutes, rng, avoid, focus.includes('Cardio'))
 
   let groups = focus.filter((g) => g !== 'Cardio')
