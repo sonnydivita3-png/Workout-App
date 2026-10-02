@@ -64,8 +64,8 @@ export default function App() {
         <UpdateBanner />
         {tab !== 'settings' && <InviteBanner />}
         {tab === 'home' && <HomeView onNavigate={navigate} />}
-        {tab === 'plan' && <PlanView key={sub ?? 'default'} initialAction={sub} />}
-        {tab === 'history' && <HistoryView key={sub ?? 'default'} initialTab={sub} />}
+        {tab === 'plan' && <PlanView key={sub ?? 'default'} initialAction={sub} onSettings={() => navigate('settings')} />}
+        {tab === 'history' && <HistoryView key={sub ?? 'default'} initialTab={sub} onSettings={() => navigate('settings')} />}
         {tab === 'social' && <SocialView onNavigate={navigate} />}
         {tab === 'settings' && <SettingsView key={sub ?? 'default'} initialPage={sub} onBack={() => navigate('home')} />}
       </main>

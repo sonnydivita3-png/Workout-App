@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { BUILTIN_BY_ID } from './data/exercises'
 import { setMovePrefs, type MovePrefs } from './lib/movePrefs'
+import type { ProgramGoal } from './lib/program'
 import { parseISO, weekdayIndex } from './lib/dates'
 import { toPlanned, type CardioDay } from './lib/cardioPlan'
 import { dayPlanOf } from './lib/plan'
@@ -26,6 +27,10 @@ export interface TrainingPrefs {
   cardioSplit: boolean
   /** Kinds of movement to lean towards (1) or away from (-1): compound, free weights, one arm / one leg… */
   moves?: MovePrefs
+  /** Main goal (from first run, a plan, or Settings). Sets the weekly hard-set target per muscle. */
+  goal?: ProgramGoal | null
+  /** Their own weekly hard-set target per big muscle, instead of the goal's. */
+  setTarget?: number | null
 }
 
 export type ThemeMode = 'dark' | 'light' | 'auto'

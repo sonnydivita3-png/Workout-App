@@ -6,7 +6,7 @@ import { SocialSettings } from './social/SocialSettings'
 import { CloudBackup } from './CloudBackup'
 import { AccountSection } from './AccountSection'
 import { EquipmentPicker } from './EquipmentPicker'
-import { LikedCardioPicker, LikedStylesPicker, MovePrefsPicker } from './TrainingPrefsPicker'
+import { GoalPicker, LikedCardioPicker, LikedStylesPicker, MovePrefsPicker } from './TrainingPrefsPicker'
 import { equipmentSummary } from '../lib/equipment'
 import { InviteButton } from './InviteButton'
 import { useSocial } from '../social/store'
@@ -209,6 +209,9 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
       <h2 className="pt-4 text-sm font-semibold text-neutral-700">Your equipment</h2>
       <p className="text-sm text-neutral-500">Generated workouts and plans only use what you have. You can still add any exercise yourself.</p>
       <EquipmentPicker />
+      <h2 className="pt-4 text-sm font-semibold text-neutral-700">Your goal</h2>
+      <p className="text-sm text-neutral-500">Sets your weekly target for hard sets per muscle on Progress, and the default for new plans.</p>
+      <GoalPicker />
       <h2 className="pt-4 text-sm font-semibold text-neutral-700">Workouts you like</h2>
       <p className="text-sm text-neutral-500">Plans and “Make me a workout” lean towards these.</p>
       <LikedStylesPicker />

@@ -81,12 +81,12 @@ export function Onboarding() {
             <p className="mb-5 text-neutral-500">We’ll build your first month around it. You can change it any time.</p>
             <div className="mb-6 space-y-2">
               {PROGRAM_GOALS.map((g) => (
-                <button key={g.id} onClick={() => setGoal(g.id)} className={choice(goal === g.id)}>
+                <button key={g.id} onClick={() => { setGoal(g.id); s.setTrainingPrefs({ goal: g.id }) }} className={choice(goal === g.id)}>
                   <span className="block font-medium">{g.label}</span>
                   <span className="block text-sm text-neutral-500">{g.blurb}</span>
                 </button>
               ))}
-              <button onClick={() => setGoal('none')} className={choice(goal === 'none')}>
+              <button onClick={() => { setGoal('none'); s.setTrainingPrefs({ goal: null }) }} className={choice(goal === 'none')}>
                 <span className="block font-medium">Just log my workouts</span>
                 <span className="block text-sm text-neutral-500">No plan for now. I’ll add workouts myself.</span>
               </button>

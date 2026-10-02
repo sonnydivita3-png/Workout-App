@@ -32,12 +32,12 @@ interface Props {
 }
 
 export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props) {
-  const { logs, custom, plan, overrides, programs, startProgram, genPrefs, equipment, trainingPrefs } = useStore()
+  const { logs, custom, plan, overrides, programs, startProgram, genPrefs, equipment, trainingPrefs, setTrainingPrefs } = useStore()
   const [gear, setGear] = useState<string[] | null>(equipment)
   const today = useToday()
   const [when, setWhen] = useState<'this' | 'next'>(onUse ? 'next' : 'this')
   const [weeks, setWeeks] = useState<1 | 4>(1)
-  const [goal, setGoal] = useState<ProgramGoal>('muscle')
+  const [goal, setGoal] = useState<ProgramGoal>(trainingPrefs.goal ?? 'muscle')
   const [days, setDays] = useState<number[]>(defaultWeekdays(3))
   const [minutes, setMinutes] = useState(45)
   const [split, setSplit] = useState<SplitId>('auto')
@@ -173,6 +173,8 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
       onUse(result.map((d) => ({ offset: Math.round((parseISO(d.date).getTime() - t0) / 86400000), items: d.items })), weeks)
       return
     }
+    // The plan's goal becomes their goal (it sets the weekly targets on Progress).
+    if (goal !== trainingPrefs.goal) setTrainingPrefs({ goal })
     startProgram(Object.fromEntries(result.map((d) => [d.date, d.items])), `${split === 'auto' ? 'Random' : splitInfo(split).label} ${weeks === 4 ? 'month' : 'week'} plan`, today)
     onApplied(result[0].date)
     onClose()

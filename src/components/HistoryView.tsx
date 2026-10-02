@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { SettingsGear } from './SettingsGear'
 import { cardioLine, distanceUnitFor, paceBasis, formatSeconds, showDistanceIn, showWeight } from '../lib/units'
 import { cardioSessions, hasData, isPR, setSessions, strengthSessions } from '../lib/stats'
 import { findExercise, useStore } from '../store'
@@ -15,7 +16,7 @@ const fmtLong = (iso: string) =>
 
 type HTab = 'workouts' | 'exercises' | 'body'
 
-export function HistoryView({ initialTab }: { initialTab?: string }) {
+export function HistoryView({ initialTab, onSettings }: { initialTab?: string; onSettings?: () => void }) {
   const [tab, setTab] = useState<HTab>(initialTab === 'body' || initialTab === 'exercises' ? initialTab : 'workouts')
   const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
   const tabs = (
@@ -25,7 +26,10 @@ export function HistoryView({ initialTab }: { initialTab?: string }) {
   )
   return (
     <section>
-      <h1 className="mb-4 text-2xl font-semibold tracking-tight">Progress</h1>
+      <header className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Progress</h1>
+        {onSettings && <SettingsGear onClick={onSettings} />}
+      </header>
       <Tip id="progress">Workouts shows every session and how it compared with the time before. Exercises has charts and personal bests. Body tracks weight, measurements and photos.</Tip>
       {tabs}
       {tab === 'workouts' && <WorkoutsTab />}

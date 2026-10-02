@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
-import { weeklySets } from './muscles'
+import { weeklySets, weeklyTarget } from './muscles'
 
 describe('weeklySets', () => {
   it('counts working sets per muscle, this week vs last, ignoring warm-ups and cardio', () => {
@@ -20,5 +20,22 @@ describe('weeklySets', () => {
     expect(w.thisWeek.Biceps).toBe(1)
     expect(w.thisWeek.Hamstrings).toBe(0)
     expect('Legs' in w.thisWeek).toBe(false)
+  })
+})
+
+describe('weekly hard-set targets', () => {
+  it('come from the goal, with smaller muscles at about 60%', () => {
+    expect(weeklyTarget('Chest', 'muscle')).toBe(12)
+    expect(weeklyTarget('Biceps', 'muscle')).toBe(7)
+    expect(weeklyTarget('Quads', 'strength')).toBe(8)
+    expect(weeklyTarget('Back', 'fitness')).toBe(6)
+    expect(weeklyTarget('Core', 'fitness')).toBe(4)
+  })
+  it('use their own number when set, else the usual 10', () => {
+    expect(weeklyTarget('Chest', 'muscle', 16)).toBe(16)
+    expect(weeklyTarget('Triceps', 'muscle', 16)).toBe(10)
+    expect(weeklyTarget('Chest', null)).toBe(10)
+    expect(weeklyTarget('Chest', 'nonsense' as never)).toBe(10)
+    expect(weeklyTarget('Calves', null, 2)).toBe(2)
   })
 })
