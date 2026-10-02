@@ -805,6 +805,8 @@ export interface GenerateOptions {
   familiar?: Set<string>
   /** The cardio activity and session type (steady, intervals, tempo, hills, time trial). */
   cardio?: CardioSpec
+  /** Already warmed up (a warm-up was added, or this is a later part of a mixed workout): no warm-up of its own. */
+  warmed?: boolean
 }
 
 /**
@@ -827,7 +829,7 @@ function generateMixed(focus: string[], minutes: number, styles: WorkoutStyle[],
   const out: PlannedExercise[] = []
   for (const style of styles) {
     // Warm-up sets only before the first lifting part; later parts are already warm.
-    const part = generateWorkout(body, byStyle[style] ?? share, { style, rng, avoid: new Set([...avoid, ...used]), rest: lift.rest, warmup: { sets: !!lift.warmupSets && out.length === 0 }, familiar: lift.familiar })
+    const part = generateWorkout(body, byStyle[style] ?? share, { style, rng, avoid: new Set([...avoid, ...used]), rest: lift.rest, warmup: { sets: !!lift.warmupSets && out.length === 0 }, familiar: lift.familiar, warmed: out.length > 0 })
     for (const p of part) {
       if (used.has(p.exerciseId)) continue // one entry per exercise across the whole workout
       used.add(p.exerciseId)
@@ -850,7 +852,7 @@ export function generateWorkout(focusIn: string[], minutes: number, opts: Genera
   const warmMin = (w.cardio ?? 0) + (w.mobility ?? 0)
   if (warmMin > 0) {
     const rng = opts.rng ?? Math.random
-    const main = generateWorkout(focus, Math.max(5, minutes - warmMin), { ...opts, rng, warmup: { sets: w.sets } })
+    const main = generateWorkout(focus, Math.max(5, minutes - warmMin), { ...opts, rng, warmup: { sets: w.sets }, warmed: true })
     const warm = generateWarmup(focus, w, rng, new Set(main.map((p) => p.exerciseId)))
     return [...warm, ...main.filter((p) => !warm.some((x) => x.exerciseId === p.exerciseId))]
   }
@@ -861,15 +863,22 @@ export function generateWorkout(focusIn: string[], minutes: number, opts: Genera
     const list = [...new Set(opts.styles)].sort((a, b) => STYLE_ORDER.indexOf(a) - STYLE_ORDER.indexOf(b))
     return generateMixed(focus, minutes, list, rng, avoid, opts.minutesByStyle, opts.cardioMinutes, lift)
   }
-  if (opts.styles?.length === 1) return generateWorkout(focus, minutes, { style: opts.styles[0], rng, avoid, rest: opts.rest, warmup: { sets: w.sets }, familiar: opts.familiar, cardio: opts.cardio })
+  if (opts.styles?.length === 1) return generateWorkout(focus, minutes, { style: opts.styles[0], rng, avoid, rest: opts.rest, warmup: { sets: w.sets }, familiar: opts.familiar, cardio: opts.cardio, warmed: opts.warmed })
   // Cardio and no body parts with a conditioning style: that's a hard cardio session (intervals, or a time trial for
   // "for time"), not a bodyweight circuit with one cardio station.
   const cardioOnly = focus.includes('Cardio') && focus.every((g) => g === 'Cardio')
   if (cardioOnly && ['amrap', 'emom', 'tabata', 'circuit', 'pha', 'fortime'].includes(style)) {
     return pickCardio(minutes, rng, avoid, { exerciseId: opts.cardio?.exerciseId, kind: opts.cardio?.kind ?? (style === 'fortime' ? 'trial' : 'intervals') })
   }
-  if (style === 'hyrox') return generateHyrox(minutes)
-  if (style === 'crossfit') return generateCrossfit(minutes, rng, avoid)
+  if (style === 'hyrox' || style === 'crossfit') {
+    // Like a class, these start with their own general warm-up (easy cardio, then mobility), unless the person
+    // already asked for one or this comes after another part of the workout.
+    const own = !opts.warmed && minutes >= 30 ? 8 : 0
+    const main = style === 'hyrox' ? generateHyrox(minutes - own, rng) : generateCrossfit(minutes - own, rng, avoid)
+    if (!own) return main
+    const warm = generateWarmup(FULL_BODY_GROUPS, { cardio: 4, mobility: 4 }, rng, new Set(main.map((p) => p.exerciseId)))
+    return [...warm, ...main]
+  }
   if (style === 'amrap' || style === 'emom' || style === 'fortime' || style === 'tabata') return generateTimed(style, focus.filter((g) => g !== 'Cardio'), minutes, rng, avoid, focus.includes('Cardio'))
 
   let groups = focus.filter((g) => g !== 'Cardio')

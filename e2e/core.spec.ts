@@ -424,7 +424,7 @@ test('randomizer: pick cardio machines for a CrossFit WOD, or split a cardio fin
   await cardio.getByRole('button', { name: 'Air bike (Assault / Echo)' }).click()
   await sheet.getByRole('button', { name: '45 min', exact: true }).click()
   await sheet.getByRole('button', { name: /^Generate/ }).click()
-  await expect(sheet.getByText('Air Bike (Assault / Echo)')).toBeVisible()
+  await expect(sheet.getByText('Air Bike (Assault / Echo)').first()).toBeVisible()
   await expect(sheet.getByText(/\d+ cal/).first()).toBeVisible()
   await sheet.getByRole('button', { name: /^Add to/ }).click()
 
