@@ -30,7 +30,7 @@ test('first run: name, goal and schedule build a first month, then Home shows to
   await expect(page.getByRole('heading', { name: 'Your first week' })).toBeVisible()
   await page.getByRole('button', { name: 'Start my plan' }).click()
   await expect(page.getByRole('heading', { name: /, Jay$/ })).toBeVisible()
-  await expect(page.getByText('Durata', { exact: true })).toBeVisible()
+  await expect(page.getByRole('img', { name: 'Durata' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Today' })).toBeVisible()
   const s = await state(page)
   expect(s.programs).toHaveLength(1)
