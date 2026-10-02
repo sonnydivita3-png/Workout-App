@@ -59,18 +59,23 @@ export function withCardioFor<T>(ids: readonly string[] | null, splitTime: boole
 
 const exerciseOf = (c: CardioType) => BUILTIN_BY_ID.get(c.exerciseId)
 const usable = (list: CardioType[]) => list.map(exerciseOf).filter((e): e is Exercise => !!e && hasGear(e))
+/**
+ * Cardio someone said they do is theirs to use, whatever the lifting-equipment setting says: a home gym with a
+ * treadmill is still a "home gym" (no machines for lifting), and their treadmill runs shouldn't vanish from plans.
+ */
+const theirs = (list: CardioType[]) => list.map(exerciseOf).filter((e): e is Exercise => !!e)
 
 /** Steady cardio the person likes and can do, or null for "anything". */
 export function likedCardio(): Exercise[] | null {
   if (!liked) return null
-  const ok = usable(CARDIO_TYPES.filter((c) => liked!.includes(c.id)))
+  const ok = theirs(CARDIO_TYPES.filter((c) => liked!.includes(c.id)))
   return ok.length ? ok : null
 }
 
 /** Machines (and running) for a station in a timed workout: the ones they like, else the classic ones. */
 export function wodCardio(): Exercise[] {
   const fits = CARDIO_TYPES.filter((c) => c.wod)
-  const mine = liked ? usable(fits.filter((c) => liked!.includes(c.id))) : []
+  const mine = liked ? theirs(fits.filter((c) => liked!.includes(c.id))) : []
   return mine.length ? mine : usable(fits.filter((c) => DEFAULT_WOD.includes(c.id)))
 }
 
@@ -81,6 +86,9 @@ export function wodAmount(exerciseId: string, scale = 1): string {
   const n = Math.max(step, Math.round((w.amount * scale) / step) * step)
   return w.unit === 's' ? `${n}s` : `${n} ${w.unit}`
 }
+
+/** Every kind of cardio, for picking what you like (machines included: plenty of home gyms have a treadmill or bike). */
+export const allCardio = () => CARDIO_TYPES.filter((c) => !!exerciseOf(c))
 
 /** Cardio kinds someone can do with `gear` (machines need a gym; running and walking don't). */
 export const cardioFor = (gear: readonly string[] | null) =>

@@ -1,6 +1,7 @@
 import type { Exercise, ExerciseLog, PlannedExercise } from '../types'
 import { partFromName } from './bodyParts'
 import { addDays, parseISO, toISO, weekdayIndex } from './dates'
+import { CARDIO_SESSIONS, type CardioSessionKind } from './cardioSession'
 import { generateWorkout, styleInfo, type WarmupOptions, type WorkoutStyle } from './randomizer'
 import { BY_ID, FULL_BODY_GROUPS, type Rng } from './randomUtil'
 import { liftMinutes, type RestPref } from './timing'
@@ -208,6 +209,22 @@ export function liftsToRotate(logs: ExerciseLog[], before: string, lookup: (id: 
 const majorsOf = (t: DayType) => t.groups.filter((g) => MAJOR_GROUPS.includes(g))
 const isCardioDay = (t: DayType) => t.groups.length === 0
 
+/**
+ * Cardio days take turns between kinds of session instead of the same steady 45 minutes every time. Mostly easy
+ * (80/20 is how endurance is usually built), with harder sessions mixed in where the goal needs them.
+ */
+const CARDIO_ROTATION: Record<ProgramGoal, CardioSessionKind[]> = {
+  muscle: ['steady', 'intervals', 'steady'],
+  strength: ['steady', 'intervals', 'steady'],
+  fitness: ['steady', 'intervals', 'tempo', 'steady'],
+  fatloss: ['intervals', 'steady', 'tempo', 'steady', 'hills'],
+  functional: ['intervals', 'steady', 'tempo', 'hills'],
+}
+export const cardioKindFor = (goals: ProgramGoal[], n: number): CardioSessionKind => {
+  const r = CARDIO_ROTATION[goals[0]] ?? CARDIO_ROTATION.fitness
+  return r[n % r.length]
+}
+
 export interface ProgramInput {
   /** Monday the program's first week starts on. */
   anchorMonday: string
@@ -265,8 +282,10 @@ function withLikes(types: DayType[], liked: WorkoutStyle[] = []): DayType[] {
 export interface ProgramDay {
   date: string
   rest: boolean
-  /** Session name, e.g. "Push (supersets)". */
+  /** Session name, e.g. "Push (supersets)" or "Cardio · Intervals". */
   name?: string
+  /** For cardio days: the kind of session (steady, intervals, tempo, hills…), kept when the day is rerolled. */
+  cardioKind?: CardioSessionKind
   style?: WorkoutStyle
   /** Focus used to generate the workout (empty for full-body formats and cardio days). */
   focus: string[]
@@ -307,6 +326,7 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
   const split = input.split && input.split !== 'auto' ? splitRotation(input.split, dpw, SPLIT_STYLE[goals[0]]) : null
 
   const lastTrained = new Map<string, number>() // group -> day offset it was last trained
+  let cardioDays = 0
   const firstOffset = daysBetween(anchorMonday, first)
   let prevMajors = new Set((input.prevDayGroups ?? []).filter((g) => MAJOR_GROUPS.includes(g)))
   for (const g of prevMajors) lastTrained.set(g, firstOffset - 1)
@@ -339,6 +359,7 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
     const type = split ? split[turn++ % split.length] : scored.reduce((a, b) => (b.s > a.s ? b : a)).t
 
     const focus = isCardioDay(type) ? ['Cardio'] : type.generic ? [] : type.groups
+    const cardioKind = isCardioDay(type) ? cardioKindFor(goals, cardioDays++) : undefined
     const avoid = new Set([...recent.flat(), ...(input.rotate ?? [])])
     if (offset % 7 === 0) slotCount.clear()
     const nth = slotCount.get(type.name) ?? 0
@@ -346,7 +367,7 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
     const slot = repeats(type) ? `${type.name}#${nth}` : undefined
     let base = slot ? templates.get(slot) : undefined
     if (!base) {
-      base = generateWorkout(focus, minutes, { style: type.style, rng, avoid, rest: input.rest, warmup: isCardioDay(type) ? undefined : input.warmup, dropSets: input.dropSets, familiar: input.familiar })
+      base = generateWorkout(focus, minutes, { style: type.style, rng, avoid, rest: input.rest, warmup: isCardioDay(type) ? undefined : input.warmup, dropSets: input.dropSets, familiar: input.familiar, ...(cardioKind ? { cardio: { kind: cardioKind } } : {}) })
       if (slot) templates.set(slot, base)
     }
     const items = applyProgression(base.map((p) => ({ ...p })), weekIndex, weeks)
@@ -357,7 +378,9 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
     prevMajors = new Set(majorsOf(type))
     recentTypes.push(type.name)
     if (recentTypes.length > 3) recentTypes.shift()
-    out.push({ date, rest: items.length === 0, name: type.name, style: type.style, focus, groups: type.groups, weekIndex, items, slot })
+    // A cardio day says what kind of session it is ("Cardio · Intervals"), so the week reads like a real plan.
+    const name = cardioKind ? `${type.name} · ${CARDIO_SESSIONS.find((k) => k.id === cardioKind)!.label}` : type.name
+    out.push({ date, rest: items.length === 0, name, style: type.style, focus, groups: type.groups, weekIndex, items, slot, cardioKind })
   }
   return out
 }
@@ -366,7 +389,7 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
 export function rerollDay(day: ProgramDay, minutes: number, weeks: number, avoidIds: Set<string>, rng: Rng = Math.random, opts: { warmup?: WarmupOptions; rest?: RestPref; dropSets?: boolean } = {}): ProgramDay {
   if (day.rest || !day.style) return day
   const cardioDay = day.focus.length === 1 && day.focus[0] === 'Cardio'
-  const items = applyProgression(generateWorkout(day.focus, minutes, { style: day.style, rng, avoid: avoidIds, rest: opts.rest, warmup: cardioDay ? undefined : opts.warmup, dropSets: opts.dropSets }), day.weekIndex, weeks)
+  const items = applyProgression(generateWorkout(day.focus, minutes, { style: day.style, rng, avoid: avoidIds, rest: opts.rest, warmup: cardioDay ? undefined : opts.warmup, dropSets: opts.dropSets, ...(day.cardioKind ? { cardio: { kind: day.cardioKind } } : {}) }), day.weekIndex, weeks)
   return { ...day, items }
 }
 

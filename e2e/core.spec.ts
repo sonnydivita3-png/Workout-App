@@ -49,9 +49,9 @@ test('first run with no plan still asks where you train and what you like', asyn
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('button', { name: 'No preference, continue' }).click()
   await page.getByRole('button', { name: 'No preference, continue' }).click()
-  // Bodyweight only: no machines to choose from, running and walking are still there.
+  // Bodyweight only is about lifting gear: a treadmill or bike at home can still be picked.
   const cardio = page.getByRole('group', { name: 'Cardio you like' })
-  await expect(cardio.getByRole('button', { name: 'Rower' })).toHaveCount(0)
+  await expect(cardio.getByRole('button', { name: 'Treadmill', exact: true })).toBeVisible()
   await cardio.getByRole('button', { name: 'Running' }).click()
   await page.getByRole('button', { name: 'Start using the app' }).click()
   await expect(page.getByText('Nothing planned today')).toBeVisible()

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { MOVE_TYPES, movePrefsSummary, type Lean, type MoveType } from '../lib/movePrefs'
-import { cardioFor } from '../lib/cardioPrefs'
+import { allCardio } from '../lib/cardioPrefs'
 import { baseTarget } from '../lib/muscles'
 import { cardioTarget } from '../lib/conditioning'
 import { showDistance, storeDistance } from '../lib/units'
@@ -47,12 +47,11 @@ export function LikedStylesPicker() {
 
 const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
 
-/** Cardio someone likes (only what their equipment allows), and whether to split the time between several. */
+/** Cardio someone likes (machines too: many home gyms have a treadmill or bike), and whether to split the time between several. */
 export function LikedCardioPicker() {
   const { cardio, cardioSplit } = useStore((s) => s.trainingPrefs)
-  const equipment = useStore((s) => s.equipment)
   const setTrainingPrefs = useStore((s) => s.setTrainingPrefs)
-  const options = cardioFor(equipment)
+  const options = allCardio()
   const picked = cardio.filter((id) => options.some((c) => c.id === id))
   const toggle = (id: string) => setTrainingPrefs({ cardio: picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id] })
   return (
