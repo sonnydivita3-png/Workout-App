@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { parseGpx } from '../lib/gpx'
 import { bodyweightOn, estimateCalories, hasPersonalDetails } from '../lib/calories'
-import { formatPace, showDistance, showWeight, storeDistance } from '../lib/units'
+import { cardioLine, distanceUnitFor, formatCardioTime, formatDistanceFor, formatPaceFor, showDistanceIn, showWeight, storeDistanceIn } from '../lib/units'
 import { useToday } from '../lib/useToday'
 import { useStore } from '../store'
 import type { CardioEntry, Exercise, ExerciseLog } from '../types'
@@ -33,6 +33,15 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
   const today = useToday()
   const c = current?.cardio ?? { distance: null, minutes: null }
   const prev = last?.cardio
+  // Rowers and other ergs count meters (pace per 500 m); everything else follows the miles/km setting.
+  const unit = distanceUnitFor(exercise.id, units)
+  // Time as minutes and seconds (a 2,000 m row in 7:32), stored as minutes.
+  const wholeMin = c.minutes == null ? null : Math.floor(c.minutes + 1e-9)
+  const secs = c.minutes == null ? null : Math.round((c.minutes - (wholeMin ?? 0)) * 60)
+  const setTime = (m: number | null, s: number | null) => {
+    const sec = Math.min(59, Math.max(0, s ?? 0))
+    onChange({ ...c, minutes: m == null && !sec ? null : (m ?? 0) + sec / 60 })
+  }
   const file = useRef<HTMLInputElement>(null)
   const [gpxMsg, setGpxMsg] = useState<string | null>(null)
   const [menu, setMenu] = useState(false)
@@ -43,9 +52,9 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
     const g = parseGpx(await f.text())
     if (!g || !g.miles) { setGpxMsg('Couldn’t find a GPS track in that file.'); return }
     onChange({ ...c, distance: g.miles, minutes: g.minutes || c.minutes })
-    setGpxMsg(`Imported ${g.name ? `“${g.name}”: ` : ''}${showDistance(g.miles, units)} ${units.distance} in ${g.minutes} min${g.date ? ` (${g.date})` : ''}`)
+    setGpxMsg(`Imported ${g.name ? `“${g.name}”: ` : ''}${formatDistanceFor(g.miles, exercise.id, units)} in ${g.minutes} min${g.date ? ` (${g.date})` : ''}`)
   }
-  const target = [targetDistance ? `${showDistance(targetDistance, units)} ${units.distance}` : '', targetMinutes ? `${targetMinutes} min` : ''].filter(Boolean).join(' · ')
+  const target = [targetDistance ? formatDistanceFor(targetDistance, exercise.id, units) : '', targetMinutes ? formatCardioTime(targetMinutes) : ''].filter(Boolean).join(' · ')
   return (
     <div className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
       <div className="mb-3 flex items-start justify-between">
@@ -57,24 +66,28 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
       </div>
       {note && <p className="mb-3 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-neutral-600">{note}</p>}
       {readOnly ? <p className="text-sm text-neutral-500">Log it on the day.</p> : (
-      <div className="grid grid-cols-3 items-end gap-3">
+      <div className="grid grid-cols-[1fr_1.5fr_1fr] items-end gap-2">
         <label className="text-xs font-medium text-neutral-500">
-          {units.distance === 'km' ? 'Km' : 'Miles'}
+          {unit === 'm' ? 'Meters' : unit === 'km' ? 'Km' : 'Miles'}
           <NumberInput
             label={`${exercise.name} distance`}
-            value={showDistance(c.distance, units)}
-            step={0.1}
-            placeholder={showDistance(prev?.distance ?? targetDistance ?? null, units)?.toString() ?? '–'}
-            onChange={(v) => onChange({ ...c, distance: storeDistance(v, units) })}
+            value={showDistanceIn(c.distance, unit)}
+            step={unit === 'm' ? 100 : 0.1}
+            placeholder={showDistanceIn(prev?.distance ?? targetDistance ?? null, unit)?.toString() ?? '–'}
+            onChange={(v) => onChange({ ...c, distance: storeDistanceIn(v, unit) })}
           />
         </label>
-        <label className="text-xs font-medium text-neutral-500">
-          Minutes
-          <NumberInput label={`${exercise.name} minutes`} value={c.minutes} step={0.5} placeholder={(prev?.minutes ?? targetMinutes)?.toString() ?? '–'} onChange={(v) => onChange({ ...c, minutes: v })} />
-        </label>
+        <div className="text-xs font-medium text-neutral-500">
+          Time <span className="font-normal text-neutral-400">min : sec</span>
+          <div className="flex items-center gap-1">
+            <NumberInput label={`${exercise.name} minutes`} value={wholeMin} placeholder={prev?.minutes != null ? String(Math.floor(prev.minutes)) : targetMinutes?.toString() ?? '–'} onChange={(v) => (v != null && !Number.isInteger(v) ? onChange({ ...c, minutes: v }) : setTime(v, secs))} />
+            <span className="text-neutral-400">:</span>
+            <NumberInput label={`${exercise.name} seconds`} value={secs || (wholeMin != null ? 0 : null)} placeholder="00" onChange={(v) => setTime(wholeMin, v)} />
+          </div>
+        </div>
         <div className="text-xs font-medium text-neutral-500">
           Pace
-          <div className="py-2 text-center text-base normal-case tabular-nums text-neutral-900">{formatPace(c.distance, c.minutes, units) ?? '–'}</div>
+          <div className="py-2 text-center text-sm normal-case tabular-nums text-neutral-900">{formatPaceFor(c.distance, c.minutes, exercise.id, units) ?? '–'}</div>
         </div>
       </div>
       )}
@@ -111,7 +124,7 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
       )}
       {prev && (
         <p className="mt-2 text-xs text-neutral-400">
-          Last time: {showDistance(prev.distance, units) ?? '–'} {units.distance} · {prev.minutes ?? '–'} min · {formatPace(prev.distance, prev.minutes, units) ?? '–'}
+          Last time: {cardioLine(prev, exercise.id, units)}
         </p>
       )}
       {prev && (() => {
@@ -119,7 +132,7 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
         const faster = !!(c.distance && c.minutes && prev.distance && prev.minutes && c.distance >= prev.distance - 0.01 && c.minutes / c.distance < prev.minutes / prev.distance - 0.001)
         const further = !!(c.distance && prev.distance && c.distance > prev.distance + 0.01)
         if (faster || further) return <p className="mt-1 text-xs font-medium text-green-600">▲ {further && faster ? 'Further and faster' : further ? 'Further' : 'Faster'} than last time</p>
-        if (!c.distance && !c.minutes && prev.distance && prev.minutes) return <p className="mt-1 text-xs text-neutral-500">🎯 Beat it: go past {showDistance(prev.distance, units)} {units.distance}, or hold under {formatPace(prev.distance, prev.minutes, units)}</p>
+        if (!c.distance && !c.minutes && prev.distance && prev.minutes) return <p className="mt-1 text-xs text-neutral-500">🎯 Beat it: go past {formatDistanceFor(prev.distance, exercise.id, units)}, or hold under {formatPaceFor(prev.distance, prev.minutes, exercise.id, units)}</p>
         return null
       })()}
     </div>

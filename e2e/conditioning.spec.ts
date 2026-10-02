@@ -132,3 +132,25 @@ test('sex, age and height make the estimate personal, and Help explains how calo
   await expect(page.getByText(/from your bodyweight \(185 lb\), sex, age, height, the activity/)).toBeVisible()
   await expect(page.getByText(/Add sex, age and height/)).toHaveCount(0)
 })
+
+test('rowing in meters with minutes and seconds, pace per 500 m', async ({ page }) => {
+  await seed(page, {
+    overrides: { [iso(0)]: [{ exerciseId: 'x-row-erg', sets: 1, distance: 2000 / 1609.344 }, { exerciseId: 'running', sets: 1 }] },
+    logs: [{ date: iso(-7), exerciseId: 'x-row-erg', cardio: { distance: 2000 / 1609.344, minutes: 7 + 45 / 60 } }],
+  })
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await expect(page.getByText('Cardio · target 2,000 m')).toBeVisible()
+  await expect(page.getByText('Last time: 2,000 m · 7:45 · 1:56 /500m')).toBeVisible()
+  await page.getByLabel('Rower distance').fill('2000')
+  await page.getByLabel('Rower minutes').fill('7')
+  await page.getByLabel('Rower seconds').fill('32')
+  await expect(page.getByText('1:53 /500m')).toBeVisible()
+  await expect(page.getByText('▲ Faster than last time')).toBeVisible()
+  const log = (await state(page)).logs.find((l: { exerciseId: string; date: string }) => l.exerciseId === 'x-row-erg' && l.date === iso(0))
+  expect(log.cardio.distance * 1609.344).toBeCloseTo(2000, 5)
+  expect(log.cardio.minutes).toBeCloseTo(7 + 32 / 60, 5)
+  // Runs still follow the miles setting.
+  await expect(page.locator('label', { hasText: 'Miles' })).toHaveCount(1)
+  await expect(page.locator('label', { hasText: 'Meters' })).toHaveCount(1)
+})

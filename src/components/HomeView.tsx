@@ -6,7 +6,7 @@ import { weekStats } from '../lib/stats'
 import { caloriesBetween } from '../lib/calories'
 import { weekOf } from '../lib/conditioning'
 import { addDays, parseISO, toISO } from '../lib/dates'
-import { formatPace, formatSeconds, showDistance, showWeight, storeWeight } from '../lib/units'
+import { cardioLine, formatSeconds, showWeight, storeWeight } from '../lib/units'
 import { useToday } from '../lib/useToday'
 import { findExercise, useStore } from '../store'
 import { SafetyNudge } from './SafetyNudge'
@@ -34,9 +34,7 @@ const Card = ({ title, action, children }: { title: string; action?: React.React
 /** One-line summary of a logged exercise. */
 function summary(l: ExerciseLog, u: Units): string {
   if (l.cardio) {
-    const { distance, minutes } = l.cardio
-    return [distance ? `${showDistance(distance, u)} ${u.distance}` : null, minutes ? `${minutes} min` : null, formatPace(distance, minutes, u)]
-      .filter(Boolean).join(' · ')
+    return cardioLine(l.cardio, l.exerciseId, u)
   }
   const all = (l.sets ?? []).filter((s) => !s.warmup)
   const sets = all.filter((s) => s.weight && s.reps)

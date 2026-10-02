@@ -3,7 +3,7 @@ import { addDays } from './dates'
 import { goalPeriodKey, goalPct, goalTitle } from './goals'
 import { dayPlanOf, workItems } from './plan'
 import { cardioSessions, hasData, setSessions, strengthSessions } from './stats'
-import { formatPace, formatSeconds, showDistance, showWeight } from './units'
+import { formatDistanceFor, formatPaceFor, formatSeconds, showWeight } from './units'
 
 export interface Candidate {
   id: string
@@ -104,7 +104,7 @@ export function computeNotifications(i: Input): Candidate[] {
             id: `pr:${id}:${today}:distance`,
             type: 'pr',
             title: 'New PR 🔥',
-            body: `${ex.name}: longest yet at ${showDistance(last.distance, units)} ${units.distance}`,
+            body: `${ex.name}: longest yet at ${formatDistanceFor(last.distance, id, units)}`,
           })
         }
         const paces = before.map((x) => x.pace).filter((p): p is number => p != null)
@@ -113,7 +113,7 @@ export function computeNotifications(i: Input): Candidate[] {
             id: `pr:${id}:${today}:pace`,
             type: 'pr',
             title: 'New PR 🔥',
-            body: `${ex.name}: fastest pace yet, ${formatPace(last.distance, last.minutes, units)}`,
+            body: `${ex.name}: fastest pace yet, ${formatPaceFor(last.distance, last.minutes, id, units)}`,
           })
         }
       }

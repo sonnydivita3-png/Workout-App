@@ -8,7 +8,7 @@ import { workoutTitle } from '../../lib/plan'
 import { hasData } from '../../lib/stats'
 import type { Exercise } from '../../types'
 import { workoutSummary } from '../../lib/summary'
-import { formatPace, formatSeconds, showDistance, showWeight } from '../../lib/units'
+import { cardioLine, formatSeconds, showWeight } from '../../lib/units'
 import { useToday } from '../../lib/useToday'
 import { formatResult } from '../../lib/wod'
 import { findExercise, useStore } from '../../store'
@@ -137,7 +137,7 @@ function DaySheet({ date, onClose, lookupUnits: units }: { date: string; onClose
           const ex = lookup(l.exerciseId)
           const r = status.get(l.exerciseId)
           const detail = l.cardio
-            ? `${showDistance(l.cardio.distance, units) ?? '–'} ${units.distance} · ${l.cardio.minutes ?? '–'} min · ${formatPace(l.cardio.distance, l.cardio.minutes, units) ?? '–'}`
+            ? cardioLine(l.cardio, l.exerciseId, units)
             : [...workSets(l), ...dropSetsOf(l)].map((x) => `${x.drop ? 'drop ' : ''}${x.seconds ? formatSeconds(x.seconds) : x.weight ? `${showWeight(x.weight, units)}×${x.reps ?? '–'}` : `${x.reps} reps`}`).join(', ')
           return (
             <li key={l.exerciseId} className="py-2.5">
