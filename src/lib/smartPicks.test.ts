@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { generateWorkout, pairScore } from './randomizer'
-import { BY_ID, mulberry32 } from './randomUtil'
+import { BY_ID, familyOf, mulberry32 } from './randomUtil'
 import { fixedStations, walkCost } from './stations'
 import { matchesMove, movePrefsSummary, setMovePrefs, type MovePrefs, type MoveType } from './movePrefs'
 import type { PlannedExercise } from '../types'
@@ -48,6 +48,24 @@ describe('circuits that stay in one area', () => {
         const w = generateWorkout(FOCUS[seed % 3], 40, { style, rng: mulberry32(seed) }).filter((p) => p.block === style)
         const strength = w.map((p) => ex(p.exerciseId)).filter((e) => e.kind === 'strength')
         expect(fixedStations(strength).size, `${style} ${seed}`).toBeLessThanOrEqual(1)
+      }
+    }
+  })
+})
+
+describe('timed workouts that stay in one area', () => {
+  it('AMRAP, EMOM, for time, Tabata and CrossFit WODs: one fixed station at most, no movement twice', () => {
+    for (const style of ['amrap', 'emom', 'fortime', 'tabata', 'crossfit'] as const) {
+      for (let seed = 1; seed <= 60; seed++) {
+        const w = generateWorkout([[], ['Chest', 'Back'], ['Quads', 'Hamstrings', 'Glutes']][seed % 3], 40, { style, rng: mulberry32(seed) })
+        const pieces = new Map<string, string[]>()
+        for (const p of w) if (p.wod || p.block === 'tabata') pieces.set(p.block!, [...(pieces.get(p.block!) ?? []), p.exerciseId])
+        for (const ids of pieces.values()) {
+          const moves = ids.map(ex).filter((e) => e.kind === 'strength')
+          expect(fixedStations(moves).size, `${style} ${seed}`).toBeLessThanOrEqual(1)
+          const fams = moves.map(familyOf).filter(Boolean)
+          expect(new Set(fams).size, `${style} ${seed}`).toBe(fams.length)
+        }
       }
     }
   })
