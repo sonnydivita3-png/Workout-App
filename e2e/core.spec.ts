@@ -15,6 +15,10 @@ test('first run: name, goal and schedule build a first month, then Home shows to
   await page.getByRole('button', { name: /^CrossFit-style/ }).click()
   await page.getByRole('button', { name: /^Heavy strength/ }).click()
   await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByRole('heading', { name: 'Any exercises you prefer?' })).toBeVisible()
+  await page.getByRole('radiogroup', { name: 'Free weights' }).getByRole('radio', { name: 'More' }).click()
+  await page.getByRole('radiogroup', { name: 'Machines' }).getByRole('radio', { name: 'Less' }).click()
+  await page.getByRole('button', { name: 'Continue' }).click()
   const cardio = page.getByRole('group', { name: 'Cardio you like' })
   await expect(cardio.getByRole('button', { name: 'Stair climber' })).toBeVisible()
   await cardio.getByRole('button', { name: 'Rower' }).click()
@@ -33,7 +37,7 @@ test('first run: name, goal and schedule build a first month, then Home shows to
   expect(s.units.weight).toBe('kg')
   expect(s.onboarded).toBe(true)
   expect(s.equipment).toEqual(['Barbell', 'Dumbbell', 'Kettlebell', 'Machine', 'Other'])
-  expect(s.trainingPrefs).toEqual({ styles: ['crossfit', 'strength'], cardio: ['row', 'airbike'], cardioSplit: true })
+  expect(s.trainingPrefs).toEqual({ styles: ['crossfit', 'strength'], cardio: ['row', 'airbike'], cardioSplit: true, moves: { free: 1, machine: -1 } })
 })
 
 test('first run with no plan still asks where you train and what you like', async ({ page }) => {
@@ -43,6 +47,7 @@ test('first run with no plan still asks where you train and what you like', asyn
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('radio', { name: 'Bodyweight only' }).click()
   await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByRole('button', { name: 'No preference, continue' }).click()
   await page.getByRole('button', { name: 'No preference, continue' }).click()
   // Bodyweight only: no machines to choose from, running and walking are still there.
   const cardio = page.getByRole('group', { name: 'Cardio you like' })
