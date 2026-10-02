@@ -5,10 +5,10 @@ import { defaultWarmup } from '../lib/randomizer'
 import { useToday } from '../lib/useToday'
 import { useStore } from '../store'
 import { EquipmentPicker } from './EquipmentPicker'
-import { LikedCardioPicker, LikedStylesPicker } from './TrainingPrefsPicker'
+import { LikedCardioPicker, LikedStylesPicker, MovePrefsPicker } from './TrainingPrefsPicker'
 
-type Step = 'welcome' | 'goal' | 'where' | 'likes' | 'cardio' | 'schedule' | 'plan'
-const STEPS: Step[] = ['welcome', 'goal', 'where', 'likes', 'cardio', 'schedule', 'plan']
+type Step = 'welcome' | 'goal' | 'where' | 'likes' | 'moves' | 'cardio' | 'schedule' | 'plan'
+const STEPS: Step[] = ['welcome', 'goal', 'where', 'likes', 'moves', 'cardio', 'schedule', 'plan']
 const DAY = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const primary = 'w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-on-accent disabled:opacity-30'
 const choice = (on: boolean) => `w-full rounded-2xl px-4 py-3.5 text-left ring-1 ${on ? 'bg-accent/15 ring-accent' : 'bg-surface ring-neutral-200'}`
@@ -30,7 +30,7 @@ export function Onboarding() {
   const [minutes, setMinutes] = useState(45)
   const [week, setWeek] = useState<ProgramDay[] | null>(null)
   const [exact, setExact] = useState(false)
-  const steps = goal === 'none' ? STEPS.slice(0, 5) : STEPS
+  const steps = goal === 'none' ? STEPS.slice(0, 6) : STEPS
 
   const finish = () => { if (name.trim()) s.setName(name.trim()); s.setTourDone(true); s.setOnboarded(true) }
   const build = () => {
@@ -114,8 +114,20 @@ export function Onboarding() {
             <p className="mb-5 text-neutral-500">Pick as many as you like. Your plans and “Make me a workout” lean towards these.</p>
             <div className="mb-6"><LikedStylesPicker /></div>
             <div className="mt-auto space-y-2">
-              <button onClick={() => setStep('cardio')} className={primary}>{s.trainingPrefs.styles.length ? 'Continue' : 'No preference, continue'}</button>
+              <button onClick={() => setStep('moves')} className={primary}>{s.trainingPrefs.styles.length ? 'Continue' : 'No preference, continue'}</button>
               <button onClick={() => setStep('where')} className="w-full py-2 text-sm text-neutral-500">Back</button>
+            </div>
+          </>
+        )}
+
+        {step === 'moves' && (
+          <>
+            <h1 className="mb-1 text-2xl font-semibold tracking-tight">Any exercises you prefer?</h1>
+            <p className="mb-5 text-neutral-500">Generated workouts pick more of what you mark “More” and less of “Less”. Every body part still gets trained. You can change this any time in Settings.</p>
+            <div className="mb-6"><MovePrefsPicker /></div>
+            <div className="mt-auto space-y-2">
+              <button onClick={() => setStep('cardio')} className={primary}>{Object.values(s.trainingPrefs.moves ?? {}).some(Boolean) ? 'Continue' : 'No preference, continue'}</button>
+              <button onClick={() => setStep('likes')} className="w-full py-2 text-sm text-neutral-500">Back</button>
             </div>
           </>
         )}
@@ -127,7 +139,7 @@ export function Onboarding() {
             <div className="mb-6"><LikedCardioPicker /></div>
             <div className="mt-auto space-y-2">
               <button onClick={() => (goal === 'none' ? finish() : setStep('schedule'))} className={primary}>{goal === 'none' ? 'Start using the app' : s.trainingPrefs.cardio.length ? 'Continue' : 'No preference, continue'}</button>
-              <button onClick={() => setStep('likes')} className="w-full py-2 text-sm text-neutral-500">Back</button>
+              <button onClick={() => setStep('moves')} className="w-full py-2 text-sm text-neutral-500">Back</button>
             </div>
           </>
         )}

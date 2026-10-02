@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { BUILTIN_BY_ID } from './data/exercises'
+import { setMovePrefs, type MovePrefs } from './lib/movePrefs'
 import { parseISO, weekdayIndex } from './lib/dates'
 import { toPlanned, type CardioDay } from './lib/cardioPlan'
 import { dayPlanOf } from './lib/plan'
@@ -23,6 +24,8 @@ export interface TrainingPrefs {
   cardio: string[]
   /** Split cardio time across the liked types instead of one per session. */
   cardioSplit: boolean
+  /** Kinds of movement to lean towards (1) or away from (-1): compound, free weights, one arm / one leg… */
+  moves?: MovePrefs
 }
 
 export type ThemeMode = 'dark' | 'light' | 'auto'
@@ -544,7 +547,12 @@ setOwnedGear(useStore.getState().equipment)
 useStore.subscribe((s, prev) => { if (s.equipment !== prev.equipment) setOwnedGear(s.equipment) })
 // ...and the cardio they like (see lib/cardioPrefs.ts).
 setCardioPrefs(useStore.getState().trainingPrefs.cardio, useStore.getState().trainingPrefs.cardioSplit)
-useStore.subscribe((s, prev) => { if (s.trainingPrefs !== prev.trainingPrefs) setCardioPrefs(s.trainingPrefs.cardio, s.trainingPrefs.cardioSplit) })
+setMovePrefs(useStore.getState().trainingPrefs.moves)
+useStore.subscribe((s, prev) => {
+  if (s.trainingPrefs === prev.trainingPrefs) return
+  setCardioPrefs(s.trainingPrefs.cardio, s.trainingPrefs.cardioSplit)
+  setMovePrefs(s.trainingPrefs.moves)
+})
 
 /** Resolve an exercise id against the built-in library and the user's custom exercises. */
 export function findExercise(custom: Exercise[], id: string): Exercise | undefined {

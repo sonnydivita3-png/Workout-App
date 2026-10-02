@@ -15,6 +15,10 @@ test('first run: name, goal and schedule build a first month, then Home shows to
   await page.getByRole('button', { name: /^CrossFit-style/ }).click()
   await page.getByRole('button', { name: /^Heavy strength/ }).click()
   await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByRole('heading', { name: 'Any exercises you prefer?' })).toBeVisible()
+  await page.getByRole('radiogroup', { name: 'Free weights' }).getByRole('radio', { name: 'More' }).click()
+  await page.getByRole('radiogroup', { name: 'Machines' }).getByRole('radio', { name: 'Less' }).click()
+  await page.getByRole('button', { name: 'Continue' }).click()
   const cardio = page.getByRole('group', { name: 'Cardio you like' })
   await expect(cardio.getByRole('button', { name: 'Stair climber' })).toBeVisible()
   await cardio.getByRole('button', { name: 'Rower' }).click()
@@ -33,7 +37,7 @@ test('first run: name, goal and schedule build a first month, then Home shows to
   expect(s.units.weight).toBe('kg')
   expect(s.onboarded).toBe(true)
   expect(s.equipment).toEqual(['Barbell', 'Dumbbell', 'Kettlebell', 'Machine', 'Other'])
-  expect(s.trainingPrefs).toEqual({ styles: ['crossfit', 'strength'], cardio: ['row', 'airbike'], cardioSplit: true })
+  expect(s.trainingPrefs).toEqual({ styles: ['crossfit', 'strength'], cardio: ['row', 'airbike'], cardioSplit: true, moves: { free: 1, machine: -1 } })
 })
 
 test('first run with no plan still asks where you train and what you like', async ({ page }) => {
@@ -43,6 +47,7 @@ test('first run with no plan still asks where you train and what you like', asyn
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('radio', { name: 'Bodyweight only' }).click()
   await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByRole('button', { name: 'No preference, continue' }).click()
   await page.getByRole('button', { name: 'No preference, continue' }).click()
   // Bodyweight only: no machines to choose from, running and walking are still there.
   const cardio = page.getByRole('group', { name: 'Cardio you like' })
@@ -333,7 +338,9 @@ test('exercise picker: muscle plus equipment filters, remembered next time', asy
   await page.getByRole('button', { name: 'Add exercises' }).click()
   const sheet = page.locator('.fixed')
   await sheet.getByRole('button', { name: 'Chest', exact: true }).click()
+  await sheet.getByRole('button', { name: /^Equipment filter/ }).click()
   await sheet.getByRole('group', { name: 'Equipment' }).getByRole('button', { name: /^Dumbbell \d+$/ }).click()
+  await expect(sheet.getByRole('group', { name: 'Equipment' })).toHaveCount(0)
   const rows = sheet.locator('ul li button')
   const n = await rows.count()
   expect(n).toBeGreaterThan(5)
@@ -342,6 +349,8 @@ test('exercise picker: muscle plus equipment filters, remembered next time', asy
   await sheet.getByRole('button', { name: 'Done' }).click()
   await page.getByRole('button', { name: '+ Add', exact: true }).click()
   await page.getByText('Add an exercise').click()
+  await expect(sheet.getByRole('button', { name: 'Equipment filter: Dumbbell' })).toBeVisible()
+  await sheet.getByRole('button', { name: /^Equipment filter/ }).click()
   await expect(sheet.getByRole('button', { name: /^Dumbbell \d+$/ })).toHaveAttribute('aria-pressed', 'true')
 })
 
@@ -362,7 +371,7 @@ test('equipment setting: dumbbells only shapes generated workouts and the picker
   expect(ids.filter((id) => /Barbell|Cable|Machine|Smith|Leg_Press/i.test(id))).toEqual([])
   await page.getByRole('button', { name: '+ Add', exact: true }).click()
   await page.getByText('Add an exercise').click()
-  await expect(sheet.getByRole('button', { name: /^My equipment \d+$/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(sheet.getByRole('button', { name: 'Equipment filter: my equipment' })).toBeVisible()
 })
 
 test('randomizer asks where you train: bodyweight just this once, or as the new default', async ({ page }) => {
@@ -374,7 +383,7 @@ test('randomizer asks where you train: bodyweight just this once, or as the new 
   const gear = sheet.getByRole('radiogroup', { name: 'Equipment' })
   // One line with the usual setup; Change shows the choices.
   await expect(sheet.getByText('Full gym', { exact: true })).toBeVisible()
-  await sheet.getByRole('button', { name: 'Change' }).click()
+  await sheet.getByRole('button', { name: 'Change', exact: true }).click()
   await expect(gear.getByRole('radio', { name: 'Full gym' })).toHaveAttribute('aria-checked', 'true')
   await gear.getByRole('radio', { name: 'Bodyweight only' }).click()
   await expect(sheet.getByText('Just for this workout.')).toBeVisible()
@@ -389,7 +398,7 @@ test('randomizer asks where you train: bodyweight just this once, or as the new 
 
   await page.getByRole('button', { name: '+ Add', exact: true }).click()
   await page.locator('.fixed').getByText('Make me a workout').click()
-  await sheet.getByRole('button', { name: 'Change' }).click()
+  await sheet.getByRole('button', { name: 'Change', exact: true }).click()
   await expect(gear.getByRole('radio', { name: 'Full gym' })).toHaveAttribute('aria-checked', 'true')
   await gear.getByRole('radio', { name: 'Dumbbells only' }).click()
   await sheet.getByRole('button', { name: 'Make it my default' }).click()
@@ -672,4 +681,27 @@ test('a lift you have never done gets a starting weight from a similar one', asy
   await page.getByRole('button', { name: 'Set 1 done' }).click()
   const s = await state(page)
   expect(s.logs.find((l: { date: string }) => l.date === iso(0)).sets[0]).toMatchObject({ weight: 55, reps: 10 })
+})
+
+test('exercise types you prefer: less machines and cables, and supersets that stay in one spot', async ({ page }) => {
+  await seed(page)
+  await page.goto('/')
+  await openSettings(page, 'Profile, units & equipment')
+  await page.getByRole('radiogroup', { name: 'Machines' }).getByRole('radio', { name: 'Less' }).click()
+  await page.getByRole('radiogroup', { name: 'Cables' }).getByRole('radio', { name: 'Less' }).click()
+  await page.getByRole('radiogroup', { name: 'Free weights' }).getByRole('radio', { name: 'More' }).click()
+  expect((await state(page)).trainingPrefs.moves).toEqual({ machine: -1, cable: -1, free: 1 })
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: 'Make me a workout' }).click()
+  const sheet = page.locator('.fixed')
+  await expect(sheet.getByText('More free weights · less machines, cables')).toBeVisible()
+  await sheet.getByRole('button', { name: 'Supersets', exact: true }).click()
+  await sheet.getByRole('button', { name: 'Chest', exact: true }).click()
+  await sheet.getByRole('button', { name: 'Back', exact: true }).click()
+  await sheet.getByRole('button', { name: /^Generate/ }).click()
+  await sheet.getByRole('button', { name: /^Add to/ }).click()
+  const items = Object.values((await state(page)).overrides).flat() as { exerciseId: string; blockLabel?: string }[]
+  expect(items.length).toBeGreaterThan(3)
+  expect(items.filter((p) => /Cable|Machine|Lever|Pulldown|Smith/i.test(p.exerciseId))).toEqual([])
+  expect(items.some((p) => /Superset 1 ·/.test(p.blockLabel ?? ''))).toBe(true)
 })

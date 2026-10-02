@@ -64,3 +64,6 @@ export function withGearFor<T>(gear: readonly string[] | null, fn: () => T): T {
     owned = prev
   }
 }
+
+/** A home or garage setup: some equipment, but no machines or cables, so the rack, bench and bar are all in one spot. */
+export const isHomeSetup = () => !!owned && !owned.has('Machine') && !owned.has('Cable')

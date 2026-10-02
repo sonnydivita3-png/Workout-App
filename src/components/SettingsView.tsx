@@ -6,7 +6,7 @@ import { SocialSettings } from './social/SocialSettings'
 import { CloudBackup } from './CloudBackup'
 import { AccountSection } from './AccountSection'
 import { EquipmentPicker } from './EquipmentPicker'
-import { LikedCardioPicker, LikedStylesPicker } from './TrainingPrefsPicker'
+import { LikedCardioPicker, LikedStylesPicker, MovePrefsPicker } from './TrainingPrefsPicker'
 import { equipmentSummary } from '../lib/equipment'
 import { InviteButton } from './InviteButton'
 import { useSocial } from '../social/store'
@@ -212,6 +212,9 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
       <h2 className="pt-4 text-sm font-semibold text-neutral-700">Workouts you like</h2>
       <p className="text-sm text-neutral-500">Plans and “Make me a workout” lean towards these.</p>
       <LikedStylesPicker />
+      <h2 className="pt-4 text-sm font-semibold text-neutral-700">Exercise types you prefer</h2>
+      <p className="text-sm text-neutral-500">Generated workouts pick more of what you mark “More” and less of “Less”. Every body part you choose still gets trained.</p>
+      <MovePrefsPicker />
       <h2 className="pt-4 text-sm font-semibold text-neutral-700">Cardio you like</h2>
       <p className="text-sm text-neutral-500">Used for cardio days, finishers and warm-ups, and as stations in CrossFit-style, HIIT and timed workouts.</p>
       <LikedCardioPicker />

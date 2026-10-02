@@ -74,7 +74,12 @@ function perExercise<T>(fn: (e: Exercise) => T): (e: Exercise) => T {
   }
 }
 
-export const isStaple = perExercise((e) => STAPLES.test(`${e.name} ${e.fullName ?? ''}`))
+/**
+ * Specialist variations of everyday lifts (a deficit deadlift, a speed box squat, curls lying against an incline):
+ * fine to pick by hand, odd in a random workout. They don't count as staples.
+ */
+const ODD_VARIANT = /\b(kneeling squat|speed|deficit|cambered|against|off of|with no|sprint|pass through|inner|plie|long bar|bosu|zercher|jefferson|anderson|pin|board|partial|tempo|bottoms?[- ]up|lying cambered|close and wide|side to side|one-legged|reverse triceps bench|front raise and pullover|bent-arm|mixed grip|suspended|sled|neck|bodyweight flyes)\b/i
+export const isStaple = perExercise((e) => STAPLES.test(`${e.name} ${e.fullName ?? ''}`) && !ODD_VARIANT.test(e.name))
 
 // Movement families, so a workout doesn't repeat the same thing (three squats, three incline presses...).
 const FAMILIES: [string, RegExp][] = [

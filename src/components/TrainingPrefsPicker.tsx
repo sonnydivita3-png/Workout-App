@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { MOVE_TYPES, movePrefsSummary, type Lean, type MoveType } from '../lib/movePrefs'
 import { cardioFor } from '../lib/cardioPrefs'
 import type { WorkoutStyle } from '../lib/randomizer'
 import { useStore } from '../store'
@@ -63,6 +65,66 @@ export function LikedCardioPicker() {
         </div>
       )}
       {picked.length === 0 && <p className="mt-2 text-xs text-neutral-400">None picked: any cardio your equipment allows.</p>}
+    </div>
+  )
+}
+
+/** More or less of each kind of movement (compound, free weights, one arm / one leg…). Generated workouts lean that way. */
+export function MovePrefsPicker() {
+  const moves = useStore((s) => s.trainingPrefs.moves) ?? {}
+  const setTrainingPrefs = useStore((s) => s.setTrainingPrefs)
+  const set = (id: MoveType, lean: Lean) => setTrainingPrefs({ moves: { ...moves, [id]: lean } })
+  return (
+    <ul className="divide-y divide-neutral-100 rounded-2xl bg-surface ring-1 ring-neutral-200/70">
+      {MOVE_TYPES.map((t) => {
+        const v = moves[t.id] ?? 0
+        return (
+          <li key={t.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
+            <span className="min-w-0">
+              <span className="block text-sm font-medium">{t.label}</span>
+              <span className="block truncate text-xs text-neutral-400">{t.hint}</span>
+            </span>
+            <span className="flex shrink-0 rounded-full bg-neutral-100 p-0.5 text-xs" role="radiogroup" aria-label={t.label}>
+              {([[-1, 'Less'], [0, 'Normal'], [1, 'More']] as [Lean, string][]).map(([lean, label]) => (
+                <button
+                  key={lean}
+                  role="radio"
+                  aria-checked={v === lean}
+                  onClick={() => set(t.id, lean)}
+                  className={`rounded-full px-2.5 py-1 ${v === lean ? (lean === 0 ? 'bg-surface text-neutral-700 shadow-sm' : 'bg-accent text-on-accent') : 'text-neutral-500'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </span>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+
+/** Exercise types for a generated workout: one summary line, and Change to set them (saved as the default). */
+export function MoveChoice() {
+  const moves = useStore((s) => s.trainingPrefs.moves)
+  const [open, setOpen] = useState(false)
+  if (!open) {
+    return (
+      <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl bg-neutral-50 px-4 py-3">
+        <span className="min-w-0">
+          <span className="block text-sm font-medium">Exercise types</span>
+          <span className="block truncate text-xs text-neutral-500">{movePrefsSummary(moves) ?? 'No preference'}</span>
+        </span>
+        <button onClick={() => setOpen(true)} aria-label="Change exercise types" className="shrink-0 rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-700">Change</button>
+      </div>
+    )
+  }
+  return (
+    <div className="mb-5">
+      <h3 className="mb-2 text-sm font-medium">Exercise types you prefer</h3>
+      <MovePrefsPicker />
+      <p className="mt-2 text-xs text-neutral-400">Saved as your default (also in Settings → Profile). Workouts lean towards “More” and away from “Less”, without dropping a body part.</p>
     </div>
   )
 }
