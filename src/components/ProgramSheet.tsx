@@ -2,9 +2,7 @@ import { useState } from 'react'
 import type { PlannedExercise } from '../types'
 import { addDays, fmtShort, mondayOf, parseISO, toISO, weekdayIndex } from '../lib/dates'
 import { dayPlanOf } from '../lib/plan'
-import {
-  bestSplit, defaultWeekdays, generateProgram, goalInfo, familiarLifts, liftsToRotate, majorGroupsLogged, PROGRAM_GOALS, rerollSlot, SPLITS, splitInfo, type ProgramDay, type ProgramGoal, type SplitId,
-} from '../lib/program'
+import { bestSplit, defaultWeekdays, familiarLifts, generateProgram, goalInfo, goalsLabel, liftsToRotate, majorGroupsLogged, PROGRAM_GOALS, type ProgramDay, type ProgramGoal, rerollSlot, savedGoals, type SplitId, splitInfo, SPLITS } from '../lib/program'
 import { minutesFor, styleInfo } from '../lib/randomizer'
 import { useToday } from '../lib/useToday'
 import { findExercise, useStore } from '../store'
@@ -37,7 +35,9 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
   const today = useToday()
   const [when, setWhen] = useState<'this' | 'next'>(onUse ? 'next' : 'this')
   const [weeks, setWeeks] = useState<1 | 4>(1)
-  const [goal, setGoal] = useState<ProgramGoal>(trainingPrefs.goal ?? 'muscle')
+  const [goal, setGoal] = useState<ProgramGoal[]>(() => { const g = savedGoals(trainingPrefs); return g.length ? g : ['muscle'] })
+  // More than one goal mixes them; at least one always stays picked.
+  const toggleGoal = (id: ProgramGoal) => setGoal((g) => (g.includes(id) ? (g.length > 1 ? g.filter((x) => x !== id) : g) : [...g, id]))
   const [days, setDays] = useState<number[]>(defaultWeekdays(3))
   const [minutes, setMinutes] = useState(45)
   const [split, setSplit] = useState<SplitId>('auto')
@@ -82,13 +82,13 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
         {when === 'this' && <p className="mb-5 text-xs text-neutral-400">Days that have already passed this week are left alone.</p>}
         {when === 'next' && <div className="mb-5" />}
 
-        <h3 className="mb-2 text-sm font-semibold text-neutral-700">Goal</h3>
-        <div className="mb-1 flex flex-wrap gap-2">
+        <h3 className="mb-2 text-sm font-semibold text-neutral-700">Goals <span className="font-normal text-neutral-400">(pick one or more)</span></h3>
+        <div className="mb-1 flex flex-wrap gap-2" role="group" aria-label="Plan goals">
           {PROGRAM_GOALS.map((g) => (
-            <button key={g.id} onClick={() => setGoal(g.id)} className={chip(g.id === goal)}>{g.label}</button>
+            <button key={g.id} onClick={() => toggleGoal(g.id)} aria-pressed={goal.includes(g.id)} className={chip(goal.includes(g.id))}>{g.label}</button>
           ))}
         </div>
-        <p className="mb-5 text-xs text-neutral-400">{goalInfo(goal).blurb}</p>
+        <p className="mb-5 text-xs text-neutral-400">{goal.length > 1 ? `A mix of sessions for each goal: ${goal.map((g) => goalInfo(g).label.toLowerCase()).join(', ')}.` : goalInfo(goal[0]).blurb}</p>
 
         <h3 className="mb-2 text-sm font-semibold text-neutral-700">Training days</h3>
         <div className="mb-2 flex flex-wrap gap-2">
@@ -174,7 +174,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
       return
     }
     // The plan's goal becomes their goal (it sets the weekly targets on Progress).
-    if (goal !== trainingPrefs.goal) setTrainingPrefs({ goal })
+    setTrainingPrefs({ goals: goal, goal: null })
     startProgram(Object.fromEntries(result.map((d) => [d.date, d.items])), `${split === 'auto' ? 'Random' : splitInfo(split).label} ${weeks === 4 ? 'month' : 'week'} plan`, today)
     onApplied(result[0].date)
     onClose()
@@ -183,7 +183,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
   return (
     <Sheet title="Your plan" onClose={onClose} closeLabel="Close">
       <p className="mb-1 text-sm text-neutral-500">
-        {goalInfo(goal).label}{split !== 'auto' && ` · ${splitInfo(split).label}`} · {workouts.length} workout{workouts.length === 1 ? '' : 's'} · {result.length - workouts.length} rest day{result.length - workouts.length === 1 ? '' : 's'}
+        {goalsLabel(goal)}{split !== 'auto' && ` · ${splitInfo(split).label}`} · {workouts.length} workout{workouts.length === 1 ? '' : 's'} · {result.length - workouts.length} rest day{result.length - workouts.length === 1 ? '' : 's'}
       </p>
       {hasHistory && newLifts.length > 0 && (
         <p className="mb-2 rounded-xl bg-neutral-50 px-3 py-2 text-xs text-neutral-500">

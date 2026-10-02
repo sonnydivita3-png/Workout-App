@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { mondayOf, parseISO, toISO } from '../lib/dates'
-import { defaultWeekdays, generateProgram, PROGRAM_GOALS, type ProgramDay, type ProgramGoal } from '../lib/program'
+import { defaultWeekdays, generateProgram, goalsLabel, PROGRAM_GOALS, type ProgramDay, type ProgramGoal } from '../lib/program'
 import { defaultWarmup } from '../lib/randomizer'
 import { useToday } from '../lib/useToday'
 import { useStore } from '../store'
@@ -25,7 +25,11 @@ export function Onboarding() {
   const invite = s.pendingInvite
   const [step, setStep] = useState<Step>('welcome')
   const [name, setName] = useState(s.name)
-  const [goal, setGoal] = useState<ProgramGoal | 'none' | null>(null)
+  // One or more goals, or 'none' (just logging).
+  const [goal, setGoalState] = useState<ProgramGoal[] | 'none'>([])
+  const setGoal = (g: ProgramGoal[] | 'none') => { setGoalState(g); s.setTrainingPrefs({ goals: g === 'none' ? [] : g, goal: null }) }
+  const goals = goal === 'none' ? [] : goal
+  const toggleGoal = (id: ProgramGoal) => setGoal(goals.includes(id) ? goals.filter((x) => x !== id) : [...goals, id])
   const [days, setDays] = useState(3)
   const [minutes, setMinutes] = useState(45)
   const [week, setWeek] = useState<ProgramDay[] | null>(null)
@@ -36,7 +40,7 @@ export function Onboarding() {
   const build = () => {
     const result = generateProgram({
       anchorMonday: toISO(mondayOf(parseISO(today))), fromDate: today, weeks: 4,
-      trainWeekdays: defaultWeekdays(days), goal: goal as ProgramGoal, minutes,
+      trainWeekdays: defaultWeekdays(days), goal: goals, minutes,
       warmup: defaultWarmup(s.genPrefs.warmup, true), rest: s.genPrefs.rest, likedStyles: s.trainingPrefs.styles,
     })
     setWeek(result)
@@ -44,7 +48,7 @@ export function Onboarding() {
   }
   const startPlan = () => {
     if (!week) return
-    s.startProgram(Object.fromEntries(week.map((d) => [d.date, d.items])), `${PROGRAM_GOALS.find((g) => g.id === goal)?.label ?? 'My'} plan`, today)
+    s.startProgram(Object.fromEntries(week.map((d) => [d.date, d.items])), `${goals.length ? goalsLabel(goals) : 'My'} plan`, today)
     finish()
   }
   const firstWeek = week?.filter((d) => d.weekIndex === 0) ?? []
@@ -77,21 +81,21 @@ export function Onboarding() {
 
         {step === 'goal' && (
           <>
-            <h1 className="mb-1 text-2xl font-semibold tracking-tight">What’s your main goal?</h1>
-            <p className="mb-5 text-neutral-500">We’ll build your first month around it. You can change it any time.</p>
+            <h1 className="mb-1 text-2xl font-semibold tracking-tight">What are your goals?</h1>
+            <p className="mb-5 text-neutral-500">Pick one or more (like build muscle and lose fat). We’ll build your first month around them. You can change them any time in Settings.</p>
             <div className="mb-6 space-y-2">
               {PROGRAM_GOALS.map((g) => (
-                <button key={g.id} onClick={() => { setGoal(g.id); s.setTrainingPrefs({ goal: g.id }) }} className={choice(goal === g.id)}>
+                <button key={g.id} onClick={() => toggleGoal(g.id)} aria-pressed={goals.includes(g.id)} className={choice(goals.includes(g.id))}>
                   <span className="block font-medium">{g.label}</span>
                   <span className="block text-sm text-neutral-500">{g.blurb}</span>
                 </button>
               ))}
-              <button onClick={() => { setGoal('none'); s.setTrainingPrefs({ goal: null }) }} className={choice(goal === 'none')}>
+              <button onClick={() => setGoal('none')} aria-pressed={goal === 'none'} className={choice(goal === 'none')}>
                 <span className="block font-medium">Just log my workouts</span>
                 <span className="block text-sm text-neutral-500">No plan for now. I’ll add workouts myself.</span>
               </button>
             </div>
-            <div className="mt-auto"><button disabled={!goal} onClick={() => setStep('where')} className={primary}>Continue</button></div>
+            <div className="mt-auto"><button disabled={goal !== 'none' && goals.length === 0} onClick={() => setStep('where')} className={primary}>Continue</button></div>
           </>
         )}
 

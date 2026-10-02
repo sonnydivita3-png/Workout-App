@@ -43,7 +43,7 @@ const CARDIO: DayType = { name: 'Cardio', groups: [], style: 'standard', weight:
  * Day types available for a goal. Full-body sessions touch every major muscle, so the next day can only be cardio:
  * favour them when there are few training days and split (upper/lower, body-part) sessions when there are many.
  */
-function dayTypes(goal: ProgramGoal, daysPerWeek: number): DayType[] {
+function goalDayTypes(goal: ProgramGoal, daysPerWeek: number): DayType[] {
   const fullWeight = daysPerWeek <= 3 ? 3 : daysPerWeek === 4 ? 0.6 : 0.3
   const fw = (w: number) => w * (daysPerWeek <= 3 ? 1.6 : daysPerWeek === 4 ? 0.6 : 0.3)
   const cardio = (w: number): DayType => ({ ...CARDIO, weight: w })
@@ -102,6 +102,28 @@ function dayTypes(goal: ProgramGoal, daysPerWeek: number): DayType[] {
         { name: 'Run / cardio', groups: [], style: 'standard', weight: 0.8 },
       ]
   }
+}
+
+/** Valid goals from one goal or several (a saved value may be stale); general fitness when none. */
+export const goalList = (g: ProgramGoal | ProgramGoal[] | null | undefined): ProgramGoal[] => {
+  const list = [...new Set((Array.isArray(g) ? g : g ? [g] : []).filter((x) => PROGRAM_GOALS.some((p) => p.id === x)))]
+  return list.length ? list : ['fitness']
+}
+
+/**
+ * Day types for one or more goals. Several goals blend: each goal's sessions keep their share of the week, and day
+ * types they share (cardio, upper/lower) add up. Build muscle + lose fat gives muscle splits, circuits and more cardio.
+ */
+function dayTypes(goals: ProgramGoal[], daysPerWeek: number): DayType[] {
+  const by = new Map<string, DayType>()
+  for (const g of goals) {
+    for (const t of goalDayTypes(g, daysPerWeek)) {
+      const w = t.weight / goals.length
+      const had = by.get(t.name)
+      by.set(t.name, had ? { ...had, weight: had.weight + w } : { ...t, weight: w })
+    }
+  }
+  return [...by.values()]
 }
 
 export type SplitId = 'auto' | 'full' | 'upperlower' | 'ppl' | 'arnold' | 'bodypart'
@@ -194,7 +216,8 @@ export interface ProgramInput {
   fromDate?: string
   /** Weekdays to train, 0 = Monday … 6 = Sunday. Every other day is a rest day. */
   trainWeekdays: number[]
-  goal: ProgramGoal
+  /** One goal, or several to blend (the first sets the lifting style on named splits). */
+  goal: ProgramGoal | ProgramGoal[]
   minutes: number
   /** Major muscle groups trained the day before the first date, so the plan doesn't start with a repeat. */
   prevDayGroups?: string[]
@@ -279,8 +302,9 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
   const first = input.fromDate && input.fromDate > anchorMonday ? input.fromDate : anchorMonday
   const total = weeks * 7
   const dpw = new Set(trainWeekdays).size
-  const types = withLikes(dayTypes(goal, dpw), input.likedStyles)
-  const split = input.split && input.split !== 'auto' ? splitRotation(input.split, dpw, SPLIT_STYLE[goal]) : null
+  const goals = goalList(goal)
+  const types = withLikes(dayTypes(goals, dpw), input.likedStyles)
+  const split = input.split && input.split !== 'auto' ? splitRotation(input.split, dpw, SPLIT_STYLE[goals[0]]) : null
 
   const lastTrained = new Map<string, number>() // group -> day offset it was last trained
   const firstOffset = daysBetween(anchorMonday, first)
@@ -385,3 +409,10 @@ export function cardioWeekdays(n: number): number[] {
   }
   return presets[Math.min(6, Math.max(2, n))]
 }
+
+/** Someone's saved goals: the list, or the single goal saved before goals could be combined. */
+export const savedGoals = (p: { goals?: ProgramGoal[]; goal?: ProgramGoal | null }): ProgramGoal[] =>
+  (Array.isArray(p.goals) ? p.goals : p.goal ? [p.goal] : []).filter((g) => PROGRAM_GOALS.some((x) => x.id === g))
+
+/** "Build muscle + Lose fat". */
+export const goalsLabel = (goals: ProgramGoal[]) => goals.map((g) => goalInfo(g).label).join(' + ')

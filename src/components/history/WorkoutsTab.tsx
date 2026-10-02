@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { BUILTIN_BY_ID } from '../../data/exercises'
 import { addDays, fmtLong, parseISO, toISO } from '../../lib/dates'
 import { baseTarget, MUSCLE_GROUPS, weeklySets, weeklyTarget } from '../../lib/muscles'
-import { PROGRAM_GOALS } from '../../lib/program'
+import { goalsLabel, savedGoals } from '../../lib/program'
 import { dropSetsOf, workSets } from '../../lib/progression'
 import { workoutTitle } from '../../lib/plan'
 import { hasData } from '../../lib/stats'
@@ -34,8 +34,10 @@ export function WorkoutsTab() {
   const dates = [...days.keys()].sort().reverse()
   const sets = weeklySets(logs, today, lookup)
   // Weekly targets from their goal (or their own number); the tick on each bar.
-  const { goal, setTarget } = useStore((st) => st.trainingPrefs)
-  const goalLabel = PROGRAM_GOALS.find((g) => g.id === goal)?.label.toLowerCase()
+  const prefs = useStore((st) => st.trainingPrefs)
+  const goal = savedGoals(prefs)
+  const setTarget = prefs.setTarget
+  const goalLabel = goal.length ? goalsLabel(goal).toLowerCase() : ''
   const targets = Object.fromEntries(MUSCLE_GROUPS.map((g) => [g, weeklyTarget(g, goal, setTarget)])) as Record<string, number>
   const onTarget = MUSCLE_GROUPS.filter((g) => sets.thisWeek[g] >= targets[g]).length
   const maxSets = Math.max(10, ...Object.values(targets).map((t) => t * 1.2), ...Object.values(sets.thisWeek), ...Object.values(sets.lastWeek))
@@ -75,7 +77,7 @@ export function WorkoutsTab() {
       <section className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
         <p className="mb-1 text-sm font-semibold text-neutral-700">Hard sets per muscle · this week</p>
         <p className="mb-3 text-xs text-neutral-400">
-          {onTarget} of {MUSCLE_GROUPS.length} on target. {setTarget ? `Your target: ${baseTarget(goal, setTarget)} a week` : goal ? `Target for ${goalLabel}: ${baseTarget(goal)} a week` : `Target: ${baseTarget(null)} a week (set your goal in Settings to tailor it)`}, less for smaller muscles. Grey is last week.
+          {onTarget} of {MUSCLE_GROUPS.length} on target. {setTarget ? `Your target: ${baseTarget(goal, setTarget)} a week` : goal.length ? `Target for ${goalLabel}: ${baseTarget(goal)} a week` : `Target: ${baseTarget(null)} a week (set your goal in Settings to tailor it)`}, less for smaller muscles. Grey is last week.
         </p>
         <ul className="space-y-1.5">
           {MUSCLE_GROUPS.map((g) => {
