@@ -114,7 +114,7 @@ interface State extends Data {
   setTheme: (t: ThemeMode) => void
   setAccent: (a: Accent) => void
   /** Randomizer choices remembered between uses. */
-  genPrefs: { warmup: WarmupKind[]; rest: RestPref; focus?: string[]; styles?: WorkoutStyle[]; minutes?: number; drops?: boolean; kinds?: ('lift' | 'cond' | 'cardio')[]; cardioSetup?: CardioSetup }
+  genPrefs: { warmup: WarmupKind[]; rest: RestPref; /** Week/month plans: minutes of easy cardio + mobility (default 5, or 9 for both). */ warmMinutes?: number; focus?: string[]; styles?: WorkoutStyle[]; minutes?: number; drops?: boolean; kinds?: ('lift' | 'cond' | 'cardio')[]; cardioSetup?: CardioSetup }
   setGenPrefs: (p: Partial<State['genPrefs']>) => void
   /** Show an RPE (effort) column when logging sets. */
   trackRpe: boolean

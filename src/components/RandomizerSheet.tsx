@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { parseISO, weekdayIndex } from '../lib/dates'
 import {
-  generateWorkout, LIFT_GROUPS, minutesFor, replaceExercise, STYLE_GROUPS, styleInfo, swapExercise, type WorkoutStyle,
+  bringsOwnWarmup, generateWorkout, LIFT_GROUPS, minutesFor, replaceExercise, STYLE_GROUPS, styleInfo, swapExercise, type WorkoutStyle,
 } from '../lib/randomizer'
 import { expandParts, isFullBody, LOWER_PARTS, UPPER_PARTS } from '../lib/bodyParts'
 import { useStore } from '../store'
@@ -239,7 +239,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
           <CardioChoice value={cardioPick} onChange={setCardioPick} gear={gear} hint="Machines used as stations in timed pieces, e.g. 12 cal on the rower." />
         )}
 
-        {!cardioOnly && <WarmupRestControls lifting={lifting} onWarmupChange={() => setSplit(({ warmup: _w, ...r }) => (void _w, r))} />}
+        {!cardioOnly && <WarmupRestControls lifting={lifting} ownWarmupNote={styles.some(bringsOwnWarmup)} onWarmupChange={() => setSplit(({ warmup: _w, ...r }) => (void _w, r))} />}
 
         {!showSplit && <h3 className="mb-2 text-sm font-medium">How long?</h3>}
         {showSplit && (

@@ -8,7 +8,8 @@ import { generateWorkout, swapExercise, type WorkoutStyle } from './randomizer'
 import { mulberry32 } from './randomUtil'
 
 const ex = (p: PlannedExercise) => BUILTIN_BY_ID.get(p.exerciseId)!
-const gen = (style: WorkoutStyle, focus: string[], minutes: number, seed = 1) => generateWorkout(focus, minutes, { style, rng: mulberry32(seed) })
+// The workout itself: conditioning formats now start with a short warm-up of their own.
+const gen = (style: WorkoutStyle, focus: string[], minutes: number, seed = 1) => generateWorkout(focus, minutes, { style, rng: mulberry32(seed) }).filter((p) => !p.warmup)
 const cardio = (w: PlannedExercise[]) => w.filter((p) => ex(p).kind === 'cardio')
 
 afterEach(() => { setCardioPrefs(null); setOwnedGear(null) })

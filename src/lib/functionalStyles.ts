@@ -287,8 +287,9 @@ export function generateTimed(kind: WodKind, focus: string[], minutes: number, r
   const out: PlannedExercise[] = []
   let left = minutes
   const cap = kind === 'emom' ? 24 : 20
-  // Up to four parts with a 2-minute break between, so long sessions fill their time.
-  for (let part = 0; part < 4 && left >= (part === 0 ? 5 : 10); part++) {
+  // Up to four parts with a 2-minute break between, so long sessions fill their time (a short finisher when 7-9
+  // minutes are left, e.g. a 40-minute session: a 30-minute piece, then 6 more).
+  for (let part = 0; part < 4 && left >= (part === 0 ? 5 : 7); part++) {
     const m = part === 0 ? Math.min(left, minutes > 45 ? cap : Math.max(cap, 30)) : Math.min(cap, left - 2)
     const count = m <= 10 ? 3 : 4
     const machine = wantMachine(used)

@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import type { PlannedExercise } from '../types'
-import { generateWorkout, liftsMinutes, minutesFor, plannedFor, STYLES, swapExercise, type WorkoutStyle } from './randomizer'
+import { defaultWarmup, generateWorkout, liftsMinutes, minutesFor, plannedFor, STYLES, swapExercise, type WorkoutStyle } from './randomizer'
 import { mulberry32 } from './randomUtil'
 import { withGearFor } from './equipment'
 import { withCardioFor } from './cardioPrefs'
 
 const ex = (p: PlannedExercise) => BUILTIN_BY_ID.get(p.exerciseId)!
-const gen = (style: WorkoutStyle, focus: string[], minutes: number, seed = 1) => generateWorkout(focus, minutes, { style, rng: mulberry32(seed) })
+// The workout itself. Conditioning formats start with a short warm-up of their own; Hyrox and CrossFit tests check theirs.
+const gen = (style: WorkoutStyle, focus: string[], minutes: number, seed = 1) => {
+  const w = generateWorkout(focus, minutes, { style, rng: mulberry32(seed) })
+  return style === 'hyrox' || style === 'crossfit' ? w : main(w)
+}
 /** Hyrox and CrossFit sessions start with their own warm-up; most checks are about what comes after it. */
 const main = (w: PlannedExercise[]) => w.filter((p) => !p.warmup)
 const blocks = (items: PlannedExercise[]) => {
@@ -180,7 +184,7 @@ describe('PHA', () => {
     }
   })
   it('uses most of the time available', () => {
-    for (const minutes of [30, 45, 60]) expect(minutesFor(gen('pha', [], minutes, 5))).toBeGreaterThan(minutes * 0.8)
+    for (const minutes of [30, 45, 60]) expect(minutesFor(generateWorkout([], minutes, { style: 'pha', rng: mulberry32(5) }))).toBeGreaterThan(minutes * 0.8)
   })
 })
 
@@ -336,7 +340,7 @@ describe('tabata', () => {
 
 describe('several styles in one workout', () => {
   const mixed = (styles: WorkoutStyle[], focus: string[], minutes: number, seed: number) =>
-    generateWorkout(focus, minutes, { styles, style: styles[0], rng: mulberry32(seed) })
+    main(generateWorkout(focus, minutes, { styles, style: styles[0], rng: mulberry32(seed) }))
   it('runs them in order (lifting, then conditioning), with cardio last and no repeats', () => {
     for (let seed = 1; seed <= 20; seed++) {
       const w = mixed(['circuit', 'strength'], ['Chest', 'Back', 'Legs', 'Cardio'], 60, seed)
@@ -421,7 +425,8 @@ describe('timed and HIIT workouts with any equipment and focus', () => {
   it('fill the time asked (Tabata tops out around 50 minutes)', () => {
     for (const st of ['amrap', 'emom', 'fortime', 'circuit', 'pha'] as const) {
       for (const minutes of [20, 45, 90]) {
-        const w = gen(st, [], minutes, 2)
+        // The whole session, its own warm-up included.
+        const w = generateWorkout([], minutes, { style: st, rng: mulberry32(2) })
         expect(minutesFor(w), `${st} ${minutes}`).toBeGreaterThanOrEqual(minutes * 0.8)
       }
     }
@@ -432,5 +437,33 @@ describe('timed and HIIT workouts with any equipment and focus', () => {
       expect(gen('amrap', ['Chest', 'Back'], 30, seed).some((p) => /fly|flye/i.test(BUILTIN_BY_ID.get(p.exerciseId)?.name ?? ''))).toBe(false)
       expect(gen('emom', ['Core'], 20, seed).length).toBeGreaterThan(1)
     }
+  })
+})
+
+describe('conditioning brings its own warm-up', () => {
+  it('HIIT and timed sessions start with a short warm-up when none was picked, inside the time asked', () => {
+    for (const style of ['circuit', 'pha', 'amrap', 'emom', 'fortime', 'tabata'] as const) {
+      for (let seed = 1; seed <= 5; seed++) {
+        const w = generateWorkout([], 30, { style, rng: mulberry32(seed) })
+        const warm = w.filter((p) => p.warmup)
+        expect(warm.length, `${style} ${seed}`).toBeGreaterThan(0)
+        expect(w.slice(0, warm.length).every((p) => p.warmup)).toBe(true)
+        expect(minutesFor(warm)).toBeLessThanOrEqual(6)
+        expect(new Set(w.map((p) => p.exerciseId)).size).toBe(w.length)
+      }
+    }
+  })
+  it('not when one was picked, not after another part, and not for short sessions or straight lifting', () => {
+    const picked = generateWorkout([], 30, { style: 'tabata', rng: mulberry32(1), warmup: { cardio: 6 } }).filter((p) => p.warmup)
+    expect(minutesFor(picked)).toBeCloseTo(6, 0)
+    expect(generateWorkout([], 15, { style: 'amrap', rng: mulberry32(1) }).some((p) => p.warmup)).toBe(false)
+    expect(generateWorkout(['Chest'], 45, { style: 'standard', rng: mulberry32(1) }).some((p) => p.warmup)).toBe(false)
+    const mix = generateWorkout(['Chest', 'Legs'], 60, { styles: ['strength', 'circuit'], minutesByStyle: { strength: 40, circuit: 20 }, rng: mulberry32(4) })
+    expect(mix.some((p) => p.warmup)).toBe(false)
+  })
+  it('a planned warm-up length is split between easy cardio and mobility', () => {
+    expect(defaultWarmup(['cardio', 'mobility'], true, 12)).toEqual({ cardio: 7, mobility: 5, sets: false })
+    expect(defaultWarmup(['mobility', 'sets'], true, 8)).toEqual({ mobility: 8, sets: true })
+    expect(defaultWarmup(['cardio', 'mobility'], true)).toEqual({ cardio: 5, mobility: 4, sets: false })
   })
 })

@@ -678,6 +678,28 @@ test('plan a week as a named split, with a nudge when the days do not fit it', a
   expect((await state(page)).programs[0].title).toBe('Upper / Lower week plan')
 })
 
+test('plan warm-up: pick easy cardio and set how long it lasts', async ({ page }) => {
+  await seed(page, {})
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: '+ Add' }).click()
+  await page.getByRole('button', { name: /Plan a week or month/ }).click()
+  await page.getByText('Next week', { exact: true }).click()
+  await expect(page.getByText(/HIIT and timed sessions start with a short warm-up/)).toBeVisible()
+  await expect(page.getByText('Warm-up length')).toBeHidden()
+  await page.getByRole('button', { name: 'Easy cardio', exact: true }).click()
+  await expect(page.getByText('5 min', { exact: true })).toBeVisible()
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Longer warm-up' }).click()
+  await expect(page.getByText('8 min', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Build my plan' }).click()
+  await page.getByRole('button', { name: 'Apply to my plan' }).click()
+  const s = await state(page)
+  expect(s.genPrefs.warmMinutes).toBe(8)
+  const warm = (Object.values(s.overrides).flat() as { warmup?: boolean; minutes?: number }[]).filter((p) => p.warmup && p.minutes)
+  expect(warm.length).toBeGreaterThan(0)
+  expect(warm.every((p) => p.minutes === 8)).toBe(true)
+})
+
 test('a lift you have never done gets a starting weight from a similar one', async ({ page }) => {
   await seed(page, {
     overrides: { [iso(0)]: [{ exerciseId: 'Dumbbell_Bench_Press', sets: 3, reps: 10 }] },
