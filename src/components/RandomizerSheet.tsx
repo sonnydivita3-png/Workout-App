@@ -146,8 +146,17 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   }
   const lifting = styles.some((st) => ['standard', 'strength', 'bodyweight', 'supersets'].includes(st))
   const total0 = showSplit ? parts.reduce((a, k) => a + partMin(k), 0) : minutes
-  const bump = (k: string, d: number) => setSplit((cur) => ({ ...cur, [k]: Math.min(120, Math.max(k === 'warmup' ? 2 : 5, (cur[k] ?? partMin(k)) + d)) }))
+  const bump = (k: string, d: number) => {
+    // Taking the warm-up below 2 min drops the easy cardio and mobility (warm-up sets stay with the lifting).
+    if (k === 'warmup' && partMin(k) + d < 2) {
+      setGenPrefs({ warmup: warm.filter((w) => w === 'sets') })
+      setSplit(({ warmup: _w, ...r }) => (void _w, r))
+      return
+    }
+    setSplit((cur) => ({ ...cur, [k]: Math.min(120, Math.max(k === 'warmup' ? 2 : 5, (cur[k] ?? partMin(k)) + d)) }))
+  }
   const partLabel = (k: string) => (k === 'cardio' ? 'Cardio' : k === 'warmup' ? 'Warm-up' : styleInfo(k as WorkoutStyle).label)
+  const warmWhat = [warm.includes('cardio') && 'easy cardio', warm.includes('mobility') && 'mobility'].filter(Boolean).join(' + ')
   const defaultName = `${styleLabel} · ${focusLabel} · ${total0} min`
 
   const generate = (avoid?: PlannedExercise[]) => {
@@ -230,6 +239,8 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
           <CardioChoice value={cardioPick} onChange={setCardioPick} gear={gear} hint="Machines used as stations in timed pieces, e.g. 12 cal on the rower." />
         )}
 
+        {!cardioOnly && <WarmupRestControls lifting={lifting} onWarmupChange={() => setSplit(({ warmup: _w, ...r }) => (void _w, r))} />}
+
         {!showSplit && <h3 className="mb-2 text-sm font-medium">How long?</h3>}
         {showSplit && (
           <>
@@ -237,7 +248,10 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
             <ul className="mb-2 divide-y divide-neutral-100 rounded-2xl bg-neutral-50 px-3">
               {parts.map((k) => (
                 <li key={k} className="flex items-center justify-between py-2">
-                  <span className="text-sm">{partLabel(k)}</span>
+                  <span className="text-sm">
+                    <span>{partLabel(k)}</span>
+                    {k === 'warmup' && <span className="block text-xs text-neutral-400">{warmWhat} · − to remove</span>}
+                  </span>
                   <span className="flex items-center gap-2">
                     <button onClick={() => bump(k, -5)} aria-label={`Less ${partLabel(k)} time`} className="h-8 w-8 rounded-full bg-neutral-100 text-lg">−</button>
                     <span className="w-16 text-center text-sm tabular-nums">{partMin(k)} min</span>
@@ -254,8 +268,6 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
             <button key={m} onClick={() => { setMinutes(m); setSplit({}) }} className={chip(m === minutes && Object.keys(split).length === 0)}>{m} min</button>
           ))}
         </div>
-
-        {!cardioOnly && <WarmupRestControls lifting={lifting} onWarmupChange={() => setSplit(({ warmup: _w, ...r }) => (void _w, r))} />}
 
         <button disabled={!canGenerate} onClick={() => generate()} className={primaryBtn}>Generate workout</button>
       </Sheet>
