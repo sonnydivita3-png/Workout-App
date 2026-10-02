@@ -21,13 +21,16 @@ export function WarmupRestControls({ lifting, onWarmupChange }: { lifting: boole
     <>
       <h3 className={h3}>Warm-up <span className="normal-case">(optional)</span></h3>
       <div className="mb-1 flex flex-wrap gap-2">
-        {([['cardio', 'Easy cardio'], ['mobility', 'Mobility'], ['sets', 'Warm-up sets']] as [WarmupKind, string][]).map(([k, l]) => (
+        {/* Lifting: ramp-up sets first, as that's the usual way to warm up for heavy lifts. */}
+        {((lifting ? [['sets', 'Warm-up sets'], ['cardio', 'Easy cardio'], ['mobility', 'Mobility']] : [['cardio', 'Easy cardio'], ['mobility', 'Mobility'], ['sets', 'Warm-up sets']]) as [WarmupKind, string][]).map(([k, l]) => (
           <button key={k} onClick={() => toggle(k)} aria-pressed={warm.includes(k)} disabled={k === 'sets' && !lifting} className={chip(warm.includes(k), k === 'sets' && !lifting)}>{l}</button>
         ))}
       </div>
       <p className="mb-5 text-xs text-neutral-400">
         {parts.length === 0
-          ? 'Easy cardio and mobility come first; warm-up sets are light ramp-up sets before your heavy lifts.'
+          ? lifting
+            ? 'None picked. Warm-up sets are light ramp-up sets before your first two lifts, with weights suggested from your working weight. Easy cardio and mobility come first, with their own time.'
+            : 'None picked. Easy cardio and mobility come first, with their own time.'
           : `${parts.join(', ').replace(/^./, (c) => c.toUpperCase())}. Included in the total time.`}
       </p>
       {lifting && (

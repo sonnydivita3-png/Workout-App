@@ -55,3 +55,25 @@ test('warm-up: easy cardio, mobility and ramp-up sets, with the rest timer follo
   const today = (await state(page)).logs.find((l: { date: string; sets?: { warmup?: boolean }[] }) => l.date === iso(0) && l.sets)
   expect(today.sets.slice(0, 3).every((x: { warmup?: boolean }) => x.warmup)).toBe(true)
 })
+
+test('a saved warm-up shows next to its choices, warm-up sets come first for lifting, and − removes the warm-up time', async ({ page }) => {
+  await seed(page, { genPrefs: { warmup: ['cardio'], rest: 'normal' } })
+  await openRandomizer(page)
+  const sheet = page.locator('.fixed')
+  await sheet.getByRole('button', { name: 'Strength', exact: true }).click()
+  // Warm-up choices come before the time, with warm-up sets first for lifting.
+  const chips = sheet.getByRole('button', { name: /^(Warm-up sets|Easy cardio|Mobility)$/ })
+  await expect(chips.first()).toHaveText('Warm-up sets')
+  const warmBox = (await sheet.getByRole('button', { name: 'Warm-up sets', exact: true }).boundingBox())!
+  const timeBox = (await sheet.getByText('Time for each part').boundingBox())!
+  expect(warmBox.y).toBeLessThan(timeBox.y)
+  // The saved easy cardio has its own time row, which says what it is and can be taken out.
+  await expect(sheet.getByText('easy cardio · − to remove')).toBeVisible()
+  await sheet.getByRole('button', { name: 'Less Warm-up time' }).click()
+  await expect(sheet.getByText('Time for each part')).toBeHidden()
+  await expect(sheet.getByRole('button', { name: 'Easy cardio', exact: true })).toHaveAttribute('aria-pressed', 'false')
+  await sheet.getByRole('button', { name: 'Warm-up sets', exact: true }).click()
+  await sheet.getByRole('button', { name: 'Quads', exact: true }).click()
+  await sheet.getByRole('button', { name: /^Generate/ }).click()
+  await expect(sheet.getByText(/\+\d warm-up sets/).first()).toBeVisible()
+})
