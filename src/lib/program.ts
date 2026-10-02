@@ -303,16 +303,30 @@ export interface ProgramDay {
 const DAY_MS = 86400000
 const daysBetween = (a: string, b: string) => Math.round((parseISO(b).getTime() - parseISO(a).getTime()) / DAY_MS)
 
-/** Progressive overload for a 4-week block: one extra set in week 3, a lighter deload in week 4. */
+/** Extra minutes week 3's added sets may take: about two sets, so the session stays close to the length picked. */
+const EXTRA_SET_BUDGET = 6
+
+/**
+ * Progressive overload for a 4-week block: an extra set in week 3, a lighter deload in week 4. Week 3's extra sets go
+ * to the first lifts (the main ones) until about EXTRA_SET_BUDGET minutes are used, rather than to every lift, which
+ * made a 45-minute session run past an hour.
+ */
 export function applyProgression(items: PlannedExercise[], weekIndex: number, weeks: number): PlannedExercise[] {
   if (weeks !== 4 || weekIndex < 2) return items
   const delta = weekIndex === 2 ? 1 : -1
+  let extra = 0
   return items.map((p) => {
     if (p.block || p.minutes || p.sets <= 1 || (p.seconds === undefined && p.reps === undefined)) return p
     const sets = Math.max(2, Math.min(5, p.sets + delta))
     if (sets === p.sets) return p
     const next = { ...p, sets }
-    return { ...next, est: Math.round(liftMinutes(next, BY_ID.get(p.exerciseId)) * 10) / 10 }
+    const est = Math.round(liftMinutes(next, BY_ID.get(p.exerciseId)) * 10) / 10
+    if (delta > 0) {
+      const more = est - (p.est ?? liftMinutes(p, BY_ID.get(p.exerciseId)))
+      if (extra + more > EXTRA_SET_BUDGET) return p
+      extra += more
+    }
+    return { ...next, est }
   })
 }
 
