@@ -12,6 +12,7 @@ import { primaryBtn, Sheet } from './Sheet'
 import { WarmupRestControls } from './WarmupRestControls'
 import { WorkoutList } from './WorkoutList'
 import { GearChoice } from './GearChoice'
+import { MoveChoice } from './TrainingPrefsPicker'
 import { withGearFor } from '../lib/equipment'
 import { withCardioFor } from '../lib/cardioPrefs'
 import { CardioChoice, type CardioPick } from './CardioChoice'
@@ -19,6 +20,8 @@ import { CardioChoice, type CardioPick } from './CardioChoice'
 const MAX_HISTORY = 50
 const DURATIONS = [20, 30, 45, 60, 75, 90]
 // Styles that use cardio machines as stations.
+// Styles that choose their own lifts, so exercise-type preferences apply (timed formats use a set list of movements).
+const PICKS_LIFTS: WorkoutStyle[] = ['standard', 'strength', 'supersets', 'bodyweight', 'circuit', 'pha']
 const CONDITIONING: WorkoutStyle[] = ['crossfit', 'amrap', 'emom', 'fortime', 'tabata', 'circuit']
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
@@ -180,6 +183,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
         </p>
 
         <GearChoice value={gear} onChange={setGear} />
+        {styles.some((st) => PICKS_LIFTS.includes(st)) && <MoveChoice />}
 
         {(focus.includes('Cardio') && !focusIgnored) || styles.some((st) => CONDITIONING.includes(st)) ? (
           <CardioChoice

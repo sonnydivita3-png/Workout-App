@@ -27,6 +27,7 @@ const equipOf = (e: Exercise): Equip => {
   if (k === 'EZ bar') return 'Barbell'
   return (EQUIPMENT as readonly string[]).includes(k) && k !== 'Any' && k !== 'Mine' ? (k as Equip) : 'Other'
 }
+const equipLabel = (k: Equip) => (k === 'Any' ? 'any' : k === 'Mine' ? 'my equipment' : k)
 const PAGE = 50
 const squash = (t: string) => t.toLowerCase().replace(/[-\s]/g, '')
 const ALIASES: Record<string, string> = {
@@ -60,6 +61,7 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
   const [q, setQ] = useState('')
   const [group, setGroup] = useState(GROUPS.includes(initialGroup) ? initialGroup : 'All')
   const [limit, setLimit] = useState(PAGE)
+  const [gearOpen, setGearOpen] = useState(false)
 
   const query = q.trim().toLowerCase()
   // Gym shorthand works too (RDL, OHP, DB…), and hyphens and spaces don't matter (pushup finds Push-Up).
@@ -97,12 +99,40 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
           <h2 className="text-lg font-semibold">{title}</h2>
           <button onClick={onClose} className="text-sm text-neutral-500">Done</button>
         </div>
-        <input
-          value={q}
-          onChange={(e) => { setQ(e.target.value); setLimit(PAGE) }}
-          placeholder={`Search ${EXERCISES.length}+ exercises`}
-          className="mb-3 w-full shrink-0 rounded-xl bg-neutral-100 px-4 py-2.5 outline-none"
-        />
+        {/* Search, with the equipment filter as one button beside it (it opens a panel showing every option at once). */}
+        <div className="mb-3 flex shrink-0 gap-2">
+          <input
+            value={q}
+            onChange={(e) => { setQ(e.target.value); setLimit(PAGE) }}
+            placeholder={`Search ${EXERCISES.length}+ exercises`}
+            className="min-w-0 flex-1 rounded-xl bg-neutral-100 px-4 py-2.5 outline-none"
+          />
+          <button
+            onClick={() => setGearOpen(!gearOpen)}
+            aria-expanded={gearOpen}
+            aria-label={`Equipment filter: ${equipLabel(equip)}`}
+            className={`flex shrink-0 items-center gap-1 rounded-xl px-3 text-sm ${equip === 'Any' ? 'bg-neutral-100 text-neutral-600' : 'bg-accent text-on-accent'}`}
+          >
+            <span className="max-w-[6.5rem] truncate">{equip === 'Any' ? 'Equipment' : equip === 'Mine' ? 'My gear' : equip}</span>
+            <span aria-hidden className={`text-xs transition-transform ${gearOpen ? 'rotate-180' : ''}`}>▾</span>
+          </button>
+        </div>
+        {gearOpen && (
+          <div className="mb-3 flex shrink-0 flex-wrap gap-2 rounded-2xl bg-neutral-50 p-2" role="group" aria-label="Equipment">
+            {EQUIPMENT.filter((k) => k === 'Any' || k === equip || (k === 'Mine' ? !!owned : counts.get(k))).map((k) => (
+              <button
+                key={k}
+                onClick={() => { setEquip(k); setLimit(PAGE); setGearOpen(false) }}
+                aria-pressed={k === equip}
+                className={`rounded-full px-3 py-1 text-sm ring-1 ${
+                  k === equip ? 'bg-neutral-900 text-surface ring-neutral-900' : 'bg-surface text-neutral-600 ring-neutral-200'
+                }`}
+              >
+                {k === 'Any' ? 'Any equipment' : k === 'Mine' ? `My equipment ${counts.get(k) ?? 0}` : `${k} ${counts.get(k) ?? 0}`}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="mb-3 flex shrink-0 gap-2 overflow-x-auto pb-1" role="group" aria-label="Body part">
           {GROUPS.map((g) => (
             <button
@@ -114,20 +144,6 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
               }`}
             >
               {g}
-            </button>
-          ))}
-        </div>
-        <div className="mb-3 flex shrink-0 gap-2 overflow-x-auto pb-1" role="group" aria-label="Equipment">
-          {EQUIPMENT.filter((k) => k === 'Any' || k === equip || (k === 'Mine' ? !!owned : counts.get(k))).map((k) => (
-            <button
-              key={k}
-              onClick={() => { setEquip(k); setLimit(PAGE) }}
-              aria-pressed={k === equip}
-              className={`shrink-0 rounded-full px-3 py-1 text-sm ring-1 ${
-                k === equip ? 'bg-neutral-900 text-surface ring-neutral-900' : 'text-neutral-600 ring-neutral-200'
-              }`}
-            >
-              {k === 'Any' ? 'Any equipment' : k === 'Mine' ? `My equipment ${counts.get(k) ?? 0}` : `${k} ${counts.get(k) ?? 0}`}
             </button>
           ))}
         </div>

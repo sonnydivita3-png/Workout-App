@@ -6,6 +6,8 @@ import { liftMinutes, REST_SCALE, restFor, transitionMin, WARMUP_SET_MIN, workSe
 import { addDropSets, placeWarmups } from './warmups'
 import { cardioSplit, likedCardio, wodAmount, wodCardio } from './cardioPrefs'
 import { expandParts, FULL_BODY_ORDER, isFullBody, LOWER_PARTS, UPPER_PARTS, BODY_PARTS } from './bodyParts'
+import { byPreference, moveScore, tooAdvanced } from './movePrefs'
+import { stationOf, staysPut, walkCost } from './stations'
 import { BY_ID, familyOf, FULL_BODY_GROUPS, isAdvanced, isIsolation, isMainLift, isQuirky, isStaple, isTechnical, POOL, pick, roundTo5, shuffle, softShuffle, type Rng } from './randomUtil'
 
 export const FOCUS_OPTIONS = [...BODY_PARTS, 'Cardio'] as const
@@ -246,7 +248,7 @@ function queuesFor(groups: string[], rng: Rng, avoid: Set<string>, cfg: LiftConf
   // Random workouts stick to mainstream moves; niche and advanced ones only if a group would otherwise be empty.
   const strengthPool = (g: string) => {
     const all = POOL.filter((e) => e.kind === 'strength' && e.group === g && !isTechnical(e) && hasGear(e))
-    const plain = all.filter((e) => !isQuirky(e) && !isAdvanced(e))
+    const plain = all.filter((e) => !isQuirky(e) && !tooAdvanced(e))
     return plain.length ? plain : all
   }
   const own = (g: string) => {
@@ -263,7 +265,10 @@ function queuesFor(groups: string[], rng: Rng, avoid: Set<string>, cfg: LiftConf
     // Lifts they've been logging go first, so the numbers carry over from plan to plan.
     const known = mixed.filter((e) => familiar.has(e.id) && !avoid.has(e.id))
     const rest = mixed.filter((e) => !known.includes(e))
-    return [...known, ...rest.filter((e) => isStaple(e) && weighted(e)), ...rest.filter((e) => isStaple(e) && !weighted(e)), ...rest.filter((e) => !isStaple(e))]
+    const tiered = [...known, ...rest.filter((e) => isStaple(e) && weighted(e)), ...rest.filter((e) => isStaple(e) && !weighted(e)), ...rest.filter((e) => !isStaple(e))]
+    // The kinds of movement they asked for more of move up a tier (and less of, down), last workout's picks after.
+    const tierOf = (e: Exercise) => (known.includes(e) ? 0 : !isStaple(e) ? 3 : weighted(e) ? 1 : 2) + (avoid.has(e.id) ? 1 : 0)
+    return byPreference(tiered, tierOf)
   }
   return new Map(
     groups.map((g) => {
@@ -363,6 +368,8 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
       const score = (avoid.has(e.id) ? 0 : 16) + (tooSimilar(e) ? 0 : 8)
         + (pats[0]?.test(e.name) ? 4 : pats[1]?.test(e.name) ? 2 : 0) + (equipmentRank(e) <= 1 ? 1.5 : 0)
         + (e.fullName ? 2 : 0) + (isMainLift(e) ? 1 : 0) - (COMPOUND_PARTS.has(g) && isIsolation(e) ? 3 : 0) + bonus(e)
+        // The kinds of movement they like (free weights, one-arm/one-leg…) win close calls.
+        + 1.5 * moveScore(e)
         // A lift they've been doing keeps its progress going (but not over a squat for quads with a leg extension).
         + (familiar.has(e.id) && !(COMPOUND_PARTS.has(g) && isIsolation(e)) ? 5 : 0)
       if (score > bestScore) { bestScore = score; best = i }
@@ -490,7 +497,11 @@ function pickSupersets(groups: string[], minutes: number, rng: Rng, avoid: Set<s
   const pref = opts.rest ?? 'normal'
   // Paired work is quicker, so ask for more exercises than straight sets would fit, then choose from them.
   const pool = pickLifts(groups, minutes * 1.8, rng, avoid, { ...SUPERSET, maxSets: 3 }, { rest: pref, noRepeats: BODY_PARTS.every((p) => groups.includes(p)), familiar: opts.familiar }).map((p) => ({ ...p, sets: 3, warmupSets: undefined }))
-  const paired = makeSupersets(pool)
+  // Partners to fall back on: the chosen parts' usual moves (in the same order straight sets would offer them).
+  const chosen = new Set(groups)
+  const extras = [...new Set([...queuesFor(groups, rng, avoid, SUPERSET, opts.familiar).values()].flat())].filter((e) => chosen.has(e.group))
+  const extra = (e: Exercise): PlannedExercise => { const t = targetsFor(e, rng); return { exerciseId: e.id, sets: 3, ...t, rest: restFor(e, t.reps, t.seconds, pref) } }
+  const paired = makeSupersets(pool, extras, extra, BODY_PARTS.every((p) => groups.includes(p)))
   const pairs: PlannedExercise[][] = []
   for (let i = 0; i < paired.length; ) {
     const n = paired[i].block && paired[i + 1]?.block === paired[i].block ? 2 : 1
@@ -537,7 +548,7 @@ function pickSupersets(groups: string[], minutes: number, rng: Rng, avoid: Set<s
 }
 
 // ---------------------------------------------------------------------------------------------
-// Supersets: pair exercises, preferring opposing muscle groups.
+// Supersets: pair exercises you can do in one spot (see stations.ts), preferring opposing muscle groups.
 // ---------------------------------------------------------------------------------------------
 
 const ANTAGONISTS: Record<string, string[]> = {
@@ -545,24 +556,96 @@ const ANTAGONISTS: Record<string, string[]> = {
   Quads: ['Hamstrings', 'Core'], Hamstrings: ['Quads', 'Core'], Glutes: ['Core', 'Biceps'], Calves: ['Core', 'Biceps', 'Triceps'],
   Core: ['Quads', 'Glutes', 'Back'],
 }
+/** Pairs where the second move needs what the first just tired (triceps after pressing, biceps after rows). */
+const COMPETING: Record<string, string[]> = {
+  Chest: ['Triceps', 'Shoulders'], Shoulders: ['Triceps', 'Chest'], Triceps: ['Chest', 'Shoulders'],
+  Back: ['Biceps'], Biceps: ['Back'], Glutes: ['Hamstrings'], Hamstrings: ['Glutes'],
+}
 
-function makeSupersets(items: PlannedExercise[]): PlannedExercise[] {
-  const left = [...items]
+/**
+ * How good a superset two exercises make. Staying in one spot matters most (no walking from the rack to the cable
+ * stack mid-pair, or holding two stations at a busy gym), then opposing muscles (push + pull, quads + hamstrings), and
+ * never the same muscle twice.
+ */
+export function pairScore(a: Exercise, b: Exercise): number {
+  const muscle = a.group === b.group ? -3
+    : ANTAGONISTS[a.group]?.includes(b.group) ? 3
+    : COMPETING[a.group]?.includes(b.group) ? -1
+    : 1
+  return muscle - 2.5 * walkCost(a, b)
+}
+
+const PLACE: Record<string, string> = {
+  cable: 'the cable stack', rack: 'the squat rack', bench: 'your bench', platform: 'your barbell', smith: 'the Smith machine',
+  pullup: 'the pull-up bar', dip: 'the dip station', box: 'the box', turf: 'the turf', 'machine:leg-ext-curl': 'the leg extension and curl machines',
+}
+const placeOf = (s: string) => PLACE[s] ?? (s.startsWith('machine:') ? 'the machine' : '')
+
+/** Where a pair is done, for its label: "stay at the cable stack", "take your dumbbells to one bench". */
+function whereLabel(a: Exercise, b: Exercise): string {
+  const sa = stationOf(a)
+  const sb = stationOf(b)
+  const portable = (s: string) => s === 'floor' || s === 'dumbbells' || s === 'kettlebells'
+  const fixed = [sa, sb].filter((s) => !portable(s))
+  const carried = [sa, sb].find((s) => s === 'dumbbells' || s === 'kettlebells')
+  if (fixed.length === 2) return fixed[0] !== fixed[1] || !placeOf(fixed[0]) ? '' : fixed[0] === 'platform' ? 'one barbell for both' : `stay at ${placeOf(fixed[0])}`
+  if (fixed.length === 1) {
+    const at = placeOf(fixed[0])
+    if (!at) return ''
+    return carried ? `take your ${carried} to ${at}` : fixed[0] === 'platform' ? 'stay by your barbell' : `stay at ${at}`
+  }
+  if (carried && (sa === sb || sa === 'floor' || sb === 'floor')) return `just your ${carried}, no walking`
+  return sa === 'floor' && sb === 'floor' ? 'no equipment needed' : ''
+}
+
+/**
+ * Pair the picked exercises, biggest lifts first, each with the best partner by `pairScore`. When nothing picked makes a
+ * good partner (a back squat with only cable moves left), a partner comes from `extras` instead: another move for one
+ * of the chosen body parts that can be done in the same spot, favouring the parts with the fewest exercises so far.
+ */
+function makeSupersets(items: PlannedExercise[], extras: Exercise[] = [], extra: (e: Exercise) => PlannedExercise = (e) => ({ exerciseId: e.id, sets: 3 }), oneEach = false): PlannedExercise[] {
+  const ex = (p: PlannedExercise) => BY_ID.get(p.exerciseId)!
+  const left = items.filter((p) => BY_ID.has(p.exerciseId))
+  const used = new Set(left.map((p) => p.exerciseId))
+  const perGroup = new Map<string, number>()
+  const count = (e: Exercise) => perGroup.set(e.group, (perGroup.get(e.group) ?? 0) + 1)
   const out: PlannedExercise[] = []
   let n = 0
   while (left.length) {
     const a = left.shift()!
-    const groupOf = (p: PlannedExercise) => BY_ID.get(p.exerciseId)?.group ?? ''
-    const prefer = ANTAGONISTS[groupOf(a)] ?? []
-    let j = left.findIndex((p) => prefer.includes(groupOf(p)))
-    if (j < 0) j = left.length ? 0 : -1
-    if (j < 0) {
+    const ea = ex(a)
+    let best = -1
+    let bestScore = -Infinity
+    left.forEach((p, i) => { const sc = pairScore(ea, ex(p)); if (sc > bestScore) { bestScore = sc; best = i } })
+    // Something unpicked that suits this spot clearly better (no walking), keeping body parts balanced.
+    let alt: Exercise | undefined
+    let altScore = bestScore + 2
+    const families = new Set([...out, a, ...left].map((p) => familyOf(ex(p))).filter(Boolean))
+    for (const e of extras) {
+      if (used.has(e.id) || (familyOf(e) && families.has(familyOf(e)))) continue
+      // It takes the place of an unpaired move for the same part, or (unless it's one per part) joins as an extra.
+      const replaces = left.some((p) => ex(p).group === e.group)
+      if (oneEach && !replaces) continue
+      const sc = pairScore(ea, e) - 0.75 * (perGroup.get(e.group) ?? 0) + (replaces ? 0.5 : 0)
+      if (sc > altScore && walkCost(ea, e) === 0) { alt = e; altScore = sc }
+    }
+    let b: PlannedExercise | undefined
+    if (alt) {
+      const g = alt.group
+      const i = left.findIndex((p) => ex(p).group === g)
+      if (i >= 0) left.splice(i, 1)
+      b = extra(alt)
+      used.add(alt.id)
+    } else if (best >= 0) b = left.splice(best, 1)[0]
+    count(ea)
+    if (!b) {
       out.push(a) // odd one out stays a straight set
       break
     }
-    const [b] = left.splice(j, 1)
+    count(ex(b))
     n++
-    const blockLabel = `Superset ${n} · alternate the two, rest about 60s after each pair`
+    const where = whereLabel(ea, ex(b))
+    const blockLabel = `Superset ${n} · alternate the two, rest about 60s after each pair${where ? ` · ${where}` : ''}`
     out.push({ ...a, block: `ss${n}`, blockLabel }, { ...b, block: `ss${n}`, blockLabel })
   }
   return out
@@ -574,26 +657,34 @@ function makeSupersets(items: PlannedExercise[]): PlannedExercise[] {
 
 const UPPER = new Set(UPPER_PARTS)
 
-function roundRobinPick(groups: string[], count: number, poolFor: (g: string) => Exercise[], avoid: Set<string>, rng: Rng) {
+/**
+ * Up to `count` exercises taking turns between the groups. Circuits stay in one area of the gym: portable gear and
+ * floor moves, plus at most `maxFixed` fixed stations (a bench, the cable stack…), unless that leaves the circuit short.
+ */
+function roundRobinPick(groups: string[], count: number, poolFor: (g: string) => Exercise[], avoid: Set<string>, rng: Rng, maxFixed = 1, already: Exercise[] = []) {
   const order = shuffle(groups, rng)
-  const queues = new Map(order.map((g) => [g, softShuffle(poolFor(g), avoid, rng)] as const))
-  const picked: Exercise[] = []
-  const taken = new Set<string>()
-  while (picked.length < count) {
-    let progressed = false
-    for (const g of order) {
-      const q = queues.get(g)!
-      let next = q.shift()
-      while (next && taken.has(next.id)) next = q.shift()
-      if (next && picked.length < count) {
+  const run = (stay: boolean) => {
+    const queues = new Map(order.map((g) => [g, byPreference(softShuffle(poolFor(g), avoid, rng))] as const))
+    const picked: Exercise[] = []
+    const taken = new Set<string>()
+    while (picked.length < count) {
+      let progressed = false
+      for (const g of order) {
+        if (picked.length >= count) break
+        const q = queues.get(g)!
+        const i = q.findIndex((e) => !taken.has(e.id) && (!stay || staysPut([...already, ...picked], e, maxFixed)))
+        if (i < 0) continue
+        const [next] = q.splice(i, 1)
         picked.push(next)
         taken.add(next.id)
         progressed = true
       }
+      if (!progressed) break
     }
-    if (!progressed) break
+    return picked
   }
-  return picked
+  const near = run(true)
+  return near.length >= Math.min(count, 4) ? near : run(false)
 }
 
 /** Reorder so consecutive exercises hit different muscle groups where possible. */
@@ -614,7 +705,7 @@ function generateCircuit(groups: string[], minutes: number, rng: Rng, avoid: Set
   const ROUND_REST = 1
   const hiitOk = (e: Exercise) =>
     e.kind === 'strength' &&
-    (e.tags?.includes('hiit') || (e.suggest && ['Bodyweight', 'Kettlebell', 'Dumbbell'].includes(e.equipment ?? '') && !isIsolation(e)))
+    (e.tags?.includes('hiit') || (e.suggest && ['Bodyweight', 'Kettlebell', 'Dumbbell'].includes(e.equipment ?? '') && !isIsolation(e) && !isTechnical(e) && !isQuirky(e) && !tooAdvanced(e)))
   const poolFor = (g: string) => EXERCISES.filter((e) => e.group === g && hiitOk(e) && hasGear(e))
   const withConditioning = [...new Set([...groups, 'Conditioning'])]
 
@@ -644,7 +735,7 @@ function generatePha(groups: string[], minutes: number, rng: Rng, avoid: Set<str
   while (n > 4 && roundMin(n) * 2 > minutes) n--
   // Quick, low-skill stations: not barbell lifts, and compound moves where the group has any.
   const poolFor = (g: string) => {
-    const base = POOL.filter((e) => e.kind === 'strength' && e.group === g && equipmentRank(e) >= 1 && !isAdvanced(e) && hasGear(e))
+    const base = POOL.filter((e) => e.kind === 'strength' && e.group === g && equipmentRank(e) >= 1 && !tooAdvanced(e) && !isTechnical(e) && !isQuirky(e) && hasGear(e))
     const compound = base.filter((e) => !isIsolation(e))
     return compound.length >= 3 ? compound : base
   }
@@ -655,7 +746,7 @@ function generatePha(groups: string[], minutes: number, rng: Rng, avoid: Set<str
   let picked: Exercise[]
   if (upperGroups.length && lowerGroups.length) {
     const up = roundRobinPick(upperGroups, Math.ceil(n / 2), poolFor, avoid, rng)
-    const low = roundRobinPick(lowerGroups, Math.floor(n / 2), poolFor, avoid, rng)
+    const low = roundRobinPick(lowerGroups, Math.floor(n / 2), poolFor, avoid, rng, 1, up)
     const first = rng() < 0.5 ? up : low
     const second = first === up ? low : up
     picked = []
