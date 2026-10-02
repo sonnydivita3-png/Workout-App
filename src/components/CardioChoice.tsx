@@ -1,4 +1,4 @@
-import { cardioFor } from '../lib/cardioPrefs'
+import { allCardio, cardioFor } from '../lib/cardioPrefs'
 import { useStore } from '../store'
 
 const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
@@ -12,7 +12,8 @@ export interface CardioPick { cardio: string[]; split: boolean }
 export function CardioChoice({ value, onChange, gear, hint }: { value: CardioPick; onChange: (v: CardioPick) => void; gear: string[] | null; hint: string }) {
   const prefs = useStore((s) => s.trainingPrefs)
   const setTrainingPrefs = useStore((s) => s.setTrainingPrefs)
-  const options = cardioFor(gear)
+  // What the equipment allows, plus anything they've said they do (a treadmill at home).
+  const options = allCardio().filter((c) => cardioFor(gear).some((x) => x.id === c.id) || prefs.cardio.includes(c.id) || value.cardio.includes(c.id))
   const picked = value.cardio.filter((id) => options.some((c) => c.id === id))
   const toggle = (id: string) => onChange({ ...value, cardio: picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id] })
   const same = picked.length === prefs.cardio.length && picked.every((x) => prefs.cardio.includes(x)) && (picked.length < 2 || value.split === prefs.cardioSplit)

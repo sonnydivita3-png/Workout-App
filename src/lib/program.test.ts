@@ -58,7 +58,7 @@ describe('recovery: never the same major muscle two days in a row', () => {
   it('skips a heavy conflict by using a cardio day when nothing else fits', () => {
     // Everything but cardio hits Legs, Chest, Back, Shoulders somewhere; after a full-body day only cardio is allowed.
     const days = generateProgram(base({ goal: 'muscle', trainWeekdays: [0, 1], prevDayGroups: ['Chest', 'Back', 'Shoulders', 'Legs', 'Glutes'], rng: mulberry32(2) }))
-    expect(days[0].name).toBe('Cardio')
+    expect(days[0].name).toBe('Cardio · Steady')
   })
 })
 
@@ -388,5 +388,27 @@ describe('several goals at once', () => {
     expect(savedGoals({ goals: ['nope' as ProgramGoal] })).toEqual([])
     expect(goalsLabel(['muscle', 'fatloss'])).toBe('Build muscle + Lose fat')
     expect(generateProgram(base({ goal: [] })).some((d) => !d.rest)).toBe(true)
+  })
+})
+
+describe('cardio days in a plan', () => {
+  it('take turns between steady, intervals, tempo and hills, written out for the activity', () => {
+    const days = generateProgram(base({ goal: 'fatloss', weeks: 4, trainWeekdays: [0, 1, 2, 3, 4, 5], rng: mulberry32(3) }))
+    const cardio = days.filter((d) => d.cardioKind)
+    expect(cardio.length).toBeGreaterThan(4)
+    const kinds = new Set(cardio.map((d) => d.cardioKind))
+    expect(kinds.has('intervals') && kinds.has('steady')).toBe(true)
+    for (const d of cardio) {
+      expect(d.name).toMatch(/^Cardio · (Steady|Intervals|Tempo|Hills)$/)
+      expect(d.items).toHaveLength(1)
+      // A session plan, never a circuit of bodyweight moves.
+      expect(BUILTIN_BY_ID.get(d.items[0].exerciseId)?.kind).toBe('cardio')
+      if (d.cardioKind === 'intervals') expect(d.items[0].note).toMatch(/^Intervals/)
+    }
+  })
+  it('keeps its kind when rerolled', () => {
+    const days = generateProgram(base({ goal: 'fatloss', weeks: 1, trainWeekdays: [0, 1, 2, 3, 4, 5], rng: mulberry32(3) }))
+    const d = days.find((x) => x.cardioKind === 'intervals')!
+    expect(rerollDay(d, 45, 1, new Set(), mulberry32(9)).items[0].note).toMatch(/^Intervals/)
   })
 })
