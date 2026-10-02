@@ -3,7 +3,8 @@ import { hasGear } from './equipment'
 import { likedCardio, wodAmount, wodCardio } from './cardioPrefs'
 import type { Exercise, PlannedExercise, Wod, WodKind } from '../types'
 import { buildWodItems, makeTabata } from './wod'
-import { BY_ID, byName, isMainLift, isQuirky, pick, roundTo, roundTo5, softShuffle, type Rng } from './randomUtil'
+import { staysPut } from './stations'
+import { BY_ID, byName, familyOf, isAdvanced, isMainLift, isQuirky, isStaple, isTechnical, pick, roundTo, roundTo5, softShuffle, type Rng } from './randomUtil'
 
 const RUN = 'running'
 const minutesOf = (n: number) => Math.round(n * 10) / 10
@@ -105,6 +106,29 @@ function wodReps(e: Exercise, rng: Rng, hard: boolean): number {
 type WodFormat = 'AMRAP' | 'EMOM' | 'FT'
 
 /**
+ * Movements for one timed piece, picked in pool order: `start` (e.g. a cardio machine) plus whatever `fits`, until there
+ * are `count`. The piece stays in one area of the gym, like circuits: portable gear and floor moves plus at most one fixed
+ * station (the cardio machine doesn't count). If that leaves it short, any mix is allowed rather than a thin workout.
+ */
+function pickMoves(pool: Exercise[], start: Exercise[], count: number, fits: (e: Exercise, moves: Exercise[]) => boolean): Exercise[] {
+  const run = (stay: boolean) => {
+    const moves = [...start]
+    for (const e of pool) {
+      if (moves.length >= count) break
+      // Never the same movement twice in one piece (air squats and bodyweight squats).
+      if (moves.includes(e) || !fits(e, moves) || (familyOf(e) && moves.some((x) => familyOf(x) === familyOf(e)))) continue
+      if (stay && e.kind !== 'cardio' && !staysPut(moves.filter((x) => x.kind !== 'cardio'), e)) continue
+      moves.push(e)
+    }
+    return moves
+  }
+  const near = run(true)
+  if (near.length >= Math.min(count, start.length + 3)) return near
+  const any = run(false)
+  return any.length > near.length ? any : near
+}
+
+/**
  * A cardio station for a timed piece (rower, SkiErg, air bike, run…): one they like whenever they've said, otherwise
  * most of the time from the classic machines. Each machine once per workout.
  */
@@ -172,17 +196,11 @@ export function generateCrossfit(minutes: number, rng: Rng, avoid: Set<string>):
   for (const [part, m] of parts) {
     const count = m <= 12 ? 3 : 4
     const machine = machineFor(rng, used, avoid)
-    const moves: Exercise[] = machine ? [machine] : []
     if (machine) used.add(machine.id)
-    for (const e of pool) {
-      if (used.has(e.id)) continue
-      // Keep the mix varied: at most one core move and one erg per WOD.
-      if (e.group === 'Core' && moves.some((x) => x.group === 'Core')) continue
-      if (e.mode === 'time' && moves.some((x) => x.mode === 'time')) continue
-      moves.push(e)
-      used.add(e.id)
-      if (moves.length === count) break
-    }
+    // Keep the mix varied: at most one core move and one erg per WOD.
+    const moves = pickMoves(pool, machine ? [machine] : [], count, (e, ms) =>
+      !used.has(e.id) && !(e.group === 'Core' && ms.some((x) => x.group === 'Core')) && !(e.mode === 'time' && ms.some((x) => x.mode === 'time')))
+    moves.forEach((e) => used.add(e.id))
     if (moves.length >= 2) out.push(...buildWod(m, moves, rng, part))
   }
   return out
@@ -201,25 +219,23 @@ function timedPool(focus: string[]): Exercise[] {
   const base = crossfitPool()
   if (focus.length === 0) return base
   const inFocus = (e: Exercise) => focus.includes(e.group)
-  const extra = EXERCISES.filter((e) => e.suggest && e.kind === 'strength' && e.mode !== 'time' && inFocus(e) && HOME_GEAR.includes(e.equipment ?? '') && hasGear(e))
+  // Simple, quick moves for the clock: no Olympic lifts, gimmicks or advanced skills.
+  const extra = EXERCISES.filter((e) => e.suggest && e.kind === 'strength' && e.mode !== 'time' && inFocus(e) && HOME_GEAR.includes(e.equipment ?? '') && !isTechnical(e) && !isQuirky(e) && !isAdvanced(e) && hasGear(e))
   return [...new Map([...base.filter(inFocus), ...extra].map((e) => [e.id, e])).values()]
 }
 
 /** An AMRAP, EMOM or for-time workout that fits about `minutes`. Long sessions get a second and third part. */
 export function generateTimed(kind: WodKind, focus: string[], minutes: number, rng: Rng, avoid: Set<string>, cardio = false): PlannedExercise[] {
-  const pool = softShuffle(timedPool(focus), avoid, rng)
+  // Everyday moves first (push-ups, goblet squats, swings…), the rest of the library only to fill gaps.
+  const shuffled = softShuffle(timedPool(focus), avoid, rng)
+  const pool = [...shuffled.filter((e) => e.tags?.includes('crossfit') || isStaple(e)), ...shuffled.filter((e) => !e.tags?.includes('crossfit') && !isStaple(e))]
   // A cardio machine joins full-body pieces, and any piece when Cardio was picked as a focus.
   const wantMachine = (used: Set<string>) => (cardio || focus.length === 0 ? machineFor(rng, used, avoid, cardio) : undefined)
   if (kind === 'tabata') {
     // Each movement gets a classic 4-minute Tabata (20s on / 10s off x 8) with a minute's rest before the next.
     const want = Math.min(6, Math.max(2, Math.round(minutes / 5)))
     const machine = wantMachine(new Set())
-    const moves: Exercise[] = machine ? [machine] : []
-    for (const e of pool) {
-      if (e.kind === 'cardio' || (e.group === 'Core' && moves.some((x) => x.group === 'Core'))) continue
-      moves.push(e)
-      if (moves.length === want) break
-    }
+    const moves = pickMoves(pool, machine ? [machine] : [], want, (e, ms) => e.kind !== 'cardio' && !(e.group === 'Core' && ms.some((x) => x.group === 'Core')))
     if (moves.length < 2) return []
     const wod = makeTabata(moves.length)
     return buildWodItems({ wod, moves: moves.map((e) => ({ exerciseId: e.id })), block: 'tabata', label: `Tabata · ${moves.length} movements · 20s on / 10s off × 8 each, 1 min rest between` })
@@ -232,14 +248,8 @@ export function generateTimed(kind: WodKind, focus: string[], minutes: number, r
     const m = part === 0 ? Math.min(left, minutes > 45 ? cap : Math.max(cap, 30)) : Math.min(cap, left - 2)
     const count = m <= 10 ? 3 : 4
     const machine = wantMachine(used)
-    const moves: Exercise[] = machine ? [machine] : []
-    for (const e of pool) {
-      if (used.has(e.id)) continue
-      if (e.group === 'Core' && moves.some((x) => x.group === 'Core')) continue
-      if (e.mode === 'time' && moves.some((x) => x.mode === 'time')) continue
-      moves.push(e)
-      if (moves.length === count) break
-    }
+    const moves = pickMoves(pool, machine ? [machine] : [], count, (e, ms) =>
+      !used.has(e.id) && !(e.group === 'Core' && ms.some((x) => x.group === 'Core')) && !(e.mode === 'time' && ms.some((x) => x.mode === 'time')))
     if (moves.length < 2) break
     moves.forEach((e) => used.add(e.id))
     out.push(...buildWod(m, moves, rng, part === 0 ? 'WOD' : `Part ${String.fromCharCode(65 + part)}`, KIND_TO_FORMAT[kind as Exclude<WodKind, 'tabata'>]))
