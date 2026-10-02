@@ -225,12 +225,13 @@ export function generateCrossfit(minutes: number, rng: Rng, avoid: Set<string>):
     const machine = machineFor(rng, used, avoid)
     if (machine) used.add(machine.id)
     // Keep the mix varied: at most one core move and one erg per WOD.
-    const fits = (fresh: boolean) => (e: Exercise, ms: Exercise[]) =>
-      (!fresh || !used.has(e.id)) && !(e.group === 'Core' && ms.some((x) => x.group === 'Core')) && !(e.mode === 'time' && ms.some((x) => x.mode === 'time'))
+    const fits = () => (e: Exercise, ms: Exercise[]) =>
+      !used.has(e.id) && !(e.group === 'Core' && ms.some((x) => x.group === 'Core')) && !(e.mode === 'time' && ms.some((x) => x.mode === 'time'))
       && !(ROPE.test(e.name) && ms.some((x) => ROPE.test(x.name)))
-    // New moves for each part; with little equipment, a later part can bring one back in a different format.
-    let moves = pickMoves(pool, machine ? [machine] : [], count, fits(true))
-    if (moves.length < Math.min(3, count)) moves = pickMoves(pool, machine ? [machine] : [], count, fits(false))
+    // New moves for each part (a day holds each exercise once, so its log stays its own). With little equipment the
+    // usual list runs out: then any simple, compound move they can do.
+    let moves = pickMoves(pool, machine ? [machine] : [], count, fits())
+    if (moves.length < Math.min(3, count)) moves = pickMoves([...pool, ...softShuffle(widerPool([]), avoid, rng)], machine ? [machine] : [], count, fits())
     moves.forEach((e) => used.add(e.id))
     if (moves.length >= 2) out.push(...buildWod(m, moves, rng, part))
   }
@@ -245,13 +246,19 @@ export function generateCrossfit(minutes: number, rng: Rng, avoid: Set<string>):
 const KIND_TO_FORMAT: Record<Exclude<WodKind, 'tabata'>, WodFormat> = { amrap: 'AMRAP', emom: 'EMOM', fortime: 'FT' }
 const HOME_GEAR = ['Bodyweight', 'Dumbbell', 'Kettlebell']
 
+/** Any simple, everyday compound move someone can do (for the chosen parts, if any): the fallback when the usual list runs out. */
+const widerPool = (focus: string[]) =>
+  EXERCISES.filter((e) => e.suggest && e.kind === 'strength' && (focus.length === 0 || focus.includes(e.group)) && isStaple(e) && !isIsolation(e) && !isTechnical(e) && !isQuirky(e) && !isAdvanced(e) && hasGear(e))
+
 /** Movements that suit a timed piece, limited to the chosen body parts when there are any. */
 function timedPool(focus: string[]): Exercise[] {
   const base = crossfitPool()
   if (focus.length === 0) return base
   const inFocus = (e: Exercise) => focus.includes(e.group)
   // Simple, quick moves for the clock: no Olympic lifts, gimmicks or advanced skills.
-  const extra = EXERCISES.filter((e) => e.suggest && e.kind === 'strength' && e.mode !== 'time' && inFocus(e) && HOME_GEAR.includes(e.equipment ?? '') && !isTechnical(e) && !isQuirky(e) && !isAdvanced(e) && hasGear(e))
+  // Single-joint moves (flyes, curls) only when the focus is a small muscle; a chest AMRAP is presses and push-ups.
+  const small = focus.some((g) => ['Biceps', 'Triceps', 'Calves', 'Core', 'Shoulders'].includes(g))
+  const extra = EXERCISES.filter((e) => e.suggest && e.kind === 'strength' && (e.mode !== 'time' || focus.includes('Core')) && inFocus(e) && HOME_GEAR.includes(e.equipment ?? '') && !isTechnical(e) && !isQuirky(e) && !isAdvanced(e) && (small || !isIsolation(e)) && hasGear(e))
   return [...new Map([...base.filter(inFocus), ...extra].map((e) => [e.id, e])).values()]
 }
 
@@ -262,11 +269,16 @@ export function generateTimed(kind: WodKind, focus: string[], minutes: number, r
   const pool = [...shuffled.filter((e) => e.tags?.includes('crossfit') || isStaple(e)), ...shuffled.filter((e) => !e.tags?.includes('crossfit') && !isStaple(e))]
   // A cardio machine joins full-body pieces, and any piece when Cardio was picked as a focus.
   const wantMachine = (used: Set<string>) => (cardio || focus.length === 0 ? machineFor(rng, used, avoid, cardio) : undefined)
+  // At most one core move per piece, unless core is all they asked for.
+  const coreOnly = focus.length > 0 && focus.every((g) => g === 'Core')
+  const oneCore = (e: Exercise, ms: Exercise[]) => coreOnly || !(e.group === 'Core' && ms.some((x) => x.group === 'Core'))
   if (kind === 'tabata') {
     // Each movement gets a classic 4-minute Tabata (20s on / 10s off x 8) with a minute's rest before the next.
-    const want = Math.min(6, Math.max(2, Math.round(minutes / 5)))
+    // Up to ten 4-minute Tabatas (about 49 minutes): more than that isn't a Tabata session any more.
+    const want = Math.min(10, Math.max(2, Math.round(minutes / 5)))
     const machine = wantMachine(new Set())
-    const moves = pickMoves(pool, machine ? [machine] : [], want, (e, ms) => e.kind !== 'cardio' && !(e.group === 'Core' && ms.some((x) => x.group === 'Core')))
+    let moves = pickMoves(pool, machine ? [machine] : [], want, (e, ms) => e.kind !== 'cardio' && oneCore(e, ms))
+    if (moves.length < want) moves = pickMoves([...pool, ...softShuffle(widerPool(focus), avoid, rng)], machine ? [machine] : [], want, (e, ms) => e.kind !== 'cardio' && oneCore(e, ms))
     if (moves.length < 2) return []
     const wod = makeTabata(moves.length)
     return buildWodItems({ wod, moves: moves.map((e) => ({ exerciseId: e.id })), block: 'tabata', label: `Tabata · ${moves.length} movements · 20s on / 10s off × 8 each, 1 min rest between` })
@@ -275,12 +287,17 @@ export function generateTimed(kind: WodKind, focus: string[], minutes: number, r
   const out: PlannedExercise[] = []
   let left = minutes
   const cap = kind === 'emom' ? 24 : 20
-  for (let part = 0; part < 3 && left >= (part === 0 ? 5 : 12); part++) {
+  // Up to four parts with a 2-minute break between, so long sessions fill their time.
+  for (let part = 0; part < 4 && left >= (part === 0 ? 5 : 10); part++) {
     const m = part === 0 ? Math.min(left, minutes > 45 ? cap : Math.max(cap, 30)) : Math.min(cap, left - 2)
     const count = m <= 10 ? 3 : 4
     const machine = wantMachine(used)
-    const moves = pickMoves(pool, machine ? [machine] : [], count, (e, ms) =>
-      !used.has(e.id) && !(e.group === 'Core' && ms.some((x) => x.group === 'Core')) && !(e.mode === 'time' && ms.some((x) => x.mode === 'time')))
+    const fits = () => (e: Exercise, ms: Exercise[]) =>
+      !used.has(e.id) && oneCore(e, ms) && !(e.mode === 'time' && ms.some((x) => x.mode === 'time'))
+    // New moves for each part (a day holds each exercise once). With a small pool (bodyweight, one muscle), the
+    // part draws on any simple move for those body parts they can do.
+    let moves = pickMoves(pool, machine ? [machine] : [], count, fits())
+    if (moves.length < Math.min(3, count)) moves = pickMoves([...pool, ...softShuffle(widerPool(focus), avoid, rng)], machine ? [machine] : [], count, fits())
     if (moves.length < 2) break
     moves.forEach((e) => used.add(e.id))
     out.push(...buildWod(m, moves, rng, part === 0 ? 'WOD' : `Part ${String.fromCharCode(65 + part)}`, KIND_TO_FORMAT[kind as Exclude<WodKind, 'tabata'>]))

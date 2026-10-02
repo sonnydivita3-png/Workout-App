@@ -321,12 +321,12 @@ describe('AMRAP, EMOM and for time', () => {
 })
 
 describe('tabata', () => {
-  it('makes 2-6 movements with the classic 20/10 x 8 timing', () => {
+  it('makes 2-10 movements with the classic 20/10 x 8 timing', () => {
     for (const minutes of [10, 20, 30, 60]) {
       for (let seed = 1; seed <= 15; seed++) {
         const w = gen('tabata', [], minutes, seed)
         expect(w.length).toBeGreaterThanOrEqual(2)
-        expect(w.length).toBeLessThanOrEqual(6)
+        expect(w.length).toBeLessThanOrEqual(10)
         expect(w[0].wod).toMatchObject({ kind: 'tabata', work: 20, rest: 10, rounds: 8, intervals: w.length * 8 })
         expect(minutesFor(w)).toBeLessThanOrEqual(minutes + 3)
       }
@@ -401,6 +401,36 @@ describe('Hyrox and CrossFit fit the person', () => {
           for (const b of new Set(rope.map((p) => p.block))) expect(rope.filter((p) => p.block === b).length).toBeLessThanOrEqual(1)
         }
       }
+    }
+  })
+})
+
+describe('timed and HIIT workouts with any equipment and focus', () => {
+  const GEAR: (string[] | null)[] = [null, ['Barbell', 'Dumbbell', 'Kettlebell', 'Bands', 'Other'], []]
+  const FOCUS = [[], ['Chest', 'Back'], ['Quads', 'Hamstrings', 'Glutes'], ['Biceps', 'Triceps'], ['Core']]
+  it('never put the same exercise in a day twice (each has its own log), and are never empty', () => {
+    for (const st of ['amrap', 'emom', 'fortime', 'tabata', 'circuit', 'pha', 'crossfit', 'hyrox'] as const) {
+      for (const gear of GEAR) for (const focus of FOCUS) for (const minutes of [20, 45, 90]) {
+        const w = withGearFor(gear, () => gen(st, focus, minutes, 3))
+        const tag = `${st} ${JSON.stringify(gear)} ${focus.join('+')} ${minutes}`
+        expect(w.length, tag).toBeGreaterThan(0)
+        expect(new Set(w.map((p) => p.exerciseId)).size, tag).toBe(w.length)
+      }
+    }
+  })
+  it('fill the time asked (Tabata tops out around 50 minutes)', () => {
+    for (const st of ['amrap', 'emom', 'fortime', 'circuit', 'pha'] as const) {
+      for (const minutes of [20, 45, 90]) {
+        const w = gen(st, [], minutes, 2)
+        expect(minutesFor(w), `${st} ${minutes}`).toBeGreaterThanOrEqual(minutes * 0.8)
+      }
+    }
+    expect(minutesFor(gen('tabata', [], 90, 2))).toBeGreaterThanOrEqual(45)
+  })
+  it('a chest and back AMRAP has no flyes; core on its own works', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      expect(gen('amrap', ['Chest', 'Back'], 30, seed).some((p) => /fly|flye/i.test(BUILTIN_BY_ID.get(p.exerciseId)?.name ?? ''))).toBe(false)
+      expect(gen('emom', ['Core'], 20, seed).length).toBeGreaterThan(1)
     }
   })
 })

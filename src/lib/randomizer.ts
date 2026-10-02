@@ -144,7 +144,8 @@ export function generateWarmup(focus: string[], w: WarmupOptions, rng: Rng, avoi
     // Their favourite machine when they have one (easy running is a warm-up too, swimming and cycling outside aren't).
     const ok = (c: string) => BY_ID.has(c) && hasGear(BY_ID.get(c)!)
     const mine = (likedCardio() ?? []).map((e) => e.id).filter((id) => id !== 'swimming' && id !== 'cycling')
-    const id = mine.find((c) => !avoid.has(c)) ?? mine[0] ?? WARMUP_CARDIO.find((c) => !avoid.has(c) && ok(c)) ?? WARMUP_CARDIO.find(ok) ?? 'walking'
+    // Something not already in the workout first (the WOD's rower stays the WOD's), else their favourite anyway.
+    const id = mine.find((c) => !avoid.has(c)) ?? WARMUP_CARDIO.find((c) => !avoid.has(c) && ok(c)) ?? (['walking'].find((c) => !avoid.has(c))) ?? mine[0] ?? WARMUP_CARDIO.find(ok) ?? 'walking'
     out.push({ exerciseId: id, sets: 1, minutes: Math.round(w.cardio), est: Math.round(w.cardio), note: 'Easy pace, building up gradually', ...base })
   }
   if (w.mobility && w.mobility > 0) {
@@ -686,7 +687,11 @@ function roundRobinPick(groups: string[], count: number, poolFor: (g: string) =>
       for (const g of order) {
         if (picked.length >= count) break
         const q = queues.get(g)!
-        const i = q.findIndex((e) => !taken.has(e.id) && (!stay || staysPut([...already, ...picked], e, maxFixed)))
+        // A different movement at each station (not two floor presses or two pull-ups), when the pool allows.
+        const fams = new Set([...already, ...picked].map(familyOf).filter(Boolean))
+        const ok = (e: Exercise) => !taken.has(e.id) && (!stay || staysPut([...already, ...picked], e, maxFixed))
+        let i = q.findIndex((e) => ok(e) && !(familyOf(e) && fams.has(familyOf(e))))
+        if (i < 0) i = q.findIndex(ok)
         if (i < 0) continue
         const [next] = q.splice(i, 1)
         picked.push(next)
@@ -735,7 +740,7 @@ function generateCircuit(groups: string[], minutes: number, rng: Rng, avoid: Set
     picked.splice(Math.floor(picked.length / 2), 0, pick(machines, rng))
   }
   n = picked.length
-  const rounds = Math.max(2, Math.min(6, Math.floor(minutes / roundMin(n))))
+  const rounds = Math.max(2, Math.min(minutes >= 75 ? 10 : 6, Math.floor(minutes / roundMin(n))))
   const blockLabel = `HIIT circuit · ${rounds} rounds · ${WORK}s on / ${REST}s off · ${ROUND_REST} min rest between rounds`
   return picked.map((e) => ({
     exerciseId: e.id, sets: rounds, note: `${WORK}s on / ${REST}s off`, est: (rounds * roundMin(n)) / n, block: 'circuit', blockLabel,
@@ -774,7 +779,7 @@ function generatePha(groups: string[], minutes: number, rng: Rng, avoid: Set<str
   if (picked.length === 0) return []
 
   const k = picked.length
-  const rounds = Math.max(2, Math.min(minutes >= 75 ? 8 : 6, Math.floor(minutes / roundMin(k))))
+  const rounds = Math.max(2, Math.min(minutes >= 75 ? 10 : 6, Math.floor(minutes / roundMin(k))))
   const blockLabel = `PHA circuit · ${rounds} rounds · station to station with no rest, ${ROUND_REST * 60}s between rounds`
   return picked.map((e) => ({
     exerciseId: e.id, sets: rounds, ...(e.mode === 'time' ? { seconds: 40 } : { reps: pick([12, 15], rng) }),
@@ -876,7 +881,9 @@ export function generateWorkout(focusIn: string[], minutes: number, opts: Genera
     const own = !opts.warmed && minutes >= 30 ? 8 : 0
     const main = style === 'hyrox' ? generateHyrox(minutes - own, rng) : generateCrossfit(minutes - own, rng, avoid)
     if (!own) return main
-    const warm = generateWarmup(FULL_BODY_GROUPS, { cardio: 4, mobility: 4 }, rng, new Set(main.map((p) => p.exerciseId)))
+    const ids = new Set(main.map((p) => p.exerciseId))
+    // Never the same exercise twice in a day: if the warm-up picked the WOD's machine, it warms up without it.
+    const warm = generateWarmup(FULL_BODY_GROUPS, { cardio: 4, mobility: 4 }, rng, ids).filter((p) => !ids.has(p.exerciseId))
     return [...warm, ...main]
   }
   if (style === 'amrap' || style === 'emom' || style === 'fortime' || style === 'tabata') return generateTimed(style, focus.filter((g) => g !== 'Cardio'), minutes, rng, avoid, focus.includes('Cardio'))
