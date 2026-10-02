@@ -17,7 +17,7 @@ import { ChallengeDetailSheet } from './ChallengeDetailSheet'
 import { MakeForFriendSheet } from './MakeForFriendSheet'
 import { InviteButton } from '../InviteButton'
 import { ConnectionStatus } from './ConnectionStatus'
-import { challengeStatus } from '../../social/challengeStatus'
+import { challengeStatus, isLive, timeIsUp } from '../../social/challengeStatus'
 
 type Section = 'inbox' | 'friends' | 'challenges'
 
@@ -124,8 +124,11 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   const earlierShares = newestFirst(shares.filter((x) => !x.mine && x.status !== 'pending')).slice(0, 5)
   const shareTitle = (id?: string) => shares.find((x) => x.id === id)?.title
   const repliesTo = (id: string) => newestFirst(emoji.filter((m) => !m.mine && m.contextType === 'share' && m.contextId === id)).reverse()
-  const activeChallenges = challenges.filter((c) => c.status === 'active')
-  const pastChallenges = challenges.filter((c) => ['completed', 'declined', 'cancelled'].includes(c.status)).slice(0, 10)
+  // Accepted and still inside their time; ones whose time ran out move to Past.
+  const activeChallenges = challenges.filter((c) => isLive(c))
+  const pastChallenges = challenges.filter((c) => ['completed', 'declined', 'cancelled'].includes(c.status) || timeIsUp(c)).slice(0, 10)
+  const myRequests = [...workoutRequests.filter((x) => x.mine)].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5)
+  const challengeTitle = (id?: string) => challenges.find((x) => x.id === id)?.title
   const waitingChallenges = challenges.filter((c) => c.mine && c.status === 'pending')
 
   const run = async (fn: Parameters<typeof act>[0]) => {
@@ -175,6 +178,7 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
                       <span className="block truncate text-sm font-medium">{c.emoji} {c.title}</span>
                       <span className="block text-xs text-neutral-500">{challengeStatus(c)}</span>
                     </button>
+                    <button onClick={() => { markChallengesSeen({ [c.id]: c.status }); setOpenChallenge(c.id) }} className="rounded-full bg-accent px-3 py-1 text-sm text-on-accent">{c.status === 'active' ? 'Progress' : 'View'}</button>
                     <button onClick={() => markChallengesSeen({ [c.id]: c.status })} className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-600">OK</button>
                   </li>
                 ))}
@@ -227,11 +231,30 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
               <ul className="divide-y divide-neutral-100">
                 {incomingChallenges.map((c) => (
                   <li key={c.id} className="py-2">
-                    <button onClick={() => setOpenChallenge(c.id)} className="block text-left"><span className="block text-sm font-medium">{c.emoji} {c.title}</span><span className="block text-xs text-neutral-400">from {c.from.displayName} · tap for details</span></button>
+                    <button onClick={() => setOpenChallenge(c.id)} className="block text-left"><span className="block text-sm font-medium">{c.emoji} {c.title}</span><span className="block text-xs text-neutral-400">from {c.from.displayName} · {c.days} day{c.days === 1 ? '' : 's'} once you accept · tap for details</span></button>
                     <div className="mt-2 flex gap-2">
                       <button onClick={() => run((b) => b.respondChallenge(c.id, true))} className="rounded-full bg-accent px-3 py-1 text-sm text-on-accent">Accept</button>
-                      <button onClick={() => run((b) => b.respondChallenge(c.id, false))} className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-600">Decline</button>
+                      <button onClick={() => run((b) => b.respondChallenge(c.id, false))} className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-600">No thanks</button>
                     </div>
+                    <p className="mt-1 text-xs text-neutral-400">Not sure yet? Leave it here and decide later. {c.from.displayName} sees your answer either way.</p>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+          {myRequests.length > 0 && (
+            <Card title="Workouts you asked for">
+              <ul className="divide-y divide-neutral-100">
+                {myRequests.map((x) => (
+                  <li key={x.id} className="flex items-center gap-3 py-2">
+                    <Avatar profile={x.to} size="sm" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm">A {x.scope === 'day' ? 'day' : x.scope === 'week' ? 'week' : '4 weeks'} of workouts from {x.to.displayName}</span>
+                      <span className="block text-xs text-neutral-400">{x.status === 'fulfilled' ? '✅ They made you one' : x.status === 'declined' ? 'They said not now' : '⏳ Waiting for them'} · {ago(x.createdAt)}</span>
+                    </span>
+                    {x.status === 'fulfilled' && x.shareId && shares.some((sh) => sh.id === x.shareId) && (
+                      <button onClick={() => setAdding(shares.find((sh) => sh.id === x.shareId)!)} className="rounded-full bg-accent px-3 py-1 text-sm text-on-accent">View</button>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -275,7 +298,7 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
                 {unread.map((m) => (
                   <li key={m.id} className="flex items-center gap-3 text-sm">
                     <span className="text-2xl">{m.emoji}</span>
-                    <span className="min-w-0 flex-1">{m.from.displayName}{m.contextType === 'share' && shareTitle(m.contextId) ? <span className="block truncate text-xs text-neutral-400">on your workout “{shareTitle(m.contextId)}”</span> : null}</span>
+                    <span className="min-w-0 flex-1">{m.from.displayName}{m.contextType === 'share' && shareTitle(m.contextId) ? <span className="block truncate text-xs text-neutral-400">on your workout “{shareTitle(m.contextId)}”</span> : m.contextType === 'challenge' && challengeTitle(m.contextId) ? <span className="block truncate text-xs text-neutral-400">on the challenge “{challengeTitle(m.contextId)}”</span> : null}</span>
                     <span className="text-xs text-neutral-400">{ago(m.createdAt)}</span>
                   </li>
                 ))}

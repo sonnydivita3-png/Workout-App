@@ -70,7 +70,7 @@ export default function App() {
         {tab === 'settings' && <SettingsView key={sub ?? 'default'} initialPage={sub} onBack={() => navigate('home')} />}
       </main>
       <TabBar tab={tab} onChange={(t) => navigate(t)} />
-      <Toasts />
+      <Toasts onOpen={(t) => navigate(t)} />
       {showTour && <Tour />}
     </>
   )

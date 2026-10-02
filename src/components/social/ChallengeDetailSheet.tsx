@@ -4,6 +4,9 @@ import { fmtLong, parseISO, toISO } from '../../lib/dates'
 import { storeDistance, storeWeight } from '../../lib/units'
 import { useToday } from '../../lib/useToday'
 import { challengeProgress, formatAmount } from '../../social/challengeProgress'
+import { timeIsUp } from '../../social/challengeStatus'
+import type { Emoji } from '../../social/types'
+import { EmojiBar } from './EmojiBar'
 import { useSocial } from '../../social/store'
 import { findExercise, useStore } from '../../store'
 import type { Exercise, StrengthSet } from '../../types'
@@ -24,7 +27,7 @@ function cleanExercise(x: { id: string; name: string; kind: 'strength' | 'cardio
 export function ChallengeDetailSheet({ id, onNavigate, onClose }: { id: string; onNavigate: (t: Tab) => void; onClose: () => void }) {
   const today = useToday()
   const { logs, custom, units, saveStrength, saveCardio, addCustomExercises, addPlanned } = useStore()
-  const { challenges, act } = useSocial()
+  const { challenges, act, friends } = useSocial()
   const c = challenges.find((x) => x.id === id)
   const markChallengesSeen = useStore((s) => s.markChallengesSeen)
   // Opening my own challenge counts as seeing the friend's answer.
@@ -37,6 +40,7 @@ export function ChallengeDetailSheet({ id, onNavigate, onClose }: { id: string; 
   const [sport, setSport] = useState<'running' | 'cycling'>('running')
   const [note, setNote] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [cheered, setCheered] = useState<Emoji | null>(null)
 
   if (!c) return null
   const lookup = (x: string) => findExercise(custom, x) ?? BUILTIN_BY_ID.get(x)
@@ -44,7 +48,14 @@ export function ChallengeDetailSheet({ id, onNavigate, onClose }: { id: string; 
   const other = c.mine ? c.to : c.from
   const live = c.status === 'active' && !c.mine ? challengeProgress(c, logs, today, lookup) : { progress: c.progress, done: c.done }
   const pct = Math.min(100, Math.round((live.progress / Math.max(c.target, 1)) * 100))
-  const canLog = !c.mine && c.status === 'active'
+  const canLog = !c.mine && c.status === 'active' && !timeIsUp(c)
+  const over = timeIsUp(c)
+  const friend = friends.find((f) => f.profile.id === other.id)
+  const cheer = async (e: Emoji) => {
+    setError(null)
+    const r = await act((b) => b.sendEmoji({ toId: other.id, emoji: e, contextType: 'challenge', contextId: c.id }))
+    if (r.ok) setCheered(e); else setError(r.error)
+  }
   const daysLeft = c.endsAt ? Math.max(0, Math.round((parseISO(toISO(new Date(c.endsAt))).getTime() - parseISO(today).getTime()) / 86400000)) : null
 
   const respond = async (accept: boolean) => {
@@ -110,14 +121,20 @@ export function ChallengeDetailSheet({ id, onNavigate, onClose }: { id: string; 
       {spec.senderResults && spec.senderResults.length > 0 && <p className="mb-4 text-sm text-neutral-500">To beat: {spec.senderResults.join(' · ')}</p>}
 
       {c.status === 'pending' && !c.mine && (
-        <div className="mb-2 flex gap-2">
-          <button onClick={() => respond(true)} className={primary}>Accept</button>
-          <button onClick={() => respond(false)} className={secondary}>Decline</button>
-        </div>
+        <>
+          <p className="mb-3 text-sm text-neutral-500">You’ll have {c.days} day{c.days === 1 ? '' : 's'} from when you accept. {other.displayName} sees your answer and your progress.</p>
+          <div className="mb-2 flex gap-2">
+            <button onClick={() => respond(true)} className={primary}>Accept</button>
+            <button onClick={() => respond(false)} className={secondary}>No thanks</button>
+          </div>
+          <button onClick={onClose} className="mb-2 w-full py-2 text-sm text-neutral-500">Decide later (keep it in my inbox)</button>
+        </>
       )}
-      {c.status === 'pending' && c.mine && <p className="text-sm text-neutral-500">⏳ Waiting for {other.displayName} to accept.</p>}
-      {c.status === 'active' && c.mine && <p className="mb-2 text-sm font-medium text-green-600">✅ {other.displayName} accepted{c.acceptedAt ? ` on ${fmtLong(c.acceptedAt.slice(0, 10))}` : ''}.</p>}
-      {c.status === 'declined' && c.mine && <p className="text-sm text-neutral-500">{other.displayName} declined this one.</p>}
+      {c.status === 'pending' && c.mine && <p className="text-sm text-neutral-500">⏳ Waiting for {other.displayName} to answer. You’ll see it in your inbox when they accept or say no thanks.</p>}
+      {c.status === 'active' && c.mine && !over && <p className="mb-2 text-sm font-medium text-green-600">✅ {other.displayName} accepted{c.acceptedAt ? ` on ${fmtLong(c.acceptedAt.slice(0, 10))}` : ''}. Their progress updates whenever they use the app, and you’ll be told when they finish.</p>}
+      {c.status === 'declined' && <p className="text-sm text-neutral-500">{c.mine ? `${other.displayName} said no thanks to this one.` : 'You said no thanks to this one.'}</p>}
+      {over && <p className="mb-2 text-sm text-neutral-500">⏱ Time’s up. {c.mine ? `${other.displayName} got` : 'You got'} {formatAmount(c, c.progress, units)} of {formatAmount(c, c.target, units)}.</p>}
+      {c.status === 'completed' && c.done && c.mine && <p className="mb-2 text-sm font-medium text-green-600">🏆 {other.displayName} finished it!</p>}
 
       {canLog && spec.mode !== 'workout' && !isCardio && ex && (
         <div>
@@ -171,6 +188,13 @@ export function ChallengeDetailSheet({ id, onNavigate, onClose }: { id: string; 
         </div>
       )}
 
+      {(c.status === 'active' || c.status === 'completed') && (
+        <div className="mt-4 rounded-2xl bg-neutral-50 p-3">
+          <p className="mb-2 text-sm font-semibold text-neutral-700">{c.mine ? (c.done ? `Congratulate ${other.displayName}` : `Cheer ${other.displayName} on`) : `Reply to ${other.displayName}`}</p>
+          <EmojiBar disabled={!friend?.theyGrant.emoji} onPick={cheer} selected={cheered ?? undefined} />
+          <p role="status" className="mt-2 text-xs text-neutral-500">{cheered ? `✓ ${cheered} sent to ${other.displayName}` : friend?.theyGrant.emoji ? 'Tap an emoji to send it.' : `${other.displayName} hasn’t allowed emoji.`}</p>
+        </div>
+      )}
       {note && <p role="status" className="mt-2 rounded-xl bg-green-50 px-3 py-2 text-sm text-green-800">{note}</p>}
       {live.done && c.status === 'active' && !c.mine && <p className="mt-3 text-sm text-neutral-500">Nice work. {other.displayName} will see it’s done the next time they open the app.</p>}
     </Sheet>

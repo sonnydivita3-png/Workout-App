@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { challengeStatus } from './challengeStatus'
+import { challengeStatus, isLive, timeIsUp } from './challengeStatus'
 import { challengeUpdates, pendingCount } from './store'
 import type { Challenge, Profile } from './types'
 
@@ -13,10 +13,18 @@ const ch = (over: Partial<Challenge>): Challenge => ({
 
 describe('challenge status in plain words', () => {
   it('says where a challenge I sent stands', () => {
-    expect(challengeStatus(ch({}))).toBe('⏳ Waiting for Alex to accept')
+    expect(challengeStatus(ch({}))).toBe('⏳ Waiting for Alex to answer')
     expect(challengeStatus(ch({ status: 'active', endsAt: '2026-10-07T12:00:00Z' }))).toMatch(/^✅ Alex accepted · ends /)
-    expect(challengeStatus(ch({ status: 'declined' }))).toBe('Alex declined')
+    expect(challengeStatus(ch({ status: 'declined' }))).toBe('Alex said no thanks')
     expect(challengeStatus(ch({ status: 'completed', done: true }))).toBe('🏆 Alex finished it')
+  })
+  it('says when time ran out on an accepted challenge that was never finished', () => {
+    const over = ch({ status: 'active', endsAt: '2026-09-30T12:00:00Z' })
+    expect(timeIsUp(over, NOW)).toBe(true)
+    expect(isLive(over, NOW)).toBe(false)
+    expect(challengeStatus(over, NOW)).toBe('⏱ Time’s up · Alex didn’t finish')
+    expect(challengeStatus({ ...over, mine: false, from: alex, to: me }, NOW)).toBe('From Alex · ⏱ time’s up')
+    expect(isLive(ch({ status: 'active', endsAt: '2026-10-07T12:00:00Z' }), NOW)).toBe(true)
   })
   it('and one sent to me', () => {
     expect(challengeStatus(ch({ mine: false, from: alex, to: me }))).toBe('From Alex · waiting for you')

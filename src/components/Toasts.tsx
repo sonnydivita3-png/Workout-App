@@ -1,19 +1,21 @@
 import { useEffect, useState } from 'react'
 import { useToasts, type Toast } from '../toastStore'
 
-function ToastItem({ toast }: { toast: Toast }) {
+function ToastItem({ toast, onOpen }: { toast: Toast; onOpen?: (to: NonNullable<Toast['open']>) => void }) {
   const dismiss = useToasts((s) => s.dismiss)
   useEffect(() => {
     const t = setTimeout(() => dismiss(toast.id), 5000)
     return () => clearTimeout(t)
   }, [toast, dismiss])
+  const go = toast.open && onOpen ? toast.open : null
   return (
     <button
-      onClick={() => dismiss(toast.id)}
+      onClick={() => { dismiss(toast.id); if (go) onOpen!(go) }}
       className="pop-in w-full rounded-2xl bg-surface px-4 py-3 text-left text-neutral-900 shadow-lg ring-1 ring-accent"
     >
       <span className="block text-sm font-medium">{toast.title}</span>
       <span className="block text-xs text-neutral-500">{toast.body}</span>
+      {go && <span className="mt-0.5 block text-xs font-medium text-neutral-600">Tap to open ›</span>}
     </button>
   )
 }
@@ -47,7 +49,7 @@ function Confetti() {
   )
 }
 
-export function Toasts() {
+export function Toasts({ onOpen }: { onOpen?: (to: NonNullable<Toast['open']>) => void } = {}) {
   const toasts = useToasts((s) => s.toasts)
   const burst = useToasts((s) => s.burst)
   const [shown, setShown] = useState(0)
@@ -64,7 +66,7 @@ export function Toasts() {
       {toasts.length > 0 && (
         <div role="status" className="pointer-events-none fixed inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] z-50 mx-auto max-w-md space-y-2 px-4">
           {toasts.map((t) => (
-            <div key={t.id} className="pointer-events-auto"><ToastItem toast={t} /></div>
+            <div key={t.id} className="pointer-events-auto"><ToastItem toast={t} onOpen={onOpen} /></div>
           ))}
         </div>
       )}
