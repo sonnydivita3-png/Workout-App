@@ -27,7 +27,9 @@ export interface TrainingPrefs {
   cardioSplit: boolean
   /** Kinds of movement to lean towards (1) or away from (-1): compound, free weights, one arm / one leg… */
   moves?: MovePrefs
-  /** Main goal (from first run, a plan, or Settings). Sets the weekly hard-set target per muscle. */
+  /** Goals, one or more (from first run, a plan, or Settings). Set the weekly hard-set target and the default plan. */
+  goals?: ProgramGoal[]
+  /** Older single goal, read when `goals` isn't set (see savedGoals). */
   goal?: ProgramGoal | null
   /** Their own weekly hard-set target per big muscle, instead of the goal's. */
   setTarget?: number | null

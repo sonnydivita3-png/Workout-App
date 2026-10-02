@@ -39,11 +39,15 @@ export const DEFAULT_SETS = 10
 const INDIRECT = new Set<string>(['Biceps', 'Triceps', 'Glutes', 'Calves', 'Core'])
 
 /** The base target (a big muscle's): their own number, else their goal's, else the default. */
-export const baseTarget = (goal?: ProgramGoal | null, custom?: number | null) =>
-  custom && custom > 0 ? Math.round(custom) : goal && goal in GOAL_SETS ? GOAL_SETS[goal] : DEFAULT_SETS
+export const baseTarget = (goal?: ProgramGoal | ProgramGoal[] | null, custom?: number | null) => {
+  if (custom && custom > 0) return Math.round(custom)
+  // Several goals: the biggest dose any of them needs (build muscle + lose fat aims for build muscle's sets).
+  const known = (Array.isArray(goal) ? goal : goal ? [goal] : []).filter((g) => g in GOAL_SETS)
+  return known.length ? Math.max(...known.map((g) => GOAL_SETS[g])) : DEFAULT_SETS
+}
 
 /** Hard sets to aim for this week for one muscle. Smaller muscles that the big lifts already train get about 60%. */
-export const weeklyTarget = (part: string, goal?: ProgramGoal | null, custom?: number | null) => {
+export const weeklyTarget = (part: string, goal?: ProgramGoal | ProgramGoal[] | null, custom?: number | null) => {
   const base = baseTarget(goal, custom)
   return INDIRECT.has(part) ? Math.max(2, Math.round(base * 0.6)) : base
 }

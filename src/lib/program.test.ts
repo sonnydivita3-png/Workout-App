@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import type { ExerciseLog } from '../types'
 import { addDays, parseISO, toISO, weekdayIndex } from './dates'
-import { applyProgression, defaultWeekdays, familiarLifts, generateProgram, liftsToRotate, majorGroupsLogged, rerollSlot, MAJOR_GROUPS, PROGRAM_GOALS, rerollDay, type ProgramGoal, type ProgramInput } from './program'
+import { applyProgression, defaultWeekdays, familiarLifts, generateProgram, liftsToRotate, majorGroupsLogged, rerollSlot, MAJOR_GROUPS, PROGRAM_GOALS, rerollDay, goalsLabel, savedGoals, type ProgramGoal, type ProgramInput } from './program'
 import { minutesFor } from './randomizer'
 import { mulberry32 } from './randomUtil'
 
@@ -356,5 +356,37 @@ describe('new lifts each month', () => {
       expect(all).not.toContain('Leg_Extensions')
       expect(all).toContain('Barbell_Squat')
     }
+  })
+})
+
+describe('several goals at once', () => {
+  const styleShare = (goal: ProgramInput['goal']) => {
+    const counts = { lift: 0, conditioning: 0, cardio: 0, total: 0 }
+    for (let seed = 1; seed <= 40; seed++) {
+      for (const d of generateProgram(base({ goal, weeks: 4, trainWeekdays: [0, 1, 3, 4], rng: mulberry32(seed) })).filter((x) => !x.rest)) {
+        counts.total++
+        if (d.style === 'circuit' || d.style === 'pha') counts.conditioning++
+        else if (/cardio|run/i.test(d.name ?? '')) counts.cardio++
+        else counts.lift++
+      }
+    }
+    return { lift: counts.lift / counts.total, conditioning: (counts.conditioning + counts.cardio) / counts.total }
+  }
+
+  it('build muscle + lose fat mixes muscle sessions with circuits and cardio', () => {
+    const muscle = styleShare('muscle')
+    const fat = styleShare('fatloss')
+    const both = styleShare(['muscle', 'fatloss'])
+    expect(both.conditioning).toBeGreaterThan(muscle.conditioning + 0.1)
+    expect(both.lift).toBeGreaterThan(fat.lift + 0.1)
+  })
+
+  it('reads saved goals, old single goals and bad values', () => {
+    expect(savedGoals({ goals: ['muscle', 'fatloss'] })).toEqual(['muscle', 'fatloss'])
+    expect(savedGoals({ goal: 'strength' })).toEqual(['strength'])
+    expect(savedGoals({ goals: [], goal: 'strength' })).toEqual([])
+    expect(savedGoals({ goals: ['nope' as ProgramGoal] })).toEqual([])
+    expect(goalsLabel(['muscle', 'fatloss'])).toBe('Build muscle + Lose fat')
+    expect(generateProgram(base({ goal: [] })).some((d) => !d.rest)).toBe(true)
   })
 })

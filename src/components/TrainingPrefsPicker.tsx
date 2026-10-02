@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { MOVE_TYPES, movePrefsSummary, type Lean, type MoveType } from '../lib/movePrefs'
 import { cardioFor } from '../lib/cardioPrefs'
 import { baseTarget } from '../lib/muscles'
-import { PROGRAM_GOALS } from '../lib/program'
+import { goalsLabel, PROGRAM_GOALS, savedGoals, type ProgramGoal } from '../lib/program'
 import { NumberInput } from './NumberInput'
 import type { WorkoutStyle } from '../lib/randomizer'
 import { useStore } from '../store'
@@ -134,19 +134,22 @@ export function MoveChoice() {
 
 /** Main goal, and the weekly hard sets per muscle it sets (or their own number). */
 export function GoalPicker() {
-  const { goal, setTarget } = useStore((s) => s.trainingPrefs)
+  const prefs = useStore((s) => s.trainingPrefs)
   const setTrainingPrefs = useStore((s) => s.setTrainingPrefs)
-  const auto = baseTarget(goal)
+  const goals = savedGoals(prefs)
+  const setTarget = prefs.setTarget
+  const auto = baseTarget(goals)
+  const toggle = (id: ProgramGoal) => setTrainingPrefs({ goals: goals.includes(id) ? goals.filter((g) => g !== id) : [...goals, id], goal: null })
   return (
     <div>
-      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Main goal">
-        {PROGRAM_GOALS.map((g) => <button key={g.id} role="radio" aria-checked={goal === g.id} onClick={() => setTrainingPrefs({ goal: g.id })} className={chip(goal === g.id)}>{g.label}</button>)}
-        <button role="radio" aria-checked={!goal} onClick={() => setTrainingPrefs({ goal: null })} className={chip(!goal)}>Not set</button>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Your goals">
+        {PROGRAM_GOALS.map((g) => <button key={g.id} aria-pressed={goals.includes(g.id)} onClick={() => toggle(g.id)} className={chip(goals.includes(g.id))}>{goals.includes(g.id) ? '✓ ' : ''}{g.label}</button>)}
       </div>
+      <p className="mt-2 text-xs text-neutral-400">{goals.length > 1 ? `Plans mix sessions for each: ${goalsLabel(goals)}.` : goals.length ? 'Pick more than one to mix them, e.g. build muscle and lose fat.' : 'None picked. Pick one or more.'}</p>
       <div className="mt-4 flex items-center justify-between gap-3">
         <span className="min-w-0">
           <span className="block text-sm font-medium">Weekly sets per muscle</span>
-          <span className="block text-xs text-neutral-400">{setTarget ? `Your own number (your goal suggests ${auto}).` : `${auto}, from ${goal ? 'your goal' : 'the usual advice'}. Type your own to change it.`}</span>
+          <span className="block text-xs text-neutral-400">{setTarget ? `Your own number (your goals suggest ${auto}).` : `${auto}, from ${goals.length > 1 ? 'your goals' : goals.length ? 'your goal' : 'the usual advice'}. Type your own to change it.`}</span>
         </span>
         <span className="w-20 shrink-0">
           <NumberInput label="Weekly sets per muscle" value={setTarget ?? null} placeholder={String(auto)} onChange={(v) => setTrainingPrefs({ setTarget: v && v > 0 ? Math.min(40, Math.round(v)) : null })} />

@@ -39,3 +39,11 @@ describe('weekly hard-set targets', () => {
     expect(weeklyTarget('Calves', null, 2)).toBe(2)
   })
 })
+
+describe('targets with several goals', () => {
+  it('use the biggest dose any goal needs', () => {
+    expect(weeklyTarget('Chest', ['fatloss', 'muscle'])).toBe(12)
+    expect(weeklyTarget('Chest', ['fitness', 'strength'])).toBe(8)
+    expect(weeklyTarget('Chest', [])).toBe(10)
+  })
+})
