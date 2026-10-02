@@ -29,7 +29,7 @@ export function useSocialSync() {
     return useSocial.subscribe((s, prev) => {
       if (s.status !== 'ready') return
       // Toast newly arrived items (not the first load).
-      const items: { id: string; title: string; body: string }[] = [
+      const items: { id: string; title: string; body: string; open?: 'social' }[] = [
         ...s.requests.incoming.map((r) => ({ id: `fr-${r.id}`, title: 'Friend request', body: `${r.from.displayName} wants to be friends` })),
         ...s.shares.filter((x) => !x.mine && x.status === 'pending').map((x) => ({ id: `sh-${x.id}`, title: 'New workout', body: `${x.from.displayName} sent “${x.title}”` })),
         ...s.workoutRequests.filter((x) => !x.mine && x.status === 'pending').map((x) => ({ id: `wr-${x.id}`, title: 'Workout request', body: `${x.from.displayName} wants a workout` })),
@@ -42,7 +42,7 @@ export function useSocialSync() {
           const before = prev.challenges.find((x) => x.id === c.id)
           if (!c.mine || !before || before.status === c.status) continue
           const who = c.to.displayName
-          const text = c.status === 'active' ? `${who} accepted your challenge 💪` : c.status === 'declined' ? `${who} declined your challenge` : c.status === 'completed' && c.done ? `${who} finished your challenge 🏆` : null
+          const text = c.status === 'active' ? `${who} accepted your challenge 💪` : c.status === 'declined' ? `${who} said no thanks to your challenge` : c.status === 'completed' && c.done ? `${who} finished your challenge 🏆` : null
           if (text) items.push({ id: `cs-${c.id}-${c.status}`, title: text, body: c.title })
         }
       }
@@ -50,7 +50,8 @@ export function useSocialSync() {
       for (const it of items) {
         if (seen.current.has(it.id)) continue
         seen.current.add(it.id)
-        useToasts.getState().push(it)
+        // Everything here lives in the Social inbox: tapping the banner goes there.
+        useToasts.getState().push({ ...it, open: 'social' })
       }
     })
   }, [enabled])

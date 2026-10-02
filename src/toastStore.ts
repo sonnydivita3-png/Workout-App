@@ -6,6 +6,8 @@ export interface Toast {
   body: string
   /** Shower the screen with confetti (personal bests, goals, finished challenges). */
   celebrate?: boolean
+  /** Tapping it opens this tab (e.g. a new challenge opens the Social inbox) instead of only closing it. */
+  open?: 'social'
 }
 
 interface ToastState {
