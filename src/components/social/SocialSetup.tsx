@@ -60,7 +60,7 @@ export function SocialSetup({ variant, onDone, onCancel }: Props) {
       {step === 'intro' && (
         <>
           <p className="mb-1 text-sm text-neutral-400">Welcome to</p>
-          <h1 className="mb-4 text-3xl font-semibold tracking-tight">EZ Workout Tracker</h1>
+          <h1 className="mb-4 text-3xl font-semibold tracking-tight">Durata</h1>
           {invite && <p className="mb-4 rounded-xl bg-accent/15 px-3 py-2 text-sm">👋 <b className="font-medium">@{invite}</b> invited you. Set up social to add them as a friend.</p>}
           <p className="mb-5 text-neutral-600">Want to train with friends? Add a handle and you can share workouts, send challenges, and cheer each other on.</p>
           <ul className="mb-6 space-y-2 text-sm text-neutral-600">

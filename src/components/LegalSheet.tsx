@@ -19,7 +19,7 @@ export function LegalSheet({ doc, onClose }: { doc: LegalDoc; onClose: () => voi
 export function LegalPage({ doc }: { doc: LegalDoc }) {
   return (
     <main className="mx-auto min-h-screen max-w-2xl bg-surface px-5 py-8">
-      <p className="mb-1 text-sm text-neutral-400">EZ Workout Tracker</p>
+      <p className="mb-1 text-sm text-neutral-400">Durata</p>
       <h1 className="mb-4 text-2xl font-semibold tracking-tight">{LEGAL_TITLES[doc]}</h1>
       <LegalBody doc={doc} />
       <a href="./" className="mt-8 inline-block rounded-full bg-accent px-5 py-2 text-sm font-medium text-on-accent">Open the app</a>
@@ -33,7 +33,7 @@ function LegalBody({ doc }: { doc: LegalDoc }) {
         {doc === 'privacy' && (
           <>
             <p className="text-xs text-neutral-400">Last updated {UPDATED}</p>
-            <p>EZ Workout Tracker is built to keep your data on your phone unless you choose otherwise.</p>
+            <p>Durata is built to keep your data on your phone unless you choose otherwise.</p>
             <h3>What stays on your phone</h3>
             <p>Your plans, workouts, goals, body weight, measurements and settings are stored in your browser on this device. Progress photos are stored only on this device and are never uploaded.</p>
             <h3>What’s sent to our server, and only if you turn it on</h3>
@@ -58,7 +58,7 @@ function LegalBody({ doc }: { doc: LegalDoc }) {
         {doc === 'terms' && (
           <>
             <p className="text-xs text-neutral-400">Last updated {UPDATED}</p>
-            <p>By using EZ Workout Tracker you agree to these terms.</p>
+            <p>By using Durata you agree to these terms.</p>
             <h3>The app</h3>
             <p>The app is provided free and “as is”, without warranties. Features may change. Keep your own backups; we aren’t responsible for lost data.</p>
             <h3>Your account</h3>

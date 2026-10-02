@@ -37,7 +37,7 @@ export function feedbackLink(kind: 'feedback' | 'bug', extra?: string): string {
     ...(extra ? [`Error: ${extra}`] : []),
     ...errors.map((e) => `${e.at} ${e.message}${e.stack ? `\n${e.stack}` : ''}`),
   ]
-  const subject = kind === 'bug' ? 'EZ Workout Tracker bug report' : 'EZ Workout Tracker feedback'
+  const subject = kind === 'bug' ? 'Durata bug report' : 'Durata feedback'
   const body = lines.join('\n').slice(0, 1800)
   return FEEDBACK_EMAIL
     ? `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
