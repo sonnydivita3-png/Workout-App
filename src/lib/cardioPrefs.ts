@@ -26,6 +26,7 @@ export const CARDIO_TYPES: CardioType[] = [
   { id: 'versa', label: 'VersaClimber', exerciseId: 'x-versaclimber', wod: { amount: 45, unit: 's' } },
   { id: 'rope', label: 'Jump rope', exerciseId: 'Rope_Jumping', wod: { amount: 60, unit: 'reps' } },
   { id: 'walk', label: 'Walking', exerciseId: 'walking' },
+  { id: 'treadwalk', label: 'Treadmill walk', exerciseId: 'Walking_Treadmill' },
   { id: 'cycle', label: 'Cycling outside', exerciseId: 'cycling' },
   { id: 'swim', label: 'Swimming', exerciseId: 'swimming' },
 ]

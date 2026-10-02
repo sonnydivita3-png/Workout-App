@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { parseISO, weekdayIndex } from '../lib/dates'
 import {
-  FOCUS_OPTIONS, generateWorkout, LIFT_GROUPS, minutesFor, replaceExercise, STYLE_GROUPS, styleInfo, swapExercise, type WorkoutStyle,
+  generateWorkout, LIFT_GROUPS, minutesFor, replaceExercise, STYLE_GROUPS, styleInfo, swapExercise, type WorkoutStyle,
 } from '../lib/randomizer'
 import { expandParts, isFullBody, LOWER_PARTS, UPPER_PARTS } from '../lib/bodyParts'
 import { useStore } from '../store'
@@ -16,6 +16,10 @@ import { MoveChoice } from './TrainingPrefsPicker'
 import { withGearFor } from '../lib/equipment'
 import { withCardioFor } from '../lib/cardioPrefs'
 import { CardioChoice, type CardioPick } from './CardioChoice'
+import { CardioActivityPicker } from './CardioActivityPicker'
+import { cardioIds, exerciseFor, setupFromIds, type CardioSetup } from '../lib/cardioSetup'
+import { CARDIO_SESSIONS, type CardioSessionKind } from '../lib/cardioSession'
+import { BUILTIN_BY_ID } from '../data/exercises'
 
 const MAX_HISTORY = 50
 const DURATIONS = [20, 30, 45, 60, 75, 90]
@@ -23,6 +27,11 @@ const DURATIONS = [20, 30, 45, 60, 75, 90]
 // Styles that choose their own lifts, so exercise-type preferences apply (timed formats use a set list of movements).
 const PICKS_LIFTS: WorkoutStyle[] = ['standard', 'strength', 'supersets', 'bodyweight', 'circuit', 'pha']
 const CONDITIONING: WorkoutStyle[] = ['crossfit', 'amrap', 'emom', 'fortime', 'tabata', 'circuit']
+type Kind = 'lift' | 'cond' | 'cardio'
+const KINDS: { id: Kind; label: string }[] = [{ id: 'lift', label: 'Lifting' }, { id: 'cond', label: 'Conditioning' }, { id: 'cardio', label: 'Cardio' }]
+const LIFT_STYLES: WorkoutStyle[] = ['standard', 'strength', 'supersets', 'bodyweight']
+/** HIIT, Timed, Hyrox / CrossFit, each with its variations. */
+const COND_GROUPS = STYLE_GROUPS.filter((g) => g.styles.every((st) => !LIFT_STYLES.includes(st)))
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 const chip = (on: boolean, disabled = false) =>
@@ -39,17 +48,30 @@ interface Props {
 export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const { addPlanned, saveRoutine, genPrefs, setGenPrefs, equipment, trainingPrefs } = useStore()
   const [gear, setGear] = useState<string[] | null>(equipment)
-  const [cardioPick, setCardioPick] = useState<CardioPick>({ cardio: trainingPrefs.cardio, split: trainingPrefs.cardioSplit })
-  const withChoices = <T,>(fn: () => T) => withGearFor(gear, () => withCardioFor(cardioPick.cardio, cardioPick.split, fn))
   const warm = genPrefs.warmup
   const rest = genPrefs.rest
   const dayName = DAY_NAMES[weekdayIndex(parseISO(date))]
   // Starts from the last choices, so a repeat visit is two taps: check, Generate.
-  const [focus, setFocus] = useState<string[]>(() => expandParts(genPrefs.focus ?? []))
+  const saved0 = genPrefs.styles?.length ? genPrefs.styles : trainingPrefs.styles.length ? [trainingPrefs.styles[0]] : ['standard' as WorkoutStyle]
+  const [focus, setFocus] = useState<string[]>(() => expandParts(genPrefs.focus ?? []).filter((g) => g !== 'Cardio'))
+  // What kind of workout: lifting, conditioning and/or cardio. The first tap picks one; later taps add or remove.
+  const [kinds, setKinds] = useState<Kind[]>(() => {
+    const k: Kind[] = genPrefs.kinds?.length ? genPrefs.kinds : [
+      ...(saved0.some((st) => LIFT_STYLES.includes(st)) ? ['lift' as const] : []),
+      ...(saved0.some((st) => !LIFT_STYLES.includes(st)) ? ['cond' as const] : []),
+      ...((genPrefs.focus ?? []).includes('Cardio') ? ['cardio' as const] : []),
+    ]
+    return k.length ? k : ['lift']
+  })
+  const [pickedKind, setPickedKind] = useState(false)
+  const [liftStyle, setLiftStyle] = useState<WorkoutStyle>(saved0.find((st) => LIFT_STYLES.includes(st)) ?? 'standard')
+  const [condStyle, setCondStyle] = useState<WorkoutStyle>(saved0.find((st) => !LIFT_STYLES.includes(st)) ?? 'circuit')
+  const [cardio, setCardio] = useState<CardioSetup>(() => genPrefs.cardioSetup ?? setupFromIds(trainingPrefs.cardio, 'steady', trainingPrefs.cardioSplit))
+  // Machines used as stations in conditioning pieces (when there's no cardio part to take them from).
+  const [cardioPick, setCardioPick] = useState<CardioPick>({ cardio: trainingPrefs.cardio, split: trainingPrefs.cardioSplit })
   const [minutes, setMinutes] = useState(genPrefs.minutes ?? 45)
   // Per-part minutes when mixing styles and/or cardio; unset parts use an even split.
   const [split, setSplit] = useState<Record<string, number>>({})
-  const [styles, setStyles] = useState<WorkoutStyle[]>(genPrefs.styles?.length ? genPrefs.styles : trainingPrefs.styles.length ? [trainingPrefs.styles[0]] : ['standard'])
   // Every version of the workout, so an accidental reroll or swap can be walked back.
   const [history, setHistory] = useState<{ list: PlannedExercise[][]; at: number }>({ list: [], at: 0 })
   const [pickIndex, setPickIndex] = useState<number | null>(null)
@@ -58,17 +80,27 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const [saved, setSaved] = useState(false)
   const items = history.list[history.at] ?? null
 
-  const infos = styles.map(styleInfo)
-  const info = infos[0]
-  const focusIgnored = infos.every((i) => i.focus === 'ignored')
-  const canGenerate = !infos.some((i) => i.focus === 'required') || focus.length > 0
-  const styleLabel = infos.map((i) => i.label).join(' + ')
-  // The first tap replaces the default style; later taps add or remove styles.
-  const [picked, setPicked] = useState(false)
-  const toggleStyle = (id: WorkoutStyle) => {
-    setPicked(true)
-    setStyles((cur) => (!picked ? [id] : cur.includes(id) ? (cur.length > 1 ? cur.filter((x) => x !== id) : cur) : [...cur, id]))
+  const hasKind = (k: Kind) => kinds.includes(k)
+  const toggleKind = (k: Kind) => {
+    setPickedKind(true)
+    setKinds((cur) => (!pickedKind ? [k] : cur.includes(k) ? (cur.length > 1 ? cur.filter((x) => x !== k) : cur) : [...cur, k]))
   }
+  const styles: WorkoutStyle[] = [...(hasKind('lift') ? [liftStyle] : []), ...(hasKind('cond') ? [condStyle] : [])]
+  const cardioIdsPicked = cardioIds(cardio)
+  // Stations in timed pieces use the cardio picked for this workout, else the conditioning choice, else the profile.
+  const stationIds = hasKind('cardio') ? cardioIdsPicked : cardioPick.cardio
+  const withChoices = <T,>(fn: () => T) => withGearFor(gear, () => withCardioFor(stationIds, hasKind('cardio') ? cardio.split : cardioPick.split, fn))
+
+  const infos = styles.map(styleInfo)
+  const focusIgnored = infos.length > 0 && infos.every((i) => i.focus === 'ignored')
+  const needsParts = infos.some((i) => i.focus === 'required')
+  const canGenerate = kinds.length > 0 && (!needsParts || focus.length > 0)
+  const cardioOnly = styles.length === 0
+  const one = cardioIdsPicked.length === 1 ? exerciseFor(cardioIdsPicked[0]) : undefined
+  const sessionKind: CardioSessionKind = cardioIdsPicked.length > 1 ? 'steady' : cardio.session
+  const sessionLabel = CARDIO_SESSIONS.find((x) => x.id === sessionKind)!.label
+  const cardioName = one ? (BUILTIN_BY_ID.get(one)?.name ?? 'Cardio') : 'Cardio'
+  const styleLabel = cardioOnly ? `${cardioName} · ${sessionLabel}` : infos.map((i) => i.label).join(' + ')
 
   const commit = (next: PlannedExercise[]) => {
     if (next === items) return // nothing changed (e.g. no alternative to swap in)
@@ -86,23 +118,24 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   }
 
   const toggle = (g: string) => setFocus((f) => (f.includes(g) ? f.filter((x) => x !== g) : [...f, g]))
-  const body = focus.filter((g) => g !== 'Cardio')
+  const body = cardioOnly || focusIgnored ? [] : focus
   // One tap for the usual splits; each part can still be picked on its own.
-  const same = (parts: string[]) => body.length === parts.length && parts.every((g) => body.includes(g))
+  const same = (parts: string[]) => focus.length === parts.length && parts.every((g) => focus.includes(g))
   const presets: [string, string[]][] = [
     ['Full body', LIFT_GROUPS], ['Upper body', UPPER_PARTS], ['Lower body', LOWER_PARTS],
     ['Push', ['Chest', 'Shoulders', 'Triceps']], ['Pull', ['Back', 'Biceps']],
   ]
-  const setBody = (parts: string[]) => setFocus([...(same(parts) ? [] : parts), ...focus.filter((g) => g === 'Cardio')])
-  const cardioOnly = !focusIgnored && body.length === 0 && focus.includes('Cardio')
+  const setBody = (parts: string[]) => setFocus(same(parts) ? [] : parts)
   const presetName = presets.find(([, parts]) => same(parts))?.[0]
-  const focusLabel = focusIgnored || body.length === 0 ? 'Full body' : cardioOnly ? 'Cardio' : presetName ?? (isFullBody(body) ? 'Full body' : body.join(' + '))
+  const focusLabel = cardioOnly ? (one && cardio.where === 'in' ? 'Indoors' : one ? 'Outside' : 'Cardio') : focusIgnored || body.length === 0 ? 'Full body' : presetName ?? (isFullBody(body) ? 'Full body' : body.join(' + '))
+  // What the generator gets: body parts, plus Cardio when there's a cardio part.
+  const genFocus = [...body, ...(hasKind('cardio') ? ['Cardio'] : [])]
   // Mixing parts (several styles, or lifting + cardio): let each part have its own time.
-  const hasCardio = !focusIgnored && focus.includes('Cardio') && !cardioOnly
+  const hasCardio = hasKind('cardio') && !cardioOnly
   // Warm-up cardio and mobility take their own minutes (5 each by default); warm-up sets live inside the lifting.
   const warmDefault = (warm.includes('cardio') ? 5 : 0) + (warm.includes('mobility') ? 5 : 0)
   const parts: string[] = [...(warmDefault ? ['warmup'] : []), ...styles, ...(hasCardio ? ['cardio'] : [])]
-  const showSplit = parts.length > 1
+  const showSplit = parts.length > 1 && !cardioOnly
   const workParts = parts.length - (warmDefault ? 1 : 0)
   const evenShare = Math.max(5, Math.round((minutes - warmDefault) / Math.max(1, workParts) / 5) * 5)
   const partMin = (k: string) => split[k] ?? (k === 'warmup' ? warmDefault : evenShare)
@@ -118,10 +151,12 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const defaultName = `${styleLabel} · ${focusLabel} · ${total0} min`
 
   const generate = (avoid?: PlannedExercise[]) => {
-    if (!avoid) setGenPrefs({ focus, styles, minutes })
-    commit(withChoices(() => generateWorkout(focus, total0, {
-      style: styles[0], styles, rest,
-      warmup: { ...warmSplit(), sets: warm.includes('sets') && lifting },
+    if (!avoid) setGenPrefs({ focus: genFocus, styles: [liftStyle, condStyle], kinds, minutes, cardioSetup: cardio })
+    const cardioSpec = hasKind('cardio') ? { exerciseId: one, kind: sessionKind } : undefined
+    // Cardio on its own: its session has its own warm-up and cool-down, so no warm-up cardio or mobility before it.
+    const warmup = cardioOnly ? {} : { ...warmSplit(), sets: warm.includes('sets') && lifting }
+    commit(withChoices(() => generateWorkout(genFocus, total0, {
+      style: styles[0], styles, rest, warmup, cardio: cardioSpec,
       dropSets: !!genPrefs.drops && lifting,
       ...(showSplit ? { minutesByStyle: Object.fromEntries(styles.map((st) => [st, partMin(st)])), ...(hasCardio ? { cardioMinutes: partMin('cardio') } : {}) } : {}),
       avoid: new Set(avoid?.map((p) => p.exerciseId)),
@@ -129,70 +164,71 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   }
 
   if (!items) {
+    const condGroup = COND_GROUPS.find((g) => g.styles.includes(condStyle))
     return (
       <Sheet title="Make me a workout" onClose={onClose} closeLabel="Cancel">
         <ModeSwitch mode="one" onChange={onSwitchMode} />
 
-        <h3 className="mb-2 text-sm font-medium">What are you training?{infos.every((i) => i.focus !== 'required') && <span className="font-normal text-neutral-400"> (optional)</span>}</h3>
-        {focusIgnored ? (
-          <p className="mb-5 text-sm text-neutral-400">{styleLabel} {styles.length > 1 ? 'are full-body formats' : 'is a full-body format'}, so body parts aren’t used.</p>
-        ) : (
+        <h3 className="mb-2 text-sm font-medium">What kind of workout? <span className="font-normal text-neutral-400">(one or more)</span></h3>
+        <div className="mb-5 flex flex-wrap gap-2" role="group" aria-label="Kind of workout">
+          {KINDS.map((k) => <button key={k.id} onClick={() => toggleKind(k.id)} aria-pressed={hasKind(k.id)} className={chip(hasKind(k.id))}>{k.label}</button>)}
+        </div>
+
+        {hasKind('lift') && (
           <>
-            <div className="mb-2 flex flex-wrap gap-2">
-              {presets.map(([label, parts]) => (
-                <button key={label} onClick={() => setBody(parts)} aria-pressed={same(parts)} className={chip(same(parts))}>{label}</button>
-              ))}
+            <h3 className="mb-2 text-sm font-medium">Lifting style</h3>
+            <div className="mb-1 flex flex-wrap gap-2" role="group" aria-label="Lifting style">
+              {LIFT_STYLES.map((st) => <button key={st} onClick={() => setLiftStyle(st)} aria-pressed={liftStyle === st} className={chip(liftStyle === st)}>{styleInfo(st).label}</button>)}
             </div>
-            <div className="mb-2 flex flex-wrap gap-1.5" role="group" aria-label="Body parts">
-              {FOCUS_OPTIONS.map((g) => (
-                <button key={g} onClick={() => toggle(g)} aria-pressed={focus.includes(g)} className={`rounded-full px-2.5 py-1 text-sm ${focus.includes(g) ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`}>{g}</button>
-              ))}
-            </div>
-            <p className="mb-5 text-xs text-neutral-400">{same(LIFT_GROUPS) ? 'Full body: one exercise for each part, big lifts first.' : <>Add <b className="font-medium">Cardio</b> to finish with a run, ride or row.</>}</p>
+            <p className="mb-5 text-xs text-neutral-400">{styleInfo(liftStyle).blurb}</p>
           </>
         )}
 
-        <h3 className="mb-2 text-sm font-medium">Workout style <span className="font-normal text-neutral-400">(pick one or more)</span></h3>
-        <div className="mb-1 flex flex-wrap gap-2">
-          {STYLE_GROUPS.map((g) => {
-            const on = g.styles.some((st) => styles.includes(st))
-            return (
-              <button key={g.label} onClick={() => (on ? g.styles.filter((st) => styles.includes(st)).forEach(toggleStyle) : toggleStyle(g.styles[0]))} aria-pressed={on} className={chip(on)}>
-                {g.label}
-              </button>
-            )
-          })}
-        </div>
-        {STYLE_GROUPS.filter((g) => g.styles.length > 1 && g.styles.some((st) => styles.includes(st))).map((g) => (
-          <div key={g.label} className="mb-1 mt-2 flex flex-wrap items-center gap-1.5 pl-1">
-            <span className="text-xs text-neutral-400">{g.label}:</span>
-            {g.styles.map((st) => (
-              <button
-                key={st}
-                onClick={() => setStyles((cur) => [...cur.filter((x) => !g.styles.includes(x)), st])}
-                aria-pressed={styles.includes(st)}
-                className={`rounded-full px-2.5 py-1 text-xs ${styles.includes(st) ? 'bg-neutral-900 text-surface' : 'bg-neutral-100 text-neutral-600'}`}
-              >
-                {styleInfo(st).label}
-              </button>
-            ))}
-          </div>
-        ))}
-        <p className="mb-5 text-xs text-neutral-400">
-          {styles.length > 1 ? `${styleLabel}: the time is split between them, in that order, with cardio last.` : info.blurb}
-        </p>
+        {hasKind('cond') && (
+          <>
+            <h3 className="mb-2 text-sm font-medium">Conditioning style</h3>
+            <div className="mb-1 flex flex-wrap gap-2" role="group" aria-label="Conditioning style">
+              {COND_GROUPS.map((g) => <button key={g.label} onClick={() => setCondStyle(g.styles[0])} aria-pressed={g === condGroup} className={chip(g === condGroup)}>{g.label}</button>)}
+            </div>
+            {condGroup && condGroup.styles.length > 1 && (
+              <div className="mb-1 mt-2 flex flex-wrap items-center gap-1.5 pl-1">
+                <span className="text-xs text-neutral-400">{condGroup.label}:</span>
+                {condGroup.styles.map((st) => (
+                  <button key={st} onClick={() => setCondStyle(st)} aria-pressed={condStyle === st} className={`rounded-full px-2.5 py-1 text-xs ${condStyle === st ? 'bg-neutral-900 text-surface' : 'bg-neutral-100 text-neutral-600'}`}>{styleInfo(st).label}</button>
+                ))}
+              </div>
+            )}
+            <p className="mb-5 text-xs text-neutral-400">{styleInfo(condStyle).blurb}</p>
+          </>
+        )}
 
-        <GearChoice value={gear} onChange={setGear} />
+        {!cardioOnly && (focusIgnored ? (
+          <p className="mb-5 text-sm text-neutral-400">{styleInfo(condStyle).label} is a full-body format, so body parts aren’t used.</p>
+        ) : (
+          <>
+            <h3 className="mb-2 text-sm font-medium">What are you training?{!needsParts && <span className="font-normal text-neutral-400"> (optional, empty = full body)</span>}</h3>
+            <div className="mb-2 flex flex-wrap gap-2">
+              {presets.map(([label, ps]) => (
+                <button key={label} onClick={() => setBody(ps)} aria-pressed={same(ps)} className={chip(same(ps))}>{label}</button>
+              ))}
+            </div>
+            <div className="mb-2 flex flex-wrap gap-1.5" role="group" aria-label="Body parts">
+              {LIFT_GROUPS.map((g) => (
+                <button key={g} onClick={() => toggle(g)} aria-pressed={focus.includes(g)} className={`rounded-full px-2.5 py-1 text-sm ${focus.includes(g) ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`}>{g}</button>
+              ))}
+            </div>
+            <p className="mb-5 text-xs text-neutral-400">{same(LIFT_GROUPS) ? 'Full body: one exercise for each part, big lifts first.' : <>Add <b className="font-medium">Cardio</b> above to finish with a run, ride or row.</>}</p>
+          </>
+        ))}
+
+        {hasKind('cardio') && <CardioActivityPicker value={cardio} onChange={setCardio} finisher={!cardioOnly} />}
+
+        {!cardioOnly && <GearChoice value={gear} onChange={setGear} />}
         {styles.some((st) => PICKS_LIFTS.includes(st)) && <MoveChoice />}
 
-        {(focus.includes('Cardio') && !focusIgnored) || styles.some((st) => CONDITIONING.includes(st)) ? (
-          <CardioChoice
-            value={cardioPick}
-            onChange={setCardioPick}
-            gear={gear}
-            hint={focus.includes('Cardio') && !focusIgnored ? 'What to finish on. Pick several to take turns or split the time.' : 'Machines used as stations in timed pieces, e.g. 12 cal on the rower.'}
-          />
-        ) : null}
+        {!hasKind('cardio') && styles.some((st) => CONDITIONING.includes(st)) && (
+          <CardioChoice value={cardioPick} onChange={setCardioPick} gear={gear} hint="Machines used as stations in timed pieces, e.g. 12 cal on the rower." />
+        )}
 
         {!showSplit && <h3 className="mb-2 text-sm font-medium">How long?</h3>}
         {showSplit && (
@@ -219,7 +255,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
           ))}
         </div>
 
-        <WarmupRestControls lifting={lifting} onWarmupChange={() => setSplit(({ warmup: _w, ...r }) => (void _w, r))} />
+        {!cardioOnly && <WarmupRestControls lifting={lifting} onWarmupChange={() => setSplit(({ warmup: _w, ...r }) => (void _w, r))} />}
 
         <button disabled={!canGenerate} onClick={() => generate()} className={primaryBtn}>Generate workout</button>
       </Sheet>
@@ -250,7 +286,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
         </button>
       </div>
       <p className="mb-3 text-sm text-neutral-400">
-        {styleLabel} · {focusLabel}{focus.includes('Cardio') && !focusIgnored && !cardioOnly ? ' + Cardio' : ''} · about {Math.round(total)} min
+        {styleLabel} · {focusLabel}{hasCardio ? ' + Cardio' : ''} · about {Math.round(total)} min
       </p>
       {items.length === 0 ? (
         <p className="py-6 text-center text-neutral-400">Couldn’t build a workout for that. Try another mix.</p>
