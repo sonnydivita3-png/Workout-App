@@ -16,9 +16,9 @@ function mark(dots = 6, stroke = 44) {
 
 const icon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs>${BG}</defs><rect width="512" height="512" fill="url(#g)"/><rect width="512" height="512" fill="url(#r)"/>${mark()}</svg>`
 // Android crops this one to a circle. Centred in a square, the dots' corners almost touch the circle on the left
-// while the round bowl sits well inside on the right, so it looks off to the left. Here the D moves right until both
-// sides are the same distance from the circle's edge, and shrinks to sit comfortably inside it.
-const maskable = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs>${BG}</defs><rect width="512" height="512" fill="url(#g)"/><rect width="512" height="512" fill="url(#r)"/><g transform="translate(256 256) scale(.86) translate(-222.5 -256)">${mark()}</g></svg>`
+// while the round bowl sits well inside on the right, so it looks off to the left. Here the D shrinks a little and
+// moves right by eye (balancing the edge gaps exactly pushed it too far right on a real phone).
+const maskable = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs>${BG}</defs><rect width="512" height="512" fill="url(#g)"/><rect width="512" height="512" fill="url(#r)"/><g transform="translate(256 256) scale(.86) translate(-242 -256)">${mark()}</g></svg>`
 // Favicon: bigger mark, thicker strokes and fewer dots so it still reads at 16px; rounded like a tab icon.
 const favicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs>${BG}</defs><rect width="512" height="512" rx="112" fill="url(#g)"/><g transform="translate(256 256) scale(1.32) translate(-262 -256)">${mark(4, 56)}</g></svg>`
 // The mark alone, cropped, for the loading screen.
