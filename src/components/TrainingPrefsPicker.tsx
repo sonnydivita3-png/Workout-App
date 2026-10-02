@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { MOVE_TYPES, movePrefsSummary, type Lean, type MoveType } from '../lib/movePrefs'
 import { cardioFor } from '../lib/cardioPrefs'
 import { baseTarget } from '../lib/muscles'
+import { cardioTarget } from '../lib/conditioning'
+import { showDistance, storeDistance } from '../lib/units'
 import { goalsLabel, PROGRAM_GOALS, savedGoals, type ProgramGoal } from '../lib/program'
 import { NumberInput } from './NumberInput'
 import type { WorkoutStyle } from '../lib/randomizer'
@@ -139,6 +141,8 @@ export function GoalPicker() {
   const goals = savedGoals(prefs)
   const setTarget = prefs.setTarget
   const auto = baseTarget(goals)
+  const autoCardio = cardioTarget(goals)
+  const units = useStore((s) => s.units)
   const toggle = (id: ProgramGoal) => setTrainingPrefs({ goals: goals.includes(id) ? goals.filter((g) => g !== id) : [...goals, id], goal: null })
   return (
     <div>
@@ -153,6 +157,24 @@ export function GoalPicker() {
         </span>
         <span className="w-20 shrink-0">
           <NumberInput label="Weekly sets per muscle" value={setTarget ?? null} placeholder={String(auto)} onChange={(v) => setTrainingPrefs({ setTarget: v && v > 0 ? Math.min(40, Math.round(v)) : null })} />
+        </span>
+      </div>
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <span className="min-w-0">
+          <span className="block text-sm font-medium">Weekly cardio minutes</span>
+          <span className="block text-xs text-neutral-400">{prefs.cardioMinutes ? `Your own number (your goals suggest ${autoCardio}).` : `${autoCardio}, from ${goals.includes('fatloss') && autoCardio === 225 ? 'your fat-loss goal' : goals.includes('functional') && autoCardio === 180 ? 'your Hyrox / CrossFit goal' : 'the health guideline'}.`}</span>
+        </span>
+        <span className="w-20 shrink-0">
+          <NumberInput label="Weekly cardio minutes" value={prefs.cardioMinutes ?? null} step={10} placeholder={String(autoCardio)} onChange={(v) => setTrainingPrefs({ cardioMinutes: v && v > 0 ? Math.min(1500, Math.round(v)) : null })} />
+        </span>
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <span className="min-w-0">
+          <span className="block text-sm font-medium">Weekly cardio distance <span className="font-normal text-neutral-400">(optional)</span></span>
+          <span className="block text-xs text-neutral-400">In {units.distance === 'km' ? 'kilometres' : 'miles'}, all cardio with a distance (runs, rides, rows…).</span>
+        </span>
+        <span className="w-20 shrink-0">
+          <NumberInput label="Weekly cardio distance" value={showDistance(prefs.cardioMiles ?? null, units)} step={1} placeholder="–" onChange={(v) => setTrainingPrefs({ cardioMiles: v && v > 0 ? storeDistance(v, units) : null })} />
         </span>
       </div>
       <p className="mt-2 text-xs text-neutral-400">Hard sets are working sets taken close to failure (warm-ups don’t count). Arms, glutes, calves and core also work in the big lifts, so their targets are about 60% of this.</p>

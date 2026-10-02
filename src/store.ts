@@ -33,6 +33,10 @@ export interface TrainingPrefs {
   goal?: ProgramGoal | null
   /** Their own weekly hard-set target per big muscle, instead of the goal's. */
   setTarget?: number | null
+  /** Their own weekly cardio minutes, instead of the goal's. */
+  cardioMinutes?: number | null
+  /** Weekly cardio distance to aim for, in miles (optional; no distance target when unset). */
+  cardioMiles?: number | null
 }
 
 export type ThemeMode = 'dark' | 'light' | 'auto'

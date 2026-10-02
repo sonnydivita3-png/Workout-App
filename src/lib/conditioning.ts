@@ -1,5 +1,6 @@
 import { caloriesBetween, type CalorieTotal } from './calories'
 import type { AboutMe, BodyweightEntry, Exercise, ExerciseLog, PlannedExercise, PlanOverrides, TimedLog, WeekPlan } from '../types'
+import type { ProgramGoal } from './program'
 import { cardioTypeOf } from './cardioPrefs'
 import { addDays, mondayOf, parseISO, toISO } from './dates'
 import { dayPlanOf } from './plan'
@@ -119,3 +120,16 @@ export function hyroxRunPace(t: TimedLog, logs: ExerciseLog[], lookup: (id: stri
 
 /** Moderate-intensity cardio guideline (minutes a week); 75 vigorous minutes count the same. */
 export const CARDIO_GUIDE = 150
+
+/**
+ * Weekly cardio minutes by goal. Everyone starts from the health guideline (150 moderate minutes); losing fat aims for
+ * the 200–300 minutes the ACSM recommends for weight loss, and Hyrox / CrossFit needs a bigger engine.
+ */
+export const GOAL_CARDIO: Record<ProgramGoal, number> = { muscle: CARDIO_GUIDE, strength: CARDIO_GUIDE, fitness: CARDIO_GUIDE, fatloss: 225, functional: 180 }
+
+/** Weekly cardio minutes to aim for: their own number, else the most any of their goals needs, else the guideline. */
+export function cardioTarget(goals: ProgramGoal[], custom?: number | null): number {
+  if (custom && custom > 0) return Math.round(custom)
+  const known = goals.filter((g) => g in GOAL_CARDIO)
+  return known.length ? Math.max(...known.map((g) => GOAL_CARDIO[g])) : CARDIO_GUIDE
+}
