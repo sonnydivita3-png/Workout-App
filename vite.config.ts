@@ -23,7 +23,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: false,
-      includeAssets: ['icon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['icon.svg', 'favicon.svg', 'favicon.ico', 'apple-touch-icon.png'],
       manifest: {
         name: 'Durata',
         short_name: 'Durata',
