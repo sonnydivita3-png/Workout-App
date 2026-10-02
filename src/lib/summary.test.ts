@@ -28,7 +28,7 @@ describe('unfinished', () => {
       { exerciseId: 'Plank', sets: 2, warmup: true },
     ]
     const logs = [
-      { date: 'd', exerciseId: B, sets: [{ weight: 95, reps: 5, warmup: true }, { weight: 135, reps: 8 }, { weight: 135, reps: 8 }] },
+      { date: 'd', exerciseId: B, sets: [{ weight: 135, reps: 8 }, { weight: 135, reps: 8 }] },
       { date: 'd', exerciseId: 'Pushups', sets: [{ weight: null, reps: 20 }, { weight: null, reps: 18 }] },
     ]
     const u = unfinished('d', items, logs, (id) => BUILTIN_BY_ID.get(id))
@@ -47,5 +47,61 @@ describe('ticked sets', () => {
     ]
     const u = unfinished('d', items, [{ date: 'd', exerciseId: 'Pushups', sets }], (id) => BUILTIN_BY_ID.get(id))
     expect(u.map((x) => [x.done, x.planned])).toEqual([[2, 4]])
+  })
+})
+
+describe('warm-ups you add yourself', () => {
+  const lookup = (id: string) => BUILTIN_BY_ID.get(id)
+  const work = (n: number) => Array.from({ length: n }, () => ({ weight: 185, reps: 5, done: true }))
+  const warm = { weight: 95, reps: 8, warmup: true, done: true }
+
+  it('two extra sets made into warm-ups: 2 warm-ups + 4 working sets, nothing missing', () => {
+    const items = [{ exerciseId: 'Barbell_Squat', sets: 6, reps: 5 }]
+    const logs = [{ date: 'd', exerciseId: 'Barbell_Squat', sets: [warm, warm, ...work(4)] }]
+    expect(unfinished('d', items, logs, lookup)).toEqual([])
+  })
+
+  it('planned warm-ups plus working sets: only working sets are counted', () => {
+    const items = [{ exerciseId: 'Barbell_Squat', sets: 4, warmupSets: 2 }]
+    expect(unfinished('d', items, [{ date: 'd', exerciseId: 'Barbell_Squat', sets: [warm, warm, ...work(3)] }], lookup)).toEqual([
+      { exerciseId: 'Barbell_Squat', name: 'Back Squat', done: 3, planned: 4, cardio: false },
+    ])
+    expect(unfinished('d', items, [{ date: 'd', exerciseId: 'Barbell_Squat', sets: [warm, warm, ...work(4)] }], lookup)).toEqual([])
+  })
+
+  it('a planned warm-up made into a working set counts as one', () => {
+    const items = [{ exerciseId: 'Barbell_Squat', sets: 3, warmupSets: 1 }]
+    const asWork = { weight: 135, reps: 5, warmup: false, done: true }
+    expect(unfinished('d', items, [{ date: 'd', exerciseId: 'Barbell_Squat', sets: [asWork, ...work(3)] }], lookup)).toEqual([])
+    expect(unfinished('d', items, [{ date: 'd', exerciseId: 'Barbell_Squat', sets: [asWork, ...work(2)] }], lookup)[0]).toMatchObject({ done: 3, planned: 4 })
+  })
+
+  it('logged sets past the plan still count (the plan changed after logging)', () => {
+    const items = [{ exerciseId: 'Barbell_Squat', sets: 4 }] // its 2 planned warm-ups moved to another lift
+    expect(unfinished('d', items, [{ date: 'd', exerciseId: 'Barbell_Squat', sets: [warm, warm, ...work(4)] }], lookup)).toEqual([])
+  })
+})
+
+describe('finish summary with bodyweight sets', () => {
+  const lookup = (id: string) => BUILTIN_BY_ID.get(id)
+  const items = [{ exerciseId: 'Dips_-_Chest_Version', sets: 3 }]
+  const day = (date: string, sets: { weight: number | null; reps: number | null; done?: boolean }[]) => ({ date, exerciseId: 'Dips_-_Chest_Version', sets })
+
+  it('0 lb sets with reps are done, not skipped, and compare by reps', () => {
+    const logs = [day('a', [{ weight: 0, reps: 10 }]), day('b', [{ weight: 0, reps: 12 }, { weight: null, reps: 11 }])]
+    expect(workoutSummary('b', items, logs, lookup).results[0]).toMatchObject({ status: 'up', score: 12, lastScore: 10, pr: true })
+    expect(workoutSummary('a', items, logs, lookup).results[0].status).toBe('new')
+  })
+
+  it('weighted last time, bodyweight today: logged, not compared', () => {
+    const logs = [day('a', [{ weight: 25, reps: 8 }]), day('b', [{ weight: 0, reps: 15 }])]
+    const r = workoutSummary('b', items, logs, lookup)
+    expect(r.results[0].status).toBe('done')
+    expect(r.compared).toBe(0)
+  })
+
+  it('a ticked set with nothing typed still counts as done; nothing at all is skipped', () => {
+    expect(workoutSummary('b', items, [day('b', [{ weight: null, reps: null, done: true }])], lookup).results[0].status).toBe('new')
+    expect(workoutSummary('b', items, [day('b', [{ weight: null, reps: null, done: false }])], lookup).results[0].status).toBe('skipped')
   })
 })

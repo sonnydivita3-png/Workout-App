@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { formatPace, formatSeconds, showDistance, showWeight } from '../lib/units'
 import { cardioSessions, hasData, isPR, setSessions, strengthSessions } from '../lib/stats'
 import { findExercise, useStore } from '../store'
-import type { Exercise } from '../types'
+import type { Exercise, StrengthSet } from '../types'
+import { formatSet, workSets } from '../lib/progression'
 import { formatResult } from '../lib/wod'
 import { LineChart } from './LineChart'
 import { BodyTab } from './history/BodyTab'
@@ -108,12 +109,19 @@ type Metric = 'e1rm' | 'top' | 'volume' | 'pace' | 'distance' | 'time' | 'best' 
 function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }) {
   const { logs, units, deleteLogs } = useStore()
   const isStrength = exercise.kind === 'strength'
-  const mode = exercise.mode ?? 'weight'
-  const [metric, setMetric] = useState<Metric>(!isStrength ? 'pace' : mode === 'weight' ? 'e1rm' : 'best')
+  const strength = useMemo(() => (exercise.mode ?? 'weight') === 'weight' ? strengthSessions(logs, exercise.id) : [], [logs, exercise.id, exercise.mode])
+  // A weighted lift only ever done with bodyweight (dips, pull-ups, an ab roller) charts reps, like a bodyweight move.
+  const mode = (exercise.mode ?? 'weight') === 'weight' && strength.length === 0 ? 'reps' : exercise.mode ?? 'weight'
+  const [picked, setMetric] = useState<Metric>(!isStrength ? 'pace' : mode === 'weight' ? 'e1rm' : 'best')
 
-  const strength = useMemo(() => (mode === 'weight' ? strengthSessions(logs, exercise.id) : []), [logs, exercise.id, mode])
   const counted = useMemo(() => (mode === 'weight' ? [] : setSessions(logs, exercise.id, mode)), [logs, exercise.id, mode])
   const cardio = useMemo(() => cardioSessions(logs, exercise.id), [logs, exercise.id])
+  // Every session with working sets, weighted or bodyweight, newest first.
+  const lifts = useMemo(
+    () => logs.filter((l) => l.exerciseId === exercise.id && workSets(l).length > 0).sort((a, b) => b.date.localeCompare(a.date)),
+    [logs, exercise.id],
+  )
+  const setLabel = (x: StrengthSet) => (exercise.mode === 'reps' ? `${x.reps} reps` : formatSet(x, exercise.mode ?? 'weight', units).replace('×', ' × '))
 
   const metrics: { id: Metric; label: string }[] = isStrength
     ? mode === 'weight'
@@ -122,6 +130,8 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
         ? [{ id: 'best', label: 'Best set' }, { id: 'total', label: 'Total reps' }]
         : [{ id: 'best', label: 'Longest hold' }, { id: 'total', label: 'Total time' }]
     : [{ id: 'pace', label: 'Pace' }, { id: 'distance', label: 'Distance' }, { id: 'time', label: 'Time' }]
+  // The measures change if the first weighted session arrives while this is open (e.g. from a backup sync).
+  const metric = metrics.some((m) => m.id === picked) ? picked : metrics[0].id
 
   const w = (lb: number) => showWeight(lb, units)!
   let points: { date: string; y: number }[] = []
@@ -189,7 +199,7 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
 
       <h2 className="mb-2 mt-6 text-sm font-semibold text-neutral-700">Sessions</h2>
       <ul className="space-y-2">
-        {(isStrength ? (mode === 'weight' ? [...strength] : [...counted]).reverse() : [...cardio].reverse()).map((s) => (
+        {(isStrength ? lifts : [...cardio].reverse()).map((s) => (
           <li key={s.date} className="rounded-2xl bg-surface p-4 text-sm shadow-sm ring-1 ring-neutral-200/70">
             <div className="mb-1 flex items-center justify-between">
               <span className="font-medium">{fmtLong(s.date)}</span>
@@ -201,16 +211,10 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
                 Delete
               </button>
             </div>
-            {'values' in s ? (
+            {'exerciseId' in s ? (
               <div className="tabular-nums text-neutral-500">
-                {s.values.map((v, i) => (
-                  <span key={i} className="mr-3 inline-block">{mode === 'time' ? formatSeconds(v) : `${v} reps`}</span>
-                ))}
-              </div>
-            ) : 'sets' in s ? (
-              <div className="tabular-nums text-neutral-500">
-                {s.sets.map((x, i) => (
-                  <span key={i} className="mr-3 inline-block">{w(x.weight)} × {x.reps}</span>
+                {workSets(s).map((x, i) => (
+                  <span key={i} className="mr-3 inline-block">{setLabel(x)}</span>
                 ))}
               </div>
             ) : (

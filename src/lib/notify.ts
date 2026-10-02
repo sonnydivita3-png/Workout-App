@@ -62,18 +62,20 @@ export function computeNotifications(i: Input): Candidate[] {
     for (const id of todays) {
       const ex = i.exerciseName(id)
       if (!ex) continue
-      if (ex.kind === 'strength' && ex.mode && ex.mode !== 'weight') {
-        const s = setSessions(i.logs, id, ex.mode)
+      // Reps moves and holds, and weighted lifts only ever done with bodyweight (dips, an ab roller): most reps / longest.
+      const countMode = ex.kind !== 'strength' ? null : ex.mode && ex.mode !== 'weight' ? ex.mode : strengthSessions(i.logs, id).length === 0 ? 'reps' : null
+      if (countMode) {
+        const s = setSessions(i.logs, id, countMode)
         const last = s.at(-1)
         if (!last || last.date !== today || s.length < 2) continue
         const prior = Math.max(...s.slice(0, -1).map((x) => x.best))
         if (last.best > prior) {
           out.push({
-            id: `pr:${id}:${today}:${ex.mode}`,
+            id: `pr:${id}:${today}:${countMode}`,
             type: 'pr',
             title: 'New PR 🔥',
             body:
-              ex.mode === 'time'
+              countMode === 'time'
                 ? `${ex.name}: ${formatSeconds(last.best)} hold (was ${formatSeconds(prior)})`
                 : `${ex.name}: ${last.best} reps in a set (was ${prior})`,
           })

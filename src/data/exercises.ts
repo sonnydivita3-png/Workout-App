@@ -89,6 +89,15 @@ const NO_GEAR = new Set([
   'Single Leg Push-off', 'Stride Jump Crossover', 'Prone Manual Hamstring', 'London Bridges',
 ])
 for (const e of EXERCISES) if (e.equipment === 'Other' && NO_GEAR.has(e.name)) e.equipment = 'Bodyweight'
+// Moves that are always done with bodyweight but were filed as weighted lifts: log them as reps, with no weight box.
+// (Lifts people often load, like dips and pull-ups, stay weighted; a set with no weight there counts as bodyweight.)
+const REPS_ONLY = new Set([
+  'Ab_Roller', 'Decline_Push-Up', 'Bodyweight_Walking_Lunge', 'Inverted_Row', 'Inverted_Row_with_Straps', 'Bodyweight_Mid_Row',
+  'Suspended_Push-Up', 'Suspended_Row', 'Suspended_Fallout', 'Suspended_Reverse_Crunch', 'Suspended_Split_Squat',
+  'Muscle_Up', 'Kipping_Muscle_Up', 'Scapular_Pull-Up', 'Band_Assisted_Pull-Up', 'Knee_Hip_Raise_On_Parallel_Bars',
+  'Floor_Glute-Ham_Raise',
+])
+for (const e of EXERCISES) if (REPS_ONLY.has(e.id) && e.mode === 'weight') e.mode = 'reps'
 // ...and one listed as bodyweight that needs a dumbbell to push up from.
 for (const e of EXERCISES) if (e.id === 'Close-Grip_Push-Up_off_of_a_Dumbbell') e.equipment = 'Dumbbell'
 

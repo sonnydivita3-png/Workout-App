@@ -1,10 +1,26 @@
 import type { Exercise, ExerciseLog, StrengthSet, Units } from '../types'
 import { epley } from './stats'
 import { familyOf } from './randomUtil'
-import { showWeight } from './units'
+import { formatSeconds, showWeight } from './units'
 
 /** Working sets with data (warm-ups and drop sets left out). */
 export const workSets = (l?: ExerciseLog): StrengthSet[] => (l?.sets ?? []).filter((s) => !s.warmup && !s.drop && (s.weight || s.reps || s.seconds))
+/** A set with added weight. Reps with no weight (blank or 0) on a weighted lift is a bodyweight set: dips, pull-ups, an ab roller. */
+const loaded = (s: StrengthSet) => !!s.weight && s.weight > 0 && !!s.reps
+
+/**
+ * How a session of a lift is measured. With any weighted working set: by load (estimated max). With only bodyweight
+ * sets: by reps. Sessions measured differently aren't compared with each other.
+ */
+export function sessionBasis(l: ExerciseLog | undefined, mode: Exercise['mode'], kind: Exercise['kind']): 'load' | 'reps' | 'time' | 'cardio' | null {
+  if (!l) return null
+  if (kind === 'cardio') return l.cardio?.distance || l.cardio?.minutes ? 'cardio' : null
+  const sets = workSets(l)
+  if (mode === 'time') return sets.some((s) => s.seconds) ? 'time' : null
+  if (mode !== 'reps' && sets.some(loaded)) return 'load'
+  return sets.some((s) => s.reps) ? 'reps' : null
+}
+
 /** Drop sets with data. */
 export const dropSetsOf = (l?: ExerciseLog): StrengthSet[] => (l?.sets ?? []).filter((s) => s.drop && (s.weight || s.reps))
 
@@ -51,6 +67,11 @@ export function suggestNext(
     return { kind: 'add-reps', reps: best + 1, why: `Best set last time was ${best} reps. Beat it with ${best + 1}.` }
   }
   const top = Math.max(...sets.map((s) => s.weight ?? 0))
+  if (top <= 0) {
+    // Done with bodyweight last time (no weight, or 0): beat the best set by a rep rather than "add 5 lb" to nothing.
+    const best = Math.max(...sets.map((s) => s.reps ?? 0))
+    if (best > 0) return { kind: 'add-reps', weight: null, reps: best + 1, why: `Bodyweight: best set last time was ${best} reps. Beat it with ${best + 1}.` }
+  }
   const atTop = sets.filter((s) => (s.weight ?? 0) === top)
   const goal = target.reps ?? Math.max(...atTop.map((s) => s.reps ?? 0))
   const hit = atTop.every((s) => (s.reps ?? 0) >= goal) && atTop.length >= Math.min(2, sets.length)
@@ -125,6 +146,8 @@ export function plateau(ex: Exercise, history: ExerciseLog[]): number {
   const recent = history.filter((l) => workSets(l).length > 0).slice(0, 4)
   if (recent.length < 3) return 0
   const tops = recent.map((l) => Math.max(...workSets(l).map((s) => s.weight ?? 0)))
+  // Bodyweight sets have no weight to drop: no deload.
+  if (tops[0] <= 0) return 0
   const same = tops.findIndex((t) => t !== tops[0])
   const run = same === -1 ? tops.length : same
   if (run < 3) return 0
@@ -137,21 +160,35 @@ export function plateau(ex: Exercise, history: ExerciseLog[]): number {
 /** How a set compares with the same set last time: better, same, or worse (null if nothing to compare). */
 export function compareSet(now: StrengthSet, then: StrengthSet | undefined, mode: Exercise['mode']): 'up' | 'same' | 'down' | null {
   if (!then || now.warmup || then.warmup) return null
-  const score = (s: StrengthSet) => (mode === 'time' ? s.seconds ?? 0 : mode === 'reps' ? s.reps ?? 0 : s.weight && s.reps ? epley(s.weight, s.reps) : 0)
+  // A weighted lift done with bodyweight both times compares reps; weighted against bodyweight doesn't compare.
+  const byReps = mode === 'reps' || (mode !== 'time' && !loaded(now) && !loaded(then))
+  if (mode !== 'time' && !byReps && !(loaded(now) && loaded(then))) return null
+  const score = (s: StrengthSet) => (mode === 'time' ? s.seconds ?? 0 : byReps ? s.reps ?? 0 : epley(s.weight!, s.reps!))
   const a = score(now)
   const b = score(then)
   if (!a || !b) return null
   return a > b + 0.01 ? 'up' : a < b - 0.01 ? 'down' : 'same'
 }
 
-/** One number per session to compare against last time: best est. 1RM, best reps or longest hold. */
+/**
+ * One number per session to compare against last time: best est. 1RM (weighted sets), best reps (bodyweight or reps
+ * moves) or longest hold. Check `sessionBasis` before comparing two of them.
+ */
 export function sessionScore(l: ExerciseLog | undefined, mode: Exercise['mode'], kind: Exercise['kind']): number {
   if (!l) return 0
   if (kind === 'cardio') return l.cardio?.distance ?? l.cardio?.minutes ?? 0
   const sets = workSets(l)
   if (mode === 'time') return Math.max(0, ...sets.map((s) => s.seconds ?? 0))
-  if (mode === 'reps') return Math.max(0, ...sets.map((s) => s.reps ?? 0))
-  return Math.max(0, ...sets.map((s) => (s.weight && s.reps ? epley(s.weight, s.reps) : 0)))
+  if (sessionBasis(l, mode, kind) === 'load') return Math.max(0, ...sets.filter(loaded).map((s) => epley(s.weight!, s.reps!)))
+  return Math.max(0, ...sets.map((s) => s.reps ?? 0))
+}
+
+/** One set for display: "185×5", "12 reps" (bodyweight on a weighted lift), "12" (reps moves) or "0:45" (holds). */
+export function formatSet(s: StrengthSet, mode: Exercise['mode'], units: Units): string {
+  if (mode === 'time') return s.seconds ? formatSeconds(s.seconds) : '–'
+  if (mode === 'reps') return s.reps ? `${s.reps}` : '–'
+  if (!s.weight) return s.reps ? `${s.reps} reps` : '–'
+  return `${showWeight(s.weight, units)}×${s.reps ?? '–'}`
 }
 
 /** Total work in a session: weight × reps, total reps, or total seconds. */

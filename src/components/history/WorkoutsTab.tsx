@@ -126,7 +126,7 @@ function DaySheet({ date, onClose, lookupUnits: units }: { date: string; onClose
   const timed = timedLogs.filter((t) => t.date === date)
   const s = workoutSummary(date, dayLogs.map((l) => ({ exerciseId: l.exerciseId, sets: 1 })), logs, lookup)
   const status = new Map(s.results.map((r) => [r.exerciseId, r]))
-  const badge = { up: ['▲ better', 'text-green-600'], same: ['= matched', 'text-neutral-400'], down: ['▼ lower', 'text-red-600'], new: ['first time', 'text-neutral-400'], skipped: ['', ''] } as const
+  const badge = { up: ['▲ better', 'text-green-600'], same: ['= matched', 'text-neutral-400'], down: ['▼ lower', 'text-red-600'], new: ['first time', 'text-neutral-400'], done: ['✓ done', 'text-neutral-400'], skipped: ['', ''] } as const
 
   return (
     <Sheet title={fmtLong(date)} onClose={onClose}>
