@@ -1,28 +1,29 @@
 import { useState } from 'react'
-import { CARDIO_GUIDE, cardioWeek, conditioningWeek, lowerIsBetter, resultScore, resultsFor, weekOf } from '../../lib/conditioning'
+import { cardioTarget, cardioWeek, conditioningWeek, lowerIsBetter, resultScore, resultsFor, weekOf } from '../../lib/conditioning'
 import { fmtShort } from '../../lib/dates'
 import { formatSeconds, showDistance } from '../../lib/units'
 import { useToday } from '../../lib/useToday'
 import { formatResult, wodOf, wodTitle } from '../../lib/wod'
+import { savedGoals } from '../../lib/program'
 import { findExercise, useStore } from '../../store'
 import type { PlannedExercise, TimedLog } from '../../types'
 import { LineChart } from '../LineChart'
 
 const card = 'rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70'
 
-/** This week (accent) over last week (grey), like the hard-sets chart. */
+/** This week (accent, with its number) over last week (grey bar), like the hard-sets chart. */
 function Bars({ rows, unit }: { rows: { label: string; now: number; then: number }[]; unit: string }) {
   const max = Math.max(10, ...rows.flatMap((r) => [r.now, r.then]))
   return (
     <ul className="space-y-1.5">
       {rows.map((r) => (
-        <li key={r.label} className="grid grid-cols-[6.5rem_1fr_4.5rem] items-center gap-2 text-xs">
+        <li key={r.label} className="grid grid-cols-[6.5rem_1fr_4.5rem] items-center gap-2 text-xs" aria-label={`${r.label}: ${Math.round(r.now)} ${unit} this week, ${Math.round(r.then)} last week`}>
           <span className="truncate text-neutral-600">{r.label}</span>
           <span className="relative h-3 rounded-full bg-neutral-100">
             <span className="absolute inset-y-0 left-0 rounded-full bg-neutral-300" style={{ width: `${(r.then / max) * 100}%` }} />
             <span className="absolute inset-y-0.5 left-0 rounded-full bg-accent" style={{ width: `${(r.now / max) * 100}%` }} />
           </span>
-          <span className="text-right tabular-nums">{Math.round(r.now)}<span className="text-neutral-400"> / {Math.round(r.then)} {unit}</span></span>
+          <span className="text-right tabular-nums">{Math.round(r.now)} {unit}</span>
         </li>
       ))}
     </ul>
@@ -45,7 +46,10 @@ interface Track {
 
 /** Cardio and conditioning on the Progress tab: weekly minutes, and benchmark / Hyrox results over time. */
 export function ConditioningSection() {
-  const { logs, timedLogs, custom, plan, overrides, benchmarks, units, bodyweight, aboutMe } = useStore()
+  const { logs, timedLogs, custom, plan, overrides, benchmarks, units, bodyweight, aboutMe, trainingPrefs } = useStore()
+  const goals = savedGoals(trainingPrefs)
+  const minTarget = cardioTarget(goals, trainingPrefs.cardioMinutes)
+  const milesTarget = trainingPrefs.cardioMiles && trainingPrefs.cardioMiles > 0 ? trainingPrefs.cardioMiles : null
   const today = useToday()
   const [open, setOpen] = useState<string | null>(null)
   const lookup = (id: string) => findExercise(custom, id)
@@ -73,21 +77,36 @@ export function ConditioningSection() {
     return <p className={`${card} text-xs text-neutral-400`}>Cardio, timed workouts and Hyrox show up here once you log them: weekly minutes and how your benchmark results change.</p>
   }
 
-  const guidePct = Math.min(100, (cardioNow.minutes / CARDIO_GUIDE) * 100)
+  const guidePct = Math.min(100, (cardioNow.minutes / minTarget) * 100)
+  const why = trainingPrefs.cardioMinutes ? 'your own target' : goals.includes('fatloss') && minTarget === 225 ? 'for losing fat (200–300 is the usual advice)' : minTarget === 180 ? 'for Hyrox / CrossFit' : 'the health guideline (or 75 hard)'
   return (
     <>
       <section className={card}>
-        <p className="mb-1 text-sm font-semibold text-neutral-700">Cardio minutes · this week vs last</p>
-        <p className="mb-3 text-xs text-neutral-400">Guidelines: about {CARDIO_GUIDE} minutes a week of moderate cardio, or 75 of hard.</p>
+        <p className="mb-1 text-sm font-semibold text-neutral-700">Cardio · this week</p>
+        <p className="mb-3 text-xs text-neutral-400">Target {minTarget} min a week, {why}{milesTarget ? `, and ${showDistance(milesTarget, units)} ${units.distance}` : ''}. Change it in Settings → Profile. Grey is last week.</p>
         <div className="mb-3">
           <div className="mb-1 flex justify-between text-xs">
-            <span className="font-medium">{Math.round(cardioNow.minutes)} of {CARDIO_GUIDE} min{cardioNow.distance ? ` · ${showDistance(cardioNow.distance, units)} ${units.distance}` : ''}</span>
+            <span className={`font-medium ${cardioNow.minutes >= minTarget ? 'text-green-600' : ''}`}>{Math.round(cardioNow.minutes)} of {minTarget} min{cardioNow.minutes >= minTarget ? ' ✓' : ''}{!milesTarget && cardioNow.distance ? ` · ${showDistance(cardioNow.distance, units)} ${units.distance}` : ''}</span>
             <span className="text-neutral-400">last week {Math.round(cardioThen.minutes)} min</span>
           </div>
-          <div className="h-2 rounded-full bg-neutral-100" role="progressbar" aria-label="Cardio minutes this week" aria-valuenow={Math.round(cardioNow.minutes)} aria-valuemax={CARDIO_GUIDE}>
-            <div className="h-2 rounded-full bg-accent" style={{ width: `${guidePct}%` }} />
+          <div className="h-2 rounded-full bg-neutral-100" role="progressbar" aria-label="Cardio minutes this week" aria-valuenow={Math.round(cardioNow.minutes)} aria-valuemax={minTarget}>
+            <div className={`h-2 rounded-full ${cardioNow.minutes >= minTarget ? 'bg-green-500' : 'bg-accent'}`} style={{ width: `${guidePct}%` }} />
           </div>
         </div>
+        {milesTarget && (() => {
+          const done = cardioNow.distance >= milesTarget - 0.005
+          return (
+            <div className="mb-3">
+              <div className="mb-1 flex justify-between text-xs">
+                <span className={`font-medium ${done ? 'text-green-600' : ''}`}>{showDistance(cardioNow.distance, units)} of {showDistance(milesTarget, units)} {units.distance}{done ? ' ✓' : ''}</span>
+                <span className="text-neutral-400">last week {showDistance(cardioThen.distance, units)} {units.distance}</span>
+              </div>
+              <div className="h-2 rounded-full bg-neutral-100" role="progressbar" aria-label="Cardio distance this week" aria-valuenow={showDistance(cardioNow.distance, units) ?? 0} aria-valuemax={showDistance(milesTarget, units) ?? 0}>
+                <div className={`h-2 rounded-full ${done ? 'bg-green-500' : 'bg-accent'}`} style={{ width: `${Math.min(100, (cardioNow.distance / milesTarget) * 100)}%` }} />
+              </div>
+            </div>
+          )
+        })()}
         {(cardioNow.byType.length > 0 || cardioThen.byType.length > 0) && <Bars rows={merge(cardioNow.byType, cardioThen.byType)} unit="min" />}
         {(cardioNow.calories.total > 0 || cardioNow.calories.missing > 0) && (() => {
           const { total, estimated, missing } = cardioNow.calories
@@ -107,7 +126,7 @@ export function ConditioningSection() {
       <section className={card}>
         <p className="mb-1 text-sm font-semibold text-neutral-700">Conditioning · this week vs last</p>
         <p className="mb-3 text-xs text-neutral-400">
-          {condNow.sessions} session{condNow.sessions === 1 ? '' : 's'}, {Math.round(condNow.minutes)} min this week (last week {Math.round(condThen.minutes)}). Hyrox, timed workouts and circuits.
+          {condNow.sessions} session{condNow.sessions === 1 ? '' : 's'}, {Math.round(condNow.minutes)} min this week (last week {Math.round(condThen.minutes)}). Hyrox, timed workouts and circuits. Grey is last week.
         </p>
         {(condNow.byKind.length > 0 || condThen.byKind.length > 0)
           ? <Bars rows={merge(condNow.byKind, condThen.byKind)} unit="min" />

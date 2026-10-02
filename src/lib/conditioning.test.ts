@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import type { ExerciseLog, PlannedExercise, TimedLog, WeekPlan } from '../types'
-import { cardioWeek, conditioningWeek, hyroxRunPace, lowerIsBetter, resultScore, resultsFor, timedMinutes, weekOf } from './conditioning'
+import { cardioTarget, cardioWeek, conditioningWeek, hyroxRunPace, lowerIsBetter, resultScore, resultsFor, timedMinutes, weekOf } from './conditioning'
 
 const lookup = (id: string) => BUILTIN_BY_ID.get(id)
 const plan: WeekPlan = Array.from({ length: 7 }, () => [])
@@ -101,5 +101,15 @@ describe('calories include Hyrox and timed-workout cardio', () => {
     const w = cardioWeek(logs, [amrap('2026-09-29', 5, 0, ['x-row-erg'])], WEEK, lookup, [{ date: '2026-09-01', lb: 185 }])
     expect(w.minutes).toBe(0)
     expect(w.calories.total).toBe(50) // (7.0 − 1) MET × 83.9 kg × 0.1 h
+  })
+})
+
+describe('weekly cardio target', () => {
+  it('follows the goals, the biggest need winning, or their own number', () => {
+    expect(cardioTarget([])).toBe(150)
+    expect(cardioTarget(['muscle'])).toBe(150)
+    expect(cardioTarget(['muscle', 'fatloss'])).toBe(225)
+    expect(cardioTarget(['functional'])).toBe(180)
+    expect(cardioTarget(['fatloss'], 300)).toBe(300)
   })
 })
