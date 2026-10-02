@@ -4,6 +4,7 @@ import type { Exercise, PlannedExercise } from '../types'
 import { generateCrossfit, generateHyrox, generateTimed } from './functionalStyles'
 import { liftMinutes, REST_SCALE, restFor, transitionMin, WARMUP_SET_MIN, workSeconds, type RestPref } from './timing'
 import { addDropSets, placeWarmups } from './warmups'
+import { cardioSession, type CardioSessionKind } from './cardioSession'
 import { cardioSplit, likedCardio, wodAmount, wodCardio } from './cardioPrefs'
 import { expandParts, FULL_BODY_ORDER, isFullBody, LOWER_PARTS, UPPER_PARTS, BODY_PARTS } from './bodyParts'
 import { byPreference, moveScore, tooAdvanced } from './movePrefs'
@@ -161,9 +162,14 @@ export function generateWarmup(focus: string[], w: WarmupOptions, rng: Rng, avoi
  * Steady cardio for `minutes`: the kinds the person likes (all of them, sharing the time, if they split it),
  * otherwise anything they can do, with long sessions split over two.
  */
-function pickCardio(minutes: number, rng: Rng, avoid: Set<string> = new Set()): PlannedExercise[] {
+function pickCardio(minutes: number, rng: Rng, avoid: Set<string> = new Set(), spec?: CardioSpec): PlannedExercise[] {
   const liked = likedCardio()
   const pool = softShuffle(liked ?? POOL.filter((e) => e.kind === 'cardio' && hasGear(e)), avoid, rng)
+  // A chosen activity or session type (intervals, tempo…): one session, written out for that activity.
+  if (spec?.exerciseId || (spec?.kind && spec.kind !== 'steady')) {
+    const id = spec.exerciseId ?? pool[0]?.id
+    return id ? [cardioSession(id, spec.kind ?? 'steady', roundTo5(minutes))] : []
+  }
   if (pool.length === 0) return []
   // Split: every liked kind gets a share, at least 5 minutes each.
   const n = liked && cardioSplit() ? Math.max(1, Math.min(pool.length, Math.floor(minutes / 5))) : !liked && minutes > 45 ? 2 : 1
@@ -193,7 +199,15 @@ interface LiftConfig {
   mainTargets?: (e: Exercise, rng: Rng) => Pick<PlannedExercise, 'reps' | 'seconds'>
 }
 
+/** The cardio part of a workout: a specific activity (e.g. treadmill running) and the kind of session. */
+export interface CardioSpec {
+  exerciseId?: string
+  kind?: CardioSessionKind
+}
+
 export interface LiftOptions {
+  /** The cardio part (on its own or as a finisher), when the person chose an activity or session type. */
+  cardio?: CardioSpec
   rest?: RestPref
   /** Full body: never give a part a second exercise, even if the session comes up short (supersets pick from this). */
   noRepeats?: boolean
@@ -789,6 +803,8 @@ export interface GenerateOptions {
   dropSets?: boolean
   /** Lifts the person has been logging, picked first so progress carries over. */
   familiar?: Set<string>
+  /** The cardio activity and session type (steady, intervals, tempo, hills, time trial). */
+  cardio?: CardioSpec
 }
 
 /**
@@ -818,7 +834,7 @@ function generateMixed(focus: string[], minutes: number, styles: WorkoutStyle[],
       out.push(p.block ? { ...p, block: `${style}-${p.block}` } : p)
     }
   }
-  return cardio ? [...out, ...pickCardio(cardioMin, rng, new Set([...avoid, ...used])).filter((p) => !used.has(p.exerciseId))] : out
+  return cardio ? [...out, ...pickCardio(cardioMin, rng, new Set([...avoid, ...used]), lift.cardio).filter((p) => !used.has(p.exerciseId))] : out
 }
 
 export function generateWorkout(focusIn: string[], minutes: number, opts: GenerateOptions = {}): PlannedExercise[] {
@@ -839,13 +855,19 @@ export function generateWorkout(focusIn: string[], minutes: number, opts: Genera
     return [...warm, ...main.filter((p) => !warm.some((x) => x.exerciseId === p.exerciseId))]
   }
   const { style = 'standard', rng = Math.random, avoid = new Set<string>() } = opts
-  const lift: LiftOptions = { rest: opts.rest, warmupSets: w.sets, familiar: opts.familiar }
+  const lift: LiftOptions = { rest: opts.rest, warmupSets: w.sets, familiar: opts.familiar, cardio: opts.cardio }
   const custom = opts.cardioMinutes != null || (opts.minutesByStyle && Object.keys(opts.minutesByStyle).length > 0)
   if (opts.styles && (new Set(opts.styles).size > 1 || custom)) {
     const list = [...new Set(opts.styles)].sort((a, b) => STYLE_ORDER.indexOf(a) - STYLE_ORDER.indexOf(b))
     return generateMixed(focus, minutes, list, rng, avoid, opts.minutesByStyle, opts.cardioMinutes, lift)
   }
-  if (opts.styles?.length === 1) return generateWorkout(focus, minutes, { style: opts.styles[0], rng, avoid, rest: opts.rest, warmup: { sets: w.sets }, familiar: opts.familiar })
+  if (opts.styles?.length === 1) return generateWorkout(focus, minutes, { style: opts.styles[0], rng, avoid, rest: opts.rest, warmup: { sets: w.sets }, familiar: opts.familiar, cardio: opts.cardio })
+  // Cardio and no body parts with a conditioning style: that's a hard cardio session (intervals, or a time trial for
+  // "for time"), not a bodyweight circuit with one cardio station.
+  const cardioOnly = focus.includes('Cardio') && focus.every((g) => g === 'Cardio')
+  if (cardioOnly && ['amrap', 'emom', 'tabata', 'circuit', 'pha', 'fortime'].includes(style)) {
+    return pickCardio(minutes, rng, avoid, { exerciseId: opts.cardio?.exerciseId, kind: opts.cardio?.kind ?? (style === 'fortime' ? 'trial' : 'intervals') })
+  }
   if (style === 'hyrox') return generateHyrox(minutes)
   if (style === 'crossfit') return generateCrossfit(minutes, rng, avoid)
   if (style === 'amrap' || style === 'emom' || style === 'fortime' || style === 'tabata') return generateTimed(style, focus.filter((g) => g !== 'Cardio'), minutes, rng, avoid, focus.includes('Cardio'))
@@ -853,7 +875,7 @@ export function generateWorkout(focusIn: string[], minutes: number, opts: Genera
   let groups = focus.filter((g) => g !== 'Cardio')
   const cardio = focus.includes('Cardio')
   if (groups.length === 0 && !cardio && (style === 'circuit' || style === 'pha')) groups = FULL_BODY_GROUPS
-  if (groups.length === 0) return cardio ? pickCardio(minutes, rng, avoid) : []
+  if (groups.length === 0) return cardio ? pickCardio(minutes, rng, avoid, opts.cardio) : []
 
   const cardioMin = cardio ? Math.min(30, Math.max(10, roundTo5(minutes * 0.25))) : 0
   const liftMin = minutes - cardioMin
@@ -866,7 +888,7 @@ export function generateWorkout(focusIn: string[], minutes: number, opts: Genera
     case 'pha': items = generatePha(groups, liftMin, rng, avoid); break
     default: items = pickLifts(groups, liftMin, rng, avoid, STANDARD, lift)
   }
-  return cardio ? [...items, ...pickCardio(cardioMin, rng, avoid)] : items
+  return cardio ? [...items, ...pickCardio(cardioMin, rng, avoid, opts.cardio)] : items
 }
 
 /** Swap one item for a different random exercise from the same group or style (keeps sets/minutes/block). */

@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import { BUILTIN_BY_ID } from './data/exercises'
 import { setMovePrefs, type MovePrefs } from './lib/movePrefs'
 import type { ProgramGoal } from './lib/program'
+import type { CardioSetup } from './lib/cardioSetup'
 import { parseISO, weekdayIndex } from './lib/dates'
 import { toPlanned, type CardioDay } from './lib/cardioPlan'
 import { dayPlanOf } from './lib/plan'
@@ -113,7 +114,7 @@ interface State extends Data {
   setTheme: (t: ThemeMode) => void
   setAccent: (a: Accent) => void
   /** Randomizer choices remembered between uses. */
-  genPrefs: { warmup: WarmupKind[]; rest: RestPref; focus?: string[]; styles?: WorkoutStyle[]; minutes?: number; drops?: boolean }
+  genPrefs: { warmup: WarmupKind[]; rest: RestPref; focus?: string[]; styles?: WorkoutStyle[]; minutes?: number; drops?: boolean; kinds?: ('lift' | 'cond' | 'cardio')[]; cardioSetup?: CardioSetup }
   setGenPrefs: (p: Partial<State['genPrefs']>) => void
   /** Show an RPE (effort) column when logging sets. */
   trackRpe: boolean
