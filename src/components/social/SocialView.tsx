@@ -118,6 +118,12 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   const incomingReqs = workoutRequests.filter((x) => !x.mine && x.status === 'pending')
   const incomingChallenges = challenges.filter((x) => !x.mine && x.status === 'pending')
   const unread = emoji.filter((x) => !x.mine && !x.read)
+  // Workouts I sent lately, with what each friend did with them and their emoji replies.
+  const newestFirst = <T extends { createdAt: string }>(list: T[]) => [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  const sentShares = newestFirst(shares.filter((x) => x.mine)).slice(0, 5)
+  const earlierShares = newestFirst(shares.filter((x) => !x.mine && x.status !== 'pending')).slice(0, 5)
+  const shareTitle = (id?: string) => shares.find((x) => x.id === id)?.title
+  const repliesTo = (id: string) => newestFirst(emoji.filter((m) => !m.mine && m.contextType === 'share' && m.contextId === id)).reverse()
   const activeChallenges = challenges.filter((c) => c.status === 'active')
   const pastChallenges = challenges.filter((c) => ['completed', 'declined', 'cancelled'].includes(c.status)).slice(0, 10)
   const waitingChallenges = challenges.filter((c) => c.mine && c.status === 'pending')
@@ -231,11 +237,47 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
               </ul>
             </Card>
           )}
+          {sentShares.length > 0 && (
+            <Card title="Workouts you sent">
+              <ul className="divide-y divide-neutral-100">
+                {sentShares.map((x) => {
+                  const r = repliesTo(x.id)
+                  return (
+                    <li key={x.id} className="flex items-center gap-3 py-2">
+                      <Avatar profile={x.to} size="sm" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{x.emoji} {x.title}</span>
+                        <span className="block text-xs text-neutral-400">to {x.to.displayName} · {x.status === 'added' ? '✅ added to their calendar' : x.status === 'dismissed' ? 'viewed, not added' : 'not added yet'} · {ago(x.createdAt)}</span>
+                      </span>
+                      {r.length > 0 && <span className="shrink-0 text-lg" aria-label={`Replies: ${r.map((m) => m.emoji).join(' ')}`}>{r.slice(-3).map((m) => m.emoji).join('')}</span>}
+                    </li>
+                  )
+                })}
+              </ul>
+            </Card>
+          )}
+          {earlierShares.length > 0 && (
+            <Card title="Shared with you earlier">
+              <ul className="divide-y divide-neutral-100">
+                {earlierShares.map((x) => (
+                  <li key={x.id} className="flex items-center gap-3 py-2">
+                    <Avatar profile={x.from} size="sm" />
+                    <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{x.emoji} {x.title}</span><span className="block text-xs text-neutral-400">{x.from.displayName} · {x.status === 'added' ? 'added' : 'dismissed'}</span></span>
+                    <button onClick={() => setAdding(x)} className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-600">View</button>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
           {unread.length > 0 && (
             <Card title="Emoji" action={<button onClick={() => run((b) => b.markEmojiRead(unread.map((u) => u.id)))} className="text-xs text-neutral-400 underline">Mark read</button>}>
               <ul className="space-y-1">
                 {unread.map((m) => (
-                  <li key={m.id} className="flex items-center gap-3 text-sm"><span className="text-2xl">{m.emoji}</span><span className="flex-1">{m.from.displayName}</span><span className="text-xs text-neutral-400">{ago(m.createdAt)}</span></li>
+                  <li key={m.id} className="flex items-center gap-3 text-sm">
+                    <span className="text-2xl">{m.emoji}</span>
+                    <span className="min-w-0 flex-1">{m.from.displayName}{m.contextType === 'share' && shareTitle(m.contextId) ? <span className="block truncate text-xs text-neutral-400">on your workout “{shareTitle(m.contextId)}”</span> : null}</span>
+                    <span className="text-xs text-neutral-400">{ago(m.createdAt)}</span>
+                  </li>
                 ))}
               </ul>
             </Card>
