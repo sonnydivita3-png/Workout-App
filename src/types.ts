@@ -130,6 +130,8 @@ export interface ExerciseLog {
 export interface Units {
   weight: 'lb' | 'kg'
   distance: 'mi' | 'km'
+  /** A cardio exercise's own distance unit, picked on its card (e.g. a rower in km, a swim in yards). */
+  byExercise?: Record<string, 'mi' | 'km' | 'm' | 'yd'>
 }
 
 /** Body measurements. Lengths are stored in inches; body fat is a percentage. */

@@ -154,3 +154,30 @@ test('rowing in meters with minutes and seconds, pace per 500 m', async ({ page 
   await expect(page.locator('label', { hasText: 'Miles' })).toHaveCount(1)
   await expect(page.locator('label', { hasText: 'Meters' })).toHaveCount(1)
 })
+
+test('switch a cardio card between meters, km and miles; swimming in meters or yards', async ({ page }) => {
+  await seed(page, {
+    overrides: { [iso(0)]: [{ exerciseId: 'x-row-erg', sets: 1 }, { exerciseId: 'swimming', sets: 1 }] },
+  })
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByLabel('Rower distance').fill('2000')
+  await page.getByLabel('Rower minutes').fill('8')
+  await expect(page.getByText('2:00 /500m')).toBeVisible()
+  const rower = page.getByRole('group', { name: 'Rower units' })
+  await rower.getByRole('button', { name: 'km', exact: true }).click()
+  await expect(page.getByLabel('Rower distance')).toHaveValue('2')
+  await expect(page.getByText('4:00 /km')).toBeVisible()
+  await rower.getByRole('button', { name: 'm', exact: true }).click()
+  await expect(page.getByLabel('Rower distance')).toHaveValue('2000')
+
+  const swim = page.getByRole('group', { name: 'Swimming units' })
+  await expect(swim.getByRole('button', { name: 'm', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByLabel('Swimming distance').fill('1500')
+  await page.getByLabel('Swimming minutes').fill('30')
+  await expect(page.getByText('2:00 /100m')).toBeVisible()
+  await swim.getByRole('button', { name: 'yd', exact: true }).click()
+  await expect(page.getByLabel('Swimming distance')).toHaveValue('1640')
+  await expect(page.locator('label', { hasText: 'Yards' })).toHaveCount(1)
+  expect((await state(page)).units.byExercise).toEqual({ 'x-row-erg': 'm', swimming: 'yd' })
+})

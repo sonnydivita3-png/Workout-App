@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { parseGpx } from '../lib/gpx'
 import { bodyweightOn, estimateCalories, hasPersonalDetails } from '../lib/calories'
-import { cardioLine, distanceUnitFor, formatCardioTime, formatDistanceFor, formatPaceFor, showDistanceIn, showWeight, storeDistanceIn } from '../lib/units'
+import { cardioLine, distanceUnitFor, distanceUnitsFor, formatCardioTime, formatDistanceFor, formatPaceFor, showDistanceIn, showWeight, storeDistanceIn } from '../lib/units'
 import { useToday } from '../lib/useToday'
 import { useStore } from '../store'
 import type { CardioEntry, Exercise, ExerciseLog } from '../types'
@@ -28,12 +28,13 @@ interface Props {
 
 export function CardioCard({ exercise, current, last, targetMinutes, targetDistance, note, onChange, onRemove, onSwap, readOnly, date }: Props) {
   const units = useStore((s) => s.units)
+  const setDistanceUnit = useStore((s) => s.setDistanceUnit)
   const bodyweight = useStore((s) => s.bodyweight)
   const aboutMe = useStore((s) => s.aboutMe)
   const today = useToday()
   const c = current?.cardio ?? { distance: null, minutes: null }
   const prev = last?.cardio
-  // Rowers and other ergs count meters (pace per 500 m); everything else follows the miles/km setting.
+  // Rowers and swims default to meters, everything else to the miles/km setting; the chips above switch this card's own.
   const unit = distanceUnitFor(exercise.id, units)
   // Time as minutes and seconds (a 2,000 m row in 7:32), stored as minutes.
   const wholeMin = c.minutes == null ? null : Math.floor(c.minutes + 1e-9)
@@ -65,14 +66,26 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
         <button onClick={() => setMenu(true)} aria-label={`${exercise.name} options`} className="-mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg leading-none text-neutral-400 hover:bg-neutral-100">⋯</button>
       </div>
       {note && <p className="mb-3 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-neutral-600">{note}</p>}
-      {readOnly ? <p className="text-sm text-neutral-500">Log it on the day.</p> : (
+      {readOnly ? <p className="text-sm text-neutral-500">Log it on the day.</p> : (<>
+      <div role="group" aria-label={`${exercise.name} units`} className="mb-2 flex gap-1">
+        {distanceUnitsFor(exercise.id).map((u) => (
+          <button
+            key={u}
+            onClick={() => setDistanceUnit(exercise.id, u)}
+            aria-pressed={unit === u}
+            className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${unit === u ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-500'}`}
+          >
+            {u}
+          </button>
+        ))}
+      </div>
       <div className="grid grid-cols-[1fr_1.5fr_1fr] items-end gap-2">
         <label className="text-xs font-medium text-neutral-500">
-          {unit === 'm' ? 'Meters' : unit === 'km' ? 'Km' : 'Miles'}
+          {{ m: 'Meters', yd: 'Yards', km: 'Km', mi: 'Miles' }[unit]}
           <NumberInput
             label={`${exercise.name} distance`}
             value={showDistanceIn(c.distance, unit)}
-            step={unit === 'm' ? 100 : 0.1}
+            step={unit === 'm' || unit === 'yd' ? (exercise.id === 'swimming' ? 25 : 100) : 0.1}
             placeholder={showDistanceIn(prev?.distance ?? targetDistance ?? null, unit)?.toString() ?? '–'}
             onChange={(v) => onChange({ ...c, distance: storeDistanceIn(v, unit) })}
           />
@@ -90,7 +103,7 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
           <div className="py-2 text-center text-sm normal-case tabular-nums text-neutral-900">{formatPaceFor(c.distance, c.minutes, exercise.id, units) ?? '–'}</div>
         </div>
       </div>
-      )}
+      </>)}
       {!readOnly && (() => {
         // Calories: theirs (e.g. from a watch) if typed in, else an estimate from bodyweight, activity, time and pace.
         const day = date ?? current?.date ?? today

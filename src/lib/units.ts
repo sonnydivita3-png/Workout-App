@@ -33,19 +33,35 @@ export const formatMinutes = (m: number) => (m < 60 ? `${Math.round(m)} min` : `
 export const showSpeed = (mph: number, u: Units) => Math.round(mph * distanceFactor(u) * 10) / 10
 export const speedUnit = (u: Units) => (u.distance === 'km' ? 'km/h' : 'mph')
 
-// ---- Distance by machine. Rowers, SkiErgs and BikeErgs (Concept2-style monitors) count meters and pace per 500 m,
-// whatever the miles/km setting; everything else uses that setting. Distances are always stored in miles.
+// ---- Distance per exercise. Rowers, SkiErgs and BikeErgs (Concept2-style monitors) default to meters and pace per
+// 500 m, swimming to meters and pace per 100; everything else follows the miles/km setting. Any cardio card can switch
+// its own unit (kept per exercise in units.byExercise). Distances are always stored in miles.
 const METERS_PER_MI = 1609.344
-const METER_MACHINES = new Set(['x-row-erg', 'Rowing_Stationary', 'x-skierg', 'x-bike-erg'])
-export type DistanceUnit = 'mi' | 'km' | 'm'
+const YARDS_PER_MI = 1760
+const ERGS = new Set(['x-row-erg', 'Rowing_Stationary', 'x-skierg', 'x-bike-erg'])
+const SWIMS = new Set(['swimming'])
+export type DistanceUnit = 'mi' | 'km' | 'm' | 'yd'
+const UNITS: DistanceUnit[] = ['mi', 'km', 'm', 'yd']
 
-export const distanceUnitFor = (exerciseId: string | undefined, u: Units): DistanceUnit =>
-  exerciseId && METER_MACHINES.has(exerciseId) ? 'm' : u.distance
+/** The units a cardio card offers: yards only for swimming. */
+export const distanceUnitsFor = (exerciseId: string | undefined): DistanceUnit[] =>
+  exerciseId && SWIMS.has(exerciseId) ? ['m', 'yd', 'km', 'mi'] : ['mi', 'km', 'm']
+
+export const defaultDistanceUnit = (exerciseId: string | undefined, u: Pick<Units, 'distance'>): DistanceUnit =>
+  exerciseId && (ERGS.has(exerciseId) || SWIMS.has(exerciseId)) ? 'm' : u.distance
+
+export const distanceUnitFor = (exerciseId: string | undefined, u: Units): DistanceUnit => {
+  const own = exerciseId ? u.byExercise?.[exerciseId] : undefined
+  return own && UNITS.includes(own) && distanceUnitsFor(exerciseId).includes(own) ? own : defaultDistanceUnit(exerciseId, u)
+}
 
 export const showDistanceIn = (mi: number | null, unit: DistanceUnit): number | null =>
-  mi == null ? null : unit === 'm' ? Math.round(mi * METERS_PER_MI) : round(unit === 'km' ? mi / MI_PER_KM : mi)
+  mi == null ? null
+    : unit === 'm' ? Math.round(mi * METERS_PER_MI)
+    : unit === 'yd' ? Math.round(mi * YARDS_PER_MI)
+    : round(unit === 'km' ? mi / MI_PER_KM : mi)
 export const storeDistanceIn = (v: number | null, unit: DistanceUnit): number | null =>
-  v == null ? null : unit === 'm' ? v / METERS_PER_MI : unit === 'km' ? v * MI_PER_KM : v
+  v == null ? null : unit === 'm' ? v / METERS_PER_MI : unit === 'yd' ? v / YARDS_PER_MI : unit === 'km' ? v * MI_PER_KM : v
 
 /** "2,000 m", "3.1 mi". */
 export const formatDistanceFor = (mi: number | null, exerciseId: string | undefined, u: Units): string | null => {
@@ -54,16 +70,27 @@ export const formatDistanceFor = (mi: number | null, exerciseId: string | undefi
   return v == null || !mi ? null : `${v.toLocaleString()} ${unit}`
 }
 
-/** Pace per mile or km, or per 500 m on a rower. */
+/** What pace is per: 500 m on an erg, 100 m or 100 yd swimming, else a km or mile (a run logged in meters: per km). */
+export function paceBasis(exerciseId: string | undefined, unit: DistanceUnit): { label: string; miles: number } {
+  const swim = !!exerciseId && SWIMS.has(exerciseId)
+  if (unit === 'yd') return swim ? { label: '100yd', miles: 100 / YARDS_PER_MI } : { label: 'mi', miles: 1 }
+  if (unit === 'm') {
+    if (swim) return { label: '100m', miles: 100 / METERS_PER_MI }
+    if (exerciseId && ERGS.has(exerciseId)) return { label: '500m', miles: 500 / METERS_PER_MI }
+    return { label: 'km', miles: MI_PER_KM }
+  }
+  return unit === 'km' ? { label: 'km', miles: MI_PER_KM } : { label: 'mi', miles: 1 }
+}
+
+/** Pace in the exercise's unit: "8:30 /mi", "1:53 /500m", "1:45 /100m". */
 export function formatPaceFor(mi: number | null, minutes: number | null, exerciseId: string | undefined, u: Units): string | null {
   if (!mi || !minutes) return null
-  const unit = distanceUnitFor(exerciseId, u)
-  if (unit !== 'm') return formatPace(mi, minutes, u)
-  const per500 = minutes / ((mi * METERS_PER_MI) / 500)
-  let m = Math.floor(per500)
-  let s = Math.round((per500 - m) * 60)
+  const { label, miles } = paceBasis(exerciseId, distanceUnitFor(exerciseId, u))
+  const per = minutes / (mi / miles)
+  let m = Math.floor(per)
+  let s = Math.round((per - m) * 60)
   if (s === 60) { m += 1; s = 0 }
-  return `${m}:${String(s).padStart(2, '0')} /500m`
+  return `${m}:${String(s).padStart(2, '0')} /${label}`
 }
 
 /** Cardio time: "30 min", or "7:32" when it has seconds (a 2,000 m row), "1:05:20" past an hour. */
