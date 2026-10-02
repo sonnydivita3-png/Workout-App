@@ -11,6 +11,7 @@ import { useToday } from '../lib/useToday'
 import { findExercise, useStore } from '../store'
 import { SafetyNudge } from './SafetyNudge'
 import { TodayCard } from './TodayCard'
+import { Wordmark } from './Wordmark'
 import { Sheet, primaryBtn } from './Sheet'
 import type { ExerciseLog, Goal, Units } from '../types'
 import { GoalSheet } from './GoalSheet'
@@ -88,7 +89,7 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab, sub?: string) =>
     <div className="space-y-4">
       <header className="mb-2 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="mb-1 text-sm font-bold uppercase tracking-[0.3em] text-accent">Durata</p>
+          <Wordmark className="mb-1 text-base text-accent" />
           <p className="text-sm text-neutral-400">{fmtLong(today)}</p>
           <h1 className="text-2xl font-semibold tracking-tight">{greeting}{s.name ? `, ${s.name}` : ''}</h1>
           {!s.name && (
