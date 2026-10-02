@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { formatPace, formatSeconds, showDistance, showWeight } from '../lib/units'
+import { cardioLine, distanceUnitFor, formatSeconds, showDistanceIn, showWeight } from '../lib/units'
 import { cardioSessions, hasData, isPR, setSessions, strengthSessions } from '../lib/stats'
 import { findExercise, useStore } from '../store'
 import type { Exercise, StrengthSet } from '../types'
@@ -116,6 +116,7 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
 
   const counted = useMemo(() => (mode === 'weight' ? [] : setSessions(logs, exercise.id, mode)), [logs, exercise.id, mode])
   const cardio = useMemo(() => cardioSessions(logs, exercise.id), [logs, exercise.id])
+  const dUnit = distanceUnitFor(exercise.id, units)
   // Every session with working sets, weighted or bodyweight, newest first.
   const lifts = useMemo(
     () => logs.filter((l) => l.exerciseId === exercise.id && workSets(l).length > 0).sort((a, b) => b.date.localeCompare(a.date)),
@@ -149,14 +150,15 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
     const rows = cardio.filter((c) => (metric === 'pace' ? c.pace : metric === 'distance' ? c.distance : c.minutes))
     points = rows.map((c) => ({
       date: c.date,
-      y: metric === 'pace' ? c.pace! / (showDistance(1, units) ?? 1) : metric === 'distance' ? showDistance(c.distance, units)! : c.minutes!,
+      // Pace per mile / km, or per 500 m on a rower.
+      y: metric === 'pace' ? c.pace! / (dUnit === 'm' ? 1609.344 / 500 : dUnit === 'km' ? 1.609344 : 1) : metric === 'distance' ? showDistanceIn(c.distance, dUnit)! : c.minutes!,
     }))
     higherIsBetter = metric !== 'pace'
     format = (v) =>
       metric === 'pace'
-        ? `${Math.floor(v)}:${String(Math.round((v % 1) * 60) % 60).padStart(2, '0')}/${units.distance}`
+        ? `${Math.floor(v)}:${String(Math.round((v % 1) * 60) % 60).padStart(2, '0')}/${dUnit === 'm' ? '500m' : dUnit}`
         : metric === 'distance'
-          ? `${Math.round(v * 10) / 10} ${units.distance}`
+          ? `${dUnit === 'm' ? Math.round(v).toLocaleString() : Math.round(v * 10) / 10} ${dUnit}`
           : `${Math.round(v)} min`
   }
 
@@ -219,7 +221,7 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
               </div>
             ) : (
               <div className="tabular-nums text-neutral-500">
-                {showDistance(s.distance, units) ?? '–'} {units.distance} · {s.minutes ?? '–'} min · {formatPace(s.distance, s.minutes, units) ?? '–'}
+                {cardioLine(s, exercise.id, units)}
               </div>
             )}
           </li>

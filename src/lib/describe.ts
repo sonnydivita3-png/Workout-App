@@ -1,5 +1,5 @@
 import type { Exercise, PlannedExercise, Units } from '../types'
-import { showDistance } from './units'
+import { formatCardioTime, formatDistanceFor } from './units'
 
 /** 90 -> "1:30", 45 -> "45s". */
 export const fmtRest = (sec: number) => (sec < 60 ? `${sec}s` : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`)
@@ -8,8 +8,8 @@ export const fmtRest = (sec: number) => (sec < 60 ? `${sec}s` : `${Math.floor(se
 export function describeItem(p: PlannedExercise, ex: Exercise, units: Units = { weight: 'lb', distance: 'mi' }): string {
   const parts: string[] = []
   if (ex.kind === 'cardio') {
-    if (p.distance) parts.push(`${showDistance(p.distance, units)} ${units.distance}`)
-    if (p.minutes) parts.push(`${p.minutes} min`)
+    if (p.distance) parts.push(formatDistanceFor(p.distance, ex.id, units)!)
+    if (p.minutes) parts.push(formatCardioTime(p.minutes)!)
   } else if (p.warmup) {
     if (p.seconds) parts.push(`${p.seconds}s`)
     else if (p.reps) parts.push(`${p.reps} reps`)
