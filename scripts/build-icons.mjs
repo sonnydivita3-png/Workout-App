@@ -4,7 +4,7 @@ import { chromium } from '@playwright/test'
 import fs from 'fs'
 
 const LIME = '#c8ff3e'
-const BG = `<linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a1458"/><stop offset="1" stop-color="#0d0a15"/></linearGradient><radialGradient id="r" cx=".5" cy=".42" r=".6"><stop offset="0" stop-color="${LIME}" stop-opacity=".2"/><stop offset="1" stop-color="${LIME}" stop-opacity="0"/></radialGradient>`
+const BG = `<linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a1458"/><stop offset="1" stop-color="#0d0a15"/></linearGradient><radialGradient id="r" cx=".5" cy=".5" r=".6"><stop offset="0" stop-color="${LIME}" stop-opacity=".2"/><stop offset="1" stop-color="${LIME}" stop-opacity="0"/></radialGradient>`
 
 /** The D: a solid bowl, and a straight side of `dots` dots (a full tank). Drawn in a 512 box. */
 function mark(dots = 6, stroke = 44) {
@@ -15,12 +15,18 @@ function mark(dots = 6, stroke = 44) {
 }
 
 const icon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs>${BG}</defs><rect width="512" height="512" fill="url(#g)"/><rect width="512" height="512" fill="url(#r)"/>${mark()}</svg>`
+// Android crops this one to a circle. Centred in a square, the dots' corners almost touch the circle on the left
+// while the round bowl sits well inside on the right, so it looks off to the left. Here the D moves right until both
+// sides are the same distance from the circle's edge, and shrinks to sit comfortably inside it.
+const maskable = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs>${BG}</defs><rect width="512" height="512" fill="url(#g)"/><rect width="512" height="512" fill="url(#r)"/><g transform="translate(256 256) scale(.86) translate(-222.5 -256)">${mark()}</g></svg>`
 // Favicon: bigger mark, thicker strokes and fewer dots so it still reads at 16px; rounded like a tab icon.
 const favicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs>${BG}</defs><rect width="512" height="512" rx="112" fill="url(#g)"/><g transform="translate(256 256) scale(1.32) translate(-262 -256)">${mark(4, 56)}</g></svg>`
 // The mark alone, cropped, for the loading screen.
 const bare = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="118 104 280 304">${mark()}</svg>`
 
 fs.writeFileSync('public/icon.svg', icon)
+// The loading screen in index.html draws the same mark inline.
+fs.writeFileSync('index.html', fs.readFileSync('index.html', 'utf8').replace(/(<svg width="96" height="104" aria-hidden="true" )[^\n]*?<\/svg>/, `$1${bare.slice(5)}`))
 fs.writeFileSync('public/favicon.svg', favicon)
 
 // iOS launch screens (portrait): CSS width, height, pixel ratio.
@@ -47,6 +53,7 @@ async function png(svg, n, path) {
   return page.screenshot({ path, omitBackground: true })
 }
 await png(icon, 512, 'public/pwa-512.png')
+await png(maskable, 512, 'public/pwa-maskable-512.png')
 await png(icon, 192, 'public/pwa-192.png')
 await png(icon, 180, 'public/apple-touch-icon.png')
 
@@ -78,7 +85,7 @@ for (const [w, h, dpr] of SCREENS) {
   links.push(`    <link rel="apple-touch-startup-image" media="(device-width: ${w}px) and (device-height: ${h}px) and (-webkit-device-pixel-ratio: ${dpr}) and (orientation: portrait)" href="./${name}" />`)
 }
 await browser.close()
-// Swap the launch-screen links in index.html (the mark in its loading screen is hand-copied from `bare`).
+// Swap the launch-screen links in index.html.
 const html = fs.readFileSync('index.html', 'utf8').replace(/(    <!-- iOS launch screens.*-->\n)(    <link rel="apple-touch-startup-image".*\n)*/, `$1${links.join('\n')}\n`)
 fs.writeFileSync('index.html', html)
 console.log(`Wrote icons, favicons and ${SCREENS.length} launch screens.`)
