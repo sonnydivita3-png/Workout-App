@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { cardioLine, distanceUnitFor, formatSeconds, showDistanceIn, showWeight } from '../lib/units'
+import { cardioLine, distanceUnitFor, paceBasis, formatSeconds, showDistanceIn, showWeight } from '../lib/units'
 import { cardioSessions, hasData, isPR, setSessions, strengthSessions } from '../lib/stats'
 import { findExercise, useStore } from '../store'
 import type { Exercise, StrengthSet } from '../types'
@@ -151,14 +151,14 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
     points = rows.map((c) => ({
       date: c.date,
       // Pace per mile / km, or per 500 m on a rower.
-      y: metric === 'pace' ? c.pace! / (dUnit === 'm' ? 1609.344 / 500 : dUnit === 'km' ? 1.609344 : 1) : metric === 'distance' ? showDistanceIn(c.distance, dUnit)! : c.minutes!,
+      y: metric === 'pace' ? c.pace! * paceBasis(exercise.id, dUnit).miles : metric === 'distance' ? showDistanceIn(c.distance, dUnit)! : c.minutes!,
     }))
     higherIsBetter = metric !== 'pace'
     format = (v) =>
       metric === 'pace'
-        ? `${Math.floor(v)}:${String(Math.round((v % 1) * 60) % 60).padStart(2, '0')}/${dUnit === 'm' ? '500m' : dUnit}`
+        ? `${Math.floor(v)}:${String(Math.round((v % 1) * 60) % 60).padStart(2, '0')}/${paceBasis(exercise.id, dUnit).label}`
         : metric === 'distance'
-          ? `${dUnit === 'm' ? Math.round(v).toLocaleString() : Math.round(v * 10) / 10} ${dUnit}`
+          ? `${dUnit === 'm' || dUnit === 'yd' ? Math.round(v).toLocaleString() : Math.round(v * 10) / 10} ${dUnit}`
           : `${Math.round(v)} min`
   }
 

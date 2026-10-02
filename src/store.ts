@@ -170,6 +170,8 @@ interface State extends Data {
   /** `group` files it under a body part (e.g. the one being browsed when it was created). */
   createCustom: (name: string, kind: ExerciseKind, mode?: ExerciseMode, group?: string) => Exercise
   setUnits: (u: Partial<Units>) => void
+  /** A cardio card's own distance unit (a rower in km, a swim in yards). */
+  setDistanceUnit: (exerciseId: string, unit: NonNullable<Units['byExercise']>[string]) => void
   setName: (name: string) => void
   logBodyweight: (date: string, lb: number) => void
   addPlanned: (date: string, items: PlannedExercise[]) => void
@@ -362,6 +364,7 @@ export const useStore = create<State>()(
         return ex
       },
       setUnits: (u) => set((s) => ({ units: { ...s.units, ...u } })),
+      setDistanceUnit: (id, unit) => set((s) => ({ units: { ...s.units, byExercise: { ...s.units.byExercise, [id]: unit } } })),
       setName: (name) => set({ name }),
       logBodyweight: (date, lb) =>
         set((s) => ({
