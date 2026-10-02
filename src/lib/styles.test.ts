@@ -3,9 +3,13 @@ import { BUILTIN_BY_ID } from '../data/exercises'
 import type { PlannedExercise } from '../types'
 import { generateWorkout, liftsMinutes, minutesFor, plannedFor, STYLES, swapExercise, type WorkoutStyle } from './randomizer'
 import { mulberry32 } from './randomUtil'
+import { withGearFor } from './equipment'
+import { withCardioFor } from './cardioPrefs'
 
 const ex = (p: PlannedExercise) => BUILTIN_BY_ID.get(p.exerciseId)!
 const gen = (style: WorkoutStyle, focus: string[], minutes: number, seed = 1) => generateWorkout(focus, minutes, { style, rng: mulberry32(seed) })
+/** Hyrox and CrossFit sessions start with their own warm-up; most checks are about what comes after it. */
+const main = (w: PlannedExercise[]) => w.filter((p) => !p.warmup)
 const blocks = (items: PlannedExercise[]) => {
   const out: Record<string, PlannedExercise[]> = {}
   for (const p of items) if (p.block) (out[p.block] ??= []).push(p)
@@ -181,40 +185,54 @@ describe('PHA', () => {
 })
 
 describe('Hyrox-style', () => {
-  it('runs then stations in the real order, scaled to the time', () => {
+  it('runs then stations in race order, scaled to the time, after a warm-up', () => {
     const order = ['x-skierg', 'x-sled-push', 'x-sled-pull', 'x-burpee-broad-jump', 'x-row-erg', 'x-farmers-carry', 'x-sandbag-lunges', 'x-wall-balls']
     for (const minutes of [20, 30, 45, 60, 90]) {
-      const w = gen('hyrox', [], minutes)
+      const all = gen('hyrox', [], minutes)
+      expect(all.some((p) => p.warmup)).toBe(minutes >= 30)
+      const w = main(all)
       expect(w[0].exerciseId).toBe('running')
       const stations = w.slice(1).map((p) => p.exerciseId)
-      expect(stations).toEqual(order.slice(0, stations.length))
+      // A subset when time is short, but always in race order.
+      expect(stations).toEqual(order.filter((id) => stations.includes(id)))
       expect(stations.length).toBeGreaterThanOrEqual(3)
       expect(w.every((p) => p.note && p.blockLabel?.startsWith('Hyrox-style'))).toBe(true)
-      expect(minutesFor(w)).toBeLessThanOrEqual(minutes + 6)
+      expect(minutesFor(all)).toBeGreaterThanOrEqual(minutes * 0.85)
+      expect(minutesFor(all)).toBeLessThanOrEqual(minutes + 6)
     }
   })
   it('does a full eight stations when there is time and shrinks distances when there is not', () => {
-    expect(gen('hyrox', [], 90).length).toBe(9) // run + 8 stations
-    expect(gen('hyrox', [], 20).length).toBeLessThan(9)
-    const dist = (min: number) => parseInt(gen('hyrox', [], min).find((p) => p.exerciseId === 'x-skierg')!.note!)
+    expect(main(gen('hyrox', [], 90)).length).toBe(9) // run + 8 stations
+    expect(main(gen('hyrox', [], 20)).length).toBeLessThan(9)
+    const dist = (min: number) => parseInt(main(gen('hyrox', [], min))[0].note!) // "600 m run before each…"
     expect(dist(30)).toBeLessThan(dist(90))
+  })
+  it('a reroll gives different stations, every station comes up, and home gyms get sled stand-ins', () => {
+    const seen = new Set(Array.from({ length: 30 }, (_, i) => main(gen('hyrox', [], 30, i + 1)).slice(1).map((p) => p.exerciseId)).flat())
+    expect(seen.size).toBe(8)
+    expect(JSON.stringify(gen('hyrox', [], 30, 1))).not.toBe(JSON.stringify(gen('hyrox', [], 30, 2)))
+    const home = withGearFor(['Barbell', 'Dumbbell', 'Kettlebell', 'Bands', 'Other'], () => gen('hyrox', [], 90))
+    expect(home.some((p) => /sled/.test(p.exerciseId))).toBe(false)
   })
 })
 
 describe('CrossFit-style', () => {
   it('has a WOD block with a clear format, and a strength primer for long sessions', () => {
     for (let seed = 1; seed <= 40; seed++) {
-      const short = gen('crossfit', [], 30, seed)
+      const short = main(gen('crossfit', [], 30, seed))
       expect(short.some((p) => /AMRAP|EMOM|rounds for time/.test(p.blockLabel ?? ''))).toBe(true)
       expect(short.some((p) => p.block === 'primer')).toBe(false)
-      const long = gen('crossfit', [], 60, seed)
+      const all = gen('crossfit', [], 60, seed)
+      const long = main(all)
       expect(long[0].block).toBe('primer')
       expect(ex(long[0]).equipment).toBe('Barbell')
       expect(long.filter((p) => p.block !== 'primer').length).toBeGreaterThanOrEqual(3)
+      // The time asked for is used: warm-up, primer and WOD(s), nothing reserved for a warm-up that never appears.
+      expect(minutesFor(all)).toBeGreaterThanOrEqual(52)
     }
   })
   it('EMOM assigns one movement per minute', () => {
-    const emoms = Array.from({ length: 80 }, (_, i) => gen('crossfit', [], 30, i + 1)).filter((w) => /EMOM/.test(w[0].blockLabel ?? ''))
+    const emoms = Array.from({ length: 80 }, (_, i) => main(gen('crossfit', [], 30, i + 1)).filter((p) => p.block === 'wod')).filter((w) => /EMOM/.test(w[0].blockLabel ?? ''))
     expect(emoms.length).toBeGreaterThan(0)
     for (const w of emoms) w.forEach((p, i) => expect(p.note).toContain(`minute ${i + 1} of ${w.length}`))
   })
@@ -227,7 +245,7 @@ describe('strength lifts and primers are classic main lifts', () => {
       const mains = w.filter((p) => (p.reps ?? 99) <= 6 && p.sets >= 4)
       for (const p of mains) expect(ex(p).name).toMatch(/squat|deadlift|press|row|pull|chin|thrust|lunge|dip/i)
       for (const p of w) expect(ex(p).name, 'strength days stay compound').not.toMatch(/curl|raise|fly|flye|kickback|crossover|pushdown/i)
-      const primer = gen('crossfit', [], 60, seed)[0]
+      const primer = main(gen('crossfit', [], 60, seed))[0]
       expect(primer.block).toBe('primer')
       expect(ex(primer).name).toMatch(/squat|deadlift|press|row|pull|chin|thrust|lunge|dip/i)
       expect(ex(primer).name).not.toMatch(/rear delt|curl|raise|fly/i)
@@ -269,7 +287,7 @@ describe('editing structured workouts', () => {
     expect(swapped.reps).toBeUndefined()
   })
   it('a Hyrox station swap does not inherit the old distance', () => {
-    const h = gen('hyrox', [], 45)
+    const h = main(gen('hyrox', [], 45))
     const s = plannedFor(BUILTIN_BY_ID.get('Pushups')!, h[1], mulberry32(1))
     expect(s.note).toBeUndefined()
     expect(s.block).toBe('hyrox')
@@ -363,5 +381,26 @@ describe('time per part', () => {
     const circuit = w.filter((p) => p.block?.startsWith('circuit-'))
     expect(minutesFor(circuit)).toBeLessThanOrEqual(24)
     expect(minutesFor(w.filter((p) => !p.block))).toBeGreaterThan(28)
+  })
+})
+
+describe('Hyrox and CrossFit fit the person', () => {
+  it('Hyrox runs go on the treadmill when that is the running they do', () => {
+    const w = withCardioFor(['treadmill'], false, () => main(gen('hyrox', [], 45)))
+    expect(w[0].exerciseId).toBe('Running_Treadmill')
+    expect(main(gen('hyrox', [], 45))[0].exerciseId).toBe('running')
+  })
+  it('CrossFit fills the time with any equipment, and never has jump rope twice', () => {
+    for (const gear of [null, ['Barbell', 'Dumbbell', 'Kettlebell', 'Bands', 'Other'], []] as (string[] | null)[]) {
+      for (const minutes of [30, 45, 60]) {
+        for (let seed = 1; seed <= 10; seed++) {
+          const w = withGearFor(gear, () => gen('crossfit', [], minutes, seed))
+          expect(minutesFor(w), `${JSON.stringify(gear)} ${minutes}`).toBeGreaterThanOrEqual(minutes * 0.85)
+          expect(minutesFor(w)).toBeLessThanOrEqual(minutes + 5)
+          const rope = w.filter((p) => !p.warmup && /rope|double.?under/i.test(BUILTIN_BY_ID.get(p.exerciseId)?.name ?? p.exerciseId))
+          for (const b of new Set(rope.map((p) => p.block))) expect(rope.filter((p) => p.block === b).length).toBeLessThanOrEqual(1)
+        }
+      }
+    }
   })
 })

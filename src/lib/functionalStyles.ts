@@ -1,10 +1,10 @@
 import { EXERCISES } from '../data/exercises'
-import { hasGear } from './equipment'
+import { hasGear, isHomeSetup } from './equipment'
 import { likedCardio, wodAmount, wodCardio } from './cardioPrefs'
 import type { Exercise, PlannedExercise, Wod, WodKind } from '../types'
 import { buildWodItems, makeTabata } from './wod'
 import { staysPut } from './stations'
-import { BY_ID, byName, familyOf, isAdvanced, isMainLift, isQuirky, isStaple, isTechnical, pick, roundTo, roundTo5, softShuffle, type Rng } from './randomUtil'
+import { BY_ID, byName, familyOf, isAdvanced, isIsolation, isMainLift, isQuirky, isStaple, isTechnical, pick, roundTo, roundTo5, softShuffle, type Rng } from './randomUtil'
 
 const RUN = 'running'
 const minutesOf = (n: number) => Math.round(n * 10) / 10
@@ -37,19 +37,32 @@ const HYROX_SUBS: Record<string, [string, number, 'm' | 'reps']> = {
 const FULL_RUN_KM = 1
 const MIN_PER_KM = 6
 
-export function generateHyrox(minutes: number): PlannedExercise[] {
-  const fullSize = (pairs: number) =>
-    pairs * FULL_RUN_KM * MIN_PER_KM + HYROX_STATIONS.slice(0, pairs).reduce((a, s) => a + s[3], 0)
+/** The run: on a treadmill when that's the running they do (they like the treadmill, not running outside). */
+function hyroxRun(): string {
+  const liked = (likedCardio() ?? []).map((e) => e.id)
+  return liked.includes('Running_Treadmill') && !liked.includes(RUN) ? 'Running_Treadmill' : RUN
+}
+
+/**
+ * A Hyrox simulation sized to the time: run + station pairs in race order. Shorter sessions keep fewer stations,
+ * chosen at random (still in race order) so every station comes up over time and a reroll gives a different one.
+ */
+export function generateHyrox(minutes: number, rng: Rng = Math.random): PlannedExercise[] {
+  const avgStation = HYROX_STATIONS.reduce((a, s) => a + s[3], 0) / HYROX_STATIONS.length
+  const fullSize = (pairs: number) => pairs * (FULL_RUN_KM * MIN_PER_KM + avgStation)
   let pairs = HYROX_STATIONS.length
   while (pairs > 3 && minutes / fullSize(pairs) < 0.5) pairs--
-  const scale = Math.min(1, Math.max(0.35, minutes / fullSize(pairs)))
+  const keep = new Set(shuffleIdx(HYROX_STATIONS.length, rng).slice(0, pairs))
+  const stations = HYROX_STATIONS.filter((_, i) => keep.has(i))
+  const size = pairs * FULL_RUN_KM * MIN_PER_KM + stations.reduce((a, s) => a + s[3], 0)
+  const scale = Math.min(1, Math.max(0.35, minutes / size))
 
   const runM = Math.max(200, roundTo(FULL_RUN_KM * 1000 * scale, 50))
   const block = 'hyrox'
   const blockLabel = `Hyrox-style · ${pairs} × (${runM} m run + station)`
   const items: PlannedExercise[] = [
     {
-      exerciseId: RUN,
+      exerciseId: hyroxRun(),
       sets: 1,
       minutes: roundTo5((pairs * runM * MIN_PER_KM) / 1000),
       note: `${runM} m run before each of the ${pairs} stations`,
@@ -58,31 +71,33 @@ export function generateHyrox(minutes: number): PlannedExercise[] {
       blockLabel,
     },
   ]
-  for (const station of HYROX_STATIONS.slice(0, pairs)) {
+  for (const station of stations) {
     const est = station[3]
     // Swap in a bodyweight stand-in when the station's equipment isn't available (e.g. no sled at home).
-    const sub = !hasGear(BY_ID.get(station[0])!) ? HYROX_SUBS[station[0]] : undefined
+    // A sled counts as "Other" gear, but home gyms rarely have one.
+    const sled = station[0] === 'x-sled-push' || station[0] === 'x-sled-pull'
+    const sub = !hasGear(BY_ID.get(station[0])!) || (sled && isHomeSetup()) ? HYROX_SUBS[station[0]] : undefined
     const [id, full, unit] = sub ?? station
     const amount = unit === 'm' ? Math.max(10, roundTo(full * scale, full >= 200 ? 25 : 5)) : Math.max(10, roundTo(full * scale, 5))
-    const item: PlannedExercise = {
-      exerciseId: id,
-      sets: 1,
-      note: `${amount} ${unit}`,
-      est: minutesOf(est * scale),
-      block,
-      blockLabel,
-    }
-    items.push(item)
+    items.push({ exerciseId: id, sets: 1, note: `${amount} ${unit}`, est: minutesOf(est * scale), block, blockLabel })
   }
   return items
+}
+
+const shuffleIdx = (n: number, rng: Rng) => {
+  const a = Array.from({ length: n }, (_, i) => i)
+  for (let i = n - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]] }
+  return a
 }
 
 // ---------------------------------------------------------------------------------------------
 // CrossFit-style: optional strength primer, then a timed WOD (AMRAP, EMOM, or rounds for time).
 // ---------------------------------------------------------------------------------------------
 
-const WARMUP_MIN = 8
 const PRIMER_MIN = 15
+const PRIMER_MOVES = /squat|deadlift|press|bench/i
+/** Jump rope and double unders are the same skill: never both in one workout. */
+const ROPE = /rope|double under/i
 
 const crossfitPool = () => {
   const named = ['Pushups', 'Pullups', 'Bodyweight Squat', 'Sit-Up'].map(byName).filter((e): e is Exercise => !!e)
@@ -170,27 +185,39 @@ export function generateCrossfit(minutes: number, rng: Rng, avoid: Set<string>):
   const out: PlannedExercise[] = []
   const used = new Set<string>()
 
-  const wantPrimer = minutes >= 45
-  if (wantPrimer) {
-    const lifts = softShuffle(
-      EXERCISES.filter((e) => e.suggest && e.kind === 'strength' && e.mode === 'weight' && e.equipment === 'Barbell' && isMainLift(e) && !isQuirky(e) && ['Quads', 'Hamstrings', 'Back', 'Chest', 'Shoulders'].includes(e.group) && hasGear(e)),
-      avoid,
-      rng,
-    )
+  // A strength primer when there's time: a barbell lift, or with dumbbells / kettlebells at home.
+  const BIG = ['Quads', 'Hamstrings', 'Back', 'Chest', 'Shoulders']
+  const primerFrom = (equipment: string[]) => softShuffle(
+    EXERCISES.filter((e) => e.suggest && e.kind === 'strength' && e.mode === 'weight' && equipment.includes(e.equipment ?? '') && (isMainLift(e) || isStaple(e)) && !isIsolation(e) && !isQuirky(e) && !isTechnical(e) && BIG.includes(e.group) && hasGear(e)),
+    avoid,
+    rng,
+  )
+  let primed = false
+  if (minutes >= 35) {
+    // Squats, deadlifts and presses, like a box would program (not rows or lunges).
+    const barbell = primerFrom(['Barbell']).filter((e) => isMainLift(e) && PRIMER_MOVES.test(e.name))
+    const lifts = barbell.length ? barbell : primerFrom(['Dumbbell', 'Kettlebell']).filter((e) => PRIMER_MOVES.test(e.name))
     // An everyday lift (Back Squat, Deadlift, Overhead Press…) rather than an odd variation.
-    const lift = lifts.find((e) => e.fullName && !avoid.has(e.id)) ?? lifts[0]
+    const lift = lifts.find((e) => e.fullName && !avoid.has(e.id)) ?? lifts.find((e) => isStaple(e)) ?? lifts[0]
     if (lift) {
       used.add(lift.id)
-      out.push({ exerciseId: lift.id, sets: 4, reps: 5, est: PRIMER_MIN - 1, block: 'primer', blockLabel: 'Strength primer · 4 × 5, build to a heavy set' })
+      primed = true
+      const heavy = barbell.length > 0
+      out.push({ exerciseId: lift.id, sets: 4, reps: heavy ? 5 : 8, est: PRIMER_MIN - 1, block: 'primer', blockLabel: heavy ? 'Strength primer · 4 × 5, build to a heavy set' : 'Strength primer · 4 × 8, heavy as good form allows' })
     }
   }
 
-  const spent = (wantPrimer ? PRIMER_MIN : 0) + WARMUP_MIN
+  // The rest of the time goes to the WOD, plus a Part B when there's 8+ minutes left over.
+  const spent = primed ? PRIMER_MIN : 0
   const maxWod = minutes >= 75 ? 25 : 20
   const wodMin = Math.max(8, Math.min(maxWod, minutes - spent))
   const parts: [string, number][] = [['WOD', wodMin]]
-  const left = minutes - spent - wodMin
-  if (minutes >= 75 && left >= 8) parts.push(['Part B', Math.min(15, left)])
+  let left = minutes - spent - wodMin
+  while (left >= 8 && parts.length < 3) {
+    const m = Math.min(left >= 20 ? 20 : 15, left)
+    parts.push([`Part ${String.fromCharCode(64 + parts.length + 1)}`, m])
+    left -= m
+  }
 
   const pool = softShuffle(crossfitPool(), avoid, rng)
   for (const [part, m] of parts) {
@@ -198,8 +225,12 @@ export function generateCrossfit(minutes: number, rng: Rng, avoid: Set<string>):
     const machine = machineFor(rng, used, avoid)
     if (machine) used.add(machine.id)
     // Keep the mix varied: at most one core move and one erg per WOD.
-    const moves = pickMoves(pool, machine ? [machine] : [], count, (e, ms) =>
-      !used.has(e.id) && !(e.group === 'Core' && ms.some((x) => x.group === 'Core')) && !(e.mode === 'time' && ms.some((x) => x.mode === 'time')))
+    const fits = (fresh: boolean) => (e: Exercise, ms: Exercise[]) =>
+      (!fresh || !used.has(e.id)) && !(e.group === 'Core' && ms.some((x) => x.group === 'Core')) && !(e.mode === 'time' && ms.some((x) => x.mode === 'time'))
+      && !(ROPE.test(e.name) && ms.some((x) => ROPE.test(x.name)))
+    // New moves for each part; with little equipment, a later part can bring one back in a different format.
+    let moves = pickMoves(pool, machine ? [machine] : [], count, fits(true))
+    if (moves.length < Math.min(3, count)) moves = pickMoves(pool, machine ? [machine] : [], count, fits(false))
     moves.forEach((e) => used.add(e.id))
     if (moves.length >= 2) out.push(...buildWod(m, moves, rng, part))
   }
