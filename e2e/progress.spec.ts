@@ -49,7 +49,8 @@ test('✓ sets, the optional rest timer, and a beat-last-time summary', async ({
   await page.getByRole('button', { name: 'Skip' }).click()
   await page.getByRole('button', { name: '✓ Finish workout' }).click()
   await expect(page.getByText('Beat last time on everything 🔥')).toBeVisible()
-  await expect(page.getByText('PR', { exact: true })).toBeVisible()
+  // More reps at the same weight beats last time, but isn't a heavier-than-ever personal best.
+  await expect(page.getByText('PR', { exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Done', exact: true }).click()
   expect((await state(page)).finishedDays).toEqual([iso(0)])
 })

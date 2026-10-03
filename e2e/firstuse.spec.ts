@@ -50,7 +50,9 @@ test('bodyweight sets (0 lb or no weight) count as done and compare by reps', as
   for (const n of [1, 2, 3]) await ab.getByRole('button', { name: `Set ${n} done` }).click()
   await page.getByRole('button', { name: '✓ Finish workout' }).click()
   await expect(page.getByRole('dialog', { name: 'Finish workout?' })).toHaveCount(0)
-  const row = (name: string) => page.locator('li', { hasText: name })
+  // The exercise rows (the personal-bests card above also names Chest Dip).
+  const row = (name: string) => page.locator('li', { hasText: name }).last()
+  await expect(page.getByRole('region', { name: 'New personal bests' })).toContainText('Chest Dip: 12 reps in a set (was 10)')
   await expect(row('Chest Dip')).toContainText('better')
   await expect(row('Ab Roller')).toContainText('first time')
   await expect(page.getByText('skipped')).toHaveCount(0)

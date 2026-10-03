@@ -84,12 +84,8 @@ button:not(:disabled):active { transform: scale(0.96); }
 /* App tour: the spotlight's ring breathes so the eye finds it. */
 @keyframes tour-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-accent) 70%, transparent); } 100% { box-shadow: 0 0 0 14px transparent; } }
 .tour-ring { animation: tour-pulse 1.6s ease-out infinite; }
-/* "Show me": a tap lands on the button. */
-@keyframes tour-tap { 0% { opacity: 0; transform: scale(1.8); } 45% { opacity: 1; transform: scale(1); } 65% { transform: scale(0.78); } 100% { opacity: 0; transform: scale(1.25); } }
-.tour-tap { animation: tour-tap 1s ease-out forwards; }
 @media (prefers-reduced-motion: reduce) {
   button, .pop-in, .tour-ring { transition: none; animation: none; }
-  .tour-tap { animation-duration: 0.01s; }
   .confetti { display: none; }
   button:not(:disabled):active { transform: none; }
 }

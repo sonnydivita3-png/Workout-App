@@ -4,10 +4,8 @@ import type { Tab } from './TabBar'
 
 /**
  * The app tour: the real screens, dimmed, with a spotlight on one thing at a time, an arrow to it and a short note.
- * "Show me" demonstrates a stop for real: a tap lands on the actual button, it does what it does (switches tab, opens
- * a sheet…), and the spotlight moves to what it opened. Next skips the demonstration. Anything a demonstration opened
- * is closed again on the way out. Targets are data-tour="…" names (or a selector starting with "["); a stop whose
- * target isn't on screen shows its note in the middle.
+ * Back and Next move between stops. Targets are data-tour="…" names; a stop whose target isn't on screen shows its
+ * note in the middle.
  */
 
 type Shape = 'circle' | 'pill' | 'rect'
@@ -21,16 +19,6 @@ interface Step {
   tab?: Tab
   /** A circle for small buttons, a pill for tabs, a rounded box for cards. */
   shape?: Shape
-  /** A practice set to tick (nothing is saved). */
-  practice?: boolean
-  show?: {
-    /** What gets tapped, for real. */
-    tap: string
-    /** Then: where to point, and what to say. */
-    then: { target?: string; shape?: Shape; body: React.ReactNode }
-    /** Tapped on the way out, to close what the demonstration opened. */
-    close?: string
-  }
 }
 
 const find = (t: string) => document.querySelector<HTMLElement>(t.startsWith('[') ? t : `[data-tour="${t}"]`)
@@ -70,29 +58,6 @@ function useBoxes(target: string | undefined, card: React.RefObject<HTMLDivEleme
   return { box, cardBox }
 }
 
-/** A practice set to tick. Nothing is saved. */
-function PracticeSet({ done, onTick }: { done: boolean; onTick: () => void }) {
-  const kg = useStore((s) => s.units.weight === 'kg')
-  return (
-    <div className="mt-3 rounded-2xl bg-neutral-50 p-3 ring-1 ring-neutral-200">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm"><b className="font-semibold">Set 1</b> · {kg ? '60 kg' : '135 lb'} × 8</span>
-        <button
-          onClick={onTick}
-          aria-pressed={done}
-          aria-label="Practice set done"
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-semibold ${done ? 'bg-green-500 text-white' : 'bg-surface text-neutral-500 ring-2 ring-accent'}`}
-        >
-          ✓
-        </button>
-      </div>
-      <p className={`mt-2 text-xs ${done ? 'font-medium text-green-600' : 'text-neutral-400'}`}>
-        {done ? 'Logged! That’s a set.' : 'A practice set: nothing is saved.'}
-      </p>
-    </div>
-  )
-}
-
 export function Tour({ tab, navigate }: { tab: Tab; navigate: (t: Tab) => void }) {
   const social = useStore((s) => s.socialChoice === 'enabled')
   const returning = useStore((s) => s.tourDone && s.tourVersion < TOUR_VERSION)
@@ -103,7 +68,7 @@ export function Tour({ tab, navigate }: { tab: Tab; navigate: (t: Tab) => void }
     {
       id: 'welcome',
       title: returning ? 'Take the new tour 👋' : 'Welcome to Durata 👋',
-      body: 'A quick look around. Tap Show me to see something in action, or Next to keep going.',
+      body: 'A quick look around the main things and where they are. About a minute.',
     },
     {
       id: 'today', tab: 'home', target: 'today', shape: 'rect', title: 'Today',
@@ -112,38 +77,30 @@ export function Tour({ tab, navigate }: { tab: Tab; navigate: (t: Tab) => void }
     {
       id: 'goals', tab: 'home', target: 'goals', shape: 'rect', title: 'Goals',
       body: 'A lift, a race, workouts a week: set a target and the bar fills as you go.',
-      show: { tap: 'goal-add', then: { target: 'sheet', body: 'Pick what to aim for, then set the target. Just a look for now: nothing is saved.' }, close: 'sheet-close' },
     },
     {
       id: 'settings', tab: 'home', target: 'settings', shape: 'circle', title: 'Settings',
       body: 'The gear, at the top of every tab: your profile, equipment, units, backup and more.',
-      show: { tap: 'settings', then: { target: 'settings-list', shape: 'rect', body: 'Everything you can set up: profile and equipment, workouts, notifications, look, backup and more.' } },
     },
     {
       id: 'workouts', tab: 'home', target: 'tab-plan', shape: 'pill', title: 'Workouts',
       body: 'Your week, and each day’s workout ready to log.',
-      show: { tap: 'tab-plan', then: { target: 'week', shape: 'rect', body: 'Your week up top: tap a day to see its workout. Today’s is open below it.' } },
     },
     {
       id: 'log', tab: 'plan', target: 'day', shape: 'rect', title: 'Logging a set',
       body: 'Each set comes ready with a target from last time, so most sets are one tap: ✓ when it’s done.',
-      practice: true,
-      show: { tap: '[aria-label="Practice set done"]', then: { body: 'One tap and it’s logged. Lifted something different? Type it in first: ✓ saves what’s in the boxes.' } },
     },
     {
       id: 'add', tab: 'plan', target: 'add', shape: 'rect', title: '+ Add',
       body: 'Add an exercise, have a workout made for you, or plan a week or month.',
-      show: { tap: 'add', then: { target: 'sheet', body: 'All the ways to add to a day: one exercise, a workout made for you, a week or month plan, a timed workout, or a run or ride plan.' }, close: 'sheet-close' },
     },
     {
       id: 'progress', tab: 'plan', target: 'tab-history', shape: 'pill', title: 'Progress',
       body: 'Everything you’ve done, and how it’s going.',
-      show: { tap: 'tab-history', then: { target: 'progress-tabs', shape: 'rect', body: 'History: every workout you’ve logged. Exercises: charts and personal bests. Body: weight, measurements and photos.' } },
     },
     ...(social ? [{
       id: 'social', target: 'tab-social', shape: 'pill' as const, title: 'Social',
       body: 'Share workouts, send challenges, cheer each other on.',
-      show: { tap: 'tab-social', then: { target: 'page', shape: 'rect' as const, body: 'Friends, shared workouts and challenges. Each friend sees only what you allow.' } },
     }] : []),
     {
       id: 'done',
@@ -156,43 +113,18 @@ export function Tour({ tab, navigate }: { tab: Tab; navigate: (t: Tab) => void }
   const step = steps[Math.min(i, steps.length - 1)]
   const first = i === 0
   const last = i === steps.length - 1
-  // The stop whose "Show me" has run, and the tap landing while it runs.
-  const [shown, setShown] = useState<string | null>(null)
-  const [tap, setTap] = useState<{ x: number; y: number } | null>(null)
-  const demo = shown === step.id && step.show ? step.show.then : null
-  const view = { target: demo ? demo.target ?? step.target : step.target, shape: demo?.shape ?? step.shape, body: demo ? demo.body : step.body }
   const card = useRef<HTMLDivElement>(null)
   const primary = useRef<HTMLButtonElement>(null)
+  const view = { target: step.target, shape: step.shape, body: step.body }
   const { box, cardBox } = useBoxes(view.target, card)
-  const timers = useRef<number[]>([])
-  useEffect(() => () => timers.current.forEach(clearTimeout), [])
 
-  // Leaving a stop closes whatever its demonstration opened (a sheet).
-  const leave = () => {
-    if (shown === step.id && step.show?.close) find(step.show.close)?.click()
-    setShown(null)
-  }
-  const goTo = (n: number) => { leave(); setI(n) }
   const finish = () => {
-    leave()
     // The tour covers the one-time tips on these screens.
     seeTip('plan')
     seeTip('progress')
     setTourDone(true)
   }
-  const next = () => (last ? (navigate('home'), finish()) : goTo(i + 1))
-  const showMe = () => {
-    const s = step.show
-    if (!s || tap) return
-    const el = find(s.tap)
-    const id = step.id
-    if (!el) { setShown(id); return }
-    const r = el.getBoundingClientRect()
-    setTap({ x: r.left + r.width / 2, y: r.top + r.height / 2 })
-    // The tap lands, then the button does what it does.
-    timers.current.push(window.setTimeout(() => { el.click(); setShown(id) }, 650))
-    timers.current.push(window.setTimeout(() => setTap(null), 1000))
-  }
+  const next = () => (last ? (navigate('home'), finish()) : setI(i + 1))
 
   // Each stop shows its tab (once, on arriving).
   const arrivedAt = useRef<string | null>(null)
@@ -201,7 +133,7 @@ export function Tour({ tab, navigate }: { tab: Tab; navigate: (t: Tab) => void }
     arrivedAt.current = step.id
     if (step.tab && step.tab !== tab) navigate(step.tab)
   }, [step, tab, navigate])
-  useLayoutEffect(() => { primary.current?.focus({ preventScroll: true }) }, [step.id, shown])
+  useLayoutEffect(() => { primary.current?.focus({ preventScroll: true }) }, [step.id])
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape') finish() }
     window.addEventListener('keydown', key)
@@ -238,8 +170,7 @@ export function Tour({ tab, navigate }: { tab: Tab; navigate: (t: Tab) => void }
   }
   const stops = steps.length - 2
   const count = !first && !last ? `${i} of ${stops}` : ''
-  const busy = !!tap
-  const back = !first && !last && <button onClick={() => goTo(i - 1)} disabled={busy} className="rounded-2xl bg-neutral-100 px-4 py-2.5 text-sm font-medium text-neutral-700">Back</button>
+  const back = !first && !last && <button onClick={() => setI(i - 1)} className="rounded-2xl bg-neutral-100 px-4 py-2.5 text-sm font-medium text-neutral-700">Back</button>
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[60]" data-testid="tour">
@@ -282,32 +213,18 @@ export function Tour({ tab, navigate }: { tab: Tab; navigate: (t: Tab) => void }
         </div>
         <h2 className="mb-1 text-xl font-semibold tracking-tight">{step.title}</h2>
         <p className="text-sm text-neutral-600" aria-live="polite">{view.body}</p>
-        {/* Ticking it by hand counts as Show me. */}
-        {step.practice && <PracticeSet done={!!demo} onTick={() => setShown(demo ? null : step.id)} />}
-        {step.show && !demo ? (
-          <div className="mt-4 flex gap-2">
-            {back}
-            <button ref={primary} onClick={showMe} disabled={busy} className="flex-1 rounded-2xl bg-accent py-2.5 text-sm font-medium text-on-accent">Show me</button>
-            <button onClick={next} disabled={busy} className="rounded-2xl bg-neutral-100 px-4 py-2.5 text-sm font-medium text-neutral-700">Next</button>
-          </div>
-        ) : (
-          <div className="mt-4 flex gap-2">
-            {back}
-            <button ref={primary} onClick={next} className="flex-1 rounded-2xl bg-accent py-2.5 text-sm font-medium text-on-accent">
-              {first ? 'Show me around' : last ? 'Let’s go' : 'Next'}
-            </button>
-          </div>
-        )}
+        <div className="mt-4 flex gap-2">
+          {back}
+          <button ref={primary} onClick={next} className="flex-1 rounded-2xl bg-accent py-2.5 text-sm font-medium text-on-accent">
+            {first ? 'Take the tour' : last ? 'Let’s go' : 'Next'}
+          </button>
+        </div>
         {!last && !first && (
           <div className="mt-3 flex justify-center gap-1" aria-hidden>
             {steps.slice(1, -1).map((s, n) => <span key={s.id} className={`h-1.5 rounded-full transition-all ${n + 1 === i ? 'w-4 bg-accent' : 'w-1.5 bg-neutral-300'}`} />)}
           </div>
         )}
       </div>
-      {/* The demonstration's tap. */}
-      {tap && (
-        <span aria-hidden className="tour-tap pointer-events-none fixed h-14 w-14 rounded-full border-4 border-white bg-accent/50 shadow-lg" style={{ left: tap.x - 28, top: tap.y - 28 }} />
-      )}
     </div>
   )
 }

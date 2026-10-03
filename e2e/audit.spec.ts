@@ -24,9 +24,13 @@ test('notifications show on top of the workout', async ({ page }) => {
   await seed(page, { ...plannedBench, notifPrefs: { system: false, goals: false, pbs: true, daily: false, reminderTime: '23:59' } })
   await page.goto('/')
   await page.getByRole('button', { name: 'Start workout' }).click()
-  // ✓ logs the suggested target (more than last time), which is a new best.
+  // ✓ logs the suggested target (heavier than ever): no cheer mid-workout, it comes with Finish workout.
   await page.getByRole('button', { name: 'Set 1 done' }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'New PR' })).toBeVisible()
+  await page.getByRole('button', { name: 'Set 2 done' }).click()
+  await page.waitForTimeout(1500)
+  await expect(page.getByRole('status').filter({ hasText: /personal best|PR/ })).toHaveCount(0)
+  await page.getByRole('button', { name: '✓ Finish workout' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'New personal best 🏆' })).toBeVisible()
   expect(await onTop(page, '[role=status] button')).toBe(true)
 })
 

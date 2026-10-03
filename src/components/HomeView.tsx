@@ -161,7 +161,7 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab, sub?: string) =>
       <BodyweightRow onTrend={() => onNavigate('history', 'body')} />
 
       <div data-tour="goals">
-      <Card title="Goals" action={<button onClick={() => setGoalSheet(true)} data-tour="goal-add" className="text-sm text-neutral-500">+ Add</button>}>
+      <Card title="Goals" action={<button onClick={() => setGoalSheet(true)} className="text-sm text-neutral-500">+ Add</button>}>
         {s.goals.length === 0 ? (
           <p className="text-sm text-neutral-400">Set a target, like a lift, a race or workouts per week, and watch the bar fill.</p>
         ) : (

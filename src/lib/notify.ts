@@ -24,6 +24,8 @@ interface Input {
   today: string
   nowMinutes: number // minutes since local midnight
   exerciseName: (id: string) => Exercise | undefined
+  /** Days whose workout was finished: personal bests are only told once it is. */
+  finished?: string[]
 }
 
 export const timeToMinutes = (hhmm: string) => {
@@ -58,51 +60,9 @@ export function computeNotifications(i: Input): Candidate[] {
     }
   }
 
-  if (i.prefs.pbs) {
-    const todays = new Set(i.logs.filter((l) => l.date === today && hasData(l)).map((l) => l.exerciseId))
-    for (const id of todays) {
-      const ex = i.exerciseName(id)
-      if (!ex) continue
-      // Reps moves and holds, and weighted lifts only ever done with bodyweight (dips, an ab roller): most reps / longest.
-      const countMode = ex.kind !== 'strength' ? null : ex.mode && ex.mode !== 'weight' ? ex.mode : strengthSessions(i.logs, id).length === 0 ? 'reps' : null
-      if (countMode) {
-        const s = setSessions(i.logs, id, countMode)
-        const last = s.at(-1)
-        if (!last || last.date !== today || s.length < 2) continue
-        const prior = Math.max(...s.slice(0, -1).map((x) => x.best))
-        if (last.best > prior) {
-          out.push({
-            id: `pr:${id}:${today}:${countMode}`,
-            type: 'pr',
-            title: 'New PR 🔥',
-            body:
-              countMode === 'time'
-                ? `${ex.name}: ${formatSeconds(last.best)} hold (was ${formatSeconds(prior)})`
-                : `${ex.name}: ${last.best} reps in a set (was ${prior})`,
-          })
-        }
-      } else if (ex.kind === 'strength') {
-        const s = strengthSessions(i.logs, id)
-        const last = s.at(-1)
-        if (!last || last.date !== today || s.length < 2) continue
-        const prior = Math.max(...s.slice(0, -1).map((x) => x.topWeight))
-        if (last.topWeight > prior) {
-          out.push({
-            id: `pr:${id}:${today}:weight`,
-            type: 'pr',
-            title: 'New PR 🔥',
-            body: `${ex.name}: ${showWeight(last.topWeight, units)} ${units.weight} (was ${showWeight(prior, units)})`,
-          })
-        }
-      } else {
-        // Cardio: only real records (longest yet, fastest 5K / 2,000 m…), never "faster pace than a longer run".
-        const entry = i.logs.find((l) => l.exerciseId === id && l.date === today)?.cardio
-        for (const b of newCardioBests(i.logs, id, entry, today, units, ex)) {
-          out.push({ id: `pr:${id}:${today}:${b.key}`, type: 'pr', title: 'New PR 🔥', body: `${ex.name}: ${b.title[0].toLowerCase()}${b.title.slice(1)}, ${b.value} (was ${b.was})` })
-        }
-      }
-    }
-  }
+  // Personal bests are celebrated when the workout is finished ("Finish workout"), not set by set along the way.
+  // Without a finished list (older callers), every logged day counts.
+  if (i.prefs.pbs && (!i.finished || i.finished.includes(today))) out.push(...newBests(today, i.logs, units, i.exerciseName))
 
   if (i.prefs.daily && i.prefs.reminderTime && i.nowMinutes >= timeToMinutes(i.prefs.reminderTime)) {
     const planned = workItems(dayPlanOf(i.plan, i.overrides, today))
@@ -129,4 +89,56 @@ export function msUntilReminder(prefs: NotifPrefs, now: Date): number | null {
   target.setHours(0, timeToMinutes(prefs.reminderTime), 0, 0)
   const ms = target.getTime() - now.getTime()
   return ms > 0 ? ms : null
+}
+
+/**
+ * The personal bests set on a day, one line each: heaviest weight, most reps or longest hold, and cardio records
+ * (longest yet, fastest 5K...). Ids are stable per exercise and day, so they're never told twice.
+ */
+export function newBests(date: string, logs: ExerciseLog[], units: Units, exerciseName: (id: string) => Exercise | undefined): Candidate[] {
+  const out: Candidate[] = []
+  const done = new Set(logs.filter((l) => l.date === date && hasData(l)).map((l) => l.exerciseId))
+  for (const id of done) {
+    const ex = exerciseName(id)
+    if (!ex) continue
+    // Reps moves and holds, and weighted lifts only ever done with bodyweight (dips, an ab roller): most reps / longest.
+    const countMode = ex.kind !== 'strength' ? null : ex.mode && ex.mode !== 'weight' ? ex.mode : strengthSessions(logs, id).length === 0 ? 'reps' : null
+    if (countMode) {
+      const s = setSessions(logs, id, countMode)
+      const last = s.at(-1)
+      if (!last || last.date !== date || s.length < 2) continue
+      const prior = Math.max(...s.slice(0, -1).map((x) => x.best))
+      if (last.best > prior) {
+        out.push({
+          id: `pr:${id}:${date}:${countMode}`,
+          type: 'pr',
+          title: 'New PR 🔥',
+          body:
+            countMode === 'time'
+              ? `${ex.name}: ${formatSeconds(last.best)} hold (was ${formatSeconds(prior)})`
+              : `${ex.name}: ${last.best} reps in a set (was ${prior})`,
+        })
+      }
+    } else if (ex.kind === 'strength') {
+      const s = strengthSessions(logs, id)
+      const last = s.at(-1)
+      if (!last || last.date !== date || s.length < 2) continue
+      const prior = Math.max(...s.slice(0, -1).map((x) => x.topWeight))
+      if (last.topWeight > prior) {
+        out.push({
+          id: `pr:${id}:${date}:weight`,
+          type: 'pr',
+          title: 'New PR 🔥',
+          body: `${ex.name}: ${showWeight(last.topWeight, units)} ${units.weight} (was ${showWeight(prior, units)})`,
+        })
+      }
+    } else {
+      // Cardio: only real records (longest yet, fastest 5K / 2,000 m…), never "faster pace than a longer run".
+      const entry = logs.find((l) => l.exerciseId === id && l.date === date)?.cardio
+      for (const b of newCardioBests(logs, id, entry, date, units, ex)) {
+        out.push({ id: `pr:${id}:${date}:${b.key}`, type: 'pr', title: 'New PR 🔥', body: `${ex.name}: ${b.title[0].toLowerCase()}${b.title.slice(1)}, ${b.value} (was ${b.was})` })
+      }
+    }
+  }
+  return out
 }
