@@ -5,7 +5,8 @@ import { iso, openSettings, seed, state } from './helpers'
 const BENCH = 'Barbell_Bench_Press_-_Medium_Grip'
 const plannedBench = {
   overrides: { [iso(0)]: [{ exerciseId: BENCH, sets: 2, reps: 8 }] },
-  logs: [{ date: iso(-3), exerciseId: BENCH, sets: [{ weight: 135, reps: 8 }, { weight: 135, reps: 8 }] }],
+  // Two over the target on every set last time: the suggestion adds weight.
+  logs: [{ date: iso(-3), exerciseId: BENCH, sets: [{ weight: 135, reps: 10 }, { weight: 135, reps: 10 }] }],
 }
 
 /** Is the element actually on top (clickable) at its centre? */

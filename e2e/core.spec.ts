@@ -209,18 +209,19 @@ test('a set is one tap: ✓ logs the target, and typed numbers win', async ({ pa
   await page.getByRole('button', { name: 'Start workout' }).click()
   await expect(page.getByText(/Last time: 185×5 · 185×5/)).toBeVisible()
   await page.getByRole('button', { name: 'Set 1 done' }).click()
-  await expect(page.getByRole('spinbutton', { name: 'Set 1 lb' })).toHaveValue('195') // 2 × 5 last time: add weight
-  await expect(page.getByRole('spinbutton', { name: 'Set 1 reps' })).toHaveValue('5')
+  // 2 × 5 last time, the target once: a rep more first (weight goes up once it holds).
+  await expect(page.getByRole('spinbutton', { name: 'Set 1 lb' })).toHaveValue('185')
+  await expect(page.getByRole('spinbutton', { name: 'Set 1 reps' })).toHaveValue('6')
   await page.getByRole('spinbutton', { name: 'Set 2 lb' }).fill('190')
   await page.getByRole('button', { name: 'Set 2 done' }).click()
   // Every set ticked: the card folds to one line with what was done; tap to open it again.
-  await expect(page.getByRole('button', { name: /2 of 2 sets · 195×5 · 190×5/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /2 of 2 sets · 185×6 · 190×6/ })).toBeVisible()
   await expect(page.getByRole('spinbutton', { name: 'Set 2 lb' })).toHaveCount(0)
   await page.getByRole('button', { name: /2 of 2 sets/ }).click()
   await expect(page.getByRole('spinbutton', { name: 'Set 2 lb' })).toHaveValue('190')
   await expect.poll(async () => (await state(page)).logs.find((l: { date: string }) => l.date === iso(0))?.sets).toEqual([
-    { weight: 195, reps: 5, seconds: null, done: true, auto: true },
-    { weight: 190, reps: 5, seconds: null, done: true, auto: false },
+    { weight: 185, reps: 6, seconds: null, done: true, auto: true },
+    { weight: 190, reps: 6, seconds: null, done: true, auto: false },
   ])
 
   // A tap by mistake comes off again: an auto-filled set empties, a typed one keeps its numbers.

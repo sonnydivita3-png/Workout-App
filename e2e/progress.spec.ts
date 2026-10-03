@@ -13,19 +13,21 @@ test.beforeEach(async ({ page }) => {
 test('suggests the next step and marks sets that beat last time', async ({ page }) => {
   await page.goto('/')
   await page.locator('nav').getByText('Workouts').click()
-  await expect(page.getByText('🎯 Try 140 lb × 8')).toBeVisible()
+  // 3 × 8 once: a rep more on two sets, the third repeats.
+  await expect(page.getByText('🎯 Try 135 lb × 9 on 2 sets')).toBeVisible()
+  await expect(page.getByRole('spinbutton', { name: 'Set 3 reps' })).toHaveAttribute('placeholder', '8')
   await expect(page.getByText('Last note: “felt easy”')).toBeVisible()
   for (let i = 1; i <= 3; i++) await page.getByRole('button', { name: `Set ${i} done` }).click()
   // Done: the card folds up (with the result); open it again to keep editing.
-  await expect(page.getByText(/3 of 3 sets .*▲ 3 beat last time/)).toBeVisible()
+  await expect(page.getByText(/3 of 3 sets .*▲ 2 beat last time/)).toBeVisible()
   await page.getByRole('button', { name: 'Open Bench Press' }).click()
-  await expect(page.getByText('▲ Beat last time on 3 sets')).toBeVisible()
+  await expect(page.getByText('▲ Beat last time on 2 sets')).toBeVisible()
   const s = await state(page)
-  expect(s.logs.find((l: { date: string }) => l.date === iso(0)).sets.map((x: { weight: number }) => x.weight)).toEqual([140, 140, 140])
+  expect(s.logs.find((l: { date: string }) => l.date === iso(0)).sets.map((x: { reps: number }) => x.reps)).toEqual([9, 9, 8])
   // warm-up sets don't count
   await page.getByRole('button', { name: 'Set 1 options' }).click()
   await page.getByRole('button', { name: /Make it a warm-up/ }).click()
-  await expect(page.getByText('▲ Beat last time on 2 sets')).toBeVisible()
+  await expect(page.getByText('▲ Beat last time on 1 set')).toBeVisible()
   // plates and how-to (plates are under the exercise's ⋯)
   await page.getByRole('button', { name: 'Bench Press options' }).click()
   await page.getByRole('button', { name: 'Plates for this weight' }).click()

@@ -10,25 +10,58 @@ const push = BUILTIN_BY_ID.get('Pushups')!
 const plank = BUILTIN_BY_ID.get('Plank')!
 const log = (sets: ExerciseLog['sets']): ExerciseLog => ({ date: '2026-09-01', exerciseId: 'x', sets })
 
-describe('suggestNext (double progression)', () => {
-  it('adds weight once every working set hits the target', () => {
-    const s = suggestNext(bench, log([{ weight: 95, reps: 10, warmup: true }, { weight: 135, reps: 8 }, { weight: 135, reps: 8 }, { weight: 135, reps: 8 }]), { reps: 8 }, lb)
-    expect(s).toMatchObject({ kind: 'add-weight', weight: 140, reps: 8 })
-    expect(suggestNext(squat, log([{ weight: 225, reps: 5 }, { weight: 225, reps: 5 }]), { reps: 5 }, lb).weight).toBe(235)
+describe('suggestNext (slow double progression, a set or two at a time)', () => {
+  const curl = BUILTIN_BY_ID.get('Dumbbell_Bicep_Curl')!
+  const rdl = BUILTIN_BY_ID.get('Romanian_Deadlift')!
+  const at = (date: string, sets: ExerciseLog['sets']): ExerciseLog => ({ date, exerciseId: 'x', sets })
+  const w = (weight: number, reps: number) => ({ weight, reps })
+
+  it('target hit once: a rep more on two sets, not a heavier weight on all of them', () => {
+    const s = suggestNext(bench, log([{ weight: 95, reps: 10, warmup: true }, w(135, 8), w(135, 8), w(135, 8), w(135, 8)]), { reps: 8, sets: 4 }, lb)
+    expect(s).toMatchObject({ kind: 'add-reps', weight: 135, reps: 9, changed: 2 })
+    expect(s.sets).toEqual([w(135, 9), w(135, 9), w(135, 8), w(135, 8)].map((x) => ({ ...x, seconds: null })))
   })
-  it('otherwise keeps the weight and adds a rep', () => {
-    expect(suggestNext(bench, log([{ weight: 135, reps: 8 }, { weight: 135, reps: 6 }]), { reps: 8 }, lb)).toMatchObject({ kind: 'add-reps', weight: 135, reps: 7 })
+  it('adds the smallest step to the first two sets once the target holds (2 over, or two sessions running)', () => {
+    const over = suggestNext(bench, log([w(135, 10), w(135, 9), w(135, 8)]), { reps: 8, sets: 3 }, lb)
+    expect(over).toMatchObject({ kind: 'add-weight', weight: 140, reps: 8, changed: 2 })
+    expect(over.sets!.map((x) => x.weight)).toEqual([140, 140, 135])
+    const history = [at('2026-09-08', [w(135, 8), w(135, 8)]), at('2026-09-04', [w(135, 8), w(135, 8)])]
+    const twice = suggestNext(bench, history[0], { reps: 8, sets: 2 }, lb, history)
+    expect(twice).toMatchObject({ kind: 'add-weight', weight: 140, changed: 2 })
+    expect(twice.why).toMatch(/two sessions running/)
+  })
+  it('then brings the other sets up to the new weight, two at a time (the squat case: 185, 185, 205, 205)', () => {
+    const s = suggestNext(squat, log([w(185, 8), w(185, 8), w(205, 8), w(205, 8)]), { reps: 8, sets: 4 }, lb)
+    expect(s).toMatchObject({ kind: 'add-weight', weight: 205, reps: 8, changed: 2 })
+    expect(s.sets!.map((x) => x.weight)).toEqual([205, 205, 205, 205])
+    expect(s.why).toBe('You did 205 lb × 8 on 2 of 4 sets. Bring 2 more up to 205 lb.')
+  })
+  it('more sets planned than last time is the step up: last time’s numbers, plus the extra sets', () => {
+    const s = suggestNext(rdl, log([w(225, 6), w(225, 6), w(225, 6), w(225, 6)]), { reps: 6, sets: 5 }, lb)
+    expect(s).toMatchObject({ kind: 'add-sets', weight: 225, reps: 6, changed: 1 })
+  })
+  it('a big jump for the load (35 to 40 lb dumbbells) waits for target + 2 on every set', () => {
+    expect(suggestNext(curl, log([w(35, 10), w(35, 10), w(35, 10)]), { reps: 10, sets: 3 }, lb)).toMatchObject({ kind: 'add-reps', weight: 35, reps: 11, changed: 2 })
+    expect(suggestNext(curl, log([w(35, 12), w(35, 12), w(35, 11)]), { reps: 10, sets: 3 }, lb)).toMatchObject({ kind: 'add-reps', reps: 12, changed: 1 })
+    expect(suggestNext(curl, log([w(35, 12), w(35, 12), w(35, 12)]), { reps: 10, sets: 3 }, lb)).toMatchObject({ kind: 'add-weight', weight: 40, reps: 10 })
+  })
+  it('short of the target: same weight, a rep more on the lowest sets', () => {
+    expect(suggestNext(bench, log([w(135, 8), w(135, 6), w(135, 7)]), { reps: 8 }, lb)).toMatchObject({ kind: 'add-reps', weight: 135, reps: 7, changed: 2 })
+  })
+  it('heavy squats step 10 lb, lighter ones 5', () => {
+    expect(suggestNext(squat, log([w(225, 7), w(225, 5)]), { reps: 5 }, lb)).toMatchObject({ weight: 235, changed: 2 })
+    expect(suggestNext(squat, log([w(135, 7), w(135, 5)]), { reps: 5 }, lb)).toMatchObject({ weight: 140 })
   })
   it('does not add weight after an all-out (RPE 10) set', () => {
-    expect(suggestNext(bench, log([{ weight: 135, reps: 8, rpe: 10 }, { weight: 135, reps: 8 }]), { reps: 8 }, lb).kind).toBe('repeat')
+    expect(suggestNext(bench, log([{ weight: 135, reps: 10, rpe: 10 }, w(135, 8)]), { reps: 8 }, lb).kind).toBe('repeat')
   })
-  it('bodyweight: +1 rep; holds: +5s; first time: no numbers', () => {
-    expect(suggestNext(push, log([{ weight: null, reps: 20 }, { weight: null, reps: 18 }]), {}, lb)).toMatchObject({ reps: 21 })
+  it('bodyweight: +1 rep on the lowest two sets; holds: +5s; first time: no numbers', () => {
+    expect(suggestNext(push, log([{ weight: null, reps: 20 }, { weight: null, reps: 18 }, { weight: null, reps: 18 }]), {}, lb)).toMatchObject({ reps: 19, changed: 2 })
     expect(suggestNext(plank, log([{ weight: null, reps: null, seconds: 60 }]), {}, lb)).toMatchObject({ seconds: 65 })
     expect(suggestNext(bench, undefined, { reps: 8 }, lb).kind).toBe('first')
   })
-  it('uses 2.5 kg / 5 kg steps in kg', () => {
-    const s = suggestNext(bench, log([{ weight: 100 * 2.20462262, reps: 5 }, { weight: 100 * 2.20462262, reps: 5 }]), { reps: 5 }, { weight: 'kg', distance: 'km' })
+  it('uses 2.5 kg steps in kg', () => {
+    const s = suggestNext(bench, log([{ weight: 100 * 2.20462262, reps: 7 }, { weight: 100 * 2.20462262, reps: 5 }]), { reps: 5 }, { weight: 'kg', distance: 'km' })
     expect(Math.round((s.weight! / 2.20462262) * 10) / 10).toBe(102.5)
   })
 })
@@ -64,7 +97,7 @@ describe('plateaus', () => {
     expect(plateau(bench, [at('2026-09-20', [8, 6]), at('2026-09-13', [8, 6])])).toBe(0)
     expect(plateau(push, [at('2026-09-20', [8]), at('2026-09-13', [8]), at('2026-09-06', [8])])).toBe(0)
   })
-  it('hitting the target still means add weight, not deload', () => {
+  it('hitting the target still means progress, not a deload', () => {
     const history = [at('2026-09-20', [8, 8]), at('2026-09-13', [8, 8]), at('2026-09-06', [8, 8])]
     expect(suggestNext(bench, history[0], { reps: 8 }, lb, history).kind).toBe('add-weight')
   })

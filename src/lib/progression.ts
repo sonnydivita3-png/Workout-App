@@ -33,62 +33,136 @@ export function weightStep(ex: Exercise, units: Units): number {
   return kg ? (big ? 5 : 2.5) * 2.20462262 : big ? 10 : 5
 }
 
+/** The smallest sensible jump for a lift, in pounds: 5 lb (2.5 kg) for most things; 10 lb (5 kg) only for heavy lower-body barbell work, where 5 lb is under 2.5%. */
+export function progressStep(ex: Exercise, top: number, units: Units): number {
+  const kg = units.weight === 'kg'
+  const heavyLegs = ex.equipment === 'Barbell' && LOWER.includes(ex.group) && top >= (kg ? 90 * 2.20462262 : 200)
+  return kg ? (heavyLegs ? 5 : 2.5) * 2.20462262 : heavyLegs ? 10 : 5
+}
+
+/** What to aim for on one working set. Weight in pounds. */
+export interface SetTarget { weight?: number | null; reps?: number | null; seconds?: number | null }
+
 export interface Suggestion {
-  /** What to aim for this time. Weight in pounds. */
+  /** The headline target (the set or sets that change). Weight in pounds. */
   weight?: number | null
   reps?: number | null
   seconds?: number | null
-  /** One-line reason, e.g. "You hit 3 × 8 at 135 last time: add weight". */
+  /** One-line reason, e.g. "You did 135 lb × 8 on all 3 sets. Add a rep to 2 of them". */
   why: string
-  kind: 'add-weight' | 'add-reps' | 'add-time' | 'repeat' | 'first' | 'deload' | 'estimate'
+  kind: 'add-weight' | 'add-reps' | 'add-time' | 'add-sets' | 'repeat' | 'first' | 'deload' | 'estimate'
+  /** Every working set, in order: the one or two that change, and the rest as last time. */
+  sets?: SetTarget[]
+  /** How many sets carry the change. */
+  changed?: number
 }
 
+/** Progress a little at a time: one or two sets per session, the rest repeat last time. */
+const PER_SESSION = 2
+
 /**
- * "Try this next" from the last session, the classic double progression: once every working set reaches the rep
- * target, add weight; otherwise keep the weight and add a rep. Bodyweight moves add a rep, holds add 5 seconds.
+ * "Try this next", the slow way that holds up: double progression a set or two at a time.
+ *
+ * - A rep range: reps go up first (one rep on one or two sets per session), weight only once every working set has hit
+ *   the target and it's held (2 reps over on a set, or the target two sessions running: the NSCA "2-for-2" rule).
+ * - When weight goes up it's the smallest practical jump (5 lb / 2.5 kg, 10 lb / 5 kg on heavy squats and deadlifts;
+ *   ACSM suggests 2-10%) on one or two sets only; the next sessions bring the other sets up to it.
+ * - A jump that's big for the load (over 7.5%, e.g. 35 to 40 lb dumbbells) waits until every set reaches target + 2.
+ * - More sets planned than last time is progress enough for one session.
+ * - Bodyweight moves add a rep, holds add 5 seconds, on one or two sets. Stuck 3 sessions: a ~10% deload.
  */
 export function suggestNext(
   ex: Exercise,
   last: ExerciseLog | undefined,
-  target: { reps?: number; seconds?: number },
+  target: { reps?: number; seconds?: number; sets?: number },
   units: Units,
   /** Earlier sessions of this exercise, newest first, starting with `last`. Used to spot a plateau. */
   history: ExerciseLog[] = [],
 ): Suggestion {
-  const sets = workSets(last)
+  const done = workSets(last)
   const mode = ex.mode ?? 'weight'
-  if (sets.length === 0) return { kind: 'first', why: 'First time: pick a weight you could lift a couple more times, and log it.', reps: target.reps ?? null, seconds: target.seconds ?? null }
+  if (done.length === 0) return { kind: 'first', why: 'First time: pick a weight you could lift a couple more times, and log it.', reps: target.reps ?? null, seconds: target.seconds ?? null }
+  const n = Math.max(1, target.sets ?? done.length)
+  const lb = (w: number) => `${showWeight(w, units)} ${units.weight}`
+  const plural = (k: number, w: string) => `${k} ${w}${k === 1 ? '' : 's'}`
+  // Last time's sets, set by set (more planned now: the extras repeat the last set).
+  const base: SetTarget[] = Array.from({ length: n }, (_, i) => {
+    const d = done[Math.min(i, done.length - 1)]
+    return { weight: mode === 'weight' ? d.weight ?? null : null, reps: mode === 'time' ? null : d.reps ?? null, seconds: mode === 'time' ? d.seconds ?? null : null }
+  })
+  const out = (kind: Suggestion['kind'], sets: SetTarget[], idx: number[], why: string): Suggestion => {
+    const head = sets[idx[0] ?? 0]
+    return { kind, sets, changed: idx.length, weight: head.weight ?? null, reps: head.reps ?? null, seconds: head.seconds ?? null, why }
+  }
+  if (n > done.length) {
+    const extra = Array.from({ length: n - done.length }, (_, i) => done.length + i)
+    return out('add-sets', base, extra, `${plural(n - done.length, 'more set')} than last time: that's the step up. Keep last time's numbers.`)
+  }
+  // The sets to push: the lowest scoring ones (by `score`), up to two, earliest first on ties.
+  const pick = (score: (t: SetTarget) => number, ok: (t: SetTarget) => boolean = () => true) =>
+    base.map((t, i) => ({ i, v: score(t) })).filter(({ i }) => ok(base[i])).sort((a, b) => a.v - b.v || a.i - b.i).slice(0, PER_SESSION).map((x) => x.i).sort((a, b) => a - b)
+  const bump = (idx: number[], f: (t: SetTarget) => SetTarget) => base.map((t, i) => (idx.includes(i) ? f(t) : t))
+
   if (mode === 'time') {
-    const best = Math.max(...sets.map((s) => s.seconds ?? 0))
-    return { kind: 'add-time', seconds: best + 5, why: `Best hold last time was ${best}s. Go for ${best + 5}s.` }
+    const idx = pick((t) => t.seconds ?? 0)
+    const low = base[idx[0]].seconds ?? 0
+    return out('add-time', bump(idx, (t) => ({ ...t, seconds: (t.seconds ?? 0) + 5 })), idx, `Add 5 seconds to ${idx.length === n ? (n === 1 ? 'it' : 'each set') : plural(idx.length, 'set')} (${low}s last time); repeat the rest.`)
   }
-  if (mode === 'reps') {
-    const best = Math.max(...sets.map((s) => s.reps ?? 0))
-    return { kind: 'add-reps', reps: best + 1, why: `Best set last time was ${best} reps. Beat it with ${best + 1}.` }
+  const top = mode === 'weight' ? Math.max(...done.map((s) => s.weight ?? 0)) : 0
+  if (mode === 'reps' || top <= 0) {
+    // Reps moves, and weighted lifts done with bodyweight last time: a rep more on one or two sets.
+    const idx = pick((t) => t.reps ?? 0)
+    const low = base[idx[0]].reps ?? 0
+    return out('add-reps', bump(idx, (t) => ({ ...t, weight: null, reps: (t.reps ?? 0) + 1 })), idx,
+      `${top <= 0 && mode === 'weight' ? 'Bodyweight: a' : 'A'}dd a rep to ${idx.length === n ? (n === 1 ? 'it' : 'each set') : `your ${idx.length === 1 ? 'lowest set' : `${idx.length} lowest sets`}`} (${low} last time); repeat the rest.`)
   }
-  const top = Math.max(...sets.map((s) => s.weight ?? 0))
-  if (top <= 0) {
-    // Done with bodyweight last time (no weight, or 0): beat the best set by a rep rather than "add 5 lb" to nothing.
-    const best = Math.max(...sets.map((s) => s.reps ?? 0))
-    if (best > 0) return { kind: 'add-reps', weight: null, reps: best + 1, why: `Bodyweight: best set last time was ${best} reps. Beat it with ${best + 1}.` }
+
+  const atTop = base.filter((t) => t.weight === top)
+  const goal = target.reps ?? Math.max(...atTop.map((t) => t.reps ?? 0))
+  const topHit = atTop.every((t) => (t.reps ?? 0) >= goal)
+  const tooHard = done.some((s) => s.weight === top && (s.rpe ?? 0) >= 10)
+
+  // Some sets were lighter (working up, or partway through a jump): bring one or two more up to the top weight.
+  const lighter = base.some((t) => (t.weight ?? 0) < top)
+  if (lighter && topHit && !tooHard) {
+    const idx = pick((t) => -(t.weight ?? 0), (t) => (t.weight ?? 0) < top)
+    return out('add-weight', bump(idx, (t) => ({ ...t, weight: top, reps: goal })), idx,
+      `You did ${lb(top)} × ${goal} on ${atTop.length} of ${n} sets. Bring ${idx.length === 1 ? 'one more' : `${idx.length} more`} up to ${lb(top)}.`)
   }
-  const atTop = sets.filter((s) => (s.weight ?? 0) === top)
-  const goal = target.reps ?? Math.max(...atTop.map((s) => s.reps ?? 0))
-  const hit = atTop.every((s) => (s.reps ?? 0) >= goal) && atTop.length >= Math.min(2, sets.length)
-  const tooHard = atTop.some((s) => (s.rpe ?? 0) >= 10)
-  if (hit && !tooHard) {
-    const next = top + weightStep(ex, units)
-    return { kind: 'add-weight', weight: next, reps: goal, why: `You got ${atTop.length} × ${goal} last time. Add weight.` }
+
+  if (!topHit) {
+    const stalled = plateau(ex, history)
+    if (stalled) {
+      const step = weightStep(ex, units)
+      const deload = Math.max(step, Math.round((top * 0.9) / step) * step)
+      const sets = base.map(() => ({ weight: deload, reps: goal }))
+      return { kind: 'deload', sets, changed: n, weight: deload, reps: goal, why: `No progress in your last ${stalled} sessions at ${lb(top)}. Drop to about 90% and build back up past it.` }
+    }
+    const idx = pick((t) => (t.weight === top ? t.reps ?? 0 : Infinity), (t) => t.weight === top && (t.reps ?? 0) < goal)
+    const low = base[idx[0]].reps ?? 0
+    return out('add-reps', bump(idx, (t) => ({ ...t, reps: Math.min(goal, (t.reps ?? 0) + 1) })), idx,
+      `Same ${lb(top)}. Add a rep to your ${idx.length === 1 ? 'lowest set' : `${idx.length} lowest sets`} (${low} last time) on the way to ${goal}.`)
   }
-  const stalled = plateau(ex, history)
-  if (stalled) {
-    const step = weightStep(ex, units)
-    const lighter = Math.max(step, Math.round((top * 0.9) / step) * step)
-    return { kind: 'deload', weight: lighter, reps: goal, why: `No progress in your last ${stalled} sessions at ${Math.round(top)}. Drop to about 90% and build back up past it.` }
+
+  // Every set hit the target at the top weight.
+  if (tooHard) return out('repeat', base, [], `That felt maxed out last time. Repeat ${lb(top)} × ${goal} and own every rep.`)
+  const step = progressStep(ex, top, units)
+  const big = step / top > 0.075
+  const over = base.some((t) => (t.reps ?? 0) >= goal + 2)
+  const prev = history[1] ? workSets(history[1]) : []
+  const twice = prev.length >= n && prev.every((s) => s.weight === top && (s.reps ?? 0) >= goal)
+  const ready = big ? base.every((t) => (t.reps ?? 0) >= goal + 2) : over || twice
+  if (ready) {
+    const idx = Array.from({ length: Math.min(PER_SESSION, n) }, (_, i) => i)
+    return out('add-weight', bump(idx, () => ({ weight: top + step, reps: goal })), idx,
+      `You've owned ${lb(top)} × ${goal}${twice && !over ? ' two sessions running' : ''}. Add ${lb(step)} to ${idx.length === n ? (n === 1 ? 'it' : 'each set') : `the first ${plural(idx.length, 'set')}`}; keep the rest at ${lb(top)}.`)
   }
-  const low = Math.min(...atTop.map((s) => s.reps ?? 0))
-  if (tooHard && hit) return { kind: 'repeat', weight: top, reps: goal, why: 'That felt maxed out last time. Repeat it and own every rep.' }
-  return { kind: 'add-reps', weight: top, reps: Math.min(goal, low + 1), why: `Same weight. Your lowest set was ${low}: get ${Math.min(goal, low + 1)}+ on every set.` }
+  const cap = goal + 2
+  const idx = pick((t) => t.reps ?? 0, (t) => (t.reps ?? 0) < cap)
+  return out('add-reps', bump(idx, (t) => ({ ...t, reps: (t.reps ?? 0) + 1 })), idx,
+    big
+      ? `You hit ${goal} on every set. The next weight up (${lb(top + step)}) is a big jump, so build to ${cap} reps first: add a rep to ${plural(idx.length, 'set')}.`
+      : `You hit ${goal} on every set at ${lb(top)}. Add a rep to ${plural(idx.length, 'set')}; add weight once it holds.`)
 }
 
 /**
@@ -151,7 +225,8 @@ export function plateau(ex: Exercise, history: ExerciseLog[]): number {
   const same = tops.findIndex((t) => t !== tops[0])
   const run = same === -1 ? tops.length : same
   if (run < 3) return 0
-  const best = (l: ExerciseLog) => Math.max(...workSets(l).filter((s) => s.weight === tops[0]).map((s) => s.reps ?? 0))
+  // Total reps at that weight: a rep gained on any set is progress (progress comes a set or two at a time).
+  const best = (l: ExerciseLog) => workSets(l).filter((s) => s.weight === tops[0]).reduce((a, s) => a + (s.reps ?? 0), 0)
   const scores = recent.slice(0, run).map(best) // newest first
   // No improvement: the newest session is no better than the oldest in the run.
   return scores[0] <= scores[run - 1] ? run : 0
