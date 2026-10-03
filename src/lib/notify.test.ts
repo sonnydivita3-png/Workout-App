@@ -37,6 +37,11 @@ describe('personal bests', () => {
     const old = [...logs(100), { date: '2026-09-20', exerciseId: BP, sets: sets(150) }]
     expect(run({ logs: old.filter((l) => l.date !== today) })).toHaveLength(0)
   })
+  it('waits for the workout to be finished, then tells it', () => {
+    expect(run({ logs: logs(140), finished: [] })).toHaveLength(0)
+    expect(run({ logs: logs(140), finished: ['2026-09-22'] })).toHaveLength(0)
+    expect(run({ logs: logs(140), finished: [today] })).toHaveLength(1)
+  })
   it('respects the toggle', () => {
     expect(run({ logs: logs(140), prefs: { ...prefs, pbs: false } })).toHaveLength(0)
   })

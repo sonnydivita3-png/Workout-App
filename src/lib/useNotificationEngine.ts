@@ -21,7 +21,8 @@ async function showSystem(n: AppNotification) {
 function deliver(created: AppNotification[]) {
   const { notifPrefs } = useStore.getState()
   for (const n of created) {
-    if (document.visibilityState === 'visible') useToasts.getState().push({ id: n.id, title: n.title, body: n.body, celebrate: n.type === 'pr' || n.type === 'goal-reached' })
+    // Personal bests were just celebrated on the finish screen: they go in the feed without a second banner.
+    if (document.visibilityState === 'visible') { if (n.type !== 'pr') useToasts.getState().push({ id: n.id, title: n.title, body: n.body, celebrate: n.type === 'goal-reached' }) }
     else if (notifPrefs.system && canSystemNotify()) void showSystem(n)
   }
 }
@@ -38,6 +39,7 @@ export function useNotificationEngine() {
   const plan = useStore((s) => s.plan)
   const overrides = useStore((s) => s.overrides)
   const prefs = useStore((s) => s.notifPrefs)
+  const finished = useStore((s) => s.finishedDays)
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
@@ -46,13 +48,13 @@ export function useNotificationEngine() {
       const now = new Date()
       const items = computeNotifications({
         logs: s.logs, goals: s.goals, bodyweight: s.bodyweight, plan: s.plan, overrides: s.overrides, units: s.units, prefs: s.notifPrefs,
-        today, nowMinutes: now.getHours() * 60 + now.getMinutes(),
+        today, nowMinutes: now.getHours() * 60 + now.getMinutes(), finished: s.finishedDays,
         exerciseName: (id) => findExercise(s.custom, id),
       })
       deliver(s.pushNotifications(items))
     }, 1200) // let typing settle before judging a number
     return () => clearTimeout(t)
-  }, [logs, goals, bodyweight, plan, overrides, prefs, today, tick])
+  }, [logs, goals, bodyweight, plan, overrides, prefs, finished, today, tick])
 
   // Fire the daily reminder if the app is open when the time arrives.
   useEffect(() => {

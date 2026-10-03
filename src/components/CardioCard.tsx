@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import { parseGpx } from '../lib/gpx'
 import { bodyweightOn, estimateCalories, hasPersonalDetails } from '../lib/calories'
-import { newCardioBests } from '../lib/cardioBests'
 import { cardioLine, distanceUnitFor, distanceUnitsFor, formatCardioTime, formatDistanceFor, formatPaceFor, showDistanceIn, showWeight, storeDistanceIn } from '../lib/units'
 import { useToday } from '../lib/useToday'
 import { useStore } from '../store'
@@ -32,7 +31,6 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
   const setDistanceUnit = useStore((s) => s.setDistanceUnit)
   const bodyweight = useStore((s) => s.bodyweight)
   const aboutMe = useStore((s) => s.aboutMe)
-  const logs = useStore((s) => s.logs)
   const today = useToday()
   const c = current?.cardio ?? { distance: null, minutes: null }
   const prev = last?.cardio
@@ -142,12 +140,6 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
           Last time: {cardioLine(prev, exercise.id, units)}
         </p>
       )}
-      {!readOnly && (() => {
-        // No "beat last time" for cardio: most sessions aren't meant to go further or faster (an easy run is easy on
-        // purpose). Only a real personal best gets a cheer: the longest yet, or the fastest 5K, 2,000 m row…
-        const bests = newCardioBests(logs, exercise.id, c, date ?? current?.date ?? today, units, exercise)
-        return bests.map((b) => <p key={b.key} className="mt-1 text-xs font-medium text-green-600">🏆 {b.title}: {b.value} <span className="font-normal text-neutral-400">(was {b.was})</span></p>)
-      })()}
     </div>
   )
 }
