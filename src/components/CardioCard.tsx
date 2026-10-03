@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { parseGpx } from '../lib/gpx'
 import { bodyweightOn, estimateCalories, hasPersonalDetails } from '../lib/calories'
+import { newCardioBests } from '../lib/cardioBests'
 import { cardioLine, distanceUnitFor, distanceUnitsFor, formatCardioTime, formatDistanceFor, formatPaceFor, showDistanceIn, showWeight, storeDistanceIn } from '../lib/units'
 import { useToday } from '../lib/useToday'
 import { useStore } from '../store'
@@ -31,6 +32,7 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
   const setDistanceUnit = useStore((s) => s.setDistanceUnit)
   const bodyweight = useStore((s) => s.bodyweight)
   const aboutMe = useStore((s) => s.aboutMe)
+  const logs = useStore((s) => s.logs)
   const today = useToday()
   const c = current?.cardio ?? { distance: null, minutes: null }
   const prev = last?.cardio
@@ -86,14 +88,14 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
             label={`${exercise.name} distance`}
             value={showDistanceIn(c.distance, unit)}
             step={unit === 'm' || unit === 'yd' ? (exercise.id === 'swimming' ? 25 : 100) : 0.1}
-            placeholder={showDistanceIn(prev?.distance ?? targetDistance ?? null, unit)?.toString() ?? '–'}
+            placeholder={showDistanceIn(targetDistance ?? prev?.distance ?? null, unit)?.toString() ?? '–'}
             onChange={(v) => onChange({ ...c, distance: storeDistanceIn(v, unit) })}
           />
         </label>
         <div className="text-xs font-medium text-neutral-500">
           Time <span className="font-normal text-neutral-400">min : sec</span>
           <div className="flex items-center gap-1">
-            <NumberInput label={`${exercise.name} minutes`} value={wholeMin} placeholder={prev?.minutes != null ? String(Math.floor(prev.minutes)) : targetMinutes?.toString() ?? '–'} onChange={(v) => (v != null && !Number.isInteger(v) ? onChange({ ...c, minutes: v }) : setTime(v, secs))} />
+            <NumberInput label={`${exercise.name} minutes`} value={wholeMin} placeholder={targetMinutes != null ? String(targetMinutes) : prev?.minutes != null ? String(Math.floor(prev.minutes)) : '–'} onChange={(v) => (v != null && !Number.isInteger(v) ? onChange({ ...c, minutes: v }) : setTime(v, secs))} />
             <span className="text-neutral-400">:</span>
             <NumberInput label={`${exercise.name} seconds`} value={secs || (wholeMin != null ? 0 : null)} placeholder="00" onChange={(v) => setTime(wholeMin, v)} />
           </div>
@@ -140,13 +142,11 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
           Last time: {cardioLine(prev, exercise.id, units)}
         </p>
       )}
-      {prev && (() => {
-        // Beat last time: go further, or cover the same distance faster.
-        const faster = !!(c.distance && c.minutes && prev.distance && prev.minutes && c.distance >= prev.distance - 0.01 && c.minutes / c.distance < prev.minutes / prev.distance - 0.001)
-        const further = !!(c.distance && prev.distance && c.distance > prev.distance + 0.01)
-        if (faster || further) return <p className="mt-1 text-xs font-medium text-green-600">▲ {further && faster ? 'Further and faster' : further ? 'Further' : 'Faster'} than last time</p>
-        if (!c.distance && !c.minutes && prev.distance && prev.minutes) return <p className="mt-1 text-xs text-neutral-500">🎯 Beat it: go past {formatDistanceFor(prev.distance, exercise.id, units)}, or hold under {formatPaceFor(prev.distance, prev.minutes, exercise.id, units)}</p>
-        return null
+      {!readOnly && (() => {
+        // No "beat last time" for cardio: most sessions aren't meant to go further or faster (an easy run is easy on
+        // purpose). Only a real personal best gets a cheer: the longest yet, or the fastest 5K, 2,000 m row…
+        const bests = newCardioBests(logs, exercise.id, c, date ?? current?.date ?? today, units, exercise)
+        return bests.map((b) => <p key={b.key} className="mt-1 text-xs font-medium text-green-600">🏆 {b.title}: {b.value} <span className="font-normal text-neutral-400">(was {b.was})</span></p>)
       })()}
     </div>
   )

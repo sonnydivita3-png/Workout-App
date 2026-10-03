@@ -146,7 +146,8 @@ test('rowing in meters with minutes and seconds, pace per 500 m', async ({ page 
   await page.getByLabel('Rower minutes').fill('7')
   await page.getByLabel('Rower seconds').fill('32')
   await expect(page.getByText('1:53 /500m')).toBeVisible()
-  await expect(page.getByText('▲ Faster than last time')).toBeVisible()
+  // A faster 2,000 m than ever before: a real personal best.
+  await expect(page.getByText(/🏆 Fastest 2,000 m yet: 7:32 \(was 7:45\)/)).toBeVisible()
   const log = (await state(page)).logs.find((l: { exerciseId: string; date: string }) => l.exerciseId === 'x-row-erg' && l.date === iso(0))
   expect(log.cardio.distance * 1609.344).toBeCloseTo(2000, 5)
   expect(log.cardio.minutes).toBeCloseTo(7 + 32 / 60, 5)
@@ -199,4 +200,47 @@ test('weekly cardio target from your goals, plus an optional distance', async ({
   await page.locator('nav').getByText('Progress').click()
   await expect(page.getByText('30 of 30 min ✓')).toBeVisible()
   expect((await state(page)).trainingPrefs).toMatchObject({ goals: ['fatloss'], cardioMinutes: 30, cardioMiles: 10 })
+})
+
+test('cardio has no "beat last time" target: an easy run is just a run, and only a real personal best gets a cheer', async ({ page }) => {
+  await seed(page, {
+    overrides: { [iso(0)]: [{ exerciseId: 'running', sets: 1, minutes: 30 }] },
+    logs: [
+      { date: iso(-7), exerciseId: 'running', cardio: { distance: 6, minutes: 54 } },
+      { date: iso(-3), exerciseId: 'running', cardio: { distance: 3.1, minutes: 27 } },
+    ],
+  })
+  await page.goto('/')
+  // Home doesn't tell you to beat last time's run.
+  await expect(page.getByText('30 min', { exact: true })).toBeVisible()
+  await expect(page.getByText(/beat last/)).toHaveCount(0)
+  await page.locator('nav').getByText('Workouts').click()
+  await expect(page.getByText('Last time: 3.1 mi · 27 min · 8:43 /mi')).toBeVisible()
+  await expect(page.getByText(/Beat it/)).toHaveCount(0)
+  // The plan's 30 minutes is the hint, not last time's 27.
+  await expect(page.getByLabel('Running minutes')).toHaveAttribute('placeholder', '30')
+  // A short, quick run: a faster pace than ever, but no mile or 5K, so no record and no "faster than last time".
+  await page.getByLabel('Running distance').fill('2')
+  await page.getByLabel('Running minutes').fill('15')
+  await expect(page.getByText('7:30 /mi')).toBeVisible()
+  await expect(page.getByText(/🏆|than last time/)).toHaveCount(0)
+  // A 5K faster than the last one: that's a personal best.
+  await page.getByLabel('Running distance').fill('3.1')
+  await page.getByLabel('Running minutes').fill('25')
+  await expect(page.getByText(/🏆 Fastest 5K yet: 25:03 \(was 27:04\)/)).toBeVisible()
+  await page.getByRole('button', { name: '✓ Finish workout' }).click()
+  await expect(page.getByText('A new personal best 🏆')).toBeVisible()
+  await expect(page.getByText('🏆 Fastest 5K yet: 25:03', { exact: true })).toBeVisible()
+  // A cardio-only day shows what you did, not "0 improved".
+  await expect(page.getByText('improved', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('25 min', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Done', exact: true }).last().click()
+  // Progress lists the records, not a "best pace" a short run could win.
+  await page.locator('nav').getByText('Progress').click()
+  await page.getByRole('button', { name: 'Exercises', exact: true }).click()
+  await page.getByRole('button', { name: /Running/ }).first().click()
+  await expect(page.getByText('Personal bests')).toBeVisible()
+  await expect(page.getByText('Fastest 5K', { exact: true })).toBeVisible()
+  await expect(page.getByText('Longest', { exact: true })).toBeVisible()
+  await expect(page.getByText('6 mi', { exact: true })).toBeVisible()
 })

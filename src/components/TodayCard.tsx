@@ -60,7 +60,7 @@ export function TodayCard({ onNavigate }: { onNavigate: (t: Tab, part?: string) 
             return (
               <li key={ex.id} className="flex items-baseline justify-between gap-3">
                 <span className="min-w-0 line-clamp-2">{ex.name}</span>
-                <span className="shrink-0 text-sm tabular-nums text-neutral-400">{target}{last && hasData(last) ? ' · beat last' : ''}</span>
+                <span className="shrink-0 text-sm tabular-nums text-neutral-400">{target}{ex.kind === 'strength' && last && hasData(last) ? ' · beat last' : ''}</span>
               </li>
             )
           })}

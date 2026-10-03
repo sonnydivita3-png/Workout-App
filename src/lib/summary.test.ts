@@ -17,6 +17,16 @@ describe('workoutSummary', () => {
     const s = workoutSummary('2026-09-20', [{ exerciseId: B, sets: 2 }], [lift('2026-09-20', 100, 5)], (id) => BUILTIN_BY_ID.get(id))
     expect(s.results[0]).toMatchObject({ status: 'new', pr: false })
   })
+  it('cardio is never "worse than last time": a shorter run is just done, and only real records count as bests', () => {
+    const run = (date: string, distance: number, minutes: number): ExerciseLog => ({ date, exerciseId: 'running', cardio: { distance, minutes } })
+    const lookup = (id: string) => BUILTIN_BY_ID.get(id)
+    const easy = workoutSummary('2026-09-20', [{ exerciseId: 'running', sets: 1 }], [run('2026-09-10', 6, 54), run('2026-09-20', 3, 30)], lookup)
+    expect(easy.results[0]).toMatchObject({ status: 'done', pr: false })
+    expect(easy).toMatchObject({ beat: 0, compared: 0, prs: 0 })
+    const fast = workoutSummary('2026-09-20', [{ exerciseId: 'running', sets: 1 }, { exerciseId: B, sets: 2 }], [run('2026-09-10', 3.1, 27), run('2026-09-20', 3.1, 25), lift('2026-09-10', 135, 8), lift('2026-09-20', 140, 8)], lookup)
+    expect(fast.results.find((r) => r.exerciseId === 'running')).toMatchObject({ status: 'done', pr: true, best: 'Fastest 5K yet: 25:03' })
+    expect(fast).toMatchObject({ beat: 1, compared: 1, prs: 2 })
+  })
 })
 
 describe('unfinished', () => {

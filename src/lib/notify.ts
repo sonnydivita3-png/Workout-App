@@ -2,8 +2,9 @@ import type { BodyweightEntry, Exercise, ExerciseLog, Goal, NotifPrefs, Notifica
 import { addDays } from './dates'
 import { goalPeriodKey, goalPct, goalTitle } from './goals'
 import { dayPlanOf, workItems } from './plan'
-import { cardioSessions, hasData, setSessions, strengthSessions } from './stats'
-import { formatDistanceFor, formatPaceFor, formatSeconds, showWeight } from './units'
+import { newCardioBests } from './cardioBests'
+import { hasData, setSessions, strengthSessions } from './stats'
+import { formatSeconds, showWeight } from './units'
 
 export interface Candidate {
   id: string
@@ -94,27 +95,10 @@ export function computeNotifications(i: Input): Candidate[] {
           })
         }
       } else {
-        const s = cardioSessions(i.logs, id)
-        const last = s.at(-1)
-        if (!last || last.date !== today || s.length < 2) continue
-        const before = s.slice(0, -1)
-        const priorDist = Math.max(0, ...before.map((x) => x.distance ?? 0))
-        if (last.distance && last.distance > priorDist) {
-          out.push({
-            id: `pr:${id}:${today}:distance`,
-            type: 'pr',
-            title: 'New PR 🔥',
-            body: `${ex.name}: longest yet at ${formatDistanceFor(last.distance, id, units)}`,
-          })
-        }
-        const paces = before.map((x) => x.pace).filter((p): p is number => p != null)
-        if (last.pace != null && paces.length && last.pace < Math.min(...paces)) {
-          out.push({
-            id: `pr:${id}:${today}:pace`,
-            type: 'pr',
-            title: 'New PR 🔥',
-            body: `${ex.name}: fastest pace yet, ${formatPaceFor(last.distance, last.minutes, id, units)}`,
-          })
+        // Cardio: only real records (longest yet, fastest 5K / 2,000 m…), never "faster pace than a longer run".
+        const entry = i.logs.find((l) => l.exerciseId === id && l.date === today)?.cardio
+        for (const b of newCardioBests(i.logs, id, entry, today, units, ex)) {
+          out.push({ id: `pr:${id}:${today}:${b.key}`, type: 'pr', title: 'New PR 🔥', body: `${ex.name}: ${b.title[0].toLowerCase()}${b.title.slice(1)}, ${b.value} (was ${b.was})` })
         }
       }
     }
