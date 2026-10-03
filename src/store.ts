@@ -44,7 +44,7 @@ export type ThemeMode = 'dark' | 'light' | 'auto'
 export type Accent = 'lime' | 'pink' | 'violet' | 'orange' | 'blue'
 
 /** Bump when the walkthrough gains new content, so people who saw an older version see it once more. */
-export const TOUR_VERSION = 4
+export const TOUR_VERSION = 5
 
 export type WarmupKind = 'cardio' | 'mobility' | 'sets'
 

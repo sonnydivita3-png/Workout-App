@@ -79,8 +79,11 @@ button:not(:disabled):active { transform: scale(0.96); }
 @keyframes confetti-fall { 0% { transform: translateY(-10vh) rotate(0); opacity: 1; } 100% { transform: translateY(105vh) rotate(720deg); opacity: 0; } }
 .pop-in { animation: pop-in 0.25s ease-out both; }
 .confetti { animation: confetti-fall var(--dur, 2.4s) ease-in forwards; }
+/* App tour: the spotlight's ring breathes so the eye finds it. */
+@keyframes tour-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-accent) 70%, transparent); } 100% { box-shadow: 0 0 0 14px transparent; } }
+.tour-ring { animation: tour-pulse 1.6s ease-out infinite; }
 @media (prefers-reduced-motion: reduce) {
-  button, .pop-in { transition: none; animation: none; }
+  button, .pop-in, .tour-ring { transition: none; animation: none; }
   .confetti { display: none; }
   button:not(:disabled):active { transform: none; }
 }

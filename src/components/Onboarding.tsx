@@ -36,7 +36,8 @@ export function Onboarding() {
   const [exact, setExact] = useState(false)
   const steps = goal === 'none' ? STEPS.slice(0, 6) : STEPS
 
-  const finish = () => { if (name.trim()) s.setName(name.trim()); s.setTourDone(true); s.setOnboarded(true) }
+  // Finishing set-up starts the app tour on Home; skipping set-up skips the tour too.
+  const finish = (tour = true) => { if (name.trim()) s.setName(name.trim()); if (!tour) s.setTourDone(true); s.setOnboarded(true) }
   const build = () => {
     const result = generateProgram({
       anchorMonday: toISO(mondayOf(parseISO(today))), fromDate: today, weeks: 4,
@@ -60,7 +61,7 @@ export function Onboarding() {
           <div className="flex gap-1.5" aria-label={`Step ${steps.indexOf(step) + 1} of ${steps.length}`}>
             {steps.map((x) => <span key={x} className={`h-1.5 rounded-full ${x === step ? 'w-6 bg-accent' : 'w-1.5 bg-neutral-300'}`} />)}
           </div>
-          <button onClick={finish} className="text-sm text-neutral-500">Skip</button>
+          <button onClick={() => finish(false)} className="text-sm text-neutral-500">Skip</button>
         </div>
 
         {step === 'welcome' && (

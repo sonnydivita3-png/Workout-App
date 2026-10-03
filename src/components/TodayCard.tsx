@@ -99,7 +99,7 @@ export function TodayCard({ onNavigate }: { onNavigate: (t: Tab, part?: string) 
   }
 
   return (
-    <section aria-label="Today" className="rounded-3xl bg-surface p-5 shadow-sm ring-1 ring-neutral-200/70">
+    <section aria-label="Today" data-tour="today" className="rounded-3xl bg-surface p-5 shadow-sm ring-1 ring-neutral-200/70">
       {body}
       {randomize && <RandomizerSheet date={today} onClose={() => setRandomize(false)} onSwitchMode={() => { setRandomize(false); onNavigate('plan') }} />}
     </section>

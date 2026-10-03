@@ -79,22 +79,24 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
       </header>
 
       <Tip id="plan">Pick a day to see its workout. Tap <b className="font-medium">✓</b> as you finish each set, then <b className="font-medium">Finish workout</b>.</Tip>
+      <div data-tour="week">
       <WeekStrip dates={dates} selected={day} counts={dates.map((d) => workItems(dayPlanOf(s.plan, s.overrides, toISO(d))).length)}
         labels={dates.map((d) => dayLabel(dayPlanOf(s.plan, s.overrides, toISO(d)), (id) => findExercise(s.custom, id)))}
         done={dates.map((d) => s.logs.some((l) => l.date === toISO(d) && hasData(l)))}
         rest={dates.map((d) => isRestDay(s.overrides, toISO(d)))} today={today} onSelect={setDay} />
+      </div>
 
       <div className="mb-3 mt-5 flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">{dayTitle}</h2>
         <div className="flex shrink-0 gap-2">
-          <button onClick={() => setAddMenu(true)} className="rounded-full bg-accent px-3 py-1.5 text-sm font-medium text-on-accent">+ Add</button>
+          <button onClick={() => setAddMenu(true)} data-tour="add" className="rounded-full bg-accent px-3 py-1.5 text-sm font-medium text-on-accent">+ Add</button>
           <button onClick={() => setDayMenu('menu')} aria-label="Day options" className="flex h-8 w-10 items-center justify-center rounded-full bg-neutral-100 text-lg leading-none text-neutral-600">⋯</button>
         </div>
       </div>
 
       <ProgramsCard onReplace={(kind) => setGenerator(kind === 'cardio' ? 'cardio' : 'program')} />
 
-      <section className="mt-3 space-y-3">
+      <section data-tour="day" className="mt-3 space-y-3">
         {planned.length === 0 && rest && (
           <div className="rounded-2xl bg-surface px-4 py-10 text-center shadow-sm ring-1 ring-neutral-200/70">
             <p className="text-lg font-semibold">Rest day</p>

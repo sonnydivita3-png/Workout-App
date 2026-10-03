@@ -29,6 +29,11 @@ test('first run: name, goal and schedule build a first month, then Home shows to
   await page.getByRole('button', { name: 'Build my plan' }).click()
   await expect(page.getByRole('heading', { name: 'Your first week' })).toBeVisible()
   await page.getByRole('button', { name: 'Start my plan' }).click()
+  // Set-up done: the app tour starts on Home (it can wait).
+  const tour = page.getByRole('dialog', { name: 'App tour' })
+  await expect(tour.getByText('Welcome to Durata 👋')).toBeVisible()
+  await tour.getByRole('button', { name: 'Not now' }).click()
+  await expect(tour).toHaveCount(0)
   await expect(page.getByRole('heading', { name: /, Jay$/ })).toBeVisible()
   await expect(page.getByRole('img', { name: 'Durata' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Today' })).toBeVisible()
@@ -66,7 +71,7 @@ test('first run can be skipped straight to Home', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Skip' }).click()
   await expect(page.getByText('Nothing planned today')).toBeVisible()
-  await expect(page.getByRole('dialog', { name: 'App walkthrough' })).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: 'App tour' })).toHaveCount(0)
 })
 
 test('Home with nothing planned: repeat the last workout in one tap', async ({ page }) => {
@@ -757,4 +762,52 @@ test('Make me a workout, cardio only: running on a treadmill, intervals, is a ru
   const s = await state(page)
   const items = Object.values(s.overrides).flat() as { exerciseId: string }[]
   expect(items.map((p) => p.exerciseId)).toEqual(['Running_Treadmill'])
+})
+
+test('the app tour: a spotlight on the real screens, try it yourself, and a practice set that saves nothing', async ({ page }) => {
+  await seed(page, { tourDone: false, tourVersion: 0, overrides: { [iso(0)]: [{ exerciseId: 'Barbell_Bench_Press_-_Medium_Grip', sets: 3, reps: 8 }] } })
+  await page.goto('/')
+  const tour = page.getByRole('dialog', { name: 'App tour' })
+  await tour.getByRole('button', { name: 'Show me around' }).click()
+  await expect(tour.getByRole('heading', { name: 'Today' })).toBeVisible()
+  await expect(tour.getByText('1 of 9')).toBeVisible()
+  // Everything but the tour is held still: the Start button underneath can't be pressed by accident.
+  await expect(page.getByRole('button', { name: 'Start workout' }).click({ timeout: 800 })).rejects.toThrow()
+  await tour.getByRole('button', { name: 'Next' }).click()
+  await expect(tour.getByRole('heading', { name: 'Goals' })).toBeVisible()
+  await tour.getByRole('button', { name: 'Next' }).click()
+  await expect(tour.getByRole('heading', { name: 'Settings' })).toBeVisible()
+  await tour.getByRole('button', { name: 'Next' }).click()
+  // Try it: tap the real Workouts tab.
+  await expect(tour.getByText('Try it: tap Workouts')).toBeVisible()
+  await page.locator('nav').getByText('Workouts').click()
+  await expect(tour.getByRole('heading', { name: 'Your week' })).toBeVisible()
+  // Stepping back onto a try-it stop waits for the tap again (and shows Home).
+  await tour.getByRole('button', { name: 'Back' }).click()
+  await expect(tour.getByText('Try it: tap Workouts')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Today' })).toBeVisible()
+  await tour.getByRole('button', { name: 'Show me' }).click()
+  await expect(tour.getByRole('heading', { name: 'Your week' })).toBeVisible()
+  await tour.getByRole('button', { name: 'Next' }).click()
+  // A practice set: tick it, nothing is logged.
+  await expect(tour.getByRole('heading', { name: 'Logging a set' })).toBeVisible()
+  await tour.getByRole('button', { name: 'Practice set done' }).click()
+  await expect(tour.getByText(/Logged! That’s a set/)).toBeVisible()
+  expect((await state(page)).logs).toEqual([])
+  await tour.getByRole('button', { name: 'Next' }).click()
+  await expect(tour.getByRole('heading', { name: '+ Add' })).toBeVisible()
+  await tour.getByRole('button', { name: 'Next' }).click()
+  await expect(tour.getByText('Try it: tap Progress')).toBeVisible()
+  await page.locator('nav').getByText('Progress').click()
+  await expect(tour.getByRole('heading', { name: 'History, Exercises, Body' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'History', exact: true })).toBeVisible()
+  await tour.getByRole('button', { name: 'Next' }).click()
+  // Friends are off in this profile: no Social stop, a pointer to turn them on instead.
+  await expect(tour.getByText(/Friends are optional/)).toBeVisible()
+  await tour.getByRole('button', { name: 'Let’s go' }).click()
+  await expect(tour).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Today' })).toBeVisible()
+  const s = await state(page)
+  expect(s.tourDone).toBe(true)
+  expect(s.tipsSeen).toEqual(expect.arrayContaining(['plan', 'progress']))
 })

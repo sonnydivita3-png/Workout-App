@@ -71,7 +71,7 @@ export default function App() {
       </main>
       <TabBar tab={tab} onChange={(t) => navigate(t)} />
       <Toasts onOpen={(t) => navigate(t)} />
-      {showTour && <Tour />}
+      {showTour && <Tour tab={tab} navigate={navigate} />}
     </>
   )
 }
