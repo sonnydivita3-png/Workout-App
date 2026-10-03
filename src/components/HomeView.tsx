@@ -20,9 +20,7 @@ import { NumberInput } from './NumberInput'
 import { SETTINGS_ICON, type Tab } from './TabBar'
 import { ChallengeSheet } from './social/ChallengeSheet'
 import { ShareSheet } from './social/ShareSheet'
-import { PostSheet } from './social/PostSheet'
 import { completedWorkout } from '../social/share'
-import { useSocial } from '../social/store'
 
 const Card = ({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) => (
   <section className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
@@ -61,14 +59,13 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab, sub?: string) =>
   const unread = useStore((st) => st.notifications.filter((n) => !n.read).length)
   const [nameDraft, setNameDraft] = useState('')
   const social = useStore((st) => st.socialChoice === 'enabled')
-  const [lastShare, setLastShare] = useState<'post' | 'share' | 'challenge' | null>(null)
+  const [lastShare, setLastShare] = useState<'share' | 'challenge' | null>(null)
   const { units, logs, custom } = s
 
   const greeting = hour < 5 ? 'Up late' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
   const latest = lastWorkout(logs, s.overrides, today)
   const lastDate = latest?.date
   const lastLogs = latest?.logs ?? []
-  const posted = useSocial((st) => !!lastDate && st.posts.some((p) => p.mine && p.date === lastDate))
 
   const stats = weekStats(logs, today)
   // Cardio calories this week (Hyrox and timed workouts included), and last week up to the same weekday.
@@ -138,11 +135,9 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab, sub?: string) =>
             ))}
           </ul>
           {social && lastDate && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {/* Post: "look what I did", for cheers. Send: a workout for a friend to do. */}
-              <button disabled={posted} onClick={() => setLastShare('post')} className="rounded-full bg-accent px-3 py-1.5 text-sm font-medium text-on-accent disabled:bg-neutral-100 disabled:font-normal disabled:text-neutral-500">{posted ? 'Posted ✓' : '🎉 Post'}</button>
-              <button onClick={() => setLastShare('share')} className="rounded-full bg-neutral-100 px-3 py-1.5 text-sm text-neutral-600">Send to a friend</button>
-              <button onClick={() => setLastShare('challenge')} className="rounded-full bg-neutral-100 px-3 py-1.5 text-sm text-neutral-600">Challenge</button>
+            <div className="mt-3 flex gap-2">
+              <button onClick={() => setLastShare('share')} className="rounded-full bg-neutral-100 px-3 py-1.5 text-sm text-neutral-600">Share</button>
+              <button onClick={() => setLastShare('challenge')} className="rounded-full bg-neutral-100 px-3 py-1.5 text-sm text-neutral-600">Challenge a friend</button>
             </div>
           )}
         </Card>
@@ -156,7 +151,6 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab, sub?: string) =>
         />
       )}
       {lastShare === 'challenge' && lastDate && <ChallengeSheet fromDate={lastDate} onClose={() => setLastShare(null)} />}
-      {lastShare === 'post' && lastDate && <PostSheet date={lastDate} onClose={() => setLastShare(null)} />}
 
       <BodyweightRow onTrend={() => onNavigate('history', 'body')} />
 

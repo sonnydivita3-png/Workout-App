@@ -4,7 +4,6 @@ import { toISO } from '../lib/dates'
 import { findExercise, useStore } from '../store'
 import { useToasts } from '../toastStore'
 import { challengeProgress } from './challengeProgress'
-import { newPosts } from './posts'
 import { buildSnapshot } from './snapshot'
 import { useSocial } from './store'
 
@@ -35,8 +34,7 @@ export function useSocialSync() {
         ...s.shares.filter((x) => !x.mine && x.status === 'pending').map((x) => ({ id: `sh-${x.id}`, title: 'New workout', body: `${x.from.displayName} sent “${x.title}”` })),
         ...s.workoutRequests.filter((x) => !x.mine && x.status === 'pending').map((x) => ({ id: `wr-${x.id}`, title: 'Workout request', body: `${x.from.displayName} wants a workout` })),
         ...s.challenges.filter((x) => !x.mine && x.status === 'pending').map((x) => ({ id: `ch-${x.id}`, title: 'Challenge', body: `${x.from.displayName}: ${x.title}` })),
-        ...s.emoji.filter((x) => !x.mine && !x.read).map((x) => ({ id: `em-${x.id}`, title: x.contextType === 'post' ? `${x.from.displayName} cheered your workout ${x.emoji}` : `${x.emoji} from ${x.from.displayName}`, body: '' })),
-        ...newPosts(s.posts, useStore.getState().postsSeenAt).map((p) => ({ id: `po-${p.id}`, title: `${p.from.displayName} posted a workout ${p.emoji ?? '💪'}`, body: `${p.title}. Tap to cheer.` })),
+        ...s.emoji.filter((x) => !x.mine && !x.read).map((x) => ({ id: `em-${x.id}`, title: `${x.emoji} from ${x.from.displayName}`, body: '' })),
       ]
       // A friend answered a challenge I sent (while the app is open; otherwise it waits in the inbox).
       if (prev.status === 'ready') {

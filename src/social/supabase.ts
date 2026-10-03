@@ -2,32 +2,24 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { FriendRequests, SessionUser, SocialBackend } from './backend'
 import {
   HANDLE_RE, NO_PERMS, SocialError,
-  type Challenge, type ChallengeSpec, type Emoji, type EmojiMessage, type FriendEntry, type FriendRequest, type PermKey, type Perms, type Post,
-  type PostPayload, type ProgressSnapshot, type Profile, type ReportReason, type Scope, type SharedPayload, type SharedWorkout, type WorkoutRequest,
+  type Challenge, type ChallengeSpec, type Emoji, type EmojiMessage, type FriendEntry, type FriendRequest, type PermKey, type Perms,
+  type ProgressSnapshot, type Profile, type ReportReason, type Scope, type SharedPayload, type SharedWorkout, type WorkoutRequest,
 } from './types'
 import { checkName } from './nameFilter'
-import { POST_DAYS, sanitizePost } from './posts'
 
 type Row = Record<string, any>
 
-const PERM_KEYS: PermKey[] = ['progress', 'posts', 'workouts', 'requests', 'challenges', 'emoji']
+const PERM_KEYS: PermKey[] = ['progress', 'workouts', 'requests', 'challenges', 'emoji']
 const GONE = (id: string): Profile => ({ id, handle: 'unknown', displayName: 'Former friend', avatar: '👤' })
 
 const toProfile = (r: Row): Profile => ({ id: r.id, handle: r.handle, displayName: r.display_name, avatar: r.avatar })
 const permsOf = (r: Row | undefined): Perms => (r ? Object.fromEntries(PERM_KEYS.map((k) => [k, !!r[k]])) as Perms : { ...NO_PERMS })
-
-/** The server is missing a table, column or function: a newer migration hasn't been run on it yet. */
-export function notInstalled(e: unknown): boolean {
-  const err = (e ?? {}) as { code?: string; message?: string }
-  return ['PGRST202', 'PGRST204', 'PGRST205', '42P01', '42703', '42883'].includes(err.code ?? '') || /schema cache|does not exist/i.test(err.message ?? '')
-}
 
 /** Turn a Supabase/Postgres error into a SocialError the UI knows how to describe. */
 export function mapError(e: unknown): SocialError {
   if (e instanceof SocialError) return e
   const err = (e ?? {}) as { code?: string; message?: string; status?: number }
   const msg = err.message ?? ''
-  if (notInstalled(e)) return new SocialError('unavailable', 'This needs a server update that hasn’t been installed yet.')
   if (/invalid.*(token|otp|code)|token has expired|expired.*token/i.test(msg)) return new SocialError('invalid_code')
   if (/already.*registered|email_exists/i.test(msg)) return new SocialError('already_exists', 'That email is already used by another account.')
   if (/anonymous sign-?ins? (are )?disabled/i.test(msg)) return new SocialError('unavailable', 'Sign-up without an email isn’t turned on for this app yet.')
@@ -289,34 +281,6 @@ export class SupabaseBackend implements SocialBackend {
   async cancelChallenge(id: string) {
     const c = await this.db()
     ok(await c.rpc('cancel_challenge', { p_id: id }))
-  }
-
-  // ---- posts
-  async sendPost(p: { audience: string[]; date: string; title: string; emoji?: string; payload: PostPayload }): Promise<string> {
-    const id = await this.me()
-    const c = await this.db()
-    // The id is made here so nothing has to be read back: the audience column isn't readable, even by the poster.
-    const postId = crypto.randomUUID()
-    ok(await c.from('posts').insert({ id: postId, from_id: id, audience: p.audience, workout_date: p.date, title: p.title, emoji: p.emoji ?? null, payload: p.payload }))
-    return postId
-  }
-  async posts(): Promise<Post[]> {
-    const id = await this.me()
-    const c = await this.db()
-    const since = new Date(Date.now() - POST_DAYS * 86400000).toISOString()
-    // Not the audience: the server doesn't let anyone read who else a post went to.
-    const res = await c.from('posts').select('id, from_id, workout_date, title, emoji, payload, created_at').gte('created_at', since).order('created_at', { ascending: false }).limit(60)
-    if (res.error && notInstalled(res.error)) return [] // a server without the posts update: no posts, everything else works
-    const rows = ok(res) as Row[]
-    const profiles = await this.profilesById(rows.map((r) => r.from_id))
-    return rows.flatMap((r) => {
-      const payload = sanitizePost(r.payload)
-      return payload ? [{ id: r.id, from: profiles.get(r.from_id) ?? GONE(r.from_id), date: r.workout_date, title: r.title, emoji: r.emoji ?? undefined, payload, createdAt: r.created_at, mine: r.from_id === id }] : []
-    })
-  }
-  async deletePost(id: string) {
-    const c = await this.db()
-    ok(await c.from('posts').delete().eq('id', id))
   }
 
   // ---- emoji

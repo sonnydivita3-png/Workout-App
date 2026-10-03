@@ -39,7 +39,7 @@ function LegalBody({ doc }: { doc: LegalDoc }) {
             <h3>What’s sent to our server, and only if you turn it on</h3>
             <ul className="list-disc space-y-1 pl-5">
               <li><b>Cloud backup:</b> a copy of your workout data (not photos) linked to your account, so you can restore it.</li>
-              <li><b>Social features:</b> your handle, display name and avatar; friend connections and the permissions you choose; workouts, challenges, requests and emoji you send or receive; workouts you post for friends to cheer (the exercises and their top sets, distances and times, and any new personal bests); and, if you allow a friend to see it, a progress summary (recent exercises, weekly count, streak, recent personal bests). Body weight, measurements and goals are never shared.</li>
+              <li><b>Social features:</b> your handle, display name and avatar; friend connections and the permissions you choose; workouts, challenges, requests and emoji you send or receive; and, if you allow a friend to see it, a progress summary (recent exercises, weekly count, streak, recent personal bests). Body weight, measurements and goals are never shared.</li>
               <li><b>Email:</b> optional. Used only to sign you in with a code and to recover your account. It is never shown to other people.</li>
               <li><b>Reports:</b> if you report someone, the reason and any note you add, so the app’s owner can review it. The person you report isn’t told who reported them.</li>
             </ul>
@@ -84,7 +84,7 @@ function LegalBody({ doc }: { doc: LegalDoc }) {
             <h3>Without the app</h3>
             <p>If you can’t open the app (for example, you lost your phone), <a className="underline" href={feedbackLink('feedback', 'Account deletion request')} target="_blank" rel="noreferrer">send a deletion request</a> with your handle and, if you added one, the email on the account. We’ll confirm and delete it within 30 days.</p>
             <h3>What’s deleted</h3>
-            <p>Your handle, display name, avatar, email, friends and permissions, workouts and challenges you sent or received, workouts you posted, emoji, reports you made, progress summaries and your cloud backup. Encrypted database backups that already contain your data expire within 90 days.</p>
+            <p>Your handle, display name, avatar, email, friends and permissions, workouts and challenges you sent or received, emoji, reports you made, progress summaries and your cloud backup. Encrypted database backups that already contain your data expire within 90 days.</p>
             <h3>What isn’t</h3>
             <p>Workouts saved on your phone stay there until you delete them (<b>Settings → Backup &amp; data → Erase all data</b>) or remove the app.</p>
           </>

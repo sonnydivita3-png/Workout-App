@@ -1,4 +1,3 @@
-import { newPosts } from '../social/posts'
 import { pendingCount, useSocial } from '../social/store'
 import { useStore } from '../store'
 
@@ -15,9 +14,7 @@ export const SETTINGS_ICON = 'M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM19.4 15a1.65 1
 
 export function TabBar({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
   const seen = useStore((s) => s.seenChallenges)
-  const postsSeenAt = useStore((s) => s.postsSeenAt)
-  // Things waiting on you, plus friends' posts you haven't looked at.
-  const badge = useSocial((s) => pendingCount(s, seen) + newPosts(s.posts, postsSeenAt).length)
+  const badge = useSocial((s) => pendingCount(s, seen))
   // Someone who turned friends off doesn't need a tab for them (they can turn it on in Settings).
   const hideSocial = useStore((s) => s.socialChoice === 'declined')
   return (
