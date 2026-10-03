@@ -105,7 +105,7 @@ export function WorkoutsTab() {
       {dates.length === 0 ? <p className="py-10 text-center text-neutral-400">Nothing logged yet. Your workouts show up here.</p> : (
         <ul className="space-y-2">
           {dates.slice(0, 60).map((d) => {
-            const s = workoutSummary(d, days.get(d)!.map((exerciseId) => ({ exerciseId, sets: 1 })), logs, lookup)
+            const s = workoutSummary(d, days.get(d)!.map((exerciseId) => ({ exerciseId, sets: 1 })), logs, lookup, units)
             return (
               <li key={d}>
                 <button onClick={() => setOpenDay(d)} className="flex w-full items-center justify-between gap-3 rounded-2xl bg-surface p-4 text-left shadow-sm ring-1 ring-neutral-200/70">
@@ -137,7 +137,7 @@ function DaySheet({ date, onClose, lookupUnits: units }: { date: string; onClose
   const lookup = (id: string) => findExercise(custom, id) ?? BUILTIN_BY_ID.get(id)
   const dayLogs = logs.filter((l) => l.date === date && hasData(l))
   const timed = timedLogs.filter((t) => t.date === date)
-  const s = workoutSummary(date, dayLogs.map((l) => ({ exerciseId: l.exerciseId, sets: 1 })), logs, lookup)
+  const s = workoutSummary(date, dayLogs.map((l) => ({ exerciseId: l.exerciseId, sets: 1 })), logs, lookup, units)
   const status = new Map(s.results.map((r) => [r.exerciseId, r]))
   const badge = { up: ['▲ better', 'text-green-600'], same: ['= matched', 'text-neutral-400'], down: ['▼ lower', 'text-red-600'], new: ['first time', 'text-neutral-400'], done: ['✓ done', 'text-neutral-400'], skipped: ['', ''] } as const
 
@@ -159,6 +159,7 @@ function DaySheet({ date, onClose, lookupUnits: units }: { date: string; onClose
                 {r && <span className={`shrink-0 text-xs ${badge[r.status][1]}`}>{r.pr ? '🏅 PR ' : ''}{badge[r.status][0]}</span>}
               </div>
               <p className="text-xs tabular-nums text-neutral-500">{detail}</p>
+              {r?.best && <p className="text-xs font-medium text-green-600">🏅 {r.best}</p>}
               {l.note && <p className="text-xs text-neutral-400">📝 {l.note}</p>}
             </li>
           )

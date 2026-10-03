@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { SettingsGear } from './SettingsGear'
 import { cardioLine, distanceUnitFor, paceBasis, formatSeconds, showDistanceIn, showWeight } from '../lib/units'
+import { cardioRecords } from '../lib/cardioBests'
 import { cardioSessions, hasData, isPR, setSessions, strengthSessions } from '../lib/stats'
 import { findExercise, useStore } from '../store'
 import type { Exercise, StrengthSet } from '../types'
@@ -120,6 +121,8 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
 
   const counted = useMemo(() => (mode === 'weight' ? [] : setSessions(logs, exercise.id, mode)), [logs, exercise.id, mode])
   const cardio = useMemo(() => cardioSessions(logs, exercise.id), [logs, exercise.id])
+  // Cardio records: the longest, and the fastest standard distances. Not "best pace", which a quick short run would win.
+  const records = useMemo(() => (isStrength ? [] : cardioRecords(logs, exercise.id, units, exercise)), [isStrength, logs, exercise, units])
   const dUnit = distanceUnitFor(exercise.id, units)
   // Every session with working sets, weighted or bodyweight, newest first.
   const lifts = useMemo(
@@ -174,6 +177,25 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
     <section>
       <button onClick={onBack} className="mb-2 text-sm text-neutral-500">‹ History</button>
       <h1 className="text-2xl font-semibold tracking-tight">{exercise.name}</h1>
+      {records.length > 0 && (
+        <div className="mt-4 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
+          <p className="mb-2 text-sm font-semibold text-neutral-700">Personal bests</p>
+          <ul className="divide-y divide-neutral-100">
+            {records.map((r) => (
+              <li key={r.label} className="flex items-baseline justify-between gap-3 py-2 text-sm">
+                <span className="text-neutral-600">{r.label}</span>
+                <span className="shrink-0 text-right">
+                  <span className="font-semibold tabular-nums">{r.value}</span>
+                  {r.fresh && <span className="ml-2 rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium uppercase text-on-accent">New PR</span>}
+                  <span className="block text-xs text-neutral-400">{fmtLong(r.date)}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          {records.some((r) => r.value.startsWith('≈')) && <p className="mt-2 text-xs text-neutral-400">≈ scaled from a session a little longer or shorter than the exact distance.</p>}
+        </div>
+      )}
+
       <div className="mt-4 flex gap-2">
         {metrics.map((m) => (
           <button
@@ -191,13 +213,13 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
           <p className="py-8 text-center text-sm text-neutral-400">No data for this metric yet.</p>
         ) : (
           <>
-            <div className="mb-3 flex items-baseline justify-between border-b border-neutral-100 pb-3">
+            {isStrength && <div className="mb-3 flex items-baseline justify-between border-b border-neutral-100 pb-3">
               <span className="text-sm font-semibold text-neutral-700">Best</span>
               <span className="tabular-nums text-lg font-semibold">
                 {format(best!)}
                 {pr && <span className="ml-2 rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium uppercase text-on-accent">New PR</span>}
               </span>
-            </div>
+            </div>}
             <LineChart points={points} format={format} label={metrics.find((m) => m.id === metric)!.label} />
           </>
         )}

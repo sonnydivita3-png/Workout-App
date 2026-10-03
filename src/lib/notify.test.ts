@@ -40,14 +40,23 @@ describe('personal bests', () => {
   it('respects the toggle', () => {
     expect(run({ logs: logs(140), prefs: { ...prefs, pbs: false } })).toHaveLength(0)
   })
-  it('flags cardio distance and pace records', () => {
-    const l: ExerciseLog[] = [
+  it('flags real cardio records only: the longest run, a fastest 5K; never a quick short run', () => {
+    const longer: ExerciseLog[] = [
       { date: '2026-09-15', exerciseId: 'running', cardio: { distance: 3, minutes: 30 } },
       { date: today, exerciseId: 'running', cardio: { distance: 3.5, minutes: 30 } },
     ]
-    const ids = run({ logs: l }).map((n) => n.id)
-    expect(ids).toContain(`pr:running:${today}:distance`)
-    expect(ids).toContain(`pr:running:${today}:pace`)
+    expect(run({ logs: longer }).map((n) => n.id)).toEqual([`pr:running:${today}:distance`])
+    const faster: ExerciseLog[] = [
+      { date: '2026-09-15', exerciseId: 'running', cardio: { distance: 3.1, minutes: 27 } },
+      { date: today, exerciseId: 'running', cardio: { distance: 3.1, minutes: 25 } },
+    ]
+    expect(run({ logs: faster }).map((n) => n.body)).toEqual(['Running: fastest 5K yet, 25:03 (was 27:04)'])
+    // A fast 1.5 mi after slower 5Ks: a faster pace, but no record.
+    const short: ExerciseLog[] = [
+      { date: '2026-09-15', exerciseId: 'running', cardio: { distance: 3.1, minutes: 27 } },
+      { date: today, exerciseId: 'running', cardio: { distance: 1.5, minutes: 10.5 } },
+    ]
+    expect(run({ logs: short })).toEqual([])
   })
 })
 

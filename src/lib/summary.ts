@@ -1,4 +1,5 @@
-import type { Exercise, ExerciseLog, PlannedExercise } from '../types'
+import type { Exercise, ExerciseLog, PlannedExercise, Units } from '../types'
+import { newCardioBests } from './cardioBests'
 import { sessionBasis, sessionScore, sessionVolume } from './progression'
 import { hasData } from './stats'
 import { isTicked, setRows, workingRows } from './setRows'
@@ -13,6 +14,8 @@ export interface ExerciseResult {
   status: 'up' | 'same' | 'down' | 'new' | 'done' | 'skipped'
   /** New best ever (not just better than last time). */
   pr: boolean
+  /** Cardio: the records it set, e.g. "Fastest 5K yet: 24:51". */
+  best?: string
   score: number
   lastScore: number
   volume: number
@@ -39,8 +42,12 @@ function did(l: ExerciseLog | undefined, ex: Exercise): boolean {
   return (l.sets ?? []).some((s) => !s.warmup && !s.drop && isTicked(s))
 }
 
-/** How today went against your previous efforts, exercise by exercise. */
-export function workoutSummary(date: string, items: PlannedExercise[], logs: ExerciseLog[], lookup: (id: string) => Exercise | undefined): WorkoutSummary {
+/**
+ * How today went against your previous efforts, exercise by exercise. Lifts are compared with last time (progressive
+ * overload). Cardio isn't: a shorter, easier run than last time is often the plan, so it's just "done", and it only
+ * counts as a best when it sets a real record (see cardioBests).
+ */
+export function workoutSummary(date: string, items: PlannedExercise[], logs: ExerciseLog[], lookup: (id: string) => Exercise | undefined, units: Units = { weight: 'lb', distance: 'mi' }): WorkoutSummary {
   const results: ExerciseResult[] = []
   let liftVolume = 0
   let lastLiftVolume = 0
@@ -50,10 +57,20 @@ export function workoutSummary(date: string, items: PlannedExercise[], logs: Exe
     const now = logs.find((l) => l.date === date && l.exerciseId === id)
     const before = logs.filter((l) => l.exerciseId === id && l.date < date && hasData(l)).sort((a, b) => b.date.localeCompare(a.date))
     const last = before[0]
+    if (ex.kind === 'cardio') {
+      const done = did(now, ex)
+      const bests = done ? newCardioBests(logs, id, now?.cardio, date, units, ex) : []
+      results.push({
+        exerciseId: id, name: ex.name, status: !done ? 'skipped' : last ? 'done' : 'new', pr: bests.length > 0,
+        ...(bests.length ? { best: bests.map((b) => `${b.title}: ${b.value}`).join(' · ') } : {}),
+        score: 0, lastScore: 0, volume: 0, lastVolume: 0,
+      })
+      continue
+    }
     const score = sessionScore(now, ex.mode, ex.kind)
     const lastScore = sessionScore(last, ex.mode, ex.kind)
-    const volume = ex.kind === 'cardio' ? now?.cardio?.distance ?? now?.cardio?.minutes ?? 0 : sessionVolume(now, ex.mode)
-    const lastVolume = ex.kind === 'cardio' ? last?.cardio?.distance ?? last?.cardio?.minutes ?? 0 : sessionVolume(last, ex.mode)
+    const volume = sessionVolume(now, ex.mode)
+    const lastVolume = sessionVolume(last, ex.mode)
     const basis = sessionBasis(now, ex.mode, ex.kind)
     // Bests only count sessions measured the same way (weighted vs bodyweight).
     const best = Math.max(0, ...before.filter((l) => sessionBasis(l, ex.mode, ex.kind) === basis).map((l) => sessionScore(l, ex.mode, ex.kind)))
