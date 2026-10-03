@@ -23,6 +23,7 @@ export const AVATARS = ['💪', '🏃', '🚴', '🏋️', '🧘', '⚡', '🔥'
 /** What a person can let a friend do. All are off until the person agrees. */
 export const PERMISSIONS = [
   { key: 'progress', label: 'See my progress', hint: 'Recent workouts, weekly count, streak and new personal bests. Never body weight, measurements, photos or goals.' },
+  { key: 'posts', label: 'Show me their posts', hint: 'Workouts they finish and post, so I can cheer them on. Nothing goes on my calendar.' },
   { key: 'workouts', label: 'Send me workouts', hint: 'Shared days, weeks or months I can add to my calendar.' },
   { key: 'requests', label: 'Ask me to make them a workout', hint: 'Requests appear in my inbox and I can say no.' },
   { key: 'challenges', label: 'Challenge me', hint: 'Simple challenges like push-ups or a run distance.' },
@@ -30,8 +31,8 @@ export const PERMISSIONS = [
 ] as const
 export type PermKey = (typeof PERMISSIONS)[number]['key']
 export type Perms = Record<PermKey, boolean>
-export const NO_PERMS: Perms = { progress: false, workouts: false, requests: false, challenges: false, emoji: false }
-export const ALL_PERMS: Perms = { progress: true, workouts: true, requests: true, challenges: true, emoji: true }
+export const NO_PERMS: Perms = { progress: false, posts: false, workouts: false, requests: false, challenges: false, emoji: false }
+export const ALL_PERMS: Perms = { progress: true, posts: true, workouts: true, requests: true, challenges: true, emoji: true }
 
 export interface Profile {
   id: string
@@ -132,10 +133,52 @@ export interface EmojiMessage {
   from: Profile
   to: Profile
   emoji: Emoji
-  contextType?: 'share' | 'challenge' | 'request' | 'progress'
+  /** 'post': a cheer on someone's post (one per person per post). */
+  contextType?: 'share' | 'challenge' | 'request' | 'progress' | 'post'
   contextId?: string
   createdAt: string
   read: boolean
+  mine: boolean
+}
+
+/**
+ * One exercise in a post, with its headline numbers. Weights are in pounds and distances in miles (like logs), so each
+ * friend sees them in their own units.
+ */
+export interface PostItem {
+  exerciseId: string
+  /** The poster's name for it; library exercises are shown under the viewer's own name for them. */
+  name: string
+  cardio?: boolean
+  /** Working sets done. */
+  sets?: number
+  /** Reps in the heaviest set, or the most reps in a set when there's no weight. */
+  reps?: number
+  /** Heaviest set. */
+  weight?: number
+  /** Longest hold. */
+  seconds?: number
+  distance?: number
+  minutes?: number
+  /** A new personal best, in words ("New best", "Fastest 5K yet: 24:51"). */
+  best?: string
+}
+
+export interface PostPayload {
+  version: 1
+  items: PostItem[]
+}
+
+/** "Look what I did": a finished workout shared with friends so they can cheer it. */
+export interface Post {
+  id: string
+  from: Profile
+  /** The day it was done. */
+  date: string
+  title: string
+  emoji?: string
+  payload: PostPayload
+  createdAt: string
   mine: boolean
 }
 

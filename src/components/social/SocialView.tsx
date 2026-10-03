@@ -18,8 +18,10 @@ import { MakeForFriendSheet } from './MakeForFriendSheet'
 import { InviteButton } from '../InviteButton'
 import { ConnectionStatus } from './ConnectionStatus'
 import { challengeStatus, isLive, timeIsUp } from '../../social/challengeStatus'
+import { newPosts } from '../../social/posts'
+import { Feed } from './Feed'
 
-type Section = 'inbox' | 'friends' | 'challenges'
+type Section = 'inbox' | 'feed' | 'friends' | 'challenges'
 
 const pct = (c: Challenge) => Math.min(100, Math.round((c.progress / Math.max(c.target, 1)) * 100))
 
@@ -48,10 +50,11 @@ function ChallengeRow({ c, onOpen, onCancel }: { c: Challenge; onOpen: () => voi
 }
 
 export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
-  const { socialChoice, seenChallenges, markChallengesSeen } = useStore()
+  const { socialChoice, seenChallenges, markChallengesSeen, postsSeenAt } = useStore()
   const s = useSocial()
-  const { status, profile, friends, requests, shares, workoutRequests, challenges, emoji, act, backend } = s
-  const [section, setSection] = useState<Section>('inbox')
+  const { status, profile, friends, requests, shares, workoutRequests, challenges, emoji, posts, act, backend } = s
+  // Opens on the inbox when something there needs you, else on friends' new posts if there are any.
+  const [section, setSection] = useState<Section>(() => (pendingCount(s, seenChallenges) === 0 && newPosts(s.posts, postsSeenAt).length > 0 ? 'feed' : 'inbox'))
   const [setup, setSetup] = useState(false)
   const [accepting, setAccepting] = useState<FriendRequest | null>(null)
   const [adding, setAdding] = useState<SharedWorkout | null>(null)
@@ -73,7 +76,7 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         </header>
         <Card>
           <p className="mb-1 font-medium">Train with friends</p>
-          <p className="mb-4 text-sm text-neutral-500">Share workouts, send challenges and cheer each other on with emoji. You choose what each friend can do. Social is off until you set it up.</p>
+          <p className="mb-4 text-sm text-neutral-500">Post your workouts for friends to cheer, share plans, send challenges and cheer each other on with emoji. You choose what each friend can do. Social is off until you set it up.</p>
           <button onClick={() => setSetup(true)} className={primary}>Set up social features</button>
           <InviteButton className={`${secondary} mt-2`}>Invite a friend to the app</InviteButton>
         </Card>
@@ -113,6 +116,7 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   }
 
   const pending = pendingCount(s, seenChallenges)
+  const fresh = newPosts(posts, postsSeenAt).length
   const updates = challengeUpdates(challenges, seenChallenges)
   const incomingShares = shares.filter((x) => !x.mine && x.status === 'pending')
   const incomingReqs = workoutRequests.filter((x) => !x.mine && x.status === 'pending')
@@ -129,6 +133,7 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
   const pastChallenges = challenges.filter((c) => ['completed', 'declined', 'cancelled'].includes(c.status) || timeIsUp(c)).slice(0, 10)
   const myRequests = [...workoutRequests.filter((x) => x.mine)].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5)
   const challengeTitle = (id?: string) => challenges.find((x) => x.id === id)?.title
+  const postTitle = (id?: string) => posts.find((x) => x.id === id && x.mine)?.title
   const waitingChallenges = challenges.filter((c) => c.mine && c.status === 'pending')
 
   const run = async (fn: Parameters<typeof act>[0]) => {
@@ -158,10 +163,11 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
         </span>
       </header>
       <div className="-mt-3 mb-4"><ConnectionStatus /></div>
-      <div className="mb-4 flex gap-2">
-        <button onClick={() => setSection('inbox')} className={chip(section === 'inbox')}>Inbox{pending > 0 ? ` (${pending})` : ''}</button>
-        <button onClick={() => setSection('friends')} className={chip(section === 'friends')}>Friends</button>
-        <button onClick={() => setSection('challenges')} className={chip(section === 'challenges')}>Challenges</button>
+      <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4">
+        <button onClick={() => setSection('inbox')} className={`${chip(section === 'inbox')} shrink-0`}>Inbox{pending > 0 ? ` (${pending})` : ''}</button>
+        <button onClick={() => setSection('feed')} className={`${chip(section === 'feed')} shrink-0`}>Feed{fresh > 0 && section !== 'feed' ? ` (${fresh})` : ''}</button>
+        <button onClick={() => setSection('friends')} className={`${chip(section === 'friends')} shrink-0`}>Friends</button>
+        <button onClick={() => setSection('challenges')} className={`${chip(section === 'challenges')} shrink-0`}>Challenges</button>
       </div>
       {error && <ErrorNote>{error}</ErrorNote>}
 
@@ -298,7 +304,7 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
                 {unread.map((m) => (
                   <li key={m.id} className="flex items-center gap-3 text-sm">
                     <span className="text-2xl">{m.emoji}</span>
-                    <span className="min-w-0 flex-1">{m.from.displayName}{m.contextType === 'share' && shareTitle(m.contextId) ? <span className="block truncate text-xs text-neutral-400">on your workout “{shareTitle(m.contextId)}”</span> : m.contextType === 'challenge' && challengeTitle(m.contextId) ? <span className="block truncate text-xs text-neutral-400">on the challenge “{challengeTitle(m.contextId)}”</span> : null}</span>
+                    <span className="min-w-0 flex-1">{m.from.displayName}{m.contextType === 'share' && shareTitle(m.contextId) ? <span className="block truncate text-xs text-neutral-400">on your workout “{shareTitle(m.contextId)}”</span> : m.contextType === 'challenge' && challengeTitle(m.contextId) ? <span className="block truncate text-xs text-neutral-400">on the challenge “{challengeTitle(m.contextId)}”</span> : m.contextType === 'post' && postTitle(m.contextId) ? <span className="block truncate text-xs text-neutral-400">cheered your post “{postTitle(m.contextId)}”</span> : null}</span>
                     <span className="text-xs text-neutral-400">{ago(m.createdAt)}</span>
                   </li>
                 ))}
@@ -307,6 +313,8 @@ export function SocialView({ onNavigate }: { onNavigate: (t: Tab) => void }) {
           )}
         </div>
       )}
+
+      {section === 'feed' && <Feed />}
 
       {section === 'friends' && (
         <div className="space-y-3">

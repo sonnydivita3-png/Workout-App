@@ -4,8 +4,10 @@ import { fmtLong } from '../lib/dates'
 import { dayPlanOf } from '../lib/plan'
 import { unfinished, workoutSummary } from '../lib/summary'
 import { formatMinutes, showDistance, showWeight } from '../lib/units'
+import { useSocial } from '../social/store'
 import { findExercise, useStore } from '../store'
 import { useToasts } from '../toastStore'
+import { PostSheet } from './social/PostSheet'
 
 /**
  * "Finish workout": if some planned sets aren't logged, ask first (finish anyway, or keep going); then show how
@@ -18,6 +20,10 @@ export function FinishWorkout({ date, onBack, onDone }: { date: string; onBack: 
   const [missing] = useState(() => unfinished(date, items, s.logs, lookup))
   const [confirmed, setConfirmed] = useState(missing.length === 0)
   const [summary, setSummary] = useState(() => (missing.length === 0 ? celebrate(date, workoutSummary(date, items, s.logs, lookup, s.units)) : null))
+  // Friends to show it to: "look what I did", for their cheers.
+  const canPost = useSocial((st) => s.socialChoice === 'enabled' && st.status === 'ready' && st.friends.length > 0)
+  const posted = useSocial((st) => st.posts.some((p) => p.mine && p.date === date))
+  const [posting, setPosting] = useState(false)
 
   if (!confirmed || !summary) {
     const sets = missing.filter((m) => !m.cardio).reduce((a, m) => a + (m.planned - m.done), 0)
@@ -94,9 +100,15 @@ export function FinishWorkout({ date, onBack, onDone }: { date: string; onBack: 
             </li>
           ))}
         </ul>
+        {canPost && summary.results.some((r) => r.status !== 'skipped') && (
+          <button disabled={posted} onClick={() => setPosting(true)} className="mb-2 w-full rounded-2xl bg-surface py-3 font-medium text-neutral-800 ring-1 ring-neutral-200 disabled:text-neutral-400">
+            {posted ? 'Posted for friends to cheer ✓' : '🎉 Post it for friends to cheer'}
+          </button>
+        )}
         <button onClick={() => { s.finishDay(date); onDone() }} className="w-full rounded-2xl bg-accent py-3 font-medium text-on-accent">Done</button>
         <button onClick={onBack} className="mt-2 w-full py-2 text-sm text-neutral-500">Back to the workout</button>
       </div>
+      {posting && <PostSheet date={date} onClose={() => setPosting(false)} />}
     </div>
   )
 }

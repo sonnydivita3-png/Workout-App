@@ -1,6 +1,6 @@
 import type {
-  Challenge, ChallengeSpec, Emoji, EmojiMessage, FriendEntry, FriendRequest, PermKey, Perms, ProgressSnapshot, Profile,
-  ReportReason, Scope, SharedPayload, SharedWorkout, WorkoutRequest,
+  Challenge, ChallengeSpec, Emoji, EmojiMessage, FriendEntry, FriendRequest, PermKey, Perms, Post, PostPayload, ProgressSnapshot,
+  Profile, ReportReason, Scope, SharedPayload, SharedWorkout, WorkoutRequest,
 } from './types'
 
 export interface SessionUser {
@@ -73,6 +73,12 @@ export interface SocialBackend {
   respondChallenge(id: string, accept: boolean): Promise<void>
   reportProgress(id: string, progress: number, done: boolean): Promise<void>
   cancelChallenge(id: string): Promise<void>
+
+  // ---- posts ("look what I did"): to friends who allow them; they cheer with sendEmoji({ contextType: 'post' })
+  sendPost(p: { audience: string[]; date: string; title: string; emoji?: string; payload: PostPayload }): Promise<string>
+  /** Recent posts: mine, and friends' that I can see. Newest first. */
+  posts(): Promise<Post[]>
+  deletePost(id: string): Promise<void>
 
   // ---- emoji
   sendEmoji(p: { toId: string; emoji: Emoji; contextType?: EmojiMessage['contextType']; contextId?: string }): Promise<void>
