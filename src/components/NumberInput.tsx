@@ -19,7 +19,7 @@ export function NumberInput({ value, onChange, placeholder, step = 1, stepper, l
       placeholder={placeholder}
       aria-label={label}
       onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
-      className="w-full min-w-0 rounded-lg bg-neutral-100 px-1 py-2 text-center tabular-nums outline-none placeholder:text-neutral-300 focus:bg-neutral-200/70"
+      className="w-full min-w-0 rounded-lg bg-neutral-100 px-1 py-2 text-center tabular-nums outline-none placeholder:text-neutral-400 focus:bg-neutral-200/70"
     />
   )
   if (!stepper) return input
