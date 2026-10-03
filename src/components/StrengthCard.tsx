@@ -72,7 +72,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
   const allLogs = useStore((s) => s.logs)
   const history = last ? allLogs.filter((l) => l.exerciseId === exercise.id && l.date <= last.date).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4) : []
   const custom = useStore((s) => s.custom)
-  const fromLast = suggestNext(exercise, last, { reps: targetReps, seconds: targetSeconds }, units, history)
+  const fromLast = suggestNext(exercise, last, { reps: targetReps, seconds: targetSeconds, sets: setCount }, units, history)
   // Never done this one: start from the most recent similar lift they have logged.
   const tip = (fromLast.kind === 'first' && estimateStart(exercise, allLogs, targetReps, units, (id) => findExercise(custom, id))) || fromLast
 
@@ -81,11 +81,16 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
   const update = (i: number, patch: Partial<StrengthSet>) =>
     onChange(sets.map((s, j) => (j === i ? { ...s, ...(typed(patch) ? { auto: false, done: s.done ?? false } : {}), ...patch } : s)))
   const filled = hasNumbers
-  const fromTip = (s: StrengthSet): StrengthSet => ({
+  // The target for row i: its own working set's target (progress sits on a set or two; the rest repeat last time).
+  const aim = (i: number) => {
+    const k = sets.slice(0, i).filter((x) => !x.warmup && !x.drop).length
+    return tip.sets?.[k] ?? { weight: tip.weight, reps: tip.reps, seconds: tip.seconds }
+  }
+  const fromTip = (s: StrengthSet, i: number): StrengthSet => ({
     ...s,
-    weight: s.weight ?? (mode === 'weight' ? tip.weight ?? null : null),
-    reps: s.reps ?? (mode === 'time' ? null : tip.reps ?? targetReps ?? null),
-    ...(mode === 'time' ? { seconds: s.seconds ?? tip.seconds ?? targetSeconds ?? null } : {}),
+    weight: s.weight ?? (mode === 'weight' ? aim(i).weight ?? null : null),
+    reps: s.reps ?? (mode === 'time' ? null : aim(i).reps ?? targetReps ?? null),
+    ...(mode === 'time' ? { seconds: s.seconds ?? aim(i).seconds ?? targetSeconds ?? null } : {}),
   })
   // Warm-up ramp from the weight you're working up to (rounded to what you can load), by each warm-up's place among
   // the warm-ups, including sets you turned into warm-ups yourself.
@@ -119,7 +124,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
     const r = s.warmup ? rampFor(i) : null
     const d = s.drop ? dropFor(i) : null
     const next = s.warmup ? { ...s, weight: s.weight ?? r?.weight ?? null, reps: s.reps ?? r?.reps ?? null }
-      : s.drop ? { ...s, weight: s.weight ?? d, reps: s.reps ?? targetReps ?? null } : fromTip(s)
+      : s.drop ? { ...s, weight: s.weight ?? d, reps: s.reps ?? targetReps ?? null } : fromTip(s, i)
     update(i, { ...next, done: true, auto: !filled(s) })
     // That was the last one: the card folds up; bring it to the top so the next exercise is right below.
     if (!readOnly && sets.every((x, j) => x.warmup || j === i || ticked(x))) setTimeout(() => card.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60)
@@ -147,12 +152,18 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
     '2.75rem',
   ].join(' ')
   const setText = (p: StrengthSet) => formatSet(p, mode, units)
-  const tipText =
+  const headline =
     tip.kind === 'first' ? null
     : mode === 'time' ? `${tip.seconds}s`
     // Reps moves, and weighted lifts done with bodyweight last time: aim for more reps.
     : mode === 'reps' || tip.weight == null ? `${tip.reps} reps`
     : `${showWeight(tip.weight, units)} ${units.weight} × ${tip.reps}`
+  // Which sets: "on 2 sets", "on 1 more set"; nothing when it's every set.
+  const changed = tip.changed ?? workingCount
+  const tipText = !headline ? null
+    : tip.kind === 'add-sets' ? `${headline} on ${changed} more set${changed === 1 ? '' : 's'}`
+    : changed > 0 && changed < workingCount ? `${headline} on ${changed} set${changed === 1 ? '' : 's'}`
+    : headline
   const barbell = mode === 'weight' && exercise.equipment === 'Barbell'
   const plateWeight = showWeight(sets.find((s) => !s.warmup && s.weight)?.weight ?? tip.weight ?? null, units)
   const menuItem = (label: string, go: () => void, danger = false) => (
@@ -235,17 +246,17 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
                   label={`${label} ${units.weight}`}
                   value={showWeight(s.weight, units)}
                   step={units.weight === 'kg' ? 1 : 2.5}
-                  placeholder={showWeight(s.warmup ? rampFor(i)?.weight ?? null : s.drop ? dropFor(i) : tip.weight ?? prev?.weight ?? null, units)?.toString() ?? '–'}
+                  placeholder={showWeight(s.warmup ? rampFor(i)?.weight ?? null : s.drop ? dropFor(i) : aim(i).weight ?? prev?.weight ?? null, units)?.toString() ?? '–'}
                   onChange={(v) => update(i, { weight: storeWeight(v, units) })}
                 />
               )}
               {mode === 'time' ? (
                 <div className="flex items-center gap-1">
-                  <NumberInput label={`${label} seconds`} value={s.seconds ?? null} step={5} placeholder={(tip.seconds ?? prev?.seconds ?? targetSeconds)?.toString() ?? '–'} onChange={(v) => update(i, { seconds: v })} />
+                  <NumberInput label={`${label} seconds`} value={s.seconds ?? null} step={5} placeholder={(aim(i).seconds ?? prev?.seconds ?? targetSeconds)?.toString() ?? '–'} onChange={(v) => update(i, { seconds: v })} />
                   <button onClick={() => setTiming(i)} aria-label={`Time set ${i + 1}`} title="Time this hold" className="h-9 w-9 shrink-0 rounded-lg bg-neutral-100 text-base">⏱</button>
                 </div>
               ) : (
-                <NumberInput label={`${label} reps`} value={s.reps} placeholder={(s.warmup ? rampFor(i)?.reps : tip.reps ?? prev?.reps ?? targetReps)?.toString() ?? '–'} onChange={(v) => update(i, { reps: v })} />
+                <NumberInput label={`${label} reps`} value={s.reps} placeholder={(s.warmup ? rampFor(i)?.reps : aim(i).reps ?? prev?.reps ?? targetReps)?.toString() ?? '–'} onChange={(v) => update(i, { reps: v })} />
               )}
               {trackRpe && <NumberInput label={`${label} RPE`} value={s.rpe ?? null} placeholder="–" onChange={(v) => update(i, { rpe: v == null ? null : Math.min(10, Math.max(1, v)) })} />}
               <button onClick={() => done(i)} aria-label={`${label} done`} aria-pressed={ticked(s)} title={ticked(s) ? 'Tap to untick' : 'Tap when done'} className={`h-10 rounded-xl text-base font-bold ${ticked(s) ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-400'}`}>✓</button>
