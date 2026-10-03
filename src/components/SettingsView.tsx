@@ -141,7 +141,7 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
           {onBack && <button onClick={onBack} aria-label="Back" className="-ml-2 h-10 w-10 rounded-full text-xl text-neutral-500">‹</button>}
           <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         </header>
-        <ul className="divide-y divide-neutral-100 overflow-hidden rounded-2xl bg-surface ring-1 ring-neutral-200/70">
+        <ul data-tour="settings-list" className="divide-y divide-neutral-100 overflow-hidden rounded-2xl bg-surface ring-1 ring-neutral-200/70">
           {PAGES.map((p) => (
             <li key={p.id}>
               <button onClick={() => { setPage(p.id); window.scrollTo(0, 0) }} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
