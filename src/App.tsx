@@ -57,7 +57,7 @@ export default function App() {
   if (needsSetup) return <Onboarding />
   return (
     <>
-      <main className="mx-auto min-h-screen max-w-md px-4 pb-40 pt-[max(1.5rem,env(safe-area-inset-top))]">
+      <main data-tour="page" className="mx-auto min-h-screen max-w-md px-4 pb-40 pt-[max(1.5rem,env(safe-area-inset-top))]">
         {conflict && tab !== 'settings' && (
           <button onClick={() => navigate('settings', 'data')} className="mb-3 w-full rounded-2xl bg-amber-50 px-4 py-2.5 text-left text-sm text-amber-800">⚠️ Your backup and this phone both changed. Tap to choose which to keep.</button>
         )}

@@ -4,25 +4,38 @@ import type { Tab } from './TabBar'
 
 /**
  * The app tour: the real screens, dimmed, with a spotlight on one thing at a time, an arrow to it and a short note.
- * A couple of stops ask you to try it (tap the tab yourself, tick a practice set) so it's felt rather than read.
- * Targets are elements marked data-tour="…"; a stop whose target isn't on screen shows its note in the middle.
+ * "Show me" demonstrates a stop for real: a tap lands on the actual button, it does what it does (switches tab, opens
+ * a sheet…), and the spotlight moves to what it opened. Next skips the demonstration. Anything a demonstration opened
+ * is closed again on the way out. Targets are data-tour="…" names (or a selector starting with "["); a stop whose
+ * target isn't on screen shows its note in the middle.
  */
+
+type Shape = 'circle' | 'pill' | 'rect'
 
 interface Step {
   id: string
   title: string
   body: React.ReactNode
-  /** data-tour value of the element to point at. */
   target?: string
   /** Tab to show for this stop. */
   tab?: Tab
   /** A circle for small buttons, a pill for tabs, a rounded box for cards. */
-  shape?: 'circle' | 'pill' | 'rect'
-  /** Do it yourself: tap the tab; the tour moves on once it's showing. "Show me" switches for you. */
-  tryIt?: { hint: string; tab: Tab }
+  shape?: Shape
   /** A practice set to tick (nothing is saved). */
   practice?: boolean
+  show?: {
+    /** What gets tapped, for real. */
+    tap: string
+    /** Then: where to point, and what to say. */
+    then: { target?: string; shape?: Shape; body: React.ReactNode }
+    /** Tapped on the way out, to close what the demonstration opened. */
+    close?: string
+  }
 }
+
+const find = (t: string) => document.querySelector<HTMLElement>(t.startsWith('[') ? t : `[data-tour="${t}"]`)
+/** On a fixed layer (the tab bar, a sheet): no point scrolling the page to it. */
+const onFixed = (el: HTMLElement) => { for (let e: HTMLElement | null = el; e; e = e.parentElement) if (getComputedStyle(e).position === 'fixed') return true; return false }
 
 interface Box { top: number; left: number; width: number; height: number }
 const same = (a: Box | null, b: Box | null) => !!a && !!b && a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height
@@ -31,7 +44,7 @@ const boxOf = (el: Element): Box => {
   return { top: Math.round(r.top), left: Math.round(r.left), width: Math.round(r.width), height: Math.round(r.height) }
 }
 
-/** Where `el` (the target) and `card` (the note) are on screen, kept up to date while things move or scroll. */
+/** Where the target and the note (`card`) are on screen, kept up to date while things move or scroll. */
 function useBoxes(target: string | undefined, card: React.RefObject<HTMLDivElement | null>) {
   const [box, setBox] = useState<Box | null>(null)
   const [cardBox, setCardBox] = useState<Box | null>(null)
@@ -39,11 +52,11 @@ function useBoxes(target: string | undefined, card: React.RefObject<HTMLDivEleme
     let raf = 0
     let scrolled = false
     const tick = () => {
-      const el = target ? document.querySelector(`[data-tour="${target}"]`) : null
+      const el = target ? find(target) : null
       if (el && !scrolled) {
         scrolled = true
-        // Bring it into view once, near the top so the note fits below it (the tab bar is always on screen).
-        if (!el.closest('nav')) window.scrollTo({ top: Math.max(0, window.scrollY + el.getBoundingClientRect().top - 96) })
+        // Bring it into view once, near the top so the note fits below it.
+        if (!onFixed(el)) window.scrollTo({ top: Math.max(0, window.scrollY + el.getBoundingClientRect().top - 96) })
       }
       const b = el ? boxOf(el) : null
       setBox((cur) => (same(cur, b) || (!cur && !b) ? cur : b))
@@ -57,25 +70,24 @@ function useBoxes(target: string | undefined, card: React.RefObject<HTMLDivEleme
   return { box, cardBox }
 }
 
-/** A practice set: tick it to feel how logging works. Nothing is saved. */
-function PracticeSet() {
+/** A practice set to tick. Nothing is saved. */
+function PracticeSet({ done, onTick }: { done: boolean; onTick: () => void }) {
   const kg = useStore((s) => s.units.weight === 'kg')
-  const [done, setDone] = useState(false)
   return (
     <div className="mt-3 rounded-2xl bg-neutral-50 p-3 ring-1 ring-neutral-200">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm"><b className="font-semibold">Set 1</b> · {kg ? '60 kg' : '135 lb'} × 8</span>
         <button
-          onClick={() => setDone((d) => !d)}
+          onClick={onTick}
           aria-pressed={done}
           aria-label="Practice set done"
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-semibold ${done ? 'bg-green-500 text-white' : 'tour-ring bg-surface text-neutral-500 ring-2 ring-accent'}`}
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-semibold ${done ? 'bg-green-500 text-white' : 'bg-surface text-neutral-500 ring-2 ring-accent'}`}
         >
           ✓
         </button>
       </div>
       <p className={`mt-2 text-xs ${done ? 'font-medium text-green-600' : 'text-neutral-400'}`}>
-        {done ? 'Logged! That’s a set. Lifted something different? Type it before you tap.' : 'Try it: tap ✓. Just practice, nothing is saved.'}
+        {done ? 'Logged! That’s a set.' : 'A practice set: nothing is saved.'}
       </p>
     </div>
   )
@@ -91,7 +103,7 @@ export function Tour({ tab, navigate }: { tab: Tab; navigate: (t: Tab) => void }
     {
       id: 'welcome',
       title: returning ? 'Take the new tour 👋' : 'Welcome to Durata 👋',
-      body: 'A quick look around: the main things, where they are, and a couple to try. About a minute.',
+      body: 'A quick look around. Tap Show me to see something in action, or Next to keep going.',
     },
     {
       id: 'today', tab: 'home', target: 'today', shape: 'rect', title: 'Today',
@@ -100,41 +112,38 @@ export function Tour({ tab, navigate }: { tab: Tab; navigate: (t: Tab) => void }
     {
       id: 'goals', tab: 'home', target: 'goals', shape: 'rect', title: 'Goals',
       body: 'A lift, a race, workouts a week: set a target and the bar fills as you go.',
+      show: { tap: 'goal-add', then: { target: 'sheet', body: 'Pick what to aim for, then set the target. Just a look for now: nothing is saved.' }, close: 'sheet-close' },
     },
     {
       id: 'settings', tab: 'home', target: 'settings', shape: 'circle', title: 'Settings',
-      body: 'Profile, goals, equipment, units and cloud backup. The gear is at the top of every tab.',
+      body: 'The gear, at the top of every tab: your profile, equipment, units, backup and more.',
+      show: { tap: 'settings', then: { target: 'settings-list', shape: 'rect', body: 'Everything you can set up: profile and equipment, workouts, notifications, look, backup and more.' } },
     },
     {
       id: 'workouts', tab: 'home', target: 'tab-plan', shape: 'pill', title: 'Workouts',
       body: 'Your week, and each day’s workout ready to log.',
-      tryIt: { hint: 'Try it: tap Workouts', tab: 'plan' },
-    },
-    {
-      id: 'week', tab: 'plan', target: 'week', shape: 'rect', title: 'Your week',
-      body: 'Each day shows what’s planned. Tap a day to see its workout, or to change it.',
+      show: { tap: 'tab-plan', then: { target: 'week', shape: 'rect', body: 'Your week up top: tap a day to see its workout. Today’s is open below it.' } },
     },
     {
       id: 'log', tab: 'plan', target: 'day', shape: 'rect', title: 'Logging a set',
       body: 'Each set comes ready with a target from last time, so most sets are one tap: ✓ when it’s done.',
       practice: true,
+      show: { tap: '[aria-label="Practice set done"]', then: { body: 'One tap and it’s logged. Lifted something different? Type it in first: ✓ saves what’s in the boxes.' } },
     },
     {
       id: 'add', tab: 'plan', target: 'add', shape: 'rect', title: '+ Add',
-      body: 'Add an exercise, have a workout made for you, or plan a week or month. Timed workouts and run plans are here too.',
+      body: 'Add an exercise, have a workout made for you, or plan a week or month.',
+      show: { tap: 'add', then: { target: 'sheet', body: 'All the ways to add to a day: one exercise, a workout made for you, a week or month plan, a timed workout, or a run or ride plan.' }, close: 'sheet-close' },
     },
     {
       id: 'progress', tab: 'plan', target: 'tab-history', shape: 'pill', title: 'Progress',
       body: 'Everything you’ve done, and how it’s going.',
-      tryIt: { hint: 'Try it: tap Progress', tab: 'history' },
-    },
-    {
-      id: 'progress-tabs', tab: 'history', target: 'progress-tabs', shape: 'rect', title: 'History, Exercises, Body',
-      body: 'Every workout you’ve logged, charts and personal bests for each exercise, and your weight, measurements and photos.',
+      show: { tap: 'tab-history', then: { target: 'progress-tabs', shape: 'rect', body: 'History: every workout you’ve logged. Exercises: charts and personal bests. Body: weight, measurements and photos.' } },
     },
     ...(social ? [{
       id: 'social', target: 'tab-social', shape: 'pill' as const, title: 'Social',
-      body: 'Share workouts, send challenges, cheer each other on. Each friend sees only what you allow.',
+      body: 'Share workouts, send challenges, cheer each other on.',
+      show: { tap: 'tab-social', then: { target: 'page', shape: 'rect' as const, body: 'Friends, shared workouts and challenges. Each friend sees only what you allow.' } },
     }] : []),
     {
       id: 'done',
@@ -147,17 +156,43 @@ export function Tour({ tab, navigate }: { tab: Tab; navigate: (t: Tab) => void }
   const step = steps[Math.min(i, steps.length - 1)]
   const first = i === 0
   const last = i === steps.length - 1
+  // The stop whose "Show me" has run, and the tap landing while it runs.
+  const [shown, setShown] = useState<string | null>(null)
+  const [tap, setTap] = useState<{ x: number; y: number } | null>(null)
+  const demo = shown === step.id && step.show ? step.show.then : null
+  const view = { target: demo ? demo.target ?? step.target : step.target, shape: demo?.shape ?? step.shape, body: demo ? demo.body : step.body }
   const card = useRef<HTMLDivElement>(null)
   const primary = useRef<HTMLButtonElement>(null)
-  const { box, cardBox } = useBoxes(step.target, card)
+  const { box, cardBox } = useBoxes(view.target, card)
+  const timers = useRef<number[]>([])
+  useEffect(() => () => timers.current.forEach(clearTimeout), [])
 
+  // Leaving a stop closes whatever its demonstration opened (a sheet).
+  const leave = () => {
+    if (shown === step.id && step.show?.close) find(step.show.close)?.click()
+    setShown(null)
+  }
+  const goTo = (n: number) => { leave(); setI(n) }
   const finish = () => {
+    leave()
     // The tour covers the one-time tips on these screens.
     seeTip('plan')
     seeTip('progress')
     setTourDone(true)
   }
-  const next = () => (last ? (navigate('home'), finish()) : setI((n) => n + 1))
+  const next = () => (last ? (navigate('home'), finish()) : goTo(i + 1))
+  const showMe = () => {
+    const s = step.show
+    if (!s || tap) return
+    const el = find(s.tap)
+    const id = step.id
+    if (!el) { setShown(id); return }
+    const r = el.getBoundingClientRect()
+    setTap({ x: r.left + r.width / 2, y: r.top + r.height / 2 })
+    // The tap lands, then the button does what it does.
+    timers.current.push(window.setTimeout(() => { el.click(); setShown(id) }, 650))
+    timers.current.push(window.setTimeout(() => setTap(null), 1000))
+  }
 
   // Each stop shows its tab (once, on arriving).
   const arrivedAt = useRef<string | null>(null)
@@ -166,29 +201,21 @@ export function Tour({ tab, navigate }: { tab: Tab; navigate: (t: Tab) => void }
     arrivedAt.current = step.id
     if (step.tab && step.tab !== tab) navigate(step.tab)
   }, [step, tab, navigate])
-  // Try it: a try-it stop moves on when its tab gets tapped, i.e. a switch from the stop's own tab to that one (stepping
-  // Back onto "tap Workouts" while Workouts is showing doesn't count).
-  const [prevTab, setPrevTab] = useState(tab)
-  if (prevTab !== tab) {
-    setPrevTab(tab)
-    if (step.tryIt && tab === step.tryIt.tab && prevTab === step.tab) setI((n) => n + 1)
-  }
-  useLayoutEffect(() => { primary.current?.focus({ preventScroll: true }) }, [step.id])
+  useLayoutEffect(() => { primary.current?.focus({ preventScroll: true }) }, [step.id, shown])
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape') finish() }
     window.addEventListener('keydown', key)
     return () => window.removeEventListener('keydown', key)
   })
 
-  const vw = window.innerWidth
   const vh = window.innerHeight
-  // The spotlight: a circle for buttons, a rounded box for cards.
-  const pad = step.shape === 'circle' ? 10 : step.shape === 'pill' ? 2 : 8
-  // A tall target (a whole workout) gets its top part lit, leaving room for the note.
+  // The spotlight: a circle for buttons, a pill for tabs, a rounded box for cards. A tall target (a whole workout, a
+  // sheet) gets its top part lit, leaving room for the note.
+  const pad = view.shape === 'circle' ? 10 : view.shape === 'pill' ? 2 : 8
   const tall = Math.min(box?.height ?? 0, Math.round(vh * 0.3))
-  const hole = box && (step.shape === 'circle'
+  const hole = box && (view.shape === 'circle'
     ? (() => { const d = Math.max(box.width, box.height) + pad * 2; return { top: box.top + box.height / 2 - d / 2, left: box.left + box.width / 2 - d / 2, width: d, height: d, radius: d / 2 } })()
-    : { top: box.top - pad, left: box.left - pad, width: box.width + pad * 2, height: tall + pad * 2, radius: step.shape === 'pill' ? (tall + pad * 2) / 2 : 20 })
+    : { top: box.top - pad, left: box.left - pad, width: box.width + pad * 2, height: tall + pad * 2, radius: view.shape === 'pill' ? (tall + pad * 2) / 2 : 20 })
   // The note goes on whichever side of the target has more room, with space for the arrow.
   const above = !!hole && hole.top > vh - (hole.top + hole.height)
   const GAP = 56
@@ -209,22 +236,15 @@ export function Tour({ tab, navigate }: { tab: Tab; navigate: (t: Tab) => void }
       arrow = `M ${sx} ${sy} C ${sx} ${my}, ${tx + (sx - tx) * 0.35} ${my}, ${tx} ${ty}`
     }
   }
-  const tryIt = step.tryIt
-  // Taps go through only to the thing being tried; everything else is held still while the tour is up.
-  const blockers = tryIt && hole
-    ? [
-        { top: 0, left: 0, width: vw, height: Math.max(0, hole.top) },
-        { top: hole.top + hole.height, left: 0, width: vw, height: Math.max(0, vh - hole.top - hole.height) },
-        { top: hole.top, left: 0, width: Math.max(0, hole.left), height: hole.height },
-        { top: hole.top, left: hole.left + hole.width, width: Math.max(0, vw - hole.left - hole.width), height: hole.height },
-      ]
-    : [{ top: 0, left: 0, width: vw, height: vh }]
   const stops = steps.length - 2
   const count = !first && !last ? `${i} of ${stops}` : ''
+  const busy = !!tap
+  const back = !first && !last && <button onClick={() => goTo(i - 1)} disabled={busy} className="rounded-2xl bg-neutral-100 px-4 py-2.5 text-sm font-medium text-neutral-700">Back</button>
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[60]" data-testid="tour">
-      {blockers.map((b, n) => <div key={n} aria-hidden className="pointer-events-auto fixed" style={b} />)}
+      {/* Everything but the tour is held still while it's up. */}
+      <div aria-hidden className="pointer-events-auto fixed inset-0" />
       {/* The dimmed screen, with the spotlight cut out of it. */}
       {hole ? (
         <div
@@ -261,16 +281,18 @@ export function Tour({ tab, navigate }: { tab: Tab; navigate: (t: Tab) => void }
           {!last && <button onClick={finish} className="text-neutral-500">{first ? 'Not now' : 'Skip tour'}</button>}
         </div>
         <h2 className="mb-1 text-xl font-semibold tracking-tight">{step.title}</h2>
-        <p className="text-sm text-neutral-600">{step.body}</p>
-        {step.practice && <PracticeSet />}
-        {tryIt ? (
-          <div className="mt-4 flex items-center justify-between gap-3">
-            <p className="rounded-full bg-accent/20 px-3 py-1.5 text-sm font-semibold text-neutral-900">👉 {tryIt.hint}</p>
-            <button ref={primary} onClick={() => navigate(tryIt.tab)} className="shrink-0 rounded-full bg-neutral-100 px-3 py-1.5 text-sm text-neutral-600">Show me</button>
+        <p className="text-sm text-neutral-600" aria-live="polite">{view.body}</p>
+        {/* Ticking it by hand counts as Show me. */}
+        {step.practice && <PracticeSet done={!!demo} onTick={() => setShown(demo ? null : step.id)} />}
+        {step.show && !demo ? (
+          <div className="mt-4 flex gap-2">
+            {back}
+            <button ref={primary} onClick={showMe} disabled={busy} className="flex-1 rounded-2xl bg-accent py-2.5 text-sm font-medium text-on-accent">Show me</button>
+            <button onClick={next} disabled={busy} className="rounded-2xl bg-neutral-100 px-4 py-2.5 text-sm font-medium text-neutral-700">Next</button>
           </div>
         ) : (
           <div className="mt-4 flex gap-2">
-            {!first && !last && <button onClick={() => setI((n) => n - 1)} className="rounded-2xl bg-neutral-100 px-4 py-2.5 text-sm font-medium text-neutral-700">Back</button>}
+            {back}
             <button ref={primary} onClick={next} className="flex-1 rounded-2xl bg-accent py-2.5 text-sm font-medium text-on-accent">
               {first ? 'Show me around' : last ? 'Let’s go' : 'Next'}
             </button>
@@ -282,6 +304,10 @@ export function Tour({ tab, navigate }: { tab: Tab; navigate: (t: Tab) => void }
           </div>
         )}
       </div>
+      {/* The demonstration's tap. */}
+      {tap && (
+        <span aria-hidden className="tour-tap pointer-events-none fixed h-14 w-14 rounded-full border-4 border-white bg-accent/50 shadow-lg" style={{ left: tap.x - 28, top: tap.y - 28 }} />
+      )}
     </div>
   )
 }
