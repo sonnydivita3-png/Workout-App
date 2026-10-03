@@ -21,8 +21,8 @@ export function HistoryView({ initialTab, onSettings }: { initialTab?: string; o
   const [tab, setTab] = useState<HTab>(initialTab === 'body' || initialTab === 'exercises' ? initialTab : 'workouts')
   const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
   const tabs = (
-    <div className="mb-4 flex gap-2">
-      {(['workouts', 'exercises', 'body'] as const).map((t) => <button key={t} onClick={() => setTab(t)} className={chip(tab === t)}>{t === 'workouts' ? 'Workouts' : t === 'exercises' ? 'Exercises' : 'Body'}</button>)}
+    <div data-tour="progress-tabs" className="mb-4 flex gap-2">
+      {(['workouts', 'exercises', 'body'] as const).map((t) => <button key={t} onClick={() => setTab(t)} className={chip(tab === t)}>{t === 'workouts' ? 'History' : t === 'exercises' ? 'Exercises' : 'Body'}</button>)}
     </div>
   )
   return (
@@ -31,7 +31,7 @@ export function HistoryView({ initialTab, onSettings }: { initialTab?: string; o
         <h1 className="text-2xl font-semibold tracking-tight">Progress</h1>
         {onSettings && <SettingsGear onClick={onSettings} />}
       </header>
-      <Tip id="progress">Workouts shows every session and how it compared with the time before. Exercises has charts and personal bests. Body tracks weight, measurements and photos.</Tip>
+      <Tip id="progress">History shows every session and how it compared with the time before. Exercises has charts and personal bests. Body tracks weight, measurements and photos.</Tip>
       {tabs}
       {tab === 'workouts' && <WorkoutsTab />}
       {tab === 'exercises' && <ExercisesTab />}

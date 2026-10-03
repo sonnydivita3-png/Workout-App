@@ -100,7 +100,7 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab, sub?: string) =>
           )}
         </div>
         <div className="flex shrink-0">
-          <button onClick={() => onNavigate('settings')} aria-label="Settings" className={iconBtn}>
+          <button onClick={() => onNavigate('settings')} aria-label="Settings" data-tour="settings" className={iconBtn}>
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d={SETTINGS_ICON} /></svg>
           </button>
           <button onClick={() => setNotifSheet(true)} aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'} className={iconBtn}>
@@ -154,6 +154,7 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab, sub?: string) =>
 
       <BodyweightRow onTrend={() => onNavigate('history', 'body')} />
 
+      <div data-tour="goals">
       <Card title="Goals" action={<button onClick={() => setGoalSheet(true)} className="text-sm text-neutral-500">+ Add</button>}>
         {s.goals.length === 0 ? (
           <p className="text-sm text-neutral-400">Set a target, like a lift, a race or workouts per week, and watch the bar fill.</p>
@@ -163,6 +164,7 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab, sub?: string) =>
           </ul>
         )}
       </Card>
+      </div>
 
       {goalSheet && <GoalSheet onClose={() => setGoalSheet(false)} />}
       {notifSheet && <NotificationsSheet onClose={() => setNotifSheet(false)} />}

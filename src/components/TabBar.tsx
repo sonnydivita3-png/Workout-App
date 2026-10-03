@@ -25,6 +25,7 @@ export function TabBar({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void
             key={t.id}
             onClick={() => onChange(t.id)}
             aria-current={t.id === tab ? 'page' : undefined}
+            data-tour={`tab-${t.id}`}
             className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs ${t.id === tab ? 'font-medium text-neutral-900' : 'text-neutral-400'}`}
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
