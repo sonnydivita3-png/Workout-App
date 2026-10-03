@@ -300,6 +300,66 @@ describe('removing friends, blocking, deleting', () => {
   })
 })
 
+describe('posts', () => {
+  const payload = { version: 1 as const, items: [{ exerciseId: 'Pushups', name: 'Pushups', sets: 3, reps: 20 }] }
+  const send = (be: DemoBackend, audience: string[]) => be.sendPost({ audience, date: '2026-10-01', title: 'Workout done', emoji: '💪', payload })
+
+  it('go only to friends who allow them, and disappear when that’s turned off or the friendship ends', async () => {
+    const w = world(); const a = w.add('poster'); const b = w.add('fan'); const c = w.add('quiet'); const d = w.add('stranger')
+    await befriend(w, a, b, { posts: true })
+    await befriend(w, a, c)
+    await denied(send(w.as(a), [c]), 'not_allowed')
+    await denied(send(w.as(a), [b, c]), 'not_allowed') // everyone it goes to must have agreed
+    await denied(send(w.as(a), [d]), 'not_allowed')
+    await denied(send(w.as(a), []), 'not_allowed')
+    await denied(w.as(a).sendPost({ audience: [b], date: '2026-10-01', title: ' ', payload }), 'not_allowed')
+    const id = await send(w.as(a), [b])
+    expect((await w.as(b).posts()).map((p) => [p.id, p.mine, p.from.handle, p.title])).toEqual([[id, false, 'poster', 'Workout done']])
+    expect((await w.as(a).posts())[0]).toMatchObject({ id, mine: true })
+    expect(await w.as(c).posts()).toEqual([])
+    expect(await w.as(d).posts()).toEqual([])
+    await w.as(b).setPermissions(a, { posts: false })
+    expect(await w.as(b).posts()).toEqual([])
+    await w.as(b).setPermissions(a, { posts: true })
+    expect(await w.as(b).posts()).toHaveLength(1)
+    await w.as(b).removeFriend(a)
+    expect(await w.as(b).posts()).toEqual([])
+  })
+
+  it('get one cheer from each person they went to, even without emoji permission; only the poster deletes them', async () => {
+    const w = world(); const a = w.add('poster2'); const b = w.add('fan2'); const c = w.add('other2')
+    await befriend(w, a, b, { posts: true })
+    await befriend(w, a, c, { posts: true })
+    await w.as(a).setPermissions(c, { emoji: true }) // c may send emoji, but isn't shown the post
+    const id = await send(w.as(a), [b])
+    await w.as(b).sendEmoji({ toId: a, emoji: '🔥', contextType: 'post', contextId: id })
+    await denied(w.as(b).sendEmoji({ toId: a, emoji: '💪', contextType: 'post', contextId: id }), 'already_exists')
+    await denied(w.as(c).sendEmoji({ toId: a, emoji: '🔥', contextType: 'post', contextId: id }), 'not_allowed')
+    await denied(w.as(b).sendEmoji({ toId: a, emoji: '🔥' }), 'not_allowed') // other emoji still need permission
+    expect((await w.as(a).emojiMessages()).filter((m) => m.contextType === 'post').map((m) => [m.from.handle, m.emoji])).toEqual([['fan2', '🔥']])
+    await denied(w.as(b).deletePost(id), 'not_found')
+    await w.as(a).deletePost(id)
+    expect(await w.as(b).posts()).toEqual([])
+  })
+
+  it('are rate-limited, and leave the feed after a month', async () => {
+    const w = world(); const a = w.add('poster3'); const b = w.add('fan3')
+    await befriend(w, a, b, { posts: true })
+    for (let i = 0; i < 10; i++) await send(w.as(a), [b])
+    await denied(send(w.as(a), [b]), 'rate_limited')
+    const t = Date.now()
+    w.be.clock = () => t + 31 * 86400000
+    expect(await w.as(b).posts()).toEqual([])
+  })
+
+  it('a malformed post isn’t shown', async () => {
+    const w = world(); const a = w.add('poster4'); const b = w.add('fan4')
+    await befriend(w, a, b, { posts: true })
+    await w.as(a).sendPost({ audience: [b], date: '2026-10-01', title: 'Hmm', payload: { version: 1, items: [] } })
+    expect(await w.as(b).posts()).toEqual([])
+  })
+})
+
 describe('simulated friends', () => {
   async function signUp(be: DemoBackend, email = 'me@x.com') {
     await be.sendCode(email); await be.verifyCode(email, '123456')
@@ -356,6 +416,21 @@ describe('simulated friends', () => {
     expect((await be.emojiMessages()).some((m) => !m.mine && m.emoji === '💪')).toBe(true)
   })
 
+  it('post a workout once you allow their posts, and cheer the ones you post to them', async () => {
+    const be = new DemoBackend(mem()); await signUp(be)
+    const [alex] = (await be.friendRequests()).incoming
+    await be.respondFriendRequest(alex.id, true, {})
+    expect(await be.posts()).toEqual([])
+    const friend = (await be.friends())[0]
+    await be.setPermissions(friend.profile.id, { posts: true })
+    const [p] = await be.posts()
+    expect(p).toMatchObject({ mine: false, title: 'A new personal best' })
+    expect(p.payload.items[0]).toMatchObject({ exerciseId: 'Barbell_Deadlift', best: 'New best' })
+    // Posting to them invites their cheer, even though emoji from them aren't allowed.
+    const id = await be.sendPost({ audience: [friend.profile.id], date: '2026-10-01', title: 'Leg day', payload: { version: 1, items: [{ exerciseId: 'Pushups', name: 'Pushups', sets: 3, reps: 20 }] } })
+    expect((await be.emojiMessages()).filter((m) => !m.mine).map((m) => [m.emoji, m.contextType, m.contextId])).toEqual([['🔥', 'post', id]])
+  })
+
   it('won’t send you emoji you have not allowed', async () => {
     const be = new DemoBackend(mem()); await signUp(be)
     const maya = (await be.findByHandle('maya'))!
@@ -375,5 +450,19 @@ describe('persistence', () => {
     const second = new DemoBackend(store)
     expect((await second.myProfile())?.handle).toBe('keeper')
     expect((await second.friendRequests()).incoming).toHaveLength(2)
+  })
+
+  it('upgrades simulated friends saved by an older version so they allow posts too', async () => {
+    const store = mem()
+    const first = new DemoBackend(store)
+    await first.sendCode('old@x.com'); await first.verifyCode('old@x.com', '123456')
+    await first.createProfile({ handle: 'oldtimer', displayName: 'Old', avatar: '🔥' })
+    await first.respondFriendRequest((await first.friendRequests()).incoming[0].id, true, {})
+    const saved = JSON.parse(store.json()!)
+    for (const p of Object.values(saved.perms) as Record<string, boolean>[]) delete p.posts
+    store.save(JSON.stringify(saved))
+    const second = new DemoBackend(store)
+    expect((await second.friends())[0].theyGrant.posts).toBe(true)
+    expect((await second.friends())[0].iGrant.posts).toBeFalsy() // yours stay as you left them
   })
 })

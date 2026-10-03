@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures'
-import { iso, openSettings, seed } from './helpers'
+import { iso, openSettings, seed, signUp } from './helpers'
 
 test('social sign-up without email needs the age check, then friends work', async ({ page }) => {
   await seed(page, { socialChoice: 'unset' })
@@ -151,4 +151,49 @@ test('a challenge sent to you: decide later, accept, log progress and cheer back
   await expect(sheet.getByText('40 of 100')).toBeVisible()
   await sheet.getByRole('button', { name: 'Send 💪' }).click()
   await expect(sheet.getByText(/✓ 💪 sent to /)).toBeVisible()
+})
+
+test('posts: show friends a workout you finished so they can cheer it, and cheer theirs', async ({ page }) => {
+  const BENCH = 'Barbell_Bench_Press_-_Medium_Grip'
+  await seed(page, {
+    socialChoice: 'unset',
+    overrides: { [iso(0)]: [{ exerciseId: BENCH, sets: 2, reps: 8 }] },
+    logs: [
+      { exerciseId: BENCH, date: iso(-7), sets: [{ weight: 135, reps: 8 }] },
+      { exerciseId: BENCH, date: iso(0), sets: [{ weight: 155, reps: 8 }, { weight: 155, reps: 8 }] },
+    ],
+  })
+  await page.goto('/')
+  await signUp(page, 'e2e_posts')
+  await page.locator('nav').getByText('Social').click()
+  // Accept Alex without allowing anything: the feed offers to turn on their posts.
+  await page.getByRole('button', { name: 'Review' }).first().click()
+  await page.getByRole('button', { name: 'Accept' }).click()
+  await page.getByRole('button', { name: /^Feed/ }).click()
+  await page.getByRole('switch', { name: 'Show me Alex’s posts' }).click()
+  const alex = page.getByRole('article', { name: /^Alex: / })
+  await expect(alex.getByText('🏆 New best')).toBeVisible()
+  await expect(alex.getByText('New', { exact: true })).toBeVisible()
+  // One cheer per post.
+  await alex.getByRole('button', { name: 'Cheer 🔥' }).click()
+  await expect(alex.getByText('You cheered 🔥')).toBeVisible()
+  await expect(alex.getByRole('button', { name: /^Cheer/ })).toHaveCount(0)
+
+  // Post today's workout: a title from how it went, and a preview of what friends see.
+  await page.getByRole('button', { name: '🎉 Post today’s workout' }).click()
+  await expect(page.getByRole('textbox', { name: 'Title' })).toHaveValue('A new personal best')
+  await expect(page.getByText('2 sets · top 155 lb × 8')).toBeVisible()
+  await page.getByRole('button', { name: 'Post to Alex' }).click()
+  await expect(page.getByText(/Alex can cheer you on now/)).toBeVisible()
+  await page.getByRole('button', { name: 'Done' }).first().click()
+  // Alex cheers it.
+  await expect(page.getByRole('article', { name: /^Your post: / }).getByLabel('Cheers')).toContainText('🔥 Alex')
+  await expect(page.getByRole('button', { name: /Post today’s workout/ })).toHaveCount(0)
+
+  // Home and the finish screen know it's posted.
+  await page.locator('nav').getByText('Home').click()
+  await expect(page.getByRole('button', { name: 'Posted ✓' })).toBeDisabled()
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: '✓ Finish workout' }).click()
+  await expect(page.getByRole('button', { name: 'Posted for friends to cheer ✓' })).toBeDisabled()
 })

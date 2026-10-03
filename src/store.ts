@@ -74,6 +74,9 @@ interface State extends Data {
   /** Challenges I sent: the last status I've seen for each, so a friend's answer shows up once in the inbox. */
   seenChallenges: Record<string, string>
   markChallengesSeen: (seen: Record<string, string>) => void
+  /** Friends' posts up to this time (ISO) have been looked at; newer ones count as new. */
+  postsSeenAt: string
+  markPostsSeen: (at: string) => void
   setPendingInvite: (h: string | null) => void
   /** First-run setup (goal, days, first plan) finished or skipped. */
   onboarded: boolean
@@ -266,6 +269,7 @@ const defaults = () => ({
   socialChoice: 'unset' as SocialChoice,
   pendingInvite: null as string | null,
   seenChallenges: {} as Record<string, string>,
+  postsSeenAt: '',
   onboarded: false,
   tipsSeen: [] as string[],
   pickerEquipment: 'Any',
@@ -399,6 +403,7 @@ export const useStore = create<State>()(
       setSocialChoice: (socialChoice) => set({ socialChoice }),
       setPendingInvite: (pendingInvite) => set({ pendingInvite }),
       markChallengesSeen: (seen) => set((s) => ({ seenChallenges: { ...s.seenChallenges, ...seen } })),
+      markPostsSeen: (at) => set((s) => (at > s.postsSeenAt ? { postsSeenAt: at } : {})),
       setOnboarded: (onboarded) => set({ onboarded }),
       setPickerEquipment: (pickerEquipment) => set({ pickerEquipment }),
       // Once someone says what they have, the exercise picker starts on "My equipment" too.

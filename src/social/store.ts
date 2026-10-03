@@ -3,7 +3,7 @@ import type { FriendRequests, SessionUser, SocialBackend } from './backend'
 import { getBackend } from './index'
 import {
   SocialError,
-  type Challenge, type EmojiMessage, type FriendEntry, type Perms, type Profile, type SharedWorkout, type WorkoutRequest,
+  type Challenge, type EmojiMessage, type FriendEntry, type Perms, type Post, type Profile, type SharedWorkout, type WorkoutRequest,
 } from './types'
 
 export type SocialStatus = 'idle' | 'loading' | 'signed-out' | 'needs-profile' | 'ready' | 'error'
@@ -19,6 +19,8 @@ interface SocialState {
   workoutRequests: WorkoutRequest[]
   challenges: Challenge[]
   emoji: EmojiMessage[]
+  /** Recent posts: mine and friends'. */
+  posts: Post[]
   error: string | null
   /** Figure out whether someone is signed in and load everything if so. */
   init: () => Promise<void>
@@ -31,7 +33,7 @@ interface SocialState {
   reset: () => void
 }
 
-const empty = { friends: [], requests: { incoming: [], outgoing: [] }, shares: [], workoutRequests: [], challenges: [], emoji: [] }
+const empty = { friends: [], requests: { incoming: [], outgoing: [] }, shares: [], workoutRequests: [], challenges: [], emoji: [], posts: [] }
 
 export const describeError = (e: unknown): string => {
   if (e instanceof SocialError) {
@@ -75,10 +77,10 @@ export const useSocial = create<SocialState>()((set, get) => ({
     const { backend, status } = get()
     if (status !== 'ready') return
     try {
-      const [friends, requests, shares, workoutRequests, challenges, emoji] = await Promise.all([
-        backend.friends(), backend.friendRequests(), backend.shares(), backend.workoutRequests(), backend.challenges(), backend.emojiMessages(),
+      const [friends, requests, shares, workoutRequests, challenges, emoji, posts] = await Promise.all([
+        backend.friends(), backend.friendRequests(), backend.shares(), backend.workoutRequests(), backend.challenges(), backend.emojiMessages(), backend.posts(),
       ])
-      set({ friends, requests, shares, workoutRequests, challenges, emoji, error: null })
+      set({ friends, requests, shares, workoutRequests, challenges, emoji, posts, error: null })
     } catch (e) {
       set({ error: describeError(e) })
     }

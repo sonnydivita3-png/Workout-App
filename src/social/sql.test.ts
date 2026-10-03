@@ -25,6 +25,7 @@ beforeAll(async () => {
   await db.exec(readFileSync(new URL('../../supabase/migrations/20260930000000_social.sql', import.meta.url), 'utf8'))
   await db.exec(readFileSync(new URL('../../supabase/migrations/20261001000000_sync.sql', import.meta.url), 'utf8'))
   await db.exec(readFileSync(new URL('../../supabase/migrations/20261002000000_reports_ping.sql', import.meta.url), 'utf8'))
+  await db.exec(readFileSync(new URL('../../supabase/migrations/20261003000000_posts.sql', import.meta.url), 'utf8'))
 }, 120000)
 afterAll(async () => { await db.close() })
 
@@ -359,6 +360,88 @@ describe('emoji', () => {
   })
 })
 
+describe('posts', () => {
+  const post = (from: string, audience: string[], title = 'Leg day') =>
+    as<{ id: string }>(from, `insert into public.posts (from_id, audience, workout_date, title, payload) values ($1, $2::uuid[], current_date, $3, '{"version":1,"items":[]}') returning id`, [from, audience, title])
+  const cheer = (from: string, to: string, postId: string, e = '🔥') =>
+    as(from, `insert into public.emoji_messages (from_id, to_id, emoji, context_type, context_id) values ($1, $2, $3, 'post', $4)`, [from, to, e, postId])
+  const allowPosts = (owner: string, friend: string, on: boolean) =>
+    as(owner, `update public.friend_permissions set posts = ${on} where owner_id = $1 and friend_id = $2`, [owner, friend])
+
+  it('go only to friends who turned on posts from you, and nobody else sees them', async () => {
+    const a = await user(); const b = await user(); const c = await user(); const stranger = await user()
+    await befriend(a, b, { posts: true }) // b allows a's posts (chosen when accepting)
+    await befriend(a, c) // c allows nothing
+    await expect(post(a, [c])).rejects.toThrow(/row-level security/)
+    await expect(post(a, [b, c])).rejects.toThrow(/row-level security/) // everyone it goes to must have agreed
+    await expect(post(a, [stranger])).rejects.toThrow(/row-level security/)
+    await expect(post(b, [a])).rejects.toThrow(/row-level security/) // a never allowed b's posts
+    await expect(as(c, `insert into public.posts (from_id, audience, workout_date, title, payload) values ($1, $2::uuid[], current_date, 'x', '{}')`, [a, [b]])).rejects.toThrow(/row-level security/) // forged
+    await expect(post(a, [])).rejects.toThrow(/check constraint/)
+    const [p] = await post(a, [b])
+    expect(await as(b, 'select id, title from public.posts')).toEqual([{ id: p.id, title: 'Leg day' }])
+    expect(await as(a, 'select id from public.posts')).toEqual([{ id: p.id }])
+    expect(await as(c, 'select id from public.posts')).toEqual([])
+    expect(await as(stranger, 'select id from public.posts')).toEqual([])
+  })
+
+  it('are dated by the server, can’t be edited, don’t reveal who else got them, and only the poster deletes them', async () => {
+    const a = await user(); const b = await user(); const c = await user()
+    await befriend(a, b, { posts: true })
+    await befriend(a, c, { posts: true })
+    const [p] = await as<{ id: string }>(a, `insert into public.posts (from_id, audience, workout_date, title, payload, created_at) values ($1, $2::uuid[], current_date, 't', '{}', '2099-01-01') returning id`, [a, [b, c]])
+    const [{ year }] = await admin<{ year: number }>('select extract(year from created_at)::int as year from public.posts where id = $1', [p.id])
+    expect(year).toBeLessThan(2099) // pinned to the top of feeds forever? No.
+    await expect(as(b, 'select audience from public.posts')).rejects.toThrow(/permission denied/)
+    // The app picks the id and reads nothing back (as it must, with the audience unreadable).
+    const own = randomUUID()
+    await as(a, `insert into public.posts (id, from_id, audience, workout_date, title, payload) values ($1, $2, $3::uuid[], current_date, 'Mine', '{}')`, [own, a, [b]])
+    expect(await as(b, 'select title from public.posts where id = $1', [own])).toEqual([{ title: 'Mine' }])
+    await expect(as(a, `update public.posts set title = 'edited' where id = $1`, [p.id])).rejects.toThrow(/permission denied/)
+    await as(b, 'delete from public.posts where id = $1', [p.id]) // not theirs: nothing happens
+    expect(await admin('select id from public.posts where id = $1', [p.id])).toHaveLength(1)
+    await as(a, 'delete from public.posts where id = $1', [p.id])
+    expect(await admin('select id from public.posts where id = $1', [p.id])).toHaveLength(0)
+  })
+
+  it('disappear when the viewer turns posts off or the friendship ends', async () => {
+    const a = await user(); const b = await user()
+    await befriend(a, b, { posts: true })
+    await post(a, [b])
+    expect(await as(b, 'select id from public.posts')).toHaveLength(1)
+    await allowPosts(b, a, false)
+    expect(await as(b, 'select id from public.posts')).toEqual([])
+    await expect(post(a, [b])).rejects.toThrow(/row-level security/)
+    await allowPosts(b, a, true)
+    expect(await as(b, 'select id from public.posts')).toHaveLength(1)
+    await as(b, 'select public.remove_friend($1)', [a])
+    expect(await as(b, 'select id from public.posts')).toEqual([])
+  })
+
+  it('can be cheered once by the people they went to, without emoji permission, and by nobody else', async () => {
+    const a = await user(); const b = await user(); const c = await user()
+    await befriend(a, b, { posts: true }) // a lets b send nothing, not even emoji
+    await befriend(a, c, { posts: true }, { emoji: true }) // c may send a emoji, but isn't shown the post
+    const [p] = await post(a, [b])
+    await cheer(b, a, p.id)
+    await expect(cheer(b, a, p.id, '💪')).rejects.toThrow(/unique|duplicate/)
+    await expect(cheer(c, a, p.id)).rejects.toThrow(/row-level security/)
+    await expect(cheer(b, c, p.id)).rejects.toThrow(/row-level security/)
+    await expect(as(b, 'insert into public.emoji_messages (from_id, to_id, emoji) values ($1, $2, $3)', [b, a, '🔥'])).rejects.toThrow(/row-level security/) // other emoji still need permission
+    await expect(cheer(b, a, p.id, 'nice!')).rejects.toThrow(/check constraint/)
+    expect(await as(a, `select from_id, emoji from public.emoji_messages where context_type = 'post' and context_id = $1`, [p.id])).toEqual([{ from_id: b, emoji: '🔥' }])
+  })
+
+  it('are rate-limited, and deleted with the account', async () => {
+    const a = await user(); const b = await user()
+    await befriend(a, b, { posts: true })
+    for (let i = 0; i < 10; i++) await post(a, [b])
+    await expect(post(a, [b])).rejects.toThrow(/rate_limited/)
+    await as(a, 'select public.delete_my_account()')
+    expect(await admin('select id from public.posts where from_id = $1', [a])).toHaveLength(0)
+  })
+})
+
 describe('progress snapshots', () => {
   const publish = (u: string, data = '{"weekWorkouts":3}') =>
     as(u, `insert into public.progress_snapshots (user_id, data) values ($1, $2::jsonb) on conflict (user_id) do update set data = excluded.data, updated_at = now()`, [u, data])
@@ -430,7 +513,7 @@ describe('removing friends, blocking, deleting your account', () => {
 
 describe('signed-out and direct-write access', () => {
   it('anonymous visitors can read nothing and call nothing', async () => {
-    for (const t of ['profiles', 'friends', 'friend_requests', 'friend_permissions', 'shared_workouts', 'workout_requests', 'challenges', 'emoji_messages', 'progress_snapshots', 'blocks']) {
+    for (const t of ['profiles', 'friends', 'friend_requests', 'friend_permissions', 'shared_workouts', 'workout_requests', 'challenges', 'emoji_messages', 'progress_snapshots', 'blocks', 'posts']) {
       await expect(asAnon(`select * from public.${t}`), t).rejects.toThrow(/permission denied/)
     }
     await expect(asAnon(`select * from public.find_profile('abc')`)).rejects.toThrow(/permission denied/)

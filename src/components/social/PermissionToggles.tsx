@@ -1,6 +1,6 @@
 import { PERMISSIONS, type PermKey, type Perms } from '../../social/types'
 
-/** The five things a person can allow. Everything starts off. */
+/** What a person can allow each friend. Everything starts off. */
 export function PermissionToggles({ value, onChange }: { value: Perms; onChange: (key: PermKey, on: boolean) => void }) {
   return (
     <ul className="divide-y divide-neutral-100">

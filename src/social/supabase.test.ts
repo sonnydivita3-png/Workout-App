@@ -52,5 +52,8 @@ describe('mapError', () => {
     expect(mapError({ message: 'For security purposes, you can only request this after 48 seconds.' }).code).toBe('rate_limited')
     expect(mapError({ message: 'Signups not allowed for otp' }).message).toMatch(/sign-ups are turned off/)
     expect(mapError(undefined).code).toBe('unavailable')
+    // A server that hasn't had a newer migration run yet.
+    expect(mapError({ code: 'PGRST205', message: "Could not find the table 'public.posts' in the schema cache" }).message).toMatch(/server update/)
+    expect(mapError({ code: 'PGRST204', message: "Could not find the 'posts' column of 'friend_permissions' in the schema cache" }).message).toMatch(/server update/)
   })
 })
