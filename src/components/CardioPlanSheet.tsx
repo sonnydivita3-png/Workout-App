@@ -191,7 +191,7 @@ export function CardioPlanSheet({ onClose, onApplied }: Props) {
               {sport === 'run' && !openEnded && (
                 <label className="block text-sm text-neutral-500">
                   Goal finish time
-                  <input value={goalTime} onChange={(e) => setGoalTime(e.target.value)} placeholder="h:mm:ss" inputMode="numeric" className="mt-1 w-full rounded-lg bg-neutral-100 px-2 py-2 text-center outline-none placeholder:text-neutral-300" />
+                  <input value={goalTime} onChange={(e) => setGoalTime(e.target.value)} placeholder="h:mm:ss" inputMode="numeric" className="mt-1 w-full rounded-lg bg-neutral-100 px-2 py-2 text-center outline-none placeholder:text-neutral-400" />
                 </label>
               )}
               {sport === 'bike' && (

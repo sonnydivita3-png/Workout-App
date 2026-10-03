@@ -26,11 +26,13 @@
   --color-neutral-50: #1e1930;
   --color-neutral-100: #282239;
   --color-neutral-200: #362e4b;
-  --color-neutral-300: #4e4468;
-  --color-neutral-400: #8f84ad;
-  --color-neutral-500: #a89fc2;
-  --color-neutral-600: #c5bfd9;
-  --color-neutral-700: #ddd8ea;
+  /* Text greys tuned for contrast on cards (#171223): 400 about 7:1, 500 9:1, 600 11.5:1, 700 14:1 (WCAG AA is 4.5:1;
+     small grey text needs more). 300 is for dividers, chevrons and disabled text, about 3:1. */
+  --color-neutral-300: #6a6280;
+  --color-neutral-400: #a49cbd;
+  --color-neutral-500: #bab2ce;
+  --color-neutral-600: #cfcbe0;
+  --color-neutral-700: #e4dfee;
   --color-neutral-800: #ece9f5;
   --color-neutral-900: #f8f6ff;
   --color-red-50: rgb(255 82 82 / 0.16);
