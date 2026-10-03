@@ -2,11 +2,10 @@ import type { PlannedExercise } from '../types'
 import type { FriendRequests, SessionUser, SocialBackend } from './backend'
 import {
   ALL_PERMS, EMOJI, HANDLE_RE, NO_PERMS, SocialError, isValidAvatar, normalizeHandle,
-  type Challenge, type ChallengeSpec, type Emoji, type EmojiMessage, type FriendEntry, type PermKey, type Perms, type Post, type PostPayload,
+  type Challenge, type ChallengeSpec, type Emoji, type EmojiMessage, type FriendEntry, type PermKey, type Perms,
   type Profile, type ProgressSnapshot, type ReportReason, type Scope, type SharedPayload, type SharedWorkout, type WorkoutRequest,
 } from './types'
 import { checkName } from './nameFilter'
-import { POST_DAYS, sanitizePost } from './posts'
 
 /**
  * A complete social server that lives in this device's storage, with a few simulated friends. It enforces the
@@ -32,8 +31,6 @@ interface Store {
     status: Challenge['status']; progress: number; done: boolean; acceptedAt?: string; endsAt?: string
   })[]
   emoji: (Row & { fromId: string; toId: string; emoji: Emoji; contextType?: EmojiMessage['contextType']; contextId?: string; readAt?: string })[]
-  /** Added later: missing from demo data saved by older versions. */
-  posts?: (Row & { fromId: string; audience: string[]; date: string; title: string; emoji?: string; payload: PostPayload })[]
   snapshots: Record<string, ProgressSnapshot>
   meId: string | null
   code?: { email: string; code: string }
@@ -94,26 +91,6 @@ const botSnapshot = (name: string): ProgressSnapshot => ({
 
 const uuid = () => crypto.randomUUID()
 
-/** What each simulated friend posts, and how they cheer yours. */
-const BOT_POSTS: Record<string, { title: string; emoji: string; payload: PostPayload }> = {
-  'bot-alex': {
-    title: 'A new personal best', emoji: '🔥',
-    payload: { version: 1, items: [
-      { exerciseId: 'Barbell_Deadlift', name: 'Barbell Deadlift', sets: 3, weight: 315, reps: 3, best: 'New best' },
-      { exerciseId: 'Pullups', name: 'Pullups', sets: 3, reps: 10 },
-    ] },
-  },
-  'bot-sam': {
-    title: 'Longest run yet', emoji: '🏃',
-    payload: { version: 1, items: [{ exerciseId: 'running', name: 'Running', cardio: true, distance: 8, minutes: 70.5, best: 'Longest run yet' }] },
-  },
-  'bot-maya': {
-    title: 'Workout done', emoji: '🚴',
-    payload: { version: 1, items: [{ exerciseId: 'cycling', name: 'Cycling', cardio: true, distance: 25, minutes: 84 }] },
-  },
-}
-const BOT_CHEER: Record<string, Emoji> = { 'bot-alex': '🔥', 'bot-sam': '👏', 'bot-maya': '💪' }
-
 export class DemoBackend implements SocialBackend {
   readonly kind = 'demo' as const
   private s: Store
@@ -127,8 +104,6 @@ export class DemoBackend implements SocialBackend {
     const saved = persistence.load()
     this.s = saved ? (JSON.parse(saved) as Store) : this.empty()
     if (this.s.users.length === 0) this.seedBots()
-    // Simulated friends allow everything, including things added since they were befriended (posts).
-    for (const [k, p] of Object.entries(this.s.perms)) if (this.isBot(k.split('>')[0]) && p.posts === undefined) p.posts = true
   }
 
   // ------------------------------------------------------------------ plumbing
@@ -244,7 +219,6 @@ export class DemoBackend implements SocialBackend {
     s.wreqs = s.wreqs.filter((x) => x.fromId !== me && x.toId !== me)
     s.challenges = s.challenges.filter((x) => x.fromId !== me && x.toId !== me)
     s.emoji = s.emoji.filter((x) => x.fromId !== me && x.toId !== me)
-    s.posts = (s.posts ?? []).filter((x) => x.fromId !== me)
     delete s.snapshots[me]
     if (s.cloud) delete s.cloud[me]
     s.botSent = s.botSent.filter((k) => !k.endsWith(`>${me}`))
@@ -521,56 +495,13 @@ export class DemoBackend implements SocialBackend {
     this.save()
   }
 
-  // ------------------------------------------------------------------ posts
-  /** Mine, or shown to me by a friend whose posts I still allow. */
-  private seesPost(me: string, p: NonNullable<Store['posts']>[number]) {
-    return p.fromId === me || (p.audience.includes(me) && this.isFriend(me, p.fromId) && this.allows(me, p.fromId, 'posts'))
-  }
-  async sendPost(p: { audience: string[]; date: string; title: string; emoji?: string; payload: PostPayload }) {
-    const me = this.me()
-    const audience = [...new Set(p.audience)]
-    if (audience.length < 1 || audience.length > 100 || audience.some((id) => !this.isFriend(me, id) || !this.allows(id, me, 'posts'))) throw new SocialError('not_allowed')
-    if (p.title.trim().length < 1 || p.title.length > 80 || JSON.stringify(p.payload).length > 65536) throw new SocialError('not_allowed')
-    this.limit('posts', 10, 60)
-    const row = { id: uuid(), createdAt: this.now(), fromId: me, audience, date: p.date, title: p.title.trim(), emoji: p.emoji, payload: p.payload }
-    ;(this.s.posts ??= []).push(row)
-    // Simulated friends cheer it straight away.
-    for (const id of audience) if (this.isBot(id)) this.s.emoji.push({ id: uuid(), createdAt: this.now(), fromId: id, toId: me, emoji: BOT_CHEER[id] ?? '🔥', contextType: 'post', contextId: row.id })
-    this.save()
-    return row.id
-  }
-  async posts(): Promise<Post[]> {
-    const me = this.me()
-    const since = this.clock() - POST_DAYS * 86400000
-    return (this.s.posts ?? [])
-      .filter((p) => this.seesPost(me, p) && Date.parse(p.createdAt) >= since)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .flatMap((p) => {
-        const payload = sanitizePost(p.payload)
-        return payload ? [{ id: p.id, from: this.profile(p.fromId), date: p.date, title: p.title, emoji: p.emoji, payload, createdAt: p.createdAt, mine: p.fromId === me }] : []
-      })
-  }
-  async deletePost(id: string) {
-    const me = this.me()
-    const before = (this.s.posts ?? []).length
-    this.s.posts = (this.s.posts ?? []).filter((p) => !(p.id === id && p.fromId === me))
-    if (this.s.posts.length === before) throw new SocialError('not_found')
-    this.save()
-  }
-
   // ------------------------------------------------------------------ emoji
   async sendEmoji(p: { toId: string; emoji: Emoji; contextType?: EmojiMessage['contextType']; contextId?: string }) {
     const me = this.me()
-    if (!this.isFriend(me, p.toId) || !EMOJI.includes(p.emoji)) throw new SocialError('not_allowed')
-    if (p.contextType === 'post') {
-      // A cheer: only on a post I was shown, to the person who posted it, once.
-      const post = (this.s.posts ?? []).find((x) => x.id === p.contextId)
-      if (!post || post.fromId !== p.toId || post.fromId === me || !this.seesPost(me, post)) throw new SocialError('not_allowed')
-      if (this.s.emoji.some((x) => x.fromId === me && x.contextType === 'post' && x.contextId === p.contextId)) throw new SocialError('already_exists')
-    } else if (!this.allows(p.toId, me, 'emoji')) throw new SocialError('not_allowed')
+    if (!this.isFriend(me, p.toId) || !this.allows(p.toId, me, 'emoji') || !EMOJI.includes(p.emoji)) throw new SocialError('not_allowed')
     this.limit('emoji', 20, 1)
     this.s.emoji.push({ id: uuid(), createdAt: this.now(), fromId: me, toId: p.toId, emoji: p.emoji, contextType: p.contextType, contextId: p.contextId })
-    if (this.isBot(p.toId) && p.contextType !== 'post') this.botEmoji(p.toId, me, '💪')
+    if (this.isBot(p.toId)) this.botEmoji(p.toId, me, '💪')
     this.save()
   }
   async emojiMessages(): Promise<EmojiMessage[]> {
@@ -624,13 +555,6 @@ export class DemoBackend implements SocialBackend {
       })
     } else if (key === 'requests') this.s.wreqs.push({ id: uuid(), createdAt: this.now(), fromId: bot, toId: me, scope: 'week', note: 'Legs please 🙏', status: 'pending' })
     else if (key === 'emoji') this.botEmoji(bot, me, '👏')
-    else if (key === 'posts') this.botPost(bot, me)
-  }
-  /** A workout the simulated friend "did" yesterday, posted for you to cheer. */
-  private botPost(bot: string, me: string) {
-    const date = new Date(this.clock() - 86400000).toISOString().slice(0, 10)
-    const post = BOT_POSTS[bot] ?? BOT_POSTS['bot-alex']
-    ;(this.s.posts ??= []).push({ id: uuid(), createdAt: this.now(), fromId: bot, audience: [me], date, ...post })
   }
   private botShare(bot: string, me: string, scope: Scope): string {
     const week = botWeek()

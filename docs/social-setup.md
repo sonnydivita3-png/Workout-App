@@ -12,11 +12,8 @@ Run each file in `supabase/migrations/` **once, in order**, in the **SQL Editor*
 1. `20260930000000_social.sql` (friends, sharing, challenges, emoji)
 2. `20261001000000_sync.sql` (cloud backup)
 3. `20261002000000_reports_ping.sql` (reporting people, and the keep-alive ping)
-4. `20261003000000_posts.sql` (posting a workout for friends to cheer)
 
 To copy a file: open it on GitHub, click **Raw**, select all, copy. Each should end with "Success. No rows returned". Running a file a second time fails with "already exists"; that's harmless if the first run succeeded.
-
-**Already set up?** When a new file appears in `supabase/migrations/`, run just that one, the same way. Until you do, the app keeps working, and the feature that needs it says it needs a server update.
 
 ## 3. Sign-in settings (Authentication)
 - **Sign In / Providers → Email**: enabled (default). Keep "Confirm email" on. Email OTP length 6 (the app accepts 6–8 digits).
@@ -82,8 +79,7 @@ Open the app and close/reopen it once or twice so it picks up the new version. *
 
 ## Privacy model (enforced in the database, not the UI)
 - People are found by **exact handle only**. There is no list of users and email addresses are never in the public schema.
-- Being friends shares **nothing**. Each person grants six permissions per friend, all off by default: see my progress (recent exercises, weekly count, streak, new personal bests), show me their posts, send me workouts, ask me for workouts, challenge me, send me emoji. The grant is chosen by the person accepting the request and can be changed any time.
-- A **post** ("look what I did") goes only to friends who turned on that person's posts, and disappears for them if they turn it off or the friendship ends. Posting to someone invites one cheer (an emoji) from them on that post, even if they can't otherwise send you emoji. People a post went to can't see who else got it, and the server sets its time.
+- Being friends shares **nothing**. Each person grants five permissions per friend, all off by default: see my progress (recent exercises, weekly count, streak, new personal bests), send me workouts, ask me for workouts, challenge me, send me emoji. The grant is chosen by the person accepting the request and can be changed any time.
 - Messages are one of 12 emoji. There is no free text except a short optional note on a workout request and titles of things you share.
 - Body weight, measurements, photos and goals are never shared. Avatars are an emoji, a letter, or a photo shrunk to about 96px (the database rejects anything larger or any non-image data).
 - Friend-sent workouts are validated and clamped on the receiving device before anything touches the calendar, and a friend's custom exercises are imported under new ids so they can't overwrite your own.

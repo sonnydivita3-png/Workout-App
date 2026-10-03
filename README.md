@@ -43,7 +43,7 @@ Built around one idea: beat what you did last time.
 - History by exercise: delete a single session or all history for an exercise; est. 1RM / top weight / volume charts (lifting), pace / distance / time (cardio), PR badges
 - lb/kg and mi/km (stored as lb/mi, converted for display)
 - JSON backup export/import, and an Erase all data option (with confirmation) to start over
-- Social (optional, opt-in at first launch or later in Settings): friends by exact handle, post a finished workout for friends to cheer, share a day/week/4 weeks that a friend adds to their calendar, ask a friend to make you a workout, push-up/pull-up/plank/run/ride challenges (or "beat the workout I did"), and a fixed set of 12 emoji instead of chat. Everyone chooses per friend what that friend may see or send, and nothing is shared by default. See [docs/social-setup.md](docs/social-setup.md)
+- Social (optional, opt-in at first launch or later in Settings): friends by exact handle, share a day/week/4 weeks that a friend adds to their calendar, ask a friend to make you a workout, push-up/pull-up/plank/run/ride challenges (or "beat the workout I did"), and a fixed set of 12 emoji instead of chat. Everyone chooses per friend what that friend may see or send, and nothing is shared by default. See [docs/social-setup.md](docs/social-setup.md)
 - Walkthrough of every feature on first run (and once more when big features land), skippable, replay from Settings → Help
 - Avatars: pick an emoji, a letter, or upload a photo (shrunk on your device to a tiny square before it is stored)
 - Look: dark-first neon theme (or light, or follow your phone) with five accent "vibes", chunky rounded UI, confetti on PRs, goals and finished challenges
