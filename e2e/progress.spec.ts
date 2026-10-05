@@ -28,13 +28,11 @@ test('suggests the next step and marks sets that beat last time', async ({ page 
   await page.getByRole('button', { name: 'Set 1 options' }).click()
   await page.getByRole('button', { name: /Make it a warm-up/ }).click()
   await expect(page.getByText('▲ Beat last time on 1 set')).toBeVisible()
-  // plates and how-to (plates are under the exercise's ⋯)
+  // plates (under the exercise's ⋯); no how-to
   await page.getByRole('button', { name: 'Bench Press options' }).click()
   await page.getByRole('button', { name: 'Plates for this weight' }).click()
   await expect(page.getByText(/45 lb bar \+/)).toBeVisible()
-  await page.getByRole('button', { name: 'Bench Press', exact: true }).click()
-  await expect(page.getByText('Barbell Bench Press - Medium Grip')).toBeVisible()
-  await expect(page.getByText(/Lie back on a flat bench/i)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'How to do it' })).toHaveCount(0)
 })
 
 test('✓ sets, the optional rest timer, and a beat-last-time summary', async ({ page }) => {
