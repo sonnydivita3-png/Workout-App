@@ -6,7 +6,6 @@ import { hasNumbers, isTicked, setRows, workingRows } from '../lib/setRows'
 import { showWeight, storeWeight } from '../lib/units'
 import { findExercise, useStore } from '../store'
 import type { Exercise, ExerciseLog, StrengthSet } from '../types'
-import { HowToSheet } from './HowToSheet'
 import { HoldTimerSheet } from './IntervalTimerSheet'
 import { NumberInput } from './NumberInput'
 import { rowBtn, Sheet } from './Sheet'
@@ -50,14 +49,13 @@ const MARK = { up: { t: '▲', c: 'text-green-600', l: 'beat last time' }, same:
 
 /**
  * One exercise to log: a target from last time, then a row per set. ✓ logs a set (filling in the target if nothing
- * was typed). Everything else (how-to, note, plates, fewer sets, remove) is under ⋯ so the card stays simple.
+ * was typed). Everything else (note, plates, fewer sets, remove) is under ⋯ so the card stays simple.
  */
 export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, warmupSets = 0, rest, note, current, last, onSetCount, onChange, onNote, onRemove, onSetDone, restNote, onSwap, onHistory, onDeleteSet, readOnly, dropSets = 0, onDropSets, onDeleteDrop }: Props) {
   const units = useStore((s) => s.units)
   const trackRpe = useStore((s) => s.trackRpe)
   const mode = exercise.mode ?? 'weight'
   const [timing, setTiming] = useState<number | null>(null)
-  const [howTo, setHowTo] = useState(false)
   const [menu, setMenu] = useState(false)
   const [plates, setPlates] = useState(false)
   const [editingNote, setEditingNote] = useState(false)
@@ -183,7 +181,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
     <div ref={card} className={`scroll-mt-4 rounded-2xl bg-surface shadow-sm ring-1 ring-neutral-200/70 ${collapsed ? 'px-4 py-3' : 'p-4'}`}>
       <div className={`${collapsed ? '' : 'mb-2 '}flex items-start justify-between gap-2`}>
         <div className="min-w-0">
-          <button onClick={() => (collapsed ? toggleFold() : setHowTo(true))} className={`text-left font-semibold ${collapsed ? '' : 'underline decoration-neutral-300 decoration-dotted underline-offset-4'}`}>{allDone && collapsed ? '✓ ' : ''}{exercise.name}</button>
+          <button onClick={toggleFold} className="text-left font-semibold">{allDone && collapsed ? '✓ ' : ''}{exercise.name}</button>
           {collapsed ? (
             <button onClick={toggleFold} className="block text-left text-xs text-neutral-400">
               {doneCount} of {counted.length} sets{summary ? ` · ${summary}` : ''}{beat > 0 ? ` · ▲ ${beat} beat last time` : ''}
@@ -300,7 +298,6 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
           {onSwap && menuItem('Swap exercise', onSwap)}
           {onHistory && menuItem('History', onHistory)}
           {onDropSets && mode === 'weight' && menuItem(dropSets ? 'Add another drop set' : 'Add a drop set', () => onDropSets(dropSets + 1))}
-          {menuItem('How to do it', () => setHowTo(true))}
           {onNote && menuItem(current?.note ? 'Edit note' : 'Add a note', () => setEditingNote(true))}
           {barbell && menuItem(plates ? 'Hide plates' : 'Plates for this weight', () => setPlates((p) => !p))}
           {readOnly && setCount > 1 && menuItem('Remove a set', () => onSetCount(setCount - 1))}
@@ -333,7 +330,6 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
         )
       })()}
       {timing !== null && <HoldTimerSheet name={`${exercise.name} · set ${timing + 1}`} target={targetSeconds} onUse={(secs) => { update(timing, { seconds: secs }); setTiming(null) }} onClose={() => setTiming(null)} />}
-      {howTo && <HowToSheet exercise={exercise} onClose={() => setHowTo(false)} />}
     </div>
   )
 }

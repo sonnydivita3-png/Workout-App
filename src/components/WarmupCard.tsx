@@ -3,14 +3,12 @@ import { describeItem } from '../lib/describe'
 import type { Segment } from '../lib/wod'
 import { findExercise, useStore } from '../store'
 import type { Exercise, PlannedExercise } from '../types'
-import { HowToSheet } from './HowToSheet'
 import { IntervalTimerSheet } from './IntervalTimerSheet'
 
 /** The warm-up block: easy cardio and mobility moves with a guided timer. Not logged as progress. */
 export function WarmupCard({ items, onRemove }: { items: PlannedExercise[]; onRemove: () => void }) {
   const { custom, units } = useStore()
   const [timer, setTimer] = useState(false)
-  const [howTo, setHowTo] = useState<Exercise | null>(null)
   const rows = items.map((p) => ({ p, ex: findExercise(custom, p.exerciseId) })).filter((r): r is { p: PlannedExercise; ex: Exercise } => !!r.ex)
   const minutes = Math.round(rows.reduce((a, { p }) => a + (p.est ?? (p.minutes ?? 0) + (p.seconds ?? 0) / 60), 0))
 
@@ -35,14 +33,13 @@ export function WarmupCard({ items, onRemove }: { items: PlannedExercise[]; onRe
       <ul className="mb-3 divide-y divide-neutral-100">
         {rows.map(({ p, ex }) => (
           <li key={p.exerciseId} className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
-            <button onClick={() => setHowTo(ex)} className="min-w-0 line-clamp-2 text-left underline decoration-neutral-300 decoration-dotted underline-offset-4">{ex.name}</button>
+            <span className="min-w-0 line-clamp-2">{ex.name}</span>
             <span className="shrink-0 text-xs tabular-nums text-neutral-400">{ex.kind === 'cardio' ? `${p.minutes} min easy` : describeItem(p, ex, units)}</span>
           </li>
         ))}
       </ul>
       <button onClick={() => setTimer(true)} className="w-full rounded-xl bg-neutral-100 py-2 text-sm font-medium text-neutral-700">⏱ Start warm-up</button>
       {timer && <IntervalTimerSheet title="Warm-up" segments={segments} onClose={() => setTimer(false)} />}
-      {howTo && <HowToSheet exercise={howTo} onClose={() => setHowTo(null)} />}
     </div>
   )
 }

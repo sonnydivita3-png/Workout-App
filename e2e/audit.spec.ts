@@ -77,13 +77,10 @@ test('a backup file restores programs too, and a damaged file cannot break the a
   expect(s.logs.every((l: unknown) => l && typeof (l as { exerciseId: unknown }).exerciseId === 'string')).toBe(true)
 })
 
-test('how-to and the hold timer open from the workout', async ({ page }) => {
+test('the hold timer opens from the workout', async ({ page }) => {
   await seed(page, { overrides: { [iso(0)]: [{ exerciseId: 'Plank', sets: 2, seconds: 30 }] } })
   await page.goto('/')
   await page.getByRole('button', { name: 'Start workout' }).click()
-  await page.getByRole('button', { name: 'Plank', exact: true }).click()
-  await expect(page.getByText(/Get into a prone position/i)).toBeVisible()
-  await page.locator('.fixed').getByRole('button', { name: 'Close', exact: true }).last().click()
   await page.getByRole('button', { name: 'Time set 1' }).click()
   await expect(page.getByText('Target 0:30')).toBeVisible()
 })

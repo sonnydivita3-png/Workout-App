@@ -17,7 +17,7 @@ Built around one idea: beat what you did last time.
 - "Try this next" on every lift (double progression: hit the reps on every set, then add weight) and ▲/▼ per set vs last time
 - One place to do a workout (Home → Start workout, or the Workouts tab): ✓ per set logs the target (typed numbers win), Finish workout warns about unlogged sets and shows what improved, new bests and volume vs last time. No workout clock; an optional rest timer after each set (Settings → Workouts, off by default); timed workouts bring their own clocks; the screen stays on during today's workout
 - Plateau spotting: three sessions stuck at the same weight suggests a ~10% deload to build back past it
-- Warm-up sets (tap the set number), optional RPE, notes per exercise (last note shown next time), plate calculator, and how-to steps and pictures for 750+ exercises
+- Warm-up sets (tap the set number), optional RPE, notes per exercise (last note shown next time), and a plate calculator
 - Home dashboard: greeting, today's upcoming exercises, last workout, body weight log + chart, weekly stats, goals
 - Workout randomizer with eight styles: standard, strength, supersets, HIIT circuit, PHA, Hyrox-style, CrossFit-style, bodyweight. Pick body parts (chest, back, shoulders, biceps, triceps, quads, hamstrings, glutes, calves, core; or Full / Upper / Lower body in one tap) and/or cardio plus a time; swap, choose, or remove exercises, step Back/Forward through versions, add to the day or save as a routine
 - Full-body workouts get one exercise per body part, the classic lift for each (squat, bench press, row, deadlift/RDL, overhead press…) first, with spare time going into extra sets instead of a second chest or back move
@@ -25,7 +25,7 @@ Built around one idea: beat what you did last time.
 - Three ways to log lifting: weight × reps, bodyweight reps only, and timed holds (planks) in seconds; goals, history, and personal bests follow the same measure
 - Randomizer: Back/Forward through every version you've generated, random swap per exercise, or pick any exercise yourself
 - Honest workout length: time is estimated from real work time plus rest (2-2.5 min on heavy sets, 60-90 s on lighter ones, adjustable Short / Normal / Long) plus setup, and generated workouts are built to fill the time you pick (tested at 85-110% across styles, lengths and muscle groups)
-- Warm-ups: easy cardio, dynamic mobility moves (with a guided timer and how-to pictures) and light ramp-up sets before heavy lifts, in the randomizer and week/month plans; the rest timer can follow each exercise's planned rest
+- Warm-ups: easy cardio, dynamic mobility moves (with a guided timer) and light ramp-up sets before heavy lifts, in the randomizer and week/month plans; the rest timer can follow each exercise's planned rest
 - Randomizer: pick several styles at once (e.g. Strength + HIIT circuit) plus body parts and Cardio; set minutes for each part (e.g. Strength 45 min + Cardio 30 min) or split a total evenly; lifting first, cardio at the end
 - Clocks: countdown/interval timers for AMRAP, EMOM, Tabata, for time and HIIT circuits, plus a stopwatch for timed holds (plank etc.)
 - Timed workouts: AMRAP, EMOM (E2MOM, E3MOM), Tabata (20s on / 10s off × 8, or your own timing) and for-time, from the randomizer (optionally by body part) or a builder (+ Add → Timed workout). Each has a built-in clock, a place to log rounds / intervals / finish time, and shows last time's result. Results also count toward each exercise's history, streaks and daily progress

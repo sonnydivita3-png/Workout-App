@@ -41,7 +41,7 @@ const EXTRAS: Extra[] = [
   ['x-toes-to-bar', 'Toes to Bar', 'Core', 'Bodyweight', 'reps', true, ['crossfit']],
   ['x-air-squat', 'Air Squat', 'Quads', 'Bodyweight', 'reps', true, ['hiit', 'crossfit']],
   ['x-goblet-squat', 'Goblet Squat', 'Quads', 'Kettlebell', 'weight', true, ['hiit']],
-  // Dynamic warm-up moves (ids match free-exercise-db so the how-to pictures work). Tag says which half they warm.
+  // Dynamic warm-up moves (ids match free-exercise-db). Tag says which half they warm.
   ['Arm_Circles', 'Arm Circles', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'upper']],
   ['Shoulder_Circles', 'Shoulder Circles', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'upper']],
   ['Round_The_World_Shoulder_Stretch', 'Round The World Shoulder Stretch', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'upper']],
@@ -101,7 +101,7 @@ for (const e of EXERCISES) if (REPS_ONLY.has(e.id) && e.mode === 'weight') e.mod
 // ...and one listed as bodyweight that needs a dumbbell to push up from.
 for (const e of EXERCISES) if (e.id === 'Close-Grip_Push-Up_off_of_a_Dumbbell') e.equipment = 'Dumbbell'
 
-// Everyday names for the most common lifts; the dataset's full name stays available (search, how-to page).
+// Everyday names for the most common lifts; the dataset's full name stays available (search).
 const SHORT: Record<string, string> = {
   'Barbell_Bench_Press_-_Medium_Grip': 'Bench Press',
   'Barbell_Incline_Bench_Press_-_Medium_Grip': 'Incline Bench Press',
