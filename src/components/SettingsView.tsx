@@ -7,6 +7,7 @@ import { CloudBackup } from './CloudBackup'
 import { AccountSection } from './AccountSection'
 import { EquipmentPicker } from './EquipmentPicker'
 import { FavoritesPicker } from './FavoritesPicker'
+import { CustomExercisesList } from './CustomExercise'
 import { PerMuscleStepper } from './VolumeCheck'
 import { EXTRA_TIME_CHOICES, extraTimeOf, perMuscleOf, type ExtraTimeChoice } from '../lib/volumePrefs'
 import { GoalPicker, LikedCardioPicker, LikedStylesPicker, MovePrefsPicker } from './TrainingPrefsPicker'
@@ -75,7 +76,8 @@ const REST_LABEL = (r: number) => (r === -1 ? 'as planned' : r ? `${r} s` : 'off
 
 /** Settings, grouped into a few short pages instead of one long list. */
 export function SettingsView({ initialPage, onBack }: { initialPage?: string; onBack?: () => void }) {
-  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, name, setName, importData, setTourDone, trackRpe, restSeconds, setPrefs, theme, setTheme, accent, setAccent, cloud, socialChoice, equipment, aboutMe, setAboutMe, trainingPrefs, setTrainingPrefs } = useStore()
+  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, name, setName, importData, setTourDone, trackRpe, restSeconds, setPrefs, theme, setTheme, accent, setAccent, cloud, socialChoice, equipment, aboutMe, setAboutMe, trainingPrefs, setTrainingPrefs, custom } = useStore()
+  const ownExercises = custom.filter((e) => !e.retired).length
   const [page, setPage] = useState<Page | null>(PAGES.some((p) => p.id === initialPage) ? (initialPage as Page) : null)
   const [advanced, setAdvanced] = useState(false)
   const myHandle = useSocial((s) => s.profile?.handle)
@@ -128,7 +130,7 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
 
   const summary: Record<Page, string> = {
     profile: `${name || 'No name yet'} · ${units.weight}, ${units.distance} · ${equipmentSummary(equipment)}`,
-    workouts: `Rest timer ${REST_LABEL(restSeconds)} · effort ${trackRpe ? 'on' : 'off'}`,
+    workouts: `Rest timer ${REST_LABEL(restSeconds)} · effort ${trackRpe ? 'on' : 'off'}${ownExercises ? ` · ${ownExercises} own exercise${ownExercises === 1 ? '' : 's'}` : ''}`,
     look: `${theme[0].toUpperCase()}${theme.slice(1)} · ${accent}`,
     notifications: [notifPrefs.goals && 'goals', notifPrefs.pbs && 'bests', notifPrefs.daily && 'daily reminder'].filter(Boolean).join(', ') || 'Off',
     data: cloud.enabled ? 'Cloud backup on' : 'Cloud backup off',
@@ -246,6 +248,9 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
         </select>
       </Row>
       <p className="px-1 text-sm text-neutral-500">Most people grow best on about 10–15 hard sets for one muscle in a session, usually 4–5 exercises; past that, extra sets mostly add fatigue. When filling the time would give one muscle more than your number, generated workouts and plans use the time another way: fewer exercises done heavier (more sets, fewer reps, longer rests), a cardio finisher, another body part, or a shorter session. “Keep adding exercises” turns this off.</p>
+      <h2 className="pt-4 text-sm font-semibold text-neutral-700">Your own exercises</h2>
+      <p className="px-1 text-sm text-neutral-500">Exercises that aren’t in the list. They show up under the body part you picked when you add exercises, and are saved (and backed up) with your workouts. Make one here, or with “+ Custom exercise” when adding exercises.</p>
+      <CustomExercisesList />
       </>)}
 
       {page === 'look' && (<>
