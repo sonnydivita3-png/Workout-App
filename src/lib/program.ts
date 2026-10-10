@@ -1,10 +1,10 @@
 import type { Exercise, ExerciseLog, PlannedExercise } from '../types'
 import { partFromName } from './bodyParts'
-import { weeklyTarget } from './muscles'
+import { PER_MUSCLE, sessionSets, weeklyTarget } from './muscles'
 import { addDays, parseISO, toISO, weekdayIndex } from './dates'
 import { CARDIO_SESSIONS, type CardioSessionKind } from './cardioSession'
-import { generateWorkout, minutesFor, styleInfo, type WarmupOptions, type WorkoutStyle } from './randomizer'
-import { BY_ID, FULL_BODY_GROUPS, roundTo5, type Rng } from './randomUtil'
+import { addFinisher, generateWorkout, minutesFor, styleInfo, type WarmupOptions, type WorkoutStyle } from './randomizer'
+import { BY_ID, FULL_BODY_GROUPS, type Rng } from './randomUtil'
 import { liftMinutes, type RestPref } from './timing'
 import { hasData } from './stats'
 import { plateau, workSets } from './progression'
@@ -270,6 +270,8 @@ export interface ProgramInput {
    * cardio finisher, instead of a sixth, seventh, eighth exercise for one muscle. On unless false.
    */
   capVolume?: boolean
+  /** Most exercises for one muscle in a session (default PER_MUSCLE). */
+  perMuscle?: number
   /** Their own weekly sets per muscle (Settings), instead of the goal's. */
   setTarget?: number | null
 }
@@ -291,12 +293,9 @@ export const SET_SCHEMES: { id: SetScheme; label: string; blurb: string }[] = [
   { id: 'flat', label: 'Same sets every week', blurb: 'Progress comes from weight and reps alone.' },
 ]
 
-/**
- * Most hard sets for one muscle in a session: about 15 for the big ones (once-a-week body-part days still reach the
- * 10-20 a week that builds muscle) and 10 for arms, calves and core. More than that mostly adds fatigue.
- */
-const SMALL_PARTS = new Set(['Biceps', 'Triceps', 'Calves', 'Forearms', 'Core'])
-export const sessionSets = (part: string) => (SMALL_PARTS.has(part) ? 10 : 15)
+// Most hard sets for one muscle in a session (see muscles.ts): once-a-week body-part days still reach the 10-20 a week
+// that builds muscle.
+export { sessionSets }
 
 /** Generation options shared by every day of a plan (and rerolls). */
 export interface DayOptions {
@@ -308,6 +307,8 @@ export interface DayOptions {
   sets?: SetScheme
   deload?: boolean
   capVolume?: boolean
+  /** Most exercises for one muscle in a session (default PER_MUSCLE). */
+  perMuscle?: number
 }
 
 const LIFTING_STYLES: WorkoutStyle[] = ['standard', 'strength', 'supersets', 'bodyweight']
@@ -322,7 +323,7 @@ function makeDay(focus: string[], minutes: number, style: WorkoutStyle, rng: Rng
   const items = generateWorkout(focus, minutes, {
     style, rng, avoid, rest: opts.rest, warmup: cardioDay ? undefined : opts.warmup, dropSets: opts.dropSets, familiar: opts.familiar,
     ...(cardioKind ? { cardio: { kind: cardioKind } } : {}),
-    ...(capped(focus, opts) ? { setCap: sessionSets } : {}),
+    ...(capped(focus, opts) ? { setCap: sessionSets, maxPerPart: opts.perMuscle ?? PER_MUSCLE } : {}),
     ...(opts.reps && opts.reps !== 'auto' ? { repRange: REP_RANGES[opts.reps] } : {}),
   })
   return finisher ? withFinisher(items, focus, minutes, style, rng, opts) : items
@@ -330,11 +331,7 @@ function makeDay(focus: string[], minutes: number, style: WorkoutStyle, rng: Rng
 
 /** A capped lifting session with 10+ minutes to spare finishes with easy cardio, so it still runs about as long as picked. */
 function withFinisher(items: PlannedExercise[], focus: string[], minutes: number, style: WorkoutStyle, rng: Rng, opts: DayOptions): PlannedExercise[] {
-  const spare = minutes - minutesFor(items)
-  if (!capped(focus, opts) || spare < 10 || !LIFTING_STYLES.includes(style)) return items
-  const used = new Set(items.map((p) => p.exerciseId))
-  const finisher = generateWorkout(['Cardio'], roundTo5(spare - 2), { style: 'standard', rng, avoid: used, cardio: { kind: 'steady' } })
-  return [...items, ...finisher.filter((p) => !used.has(p.exerciseId)).map((p) => ({ ...p, note: 'Finisher, easy pace' }))]
+  return capped(focus, opts) && LIFTING_STYLES.includes(style) ? addFinisher(items, minutes, rng) : items
 }
 
 /** The muscle a planned lift counts towards (null for warm-ups, cardio and timed pieces). */
