@@ -34,7 +34,7 @@ describe('recovery: never the same major muscle two days in a row', () => {
       }
     }
     expect(checked).toBeGreaterThan(5000)
-  })
+  }, 30000) // about 1,000 plans: well past the default 5 s on slower CI runners
 
   it('also holds across a week boundary (Sunday → Monday)', () => {
     for (const goal of GOALS) {
