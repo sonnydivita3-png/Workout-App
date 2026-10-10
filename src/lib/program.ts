@@ -1,9 +1,10 @@
 import type { Exercise, ExerciseLog, PlannedExercise } from '../types'
 import { partFromName } from './bodyParts'
+import { weeklyTarget } from './muscles'
 import { addDays, parseISO, toISO, weekdayIndex } from './dates'
 import { CARDIO_SESSIONS, type CardioSessionKind } from './cardioSession'
-import { generateWorkout, styleInfo, type WarmupOptions, type WorkoutStyle } from './randomizer'
-import { BY_ID, FULL_BODY_GROUPS, type Rng } from './randomUtil'
+import { generateWorkout, minutesFor, styleInfo, type WarmupOptions, type WorkoutStyle } from './randomizer'
+import { BY_ID, FULL_BODY_GROUPS, roundTo5, type Rng } from './randomUtil'
 import { liftMinutes, type RestPref } from './timing'
 import { hasData } from './stats'
 import { plateau, workSets } from './progression'
@@ -169,6 +170,12 @@ function splitRotation(split: Exclude<SplitId, 'auto'>, daysPerWeek: number, sty
   }
 }
 
+/** One week of a named split, day by day (e.g. Upper body, Lower body, Upper body, Lower body). */
+export function splitWeek(split: Exclude<SplitId, 'auto'>, daysPerWeek: number): string[] {
+  const rotation = splitRotation(split, daysPerWeek, 'standard')
+  return Array.from({ length: Math.max(0, daysPerWeek) }, (_, i) => rotation[i % rotation.length].name)
+}
+
 /** Lifting days repeat week to week so the numbers can climb; conditioning formats and cardio stay varied. */
 const repeats = (t: DayType) => !t.generic && t.groups.length > 0 && ['standard', 'strength', 'supersets', 'bodyweight'].includes(t.style)
 
@@ -252,6 +259,167 @@ export interface ProgramInput {
   familiar?: Set<string>
   /** Lifts to swap for something new (see `liftsToRotate`): used only if nothing else fits. */
   rotate?: Set<string>
+  /** Rep range for weighted lifts ('auto': each session's style decides). */
+  reps?: RepScheme
+  /** How sets build over a 4-week block (see applyProgression). */
+  sets?: SetScheme
+  /** A lighter last week in a 4-week block (on unless false). */
+  deload?: boolean
+  /**
+   * Keep each muscle to a sensible number of hard sets a session (see sessionSets), with spare time going to an easy
+   * cardio finisher, instead of a sixth, seventh, eighth exercise for one muscle. On unless false.
+   */
+  capVolume?: boolean
+  /** Their own weekly sets per muscle (Settings), instead of the goal's. */
+  setTarget?: number | null
+}
+
+export type RepScheme = 'auto' | 'heavy' | 'moderate' | 'light'
+/** Reps for weighted lifts: [big compound lifts, everything else]. */
+export const REP_RANGES: Record<Exclude<RepScheme, 'auto'>, [number, number]> = { heavy: [5, 8], moderate: [8, 12], light: [12, 15] }
+export const REP_SCHEMES: { id: RepScheme; label: string; blurb: string }[] = [
+  { id: 'auto', label: 'Auto', blurb: 'Each session’s style decides: lower reps on the big lifts, higher on the rest.' },
+  { id: 'heavy', label: 'Heavy · 5–8', blurb: 'Big lifts for 5, the rest for 8. Builds strength most; longer rests.' },
+  { id: 'moderate', label: 'Classic · 8–12', blurb: 'Big lifts for 8, the rest for 12. The usual range for building muscle.' },
+  { id: 'light', label: 'Light · 12–15', blurb: 'Big lifts for 12, the rest for 15. Easier on the joints; more of a burn.' },
+]
+
+export type SetScheme = 'week3' | 'weekly' | 'flat'
+export const SET_SCHEMES: { id: SetScheme; label: string; blurb: string }[] = [
+  { id: 'week3', label: 'A set more in week 3', blurb: 'Weeks 1–2 build the habit and the numbers; week 3 adds a set to the main lifts (about 5 more minutes).' },
+  { id: 'weekly', label: 'A set more each week', blurb: 'Week 2 adds a set to the main lifts, week 3 another (sessions run about 5, then 10 minutes longer).' },
+  { id: 'flat', label: 'Same sets every week', blurb: 'Progress comes from weight and reps alone.' },
+]
+
+/**
+ * Most hard sets for one muscle in a session: about 15 for the big ones (once-a-week body-part days still reach the
+ * 10-20 a week that builds muscle) and 10 for arms, calves and core. More than that mostly adds fatigue.
+ */
+const SMALL_PARTS = new Set(['Biceps', 'Triceps', 'Calves', 'Forearms', 'Core'])
+export const sessionSets = (part: string) => (SMALL_PARTS.has(part) ? 10 : 15)
+
+/** Generation options shared by every day of a plan (and rerolls). */
+export interface DayOptions {
+  warmup?: WarmupOptions
+  rest?: RestPref
+  dropSets?: boolean
+  familiar?: Set<string>
+  reps?: RepScheme
+  sets?: SetScheme
+  deload?: boolean
+  capVolume?: boolean
+}
+
+const LIFTING_STYLES: WorkoutStyle[] = ['standard', 'strength', 'supersets', 'bodyweight']
+const capped = (focus: string[], opts: DayOptions) => opts.capVolume !== false && focus.length > 0 && !(focus.length === 1 && focus[0] === 'Cardio')
+
+/**
+ * One planned session. Lifting days keep each muscle to sessionSets (a one-muscle day otherwise ran to eight or nine
+ * exercises for that muscle); `finisher` fills 10+ spare minutes with easy cardio (see withFinisher).
+ */
+function makeDay(focus: string[], minutes: number, style: WorkoutStyle, rng: Rng, avoid: Set<string>, opts: DayOptions, cardioKind?: CardioSessionKind, finisher = true): PlannedExercise[] {
+  const cardioDay = focus.length === 1 && focus[0] === 'Cardio'
+  const items = generateWorkout(focus, minutes, {
+    style, rng, avoid, rest: opts.rest, warmup: cardioDay ? undefined : opts.warmup, dropSets: opts.dropSets, familiar: opts.familiar,
+    ...(cardioKind ? { cardio: { kind: cardioKind } } : {}),
+    ...(capped(focus, opts) ? { setCap: sessionSets } : {}),
+    ...(opts.reps && opts.reps !== 'auto' ? { repRange: REP_RANGES[opts.reps] } : {}),
+  })
+  return finisher ? withFinisher(items, focus, minutes, style, rng, opts) : items
+}
+
+/** A capped lifting session with 10+ minutes to spare finishes with easy cardio, so it still runs about as long as picked. */
+function withFinisher(items: PlannedExercise[], focus: string[], minutes: number, style: WorkoutStyle, rng: Rng, opts: DayOptions): PlannedExercise[] {
+  const spare = minutes - minutesFor(items)
+  if (!capped(focus, opts) || spare < 10 || !LIFTING_STYLES.includes(style)) return items
+  const used = new Set(items.map((p) => p.exerciseId))
+  const finisher = generateWorkout(['Cardio'], roundTo5(spare - 2), { style: 'standard', rng, avoid: used, cardio: { kind: 'steady' } })
+  return [...items, ...finisher.filter((p) => !used.has(p.exerciseId)).map((p) => ({ ...p, note: 'Finisher, easy pace' }))]
+}
+
+/** The muscle a planned lift counts towards (null for warm-ups, cardio and timed pieces). */
+const partOf = (p: PlannedExercise) => {
+  const e = BY_ID.get(p.exerciseId)
+  return e && e.kind === 'strength' && !p.warmup && !p.wod ? partFromName(e.group, e.name) : null
+}
+/** Straight sets with a rep or time target: the ones whose number of sets can change. */
+const adjustable = (p: PlannedExercise) => !p.block && !p.minutes && !p.warmup && !p.wod && (p.reps !== undefined || p.seconds !== undefined)
+const reEstimate = (p: PlannedExercise) => { p.est = Math.round(liftMinutes(p, BY_ID.get(p.exerciseId)) * 10) / 10 }
+
+/** A muscle past this many times its weekly target gets sets cut: beyond about 20 sets for a big muscle (or 12 for a
+ * small one already worked by the big lifts) more sets mostly add fatigue. */
+const TOO_MUCH = 1.75
+
+/**
+ * Even out a week of sessions against each muscle's weekly target (`target`). Generated sessions share their time
+ * evenly between body parts, so a lower-body day gave calves and core as many sets as quads and hamstrings, and a
+ * six-day week piled 20+ sets onto core and biceps. In order:
+ * 1. Trim: a muscle past TOO_MUCH × its target loses sets.
+ * 2. Level: within a session, a set moves from the muscle furthest past its target to the one furthest short of it
+ *    (the session keeps its length).
+ * 3. Fill: spare minutes in a session go to muscles still short, up to the session cap (sessionSets) and `minutes`.
+ * Only straight sets change, between 2 and 5 sets; `fixed` sessions (cardio, timed formats) count but don't change.
+ */
+export function balanceWeek(sessions: { items: PlannedExercise[]; fixed?: boolean }[], minutes: number, target: (part: string) => number): PlannedExercise[][] {
+  const out = sessions.map((s) => s.items.map((p) => ({ ...p })))
+  const open = out.filter((_, i) => !sessions[i].fixed)
+  const ratioNow = () => {
+    const m = new Map<string, number>()
+    for (const s of out) for (const p of s) { const g = partOf(p); if (g) m.set(g, (m.get(g) ?? 0) + p.sets) }
+    return (g: string) => (m.get(g) ?? 0) / Math.max(1, target(g))
+  }
+  const inSession = (s: PlannedExercise[], g: string) => s.reduce((a, p) => a + (partOf(p) === g ? p.sets : 0), 0)
+  const canGive = (p: PlannedExercise) => adjustable(p) && p.sets > 2 && !!partOf(p)
+  const canTake = (s: PlannedExercise[], p: PlannedExercise) => adjustable(p) && p.sets < 5 && !!partOf(p) && inSession(s, partOf(p)!) < sessionSets(partOf(p)!)
+  const step = (p: PlannedExercise, d: number) => { p.sets += d; reEstimate(p) }
+
+  // 1. Trim: a set at a time, then (down to two sets each) a whole extra exercise for that muscle in a session.
+  for (let guard = 0; guard < 300; guard++) {
+    const ratio = ratioNow()
+    const over = (p: PlannedExercise) => adjustable(p) && !!partOf(p) && ratio(partOf(p)!) > TOO_MUCH
+    const s = open.find((x) => x.some((p) => over(p) && p.sets > 2))
+    if (s) { step(s.filter((p) => over(p) && p.sets > 2).sort((a, b) => b.sets - a.sets)[0], -1); continue }
+    const extra = open.find((x) => x.some((p) => over(p) && x.filter((q) => partOf(q) === partOf(p)).length > 1))
+    if (!extra) break
+    const drop = extra.findLast((p) => over(p) && extra.filter((q) => partOf(q) === partOf(p)).length > 1)!
+    extra.splice(extra.indexOf(drop), 1)
+  }
+  // 2. Level (a big lift's set takes a little longer than a small one's, so a session can grow to `minutes` at most).
+  const limit = new Map(open.map((s) => [s, Math.max(minutes, minutesFor(s)) * 1.02]))
+  const full = new Set<PlannedExercise[]>()
+  for (let guard = 0; guard < 300; guard++) {
+    const ratio = ratioNow()
+    let moved = false
+    for (const s of open) {
+      if (full.has(s)) continue
+      const give = s.filter(canGive).sort((a, b) => ratio(partOf(b)!) - ratio(partOf(a)!))[0]
+      const take = s.filter((p) => canTake(s, p) && ratio(partOf(p)!) < 1).sort((a, b) => ratio(partOf(a)!) - ratio(partOf(b)!))[0]
+      if (!give || !take || partOf(give) === partOf(take)) continue
+      // Only when it evens things out: the giver stays at least as far along as the taker gets.
+      const g = partOf(give)!
+      const t = partOf(take)!
+      if (ratio(g) - 1 / Math.max(1, target(g)) < ratio(t) + 1 / Math.max(1, target(t))) continue
+      step(give, -1)
+      step(take, 1)
+      if (minutesFor(s) > limit.get(s)!) { step(give, 1); step(take, -1); full.add(s); continue }
+      moved = true
+      break
+    }
+    if (!moved) break
+  }
+  // 3. Fill.
+  for (const s of open) {
+    for (let guard = 0; guard < 20; guard++) {
+      const ratio = ratioNow()
+      const p = s.filter((x) => canTake(s, x) && ratio(partOf(x)!) < 1).sort((a, b) => ratio(partOf(a)!) - ratio(partOf(b)!))[0]
+      if (!p) break
+      const est = p.est
+      p.sets++
+      reEstimate(p)
+      if (minutesFor(s) > minutes * 1.02) { p.sets--; p.est = est; break }
+    }
+  }
+  return out
 }
 
 /** Sessions for liked full-body formats that a goal doesn't include on its own. */
@@ -303,31 +471,48 @@ export interface ProgramDay {
 const DAY_MS = 86400000
 const daysBetween = (a: string, b: string) => Math.round((parseISO(b).getTime() - parseISO(a).getTime()) / DAY_MS)
 
-/** Extra minutes week 3's added sets may take: about two sets, so the session stays close to the length picked. */
+/** Extra minutes a week's added sets may take: about two sets, so the session stays close to the length picked. */
 const EXTRA_SET_BUDGET = 6
+/** Sets added to the main lifts in each week of a 4-week block (week 1 is the baseline), by scheme. */
+const EXTRA_SETS: Record<SetScheme, number[]> = { week3: [0, 0, 1, 1], weekly: [0, 1, 2, 2], flat: [0, 0, 0, 0] }
+
+/** Straight sets of a lift with a rep or time target: the ones whose sets change week to week. */
+const growable = (p: PlannedExercise) => !p.block && !p.minutes && p.sets > 1 && (p.seconds !== undefined || p.reps !== undefined)
 
 /**
- * Progressive overload for a 4-week block: an extra set in week 3, a lighter deload in week 4. Week 3's extra sets go
- * to the first lifts (the main ones) until about EXTRA_SET_BUDGET minutes are used, rather than to every lift, which
- * made a 45-minute session run past an hour.
+ * Progressive overload over a 4-week block: extra sets on the main lifts (by `sets` scheme: a set in week 3, a set
+ * each week, or none), then a lighter deload week. Extra sets go to the first lifts (the main ones) until about
+ * EXTRA_SET_BUDGET minutes a set are used, rather than to every lift, which made a 45-minute session run past an hour.
+ * Deload week: a set fewer, and every lift is marked `deload` so its target is about 90% of last time.
  */
-export function applyProgression(items: PlannedExercise[], weekIndex: number, weeks: number): PlannedExercise[] {
-  if (weeks !== 4 || weekIndex < 2) return items
-  const delta = weekIndex === 2 ? 1 : -1
+export function applyProgression(items: PlannedExercise[], weekIndex: number, weeks: number, opts: { sets?: SetScheme; deload?: boolean } = {}): PlannedExercise[] {
+  if (weeks !== 4 || weekIndex === 0) return items
+  if (weekIndex === 3 && opts.deload !== false) {
+    return items.map((p) => {
+      const ex = BY_ID.get(p.exerciseId)
+      if (!ex || ex.kind !== 'strength' || p.warmup || p.wod) return p
+      const sets = growable(p) ? Math.max(2, p.sets - 1) : p.sets
+      if (sets === p.sets) return { ...p, deload: true }
+      const next = { ...p, sets, deload: true }
+      return { ...next, est: Math.round(liftMinutes(next, ex) * 10) / 10 }
+    })
+  }
+  const add = EXTRA_SETS[opts.sets ?? 'week3'][weekIndex]
+  let out = items
   let extra = 0
-  return items.map((p) => {
-    if (p.block || p.minutes || p.sets <= 1 || (p.seconds === undefined && p.reps === undefined)) return p
-    const sets = Math.max(2, Math.min(5, p.sets + delta))
-    if (sets === p.sets) return p
-    const next = { ...p, sets }
-    const est = Math.round(liftMinutes(next, BY_ID.get(p.exerciseId)) * 10) / 10
-    if (delta > 0) {
-      const more = est - (p.est ?? liftMinutes(p, BY_ID.get(p.exerciseId)))
-      if (extra + more > EXTRA_SET_BUDGET) return p
+  for (let pass = 0; pass < add; pass++) {
+    out = out.map((p) => {
+      if (!growable(p) || p.sets >= 5) return p
+      const ex = BY_ID.get(p.exerciseId)
+      const next = { ...p, sets: p.sets + 1 }
+      const est = Math.round(liftMinutes(next, ex) * 10) / 10
+      const more = est - (p.est ?? liftMinutes(p, ex))
+      if (extra + more > EXTRA_SET_BUDGET * add) return p
       extra += more
-    }
-    return { ...next, est }
-  })
+      return { ...next, est }
+    })
+  }
+  return out
 }
 
 export function generateProgram(input: ProgramInput): ProgramDay[] {
@@ -349,6 +534,7 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
   const out: ProgramDay[] = []
   // Lifting workouts by slot, so each week repeats them (with the block's extra set / deload) instead of starting over.
   const templates = new Map<string, PlannedExercise[]>()
+  const slotDays = new Map<string, { focus: string[]; style: WorkoutStyle }>()
   const slotCount = new Map<string, number>()
   // A split starts on the first day that doesn't hit what was trained yesterday, then runs in order.
   let turn = split ? Math.max(0, split.findIndex((t) => !majorsOf(t).some((g) => prevMajors.has(g)))) : 0
@@ -381,10 +567,11 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
     const slot = repeats(type) ? `${type.name}#${nth}` : undefined
     let base = slot ? templates.get(slot) : undefined
     if (!base) {
-      base = generateWorkout(focus, minutes, { style: type.style, rng, avoid, rest: input.rest, warmup: isCardioDay(type) ? undefined : input.warmup, dropSets: input.dropSets, familiar: input.familiar, ...(cardioKind ? { cardio: { kind: cardioKind } } : {}) })
-      if (slot) templates.set(slot, base)
+      // Lifting days get their finisher after the week's volume is evened out (below).
+      base = makeDay(focus, minutes, type.style, rng, avoid, input, cardioKind, !slot)
+      if (slot) { templates.set(slot, base); slotDays.set(slot, { focus, style: type.style }) }
     }
-    const items = applyProgression(base.map((p) => ({ ...p })), weekIndex, weeks)
+    const items = applyProgression(base.map((p) => ({ ...p })), weekIndex, weeks, input)
     recent.push(items.map((p) => p.exerciseId))
     if (recent.length > 6) recent.shift()
 
@@ -396,24 +583,39 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
     const name = cardioKind ? `${type.name} · ${CARDIO_SESSIONS.find((k) => k.id === cardioKind)!.label}` : type.name
     out.push({ date, rest: items.length === 0, name, style: type.style, focus, groups: type.groups, weekIndex, items, slot, cardioKind })
   }
+  // Even out the week's sets per muscle against the goal's targets (on a full week), then finish short lifting days
+  // with easy cardio, and rebuild every week's copy of each lifting day from its template.
+  if (input.capVolume !== false && templates.size > 0) {
+    const weekOf = (w: number) => out.filter((d) => d.weekIndex === w && !d.rest)
+    const week = [...new Set(out.map((d) => d.weekIndex))].map(weekOf).find((w) => w.length === dpw)
+    if (week) {
+      const target = (g: string) => weeklyTarget(g, goals, input.setTarget)
+      const balanced = balanceWeek(week.map((d) => ({ items: d.slot ? templates.get(d.slot)! : d.items, fixed: !d.slot })), minutes, target)
+      week.forEach((d, i) => { if (d.slot) templates.set(d.slot, balanced[i]) })
+    }
+    for (const [slot, items] of templates) {
+      const meta = slotDays.get(slot)!
+      templates.set(slot, withFinisher(items, meta.focus, minutes, meta.style, rng, input))
+    }
+    for (const d of out) if (d.slot) d.items = applyProgression(templates.get(d.slot)!.map((p) => ({ ...p })), d.weekIndex, weeks, input)
+  }
   return out
 }
 
 /** Regenerate one day with the same session type (used by "reroll this day"). */
-export function rerollDay(day: ProgramDay, minutes: number, weeks: number, avoidIds: Set<string>, rng: Rng = Math.random, opts: { warmup?: WarmupOptions; rest?: RestPref; dropSets?: boolean } = {}): ProgramDay {
+export function rerollDay(day: ProgramDay, minutes: number, weeks: number, avoidIds: Set<string>, rng: Rng = Math.random, opts: DayOptions = {}): ProgramDay {
   if (day.rest || !day.style) return day
-  const cardioDay = day.focus.length === 1 && day.focus[0] === 'Cardio'
-  const items = applyProgression(generateWorkout(day.focus, minutes, { style: day.style, rng, avoid: avoidIds, rest: opts.rest, warmup: cardioDay ? undefined : opts.warmup, dropSets: opts.dropSets, ...(day.cardioKind ? { cardio: { kind: day.cardioKind } } : {}) }), day.weekIndex, weeks)
+  const items = applyProgression(makeDay(day.focus, minutes, day.style, rng, avoidIds, opts, day.cardioKind), day.weekIndex, weeks, opts)
   return { ...day, items }
 }
 
 /** Reroll a day and every other week's copy of it (same slot), keeping each week's extra set or deload. */
-export function rerollSlot(days: ProgramDay[], date: string, minutes: number, weeks: number, avoidIds: Set<string>, rng: Rng = Math.random, opts: { warmup?: WarmupOptions; rest?: RestPref; dropSets?: boolean } = {}): ProgramDay[] {
+export function rerollSlot(days: ProgramDay[], date: string, minutes: number, weeks: number, avoidIds: Set<string>, rng: Rng = Math.random, opts: DayOptions = {}): ProgramDay[] {
   const day = days.find((d) => d.date === date)
   if (!day) return days
   if (!day.slot) return days.map((d) => (d === day ? rerollDay(d, minutes, weeks, avoidIds, rng, opts) : d))
   const base = rerollDay({ ...day, weekIndex: 0 }, minutes, weeks, avoidIds, rng, opts).items
-  return days.map((d) => (d.slot === day.slot ? { ...d, items: applyProgression(base.map((p) => ({ ...p })), d.weekIndex, weeks) } : d))
+  return days.map((d) => (d.slot === day.slot ? { ...d, items: applyProgression(base.map((p) => ({ ...p })), d.weekIndex, weeks, opts) } : d))
 }
 
 /** Major muscle groups logged on a date, for recovery-aware planning. */

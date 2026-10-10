@@ -7,6 +7,7 @@ import { circuitSegments, parseCircuit } from '../lib/wod'
 import { findExercise, selectLastLog, useStore } from '../store'
 import { replaceExercise, swapExercise } from '../lib/randomizer'
 import { hasData } from '../lib/stats'
+import { dayPlanOf } from '../lib/plan'
 import { useToday } from '../lib/useToday'
 import type { Exercise, PlannedExercise } from '../types'
 import { CardioCard } from './CardioCard'
@@ -49,6 +50,8 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
     if (next === planned) { setSwapMsg(`No other ${swap.ex.group.toLowerCase()} exercise fits your equipment. Choose one instead.`); return }
     if (replace(swap.ex, next)) setSwap(null)
   }
+  // A planned deload week is lighter on purpose: targets afterwards build from the last full week instead.
+  const wasDeload = (d: string, id: string) => dayPlanOf(s.plan, s.overrides, d).some((q) => q.exerciseId === id && q.deload)
   const groups = groupByBlock(planned)
   // Supersets (not circuits, which have their own timer) rest once per round, as long as the longest planned rest.
   const meta = groups.map((g) => {
@@ -86,7 +89,7 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
               const ex = findExercise(s.custom, p.exerciseId)
               if (!ex) return null
               const current = s.logs.find((l) => l.date === date && l.exerciseId === ex.id)
-              const last = selectLastLog(s.logs, ex.id, date)
+              const last = selectLastLog(s.logs.filter((l) => l.exerciseId !== ex.id || !wasDeload(l.date, ex.id)), ex.id, date)
               return ex.kind === 'strength' ? (
                 <StrengthCard
                   key={ex.id}
@@ -121,6 +124,7 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
                   }}
                   date={date}
                   keepSets={p.keepSets}
+                  deload={p.deload}
                   // Straight sets only: a superset's rounds go together.
                   onKeepSets={p.block ? undefined : () => s.setDayItems(date, planned.map((q, j) => (j === index ? { ...q, keepSets: true } : q)))}
                   onSwap={() => { setSwapMsg(null); setSwap({ index, ex, step: 'how' }) }}

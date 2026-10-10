@@ -1,4 +1,4 @@
-import type { Exercise, ExerciseLog } from '../types'
+import type { Exercise, ExerciseLog, PlannedExercise } from '../types'
 import type { ProgramGoal } from './program'
 import { addDays, mondayOf, parseISO, toISO } from './dates'
 import { workSets } from './progression'
@@ -50,4 +50,16 @@ export const baseTarget = (goal?: ProgramGoal | ProgramGoal[] | null, custom?: n
 export const weeklyTarget = (part: string, goal?: ProgramGoal | ProgramGoal[] | null, custom?: number | null) => {
   const base = baseTarget(goal, custom)
   return INDIRECT.has(part) ? Math.max(2, Math.round(base * 0.6)) : base
+}
+
+/** Hard sets per muscle in planned workouts (e.g. a plan's week). Warm-ups, cardio and timed pieces aren't counted. */
+export function plannedSets(items: PlannedExercise[], lookup: (id: string) => Exercise | undefined): Record<string, number> {
+  const out: Record<string, number> = Object.fromEntries(MUSCLE_GROUPS.map((g) => [g, 0]))
+  for (const p of items) {
+    const ex = lookup(p.exerciseId)
+    if (!ex || ex.kind !== 'strength' || p.warmup || p.wod) continue
+    const part = partFromName(ex.group, ex.name)
+    if (part in out) out[part] += p.sets
+  }
+  return out
 }

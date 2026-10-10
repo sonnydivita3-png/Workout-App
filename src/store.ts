@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { BUILTIN_BY_ID } from './data/exercises'
 import { setMovePrefs, type MovePrefs } from './lib/movePrefs'
-import type { ProgramGoal } from './lib/program'
+import type { ProgramGoal, RepScheme, SetScheme } from './lib/program'
 import type { CardioSetup } from './lib/cardioSetup'
 import { parseISO, weekdayIndex } from './lib/dates'
 import { toPlanned, type CardioDay } from './lib/cardioPlan'
@@ -121,7 +121,7 @@ interface State extends Data {
   setTheme: (t: ThemeMode) => void
   setAccent: (a: Accent) => void
   /** Randomizer choices remembered between uses. */
-  genPrefs: { warmup: WarmupKind[]; rest: RestPref; /** Week/month plans: minutes of easy cardio + mobility (default 5, or 9 for both). */ warmMinutes?: number; focus?: string[]; styles?: WorkoutStyle[]; minutes?: number; drops?: boolean; kinds?: ('lift' | 'cond' | 'cardio')[]; cardioSetup?: CardioSetup }
+  genPrefs: { warmup: WarmupKind[]; rest: RestPref; /** Week/month plans: minutes of easy cardio + mobility (default 5, or 9 for both). */ warmMinutes?: number; focus?: string[]; styles?: WorkoutStyle[]; minutes?: number; drops?: boolean; kinds?: ('lift' | 'cond' | 'cardio')[]; cardioSetup?: CardioSetup; /** Week/month plan choices, remembered for next time. */ plan?: { reps?: RepScheme; sets?: SetScheme; deload?: boolean; keepLifts?: boolean } }
   setGenPrefs: (p: Partial<State['genPrefs']>) => void
   /** Show an RPE (effort) column when logging sets. */
   trackRpe: boolean

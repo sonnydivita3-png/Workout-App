@@ -111,6 +111,8 @@ export interface PlannedExercise {
   warmup?: boolean
   /** The person kept this set count when asked whether to do last time's number of sets instead. */
   keepSets?: boolean
+  /** A planned lighter week (the end of a 4-week block): about 90% of last time, not more. */
+  deload?: boolean
 }
 
 /** Plan is a weekly template: 0 = Monday ... 6 = Sunday. */

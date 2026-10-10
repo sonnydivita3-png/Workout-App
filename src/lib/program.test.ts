@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import type { ExerciseLog } from '../types'
 import { addDays, parseISO, toISO, weekdayIndex } from './dates'
-import { applyProgression, defaultWeekdays, familiarLifts, generateProgram, liftsToRotate, majorGroupsLogged, rerollSlot, MAJOR_GROUPS, PROGRAM_GOALS, rerollDay, goalsLabel, savedGoals, type ProgramGoal, type ProgramInput } from './program'
+import { applyProgression, balanceWeek, defaultWeekdays, familiarLifts, generateProgram, liftsToRotate, majorGroupsLogged, rerollSlot, MAJOR_GROUPS, PROGRAM_GOALS, rerollDay, goalsLabel, savedGoals, sessionSets, type ProgramGoal, type ProgramInput, type RepScheme, type SetScheme } from './program'
 import { minutesFor } from './randomizer'
+import { plannedSets, weeklyTarget, MUSCLE_GROUPS } from './muscles'
 import { mulberry32 } from './randomUtil'
 
 const MONDAY = '2026-09-28'
@@ -254,7 +255,9 @@ describe('named splits', () => {
       for (const d of bro) {
         if (d.rest) continue
         expect(d.items.length).toBeGreaterThan(2)
-        const parts = new Set(d.items.map((p) => BUILTIN_BY_ID.get(p.exerciseId)?.group))
+        // Lifts for the day's muscles only (spare time on a one-muscle day goes to an easy cardio finisher).
+        const lifts = d.items.filter((p) => p.note !== 'Finisher, easy pace')
+        const parts = new Set(lifts.map((p) => BUILTIN_BY_ID.get(p.exerciseId)?.group))
         for (const g of parts) expect([...d.focus, undefined]).toContain(g)
       }
     }
@@ -417,5 +420,105 @@ describe('cardio days in a plan', () => {
     const days = generateProgram(base({ goal: 'fatloss', weeks: 1, trainWeekdays: [0, 1, 2, 3, 4, 5], rng: mulberry32(3) }))
     const d = days.find((x) => x.cardioKind === 'intervals')!
     expect(rerollDay(d, 45, 1, new Set(), mulberry32(9)).items[0].note).toMatch(/^Intervals/)
+  })
+})
+
+describe('plan options: volume per session, rep range, sets over the month, deload', () => {
+  const setsBy = (items: { exerciseId: string; sets: number; warmup?: boolean }[]) => {
+    const m = new Map<string, number>()
+    for (const p of items) {
+      const e = BUILTIN_BY_ID.get(p.exerciseId)
+      if (!e || e.kind !== 'strength' || p.warmup) continue
+      m.set(e.group, (m.get(e.group) ?? 0) + p.sets)
+    }
+    return m
+  }
+  const bro = (over: Partial<ProgramInput> = {}) => generateProgram(base({ split: 'bodypart', trainWeekdays: defaultWeekdays(5), minutes: 60, ...over }))
+
+  it('keeps each muscle to a sensible number of sets a session, finishing a one-muscle day with easy cardio', () => {
+    for (let seed = 1; seed <= 6; seed++) {
+      for (const d of bro({ rng: mulberry32(seed) })) {
+        if (d.rest) continue
+        for (const [g, n] of setsBy(d.items)) expect(n, `${d.name}: ${g}`).toBeLessThanOrEqual(sessionSets(g))
+        const perPart = new Map<string, number>()
+        for (const p of d.items) { const g = BUILTIN_BY_ID.get(p.exerciseId)?.group ?? ''; perPart.set(g, (perPart.get(g) ?? 0) + 1) }
+        for (const [g, n] of perPart) if (g !== 'Cardio' && g !== 'Mobility') expect(n, `${d.name}: ${g} exercises`).toBeLessThanOrEqual(5)
+      }
+    }
+    const chest = bro({ rng: mulberry32(1) }).find((d) => d.name === 'Chest')!
+    expect(chest.items.some((p) => p.note === 'Finisher, easy pace')).toBe(true)
+    expect(Math.abs(minutesFor(chest.items) - 60)).toBeLessThan(8)
+    // Without the cap: the old way, far more chest in one go.
+    const uncapped = bro({ rng: mulberry32(1), capVolume: false }).find((d) => d.name === 'Chest')!
+    expect(setsBy(uncapped.items).get('Chest')).toBeGreaterThan(15)
+  })
+
+  it('a rep range sets the reps of weighted lifts: the low end on big lifts, the high end on the rest', () => {
+    const ranges: [RepScheme, [number, number]][] = [['heavy', [5, 8]], ['moderate', [8, 12]], ['light', [12, 15]]]
+    for (const [reps, range] of ranges) {
+      const lifts = generateProgram(base({ reps })).flatMap((d) => d.items)
+        .filter((p) => !p.warmup && p.reps && BUILTIN_BY_ID.get(p.exerciseId)?.mode === 'weight' && (!p.block || p.block.startsWith('ss')))
+      expect(lifts.length).toBeGreaterThan(5)
+      for (const p of lifts) expect(range, reps).toContain(p.reps)
+      expect(lifts.some((p) => p.reps === range[0])).toBe(true)
+      expect(lifts.some((p) => p.reps === range[1])).toBe(true)
+    }
+  })
+
+  it('sets build by the chosen scheme, and the last week is a marked deload', () => {
+    const plan = (sets: SetScheme, deload = true) => generateProgram(base({ goal: 'strength', split: 'upperlower', trainWeekdays: defaultWeekdays(4), weeks: 4, sets, deload, rng: mulberry32(3) }))
+    const total = (days: ReturnType<typeof plan>, w: number) => days.filter((d) => d.weekIndex === w).flatMap((d) => d.items).filter((p) => p.reps && !p.warmup).reduce((a, p) => a + p.sets, 0)
+    const week3 = plan('week3')
+    expect(total(week3, 1)).toBe(total(week3, 0))
+    expect(total(week3, 2)).toBeGreaterThan(total(week3, 1))
+    expect(total(week3, 3)).toBeLessThan(total(week3, 0))
+    const weekly = plan('weekly')
+    expect(total(weekly, 1)).toBeGreaterThan(total(weekly, 0))
+    expect(total(weekly, 2)).toBeGreaterThan(total(weekly, 1))
+    const flat = plan('flat', false)
+    expect([1, 2, 3].map((w) => total(flat, w))).toEqual([0, 0, 0].map(() => total(flat, 0)))
+    // Deload week: every lift is marked, so its target is lighter than last time.
+    const lifts = week3.filter((d) => d.weekIndex === 3).flatMap((d) => d.items).filter((p) => BUILTIN_BY_ID.get(p.exerciseId)?.kind === 'strength' && !p.warmup)
+    expect(lifts.length).toBeGreaterThan(0)
+    expect(lifts.every((p) => p.deload)).toBe(true)
+    expect(week3.filter((d) => d.weekIndex < 3).flatMap((d) => d.items).some((p) => p.deload)).toBe(false)
+    expect(flat.flatMap((d) => d.items).some((p) => p.deload)).toBe(false)
+  })
+})
+
+describe('weekly volume per muscle', () => {
+  const lift = (exerciseId: string, sets: number) => ({ exerciseId, sets, reps: 10 })
+  const target = (g: string) => weeklyTarget(g, 'muscle')
+  const by = (items: { exerciseId: string; sets: number }[]) => plannedSets(items as never, (id) => BUILTIN_BY_ID.get(id))
+
+  it('moves sets from muscles past their target to ones short of it, keeping the session about as long', () => {
+    // A lower-body day where calves and core got as much as quads and hamstrings, twice a week.
+    const day = () => [lift('Barbell_Squat', 3), lift('Romanian_Deadlift', 3), lift('Standing_Calf_Raises', 3), lift('Seated_Calf_Raise', 3), lift('Plank', 3), lift('Crunches', 3)]
+    // No spare time (the session length is what it already takes): only moves, no extra sets.
+    const [a, b] = balanceWeek([{ items: day() }, { items: day() }], minutesFor(day()), target)
+    const before = by([...day(), ...day()])
+    const after = by([...a, ...b])
+    expect(after.Quads).toBeGreaterThan(before.Quads)
+    expect(after.Hamstrings).toBeGreaterThan(before.Hamstrings)
+    expect(after.Calves).toBeLessThan(before.Calves)
+    expect(after.Core).toBeLessThan(before.Core)
+    expect(Math.abs(minutesFor(a) - minutesFor(day()))).toBeLessThan(4)
+    for (const p of [...a, ...b]) { expect(p.sets).toBeGreaterThanOrEqual(2); expect(p.sets).toBeLessThanOrEqual(5) }
+  })
+
+  it('trims a muscle far past its target, and leaves fixed sessions alone', () => {
+    const core = [lift('Plank', 5), lift('Crunches', 5), lift('Russian_Twist', 5), lift('Dead_Bug', 5)]
+    const fixed = [{ exerciseId: 'x-burpee', sets: 5, block: 'circuit' }]
+    const [s, f] = balanceWeek([{ items: core }, { items: fixed, fixed: true }], 45, target)
+    expect(by(s).Core).toBeLessThanOrEqual(Math.ceil(target('Core') * 1.75))
+    expect(f).toEqual(fixed)
+  })
+
+  it('plans land near each muscle\'s weekly target, without piling sets on the small ones', () => {
+    const week = (split: 'upperlower' | 'ppl', n: number) => generateProgram(base({ split, trainWeekdays: defaultWeekdays(n), minutes: 60, rng: mulberry32(2) }))
+    const ul = plannedSets(week('upperlower', 4).flatMap((d) => d.items), (id) => BUILTIN_BY_ID.get(id))
+    for (const g of ['Chest', 'Back', 'Quads', 'Hamstrings']) expect(ul[g], g).toBeGreaterThanOrEqual(10)
+    const ppl = plannedSets(week('ppl', 6).flatMap((d) => d.items), (id) => BUILTIN_BY_ID.get(id))
+    for (const g of MUSCLE_GROUPS) expect(ppl[g], g).toBeLessThanOrEqual(Math.ceil(target(g) * 1.75) + 1)
   })
 })
