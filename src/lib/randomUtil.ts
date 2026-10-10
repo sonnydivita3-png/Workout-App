@@ -1,10 +1,11 @@
-import { EXERCISES } from '../data/exercises'
+import { BUILTIN_BY_ID, EXERCISES } from '../data/exercises'
 import type { Exercise } from '../types'
 import { FULL_BODY_ORDER } from './bodyParts'
 
 export type Rng = () => number
 
-export const BY_ID = new Map(EXERCISES.map((e) => [e.id, e]))
+/** Any library exercise by id, retired ones included (they can still be in old plans). */
+export const BY_ID = BUILTIN_BY_ID
 /** Exercises sensible to auto-pick in ordinary workouts. */
 export const POOL = EXERCISES.filter((e) => e.suggest)
 export const byName = (name: string) => EXERCISES.find((e) => e.name === name)
@@ -87,7 +88,7 @@ const FAMILIES: [string, RegExp][] = [
   ['incline', /incline.*(press|bench)/i], ['bench', /bench press|chest press|floor press/i], ['pushup', /push-?up/i],
   ['row', /\brows?\b/i], ['vertical pull', /pulldown|pull-?up|chin-?up/i], ['overhead', /overhead press|shoulder press|military|arnold|push press/i],
   ['raise', /lateral raise|front raise|rear delt|reverse fly/i], ['fly', /\bfly|flyes|crossover/i], ['curl', /(?<!leg )curl/i],
-  ['triceps', /pushdown|triceps? extension|skull|kickback/i], ['calf', /calf/i], ['bridge', /hip thrust|glute bridge|bridge/i],
+  ['triceps', /pushdown|triceps? extension|skull|kickback/i], ['calf', /calf/i], ['bridge', /hip thrust|glute bridge|hip bridge|butt lift/i],
   ['crunch', /crunch|sit-?up/i], ['plank', /plank/i],
 ]
 export const familyOf = perExercise((e) => FAMILIES.find(([, re]) => re.test(`${e.name} ${e.fullName ?? ''}`))?.[0])

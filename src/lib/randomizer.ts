@@ -542,7 +542,13 @@ function pickSupersets(groups: string[], minutes: number, rng: Rng, avoid: Set<s
   if (best.length === 0 && pairs[0]) best = pairs[0].map((p) => ({ ...p, sets: 3 }))
   // Still short: finish with one straight-set exercise from the leftovers.
   if (liftsMinutes(best, pref) < minutes * 0.9) {
-    const leftovers = pool.filter((p) => !best.some((b) => b.exerciseId === p.exerciseId))
+    // Not one already in (nor a second of a movement or, when every part is in, a second of a body part).
+    const oneEach = BODY_PARTS.every((p) => groups.includes(p))
+    const of = (p: PlannedExercise) => BY_ID.get(p.exerciseId)
+    const clash = (p: PlannedExercise) => best.some((b) => b.exerciseId === p.exerciseId
+      || (oneEach && of(b)?.group === of(p)?.group)
+      || (!!of(p) && !!familyOf(of(p)!) && of(b) && familyOf(of(b)!) === familyOf(of(p)!)))
+    const leftovers = pool.filter((p) => !clash(p))
     const options = leftovers.flatMap((p) => [3, 2].map((sets) => ({ ...p, sets, block: undefined, blockLabel: undefined })))
     let pick: PlannedExercise | undefined
     for (const extra of options) {

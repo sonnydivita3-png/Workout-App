@@ -108,14 +108,15 @@ test('plan and log an exercise, then see it in History', async ({ page }) => {
   await page.locator('nav').getByText('Workouts').click()
   await page.getByRole('button', { name: '+ Add', exact: true }).click()
   await page.getByText('Add an exercise').click()
+  // The library's old name finds the everyday one.
   await page.getByPlaceholder(/search/i).fill('Pushups')
-  await page.locator('.fixed button', { hasText: /^Pushups/ }).first().click()
+  await page.locator('.fixed button').filter({ has: page.locator('span', { hasText: /^Push-Up$/ }) }).first().click()
   await page.locator('.fixed').getByRole('button', { name: /Done|Close/ }).first().click()
   await page.locator('input[type=number]').first().fill('20')
   await expect.poll(async () => (await state(page)).logs.length).toBe(1)
   await page.locator('nav').getByText('Progress').click()
   await page.getByRole('button', { name: 'Exercises' }).click()
-  await expect(page.getByText('Pushups')).toBeVisible()
+  await expect(page.getByText('Push-Up', { exact: true })).toBeVisible()
 })
 
 test('randomizer builds a timed workout with a clock', async ({ page }) => {

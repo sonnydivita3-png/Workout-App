@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { challengeStatus, isLive, timeIsUp } from './challengeStatus'
 import { challengeUpdates, pendingCount } from './store'
 import type { Challenge, Profile } from './types'
@@ -6,6 +6,9 @@ import type { Challenge, Profile } from './types'
 const me: Profile = { id: 'me', handle: 'me', displayName: 'Me', avatar: '💪' }
 const alex: Profile = { id: 'a', handle: 'alex', displayName: 'Alex', avatar: '🔥' }
 const NOW = new Date('2026-10-01T12:00:00Z').getTime()
+// The clock is pinned so the dates below never go stale (an "active" challenge ending 2026-10-07 is only live before then).
+beforeAll(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(NOW) })
+afterAll(() => { vi.useRealTimers() })
 const ch = (over: Partial<Challenge>): Challenge => ({
   id: 'c1', from: me, to: alex, kind: 'total', title: 'Push-ups: 100', spec: { metric: 'reps' } as Challenge['spec'], target: 100, days: 7,
   status: 'pending', progress: 0, done: false, createdAt: '2026-09-30T12:00:00Z', mine: true, ...over,

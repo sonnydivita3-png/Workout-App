@@ -32,7 +32,7 @@ const HYROX_SUBS: Record<string, [string, number, 'm' | 'reps']> = {
   'x-row-erg': ['x-jumping-jacks', 100, 'reps'],
   'x-farmers-carry': ['x-high-knees', 100, 'reps'],
   'x-sandbag-lunges': ['Bodyweight_Walking_Lunge', 100, 'm'],
-  'x-wall-balls': ['x-air-squat', 75, 'reps'],
+  'x-wall-balls': ['Bodyweight_Squat', 75, 'reps'],
 }
 const FULL_RUN_KM = 1
 const MIN_PER_KM = 6
@@ -109,7 +109,7 @@ const crossfitPool = () => {
 /** Reps per round for a WOD movement, by feel. */
 function wodReps(e: Exercise, rng: Rng, hard: boolean): number {
   const table: Record<string, [number, number]> = {
-    'x-burpee': [8, 12], 'x-air-squat': [15, 20], Pushups: [10, 15], Pullups: [5, 8], 'x-toes-to-bar': [6, 10],
+    'x-burpee': [8, 12], Pushups: [10, 15], Pullups: [5, 8], 'x-toes-to-bar': [6, 10],
     'x-kb-swing': [15, 20], 'x-thruster': [8, 12], 'x-db-snatch': [8, 12], 'x-box-jump': [10, 12],
     'x-wall-balls': [12, 15], 'x-double-unders': [30, 50], 'Sit-Up': [15, 20], Bodyweight_Squat: [15, 20],
   }
