@@ -86,6 +86,12 @@ describe('suggestNext (slow double progression, a set or two at a time)', () => 
     const pushups = { date: '2026-08-01', exerciseId: 'x', sets: [{ weight: null, reps: 20 }] }
     expect(suggestNext(push, pushups, {}, lb, [pushups], '2026-09-15')).toMatchObject({ kind: 'repeat', reps: 20 })
   })
+  it('a planned deload week: about 90% of last time, whatever last time was', () => {
+    const s = suggestNext(bench, log([w(185, 8), w(185, 8), w(185, 8)]), { reps: 8, sets: 2, deload: true }, lb)
+    expect(s).toMatchObject({ kind: 'deload', weight: 165, reps: 8, changed: 2 })
+    expect(s.why).toMatch(/^Deload week/)
+    expect(suggestNext(push, log([{ weight: null, reps: 20 }]), { deload: true }, lb)).toMatchObject({ kind: 'repeat', reps: 20 })
+  })
   it('uses 2.5 kg steps in kg', () => {
     const s = suggestNext(bench, log([{ weight: 100 * 2.20462262, reps: 7 }, { weight: 100 * 2.20462262, reps: 5 }]), { reps: 5 }, { weight: 'kg', distance: 'km' })
     expect(Math.round((s.weight! / 2.20462262) * 10) / 10).toBe(102.5)

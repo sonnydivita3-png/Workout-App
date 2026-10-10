@@ -79,13 +79,14 @@ const FIRST: Record<NonNullable<Exercise['mode']>, string> = {
  * - More sets planned than last time is progress enough for one session.
  * - A different rep target from last time (3 × 12, then 3 × 6) starts from the weight your last session points to for
  *   those reps (estimated max, a rep in reserve), not last time's weight plus a step.
- * - A month or more off: about 90% of last time, or last time's numbers, to ease back in.
+ * - A month or more off, or a planned deload week: about 90% of last time, or last time's numbers.
  * - Bodyweight moves add a rep, holds add 5 seconds, on one or two sets. Stuck 3 sessions: a ~10% deload.
  */
 export function suggestNext(
   ex: Exercise,
   last: ExerciseLog | undefined,
-  target: { reps?: number; seconds?: number; sets?: number },
+  /** Planned reps or seconds and sets; `deload` for a planned lighter week. */
+  target: { reps?: number; seconds?: number; sets?: number; deload?: boolean },
   units: Units,
   /** Earlier sessions of this exercise, newest first, starting with `last`. Used to spot a plateau. */
   history: ExerciseLog[] = [],
@@ -112,6 +113,12 @@ export function suggestNext(
   const top = mode === 'weight' ? Math.max(...done.map((s) => s.weight ?? 0)) : 0
   const repsAtTop = Math.max(0, ...done.filter((s) => top > 0 && s.weight === top).map((s) => s.reps ?? 0))
   const step = weightStep(ex, units)
+
+  // A planned deload week: lighter on purpose, so the next block starts fresh (it builds from the week before this).
+  if (target.deload) {
+    if (top > 0) return all(Math.max(step, Math.floor((top * 0.9) / step) * step), target.reps ?? repsAtTop, 'deload', `Deload week: about 90% of last time (${lb(top)}). Easy on purpose, so you come back stronger.`)
+    return out('repeat', base, [], 'Deload week: last time’s numbers, nothing more. Easy on purpose.')
+  }
 
   // A month or more off: some strength fades, so ease back in (about 90%, or last time's numbers) before adding more.
   const weeks = on && last ? Math.floor((parseISO(on).getTime() - parseISO(last.date).getTime()) / (7 * 86_400_000)) : 0

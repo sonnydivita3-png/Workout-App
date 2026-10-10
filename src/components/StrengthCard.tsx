@@ -47,6 +47,8 @@ interface Props {
   date?: string
   /** They chose to keep the planned number of sets over last time's. */
   keepSets?: boolean
+  /** A planned deload week: lighter targets on purpose. */
+  deload?: boolean
   /** Keep the planned number of sets (when asked about last time's). No question without it. */
   onKeepSets?: () => void
 }
@@ -57,7 +59,7 @@ const MARK = { up: { t: '▲', c: 'text-green-600', l: 'beat last time' }, same:
  * One exercise to log: a target from last time, then a row per set. ✓ logs a set (filling in the target if nothing
  * was typed). Everything else (note, plates, fewer sets, remove) is under ⋯ so the card stays simple.
  */
-export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, warmupSets = 0, rest, note, current, last, onSetCount, onChange, onNote, onRemove, onSetDone, restNote, onSwap, onHistory, onDeleteSet, readOnly, dropSets = 0, onDropSets, onDeleteDrop, date, keepSets, onKeepSets }: Props) {
+export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, warmupSets = 0, rest, note, current, last, onSetCount, onChange, onNote, onRemove, onSetDone, restNote, onSwap, onHistory, onDeleteSet, readOnly, dropSets = 0, onDropSets, onDeleteDrop, date, keepSets, onKeepSets, deload }: Props) {
   const units = useStore((s) => s.units)
   const trackRpe = useStore((s) => s.trackRpe)
   const mode = exercise.mode ?? 'weight'
@@ -79,7 +81,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
   const allLogs = useStore((s) => s.logs)
   const history = last ? allLogs.filter((l) => l.exerciseId === exercise.id && l.date <= last.date).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4) : []
   const custom = useStore((s) => s.custom)
-  const fromLast = suggestNext(exercise, last, { reps: targetReps, seconds: targetSeconds, sets: setCount }, units, history, date)
+  const fromLast = suggestNext(exercise, last, { reps: targetReps, seconds: targetSeconds, sets: setCount, deload }, units, history, date)
   // Never done this one: start from the most recent similar lift they have logged.
   const tip = (fromLast.kind === 'first' && estimateStart(exercise, allLogs, targetReps, units, (id) => findExercise(custom, id))) || fromLast
 
@@ -204,6 +206,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
           <p className="text-xs text-neutral-400">
             {exercise.group}
             {mode === 'time' && ' · timed'}
+            {deload && ' · deload week'}
             {chosenMode === 'reps' && exercise.equipment !== 'Bodyweight' && ' · bodyweight'}
             {target && ` · ${target}`}
             {warmupSets > 0 && ` · +${warmupSets} warm-up`}

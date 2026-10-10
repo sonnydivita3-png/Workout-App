@@ -75,6 +75,10 @@ export function targetsFor(e: Exercise, rng: Rng = Math.random): Pick<PlannedExe
   return e.mode === 'time' ? { seconds: [30, 45, 60][Math.floor(rng() * 3)] } : { reps: repsFor(e, rng) }
 }
 
+/** Reps from a chosen range for a weighted lift (the low end for big compound lifts), or null to use the style's own. */
+const repsIn = (range: [number, number] | undefined, e: Exercise, main = false): Pick<PlannedExercise, 'reps' | 'seconds'> | null =>
+  range && modeOf(e) === 'weight' ? { reps: main || isMainLift(e) ? range[0] : range[1] } : null
+
 /** Only carry an instruction to a replacement when it applies to any exercise (interval timing), not one station. */
 const carriesNote = (label?: string) => !!label && /^(HIIT|PHA)/.test(label)
 
@@ -224,7 +228,17 @@ export interface LiftOptions {
   warmupSets?: boolean
   /** Lifts the person has been logging: picked first so their numbers carry over and keep progressing. */
   familiar?: Set<string>
+  /**
+   * Most hard sets a muscle gets in one session (planned weeks use this). Past about 10-15, more sets add fatigue
+   * rather than growth, so the time goes elsewhere instead of to a ninth exercise for the same muscle.
+   */
+  setCap?: (part: string) => number
+  /** Reps for weighted lifts: [big compound lifts, everything else] (e.g. [5, 8] for heavy work). */
+  repRange?: [number, number]
 }
+
+/** At most this many different exercises for one muscle in a session, when sets are capped. */
+const MAX_PER_PART = 5
 
 const STANDARD: LiftConfig = {
   sets: 3, maxSets: MAX_SETS, filter: () => true, fallback: 'any', targets: targetsFor, sortByRank: true,
@@ -361,9 +375,12 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
   const perPart = new Map<string, number>()
   const cost = () => liftsMinutes(items, pref)
   const make = (e: Exercise, sets: number, main = false): PlannedExercise => {
-    const t = (main && cfg.mainTargets ? cfg.mainTargets : cfg.targets)(e, rng)
+    const t = repsIn(opts.repRange, e, main) ?? (main && cfg.mainTargets ? cfg.mainTargets : cfg.targets)(e, rng)
     return { exerciseId: e.id, sets, ...t, rest: restFor(e, t.reps, t.seconds, pref) }
   }
+  // Hard sets per muscle so far, against the session cap (when there is one).
+  const setsIn = (g: string) => items.reduce((a, p) => a + (BY_ID.get(p.exerciseId)?.group === g ? p.sets : 0), 0)
+  const roomFor = (g: string | undefined, n: number) => !opts.setCap || !g || setsIn(g) + n <= opts.setCap(g)
   // At most two of the same movement family per workout (one on full-body days: a squat for quads, so no second
   // squat for glutes), where the library allows.
   const family = new Map<string, number>()
@@ -413,7 +430,7 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
   }
   const fits = (limit: number) => cost() <= minutes * limit
   const tryAdd = (g: string, e: Exercise | undefined, sets: number, limit: number, main = false) => {
-    if (!e) return false
+    if (!e || !roomFor(e.group, sets) || (opts.setCap && (perPart.get(g) ?? 0) >= MAX_PER_PART)) return false
     items.push(make(e, sets, main))
     if (!fits(limit)) { items.pop(); return false }
     taken.add(e.id)
@@ -446,7 +463,7 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
   if (mains) {
     for (let round = 0; round < 2; round++) {
       for (const p of items.slice(0, mains)) {
-        if (p.sets >= cfg.maxSets) continue
+        if (p.sets >= cfg.maxSets || !roomFor(BY_ID.get(p.exerciseId)?.group, 1)) continue
         p.sets++
         if (!fits(0.6)) p.sets--
       }
@@ -494,7 +511,7 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
     for (let round = 0; round < cap + 2; round++) {
       let grew = false
       for (const p of items) {
-        if (p.sets >= cap) continue
+        if (p.sets >= cap || !roomFor(BY_ID.get(p.exerciseId)?.group, 1)) continue
         p.sets++
         if (fits(1.02)) grew = true
         else p.sets--
@@ -531,11 +548,18 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
 function pickSupersets(groups: string[], minutes: number, rng: Rng, avoid: Set<string>, opts: LiftOptions = {}): PlannedExercise[] {
   const pref = opts.rest ?? 'normal'
   // Paired work is quicker, so ask for more exercises than straight sets would fit, then choose from them.
-  const pool = pickLifts(groups, minutes * 1.8, rng, avoid, { ...SUPERSET, maxSets: 3 }, { rest: pref, noRepeats: BODY_PARTS.every((p) => groups.includes(p)), familiar: opts.familiar }).map((p) => ({ ...p, sets: 3, warmupSets: undefined }))
+  const pool = pickLifts(groups, minutes * 1.8, rng, avoid, { ...SUPERSET, maxSets: 3 }, { rest: pref, noRepeats: BODY_PARTS.every((p) => groups.includes(p)), familiar: opts.familiar, setCap: opts.setCap && ((g) => opts.setCap!(g) * 1.8), repRange: opts.repRange }).map((p) => ({ ...p, sets: 3, warmupSets: undefined }))
   // Partners to fall back on: the chosen parts' usual moves (in the same order straight sets would offer them).
   const chosen = new Set(groups)
   const extras = [...new Set([...queuesFor(groups, rng, avoid, SUPERSET, opts.familiar).values()].flat())].filter((e) => chosen.has(e.group))
-  const extra = (e: Exercise): PlannedExercise => { const t = targetsFor(e, rng); return { exerciseId: e.id, sets: 3, ...t, rest: restFor(e, t.reps, t.seconds, pref) } }
+  const extra = (e: Exercise): PlannedExercise => { const t = repsIn(opts.repRange, e) ?? targetsFor(e, rng); return { exerciseId: e.id, sets: 3, ...t, rest: restFor(e, t.reps, t.seconds, pref) } }
+  // Within the session's sets per muscle, when capped.
+  const withinCap = (list: PlannedExercise[]) => {
+    if (!opts.setCap) return true
+    const by = new Map<string, number>()
+    for (const p of list) { const g = BY_ID.get(p.exerciseId)?.group ?? ''; by.set(g, (by.get(g) ?? 0) + p.sets) }
+    return [...by].every(([g, n]) => n <= opts.setCap!(g))
+  }
   const paired = makeSupersets(pool, extras, extra, BODY_PARTS.every((p) => groups.includes(p)))
   const pairs: PlannedExercise[][] = []
   for (let i = 0; i < paired.length; ) {
@@ -549,7 +573,7 @@ function pickSupersets(groups: string[], minutes: number, rng: Rng, avoid: Set<s
     for (const rounds of [3, 4, 5]) {
       const trial = pairs.slice(0, k).flat().map((p) => ({ ...p, sets: rounds }))
       const t = liftsMinutes(trial, pref)
-      const score = t > minutes * 1.08 ? Infinity : Math.abs(t - minutes)
+      const score = t > minutes * 1.08 || !withinCap(trial) ? Infinity : Math.abs(t - minutes)
       if (score < bestScore) { best = trial; bestScore = score }
     }
   }
@@ -567,7 +591,7 @@ function pickSupersets(groups: string[], minutes: number, rng: Rng, avoid: Set<s
     let pick: PlannedExercise | undefined
     for (const extra of options) {
       const t = liftsMinutes([...best, extra], pref)
-      if (t <= minutes * 1.08 && (!pick || Math.abs(t - minutes) < Math.abs(liftsMinutes([...best, pick], pref) - minutes))) pick = extra
+      if (t <= minutes * 1.08 && withinCap([...best, extra]) && (!pick || Math.abs(t - minutes) < Math.abs(liftsMinutes([...best, pick], pref) - minutes))) pick = extra
     }
     if (pick) best = [...best, pick]
   }
@@ -839,6 +863,10 @@ export interface GenerateOptions {
   cardio?: CardioSpec
   /** Already warmed up (a warm-up was added, or this is a later part of a mixed workout): no warm-up of its own. */
   warmed?: boolean
+  /** Most hard sets per muscle in the session (see LiftOptions). */
+  setCap?: (part: string) => number
+  /** Reps for weighted lifts: [big compound lifts, everything else]. */
+  repRange?: [number, number]
 }
 
 /**
@@ -901,13 +929,13 @@ export function generateWorkout(focusIn: string[], minutes: number, opts: Genera
     return [...warm, ...main.filter((p) => !warm.some((x) => x.exerciseId === p.exerciseId))]
   }
   const { style = 'standard', rng = Math.random, avoid = new Set<string>() } = opts
-  const lift: LiftOptions = { rest: opts.rest, warmupSets: w.sets, familiar: opts.familiar, cardio: opts.cardio }
+  const lift: LiftOptions = { rest: opts.rest, warmupSets: w.sets, familiar: opts.familiar, cardio: opts.cardio, setCap: opts.setCap, repRange: opts.repRange }
   const custom = opts.cardioMinutes != null || (opts.minutesByStyle && Object.keys(opts.minutesByStyle).length > 0)
   if (opts.styles && (new Set(opts.styles).size > 1 || custom)) {
     const list = [...new Set(opts.styles)].sort((a, b) => STYLE_ORDER.indexOf(a) - STYLE_ORDER.indexOf(b))
     return generateMixed(focus, minutes, list, rng, avoid, opts.minutesByStyle, opts.cardioMinutes, lift)
   }
-  if (opts.styles?.length === 1) return generateWorkout(focus, minutes, { style: opts.styles[0], rng, avoid, rest: opts.rest, warmup: { sets: w.sets }, familiar: opts.familiar, cardio: opts.cardio, warmed: opts.warmed })
+  if (opts.styles?.length === 1) return generateWorkout(focus, minutes, { style: opts.styles[0], rng, avoid, rest: opts.rest, warmup: { sets: w.sets }, familiar: opts.familiar, cardio: opts.cardio, warmed: opts.warmed, setCap: opts.setCap, repRange: opts.repRange })
   // Cardio and no body parts with a conditioning style: that's a hard cardio session (intervals, or a time trial for
   // "for time"), not a bodyweight circuit with one cardio station.
   const cardioOnly = focus.includes('Cardio') && focus.every((g) => g === 'Cardio')
