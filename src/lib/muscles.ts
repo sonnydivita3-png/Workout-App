@@ -63,3 +63,29 @@ export function plannedSets(items: PlannedExercise[], lookup: (id: string) => Ex
   }
   return out
 }
+
+/**
+ * Most hard sets for one muscle in a session: about 15 for the big ones and 10 for arms, calves and core. Past roughly
+ * 10-15, more sets in one go mostly add fatigue rather than growth.
+ */
+const SMALL_PARTS = new Set(['Biceps', 'Triceps', 'Calves', 'Forearms', 'Core'])
+export const sessionSets = (part: string) => (SMALL_PARTS.has(part) ? 10 : 15)
+/** The usual most exercises for one muscle in a session (people can set their own). */
+export const PER_MUSCLE = 5
+
+export interface Overload { part: string; exercises: number; sets: number }
+/**
+ * Muscles a workout gives more than is useful in one session: more exercises than `maxExercises`, or more hard sets
+ * than sessionSets. Straight sets and supersets only (circuit stations and timed pieces work differently).
+ */
+export function overloaded(items: PlannedExercise[], lookup: (id: string) => Exercise | undefined, maxExercises = PER_MUSCLE): Overload[] {
+  const by = new Map<string, { exercises: number; sets: number }>()
+  for (const p of items) {
+    const ex = lookup(p.exerciseId)
+    if (!ex || ex.kind !== 'strength' || p.warmup || p.wod || (p.block && !p.block.startsWith('ss'))) continue
+    const part = partFromName(ex.group, ex.name)
+    const cur = by.get(part) ?? { exercises: 0, sets: 0 }
+    by.set(part, { exercises: cur.exercises + 1, sets: cur.sets + p.sets })
+  }
+  return [...by].filter(([part, v]) => v.exercises > maxExercises || v.sets > sessionSets(part)).map(([part, v]) => ({ part, ...v }))
+}

@@ -7,6 +7,8 @@ import { CloudBackup } from './CloudBackup'
 import { AccountSection } from './AccountSection'
 import { EquipmentPicker } from './EquipmentPicker'
 import { FavoritesPicker } from './FavoritesPicker'
+import { PerMuscleStepper } from './VolumeCheck'
+import { EXTRA_TIME_CHOICES, extraTimeOf, perMuscleOf, type ExtraTimeChoice } from '../lib/volumePrefs'
 import { GoalPicker, LikedCardioPicker, LikedStylesPicker, MovePrefsPicker } from './TrainingPrefsPicker'
 import { equipmentSummary } from '../lib/equipment'
 import { InviteButton } from './InviteButton'
@@ -73,7 +75,7 @@ const REST_LABEL = (r: number) => (r === -1 ? 'as planned' : r ? `${r} s` : 'off
 
 /** Settings, grouped into a few short pages instead of one long list. */
 export function SettingsView({ initialPage, onBack }: { initialPage?: string; onBack?: () => void }) {
-  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, name, setName, importData, setTourDone, trackRpe, restSeconds, setPrefs, theme, setTheme, accent, setAccent, cloud, socialChoice, equipment, aboutMe, setAboutMe } = useStore()
+  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, name, setName, importData, setTourDone, trackRpe, restSeconds, setPrefs, theme, setTheme, accent, setAccent, cloud, socialChoice, equipment, aboutMe, setAboutMe, trainingPrefs, setTrainingPrefs } = useStore()
   const [page, setPage] = useState<Page | null>(PAGES.some((p) => p.id === initialPage) ? (initialPage as Page) : null)
   const [advanced, setAdvanced] = useState(false)
   const myHandle = useSocial((s) => s.profile?.handle)
@@ -234,6 +236,16 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
         </select>
       </Row>
       <p className="px-1 text-sm text-neutral-500">Off unless you turn it on: ticking ✓ on a set then counts down your rest and buzzes when it’s over. “As planned” uses each exercise’s planned rest (longer for heavy sets). Timed workouts (AMRAP, EMOM, circuits) always have their own clock. RPE is how hard a set felt (10 = nothing left); sets at 10 won’t trigger an “add weight” suggestion.</p>
+      <h2 className="pt-4 text-sm font-semibold text-neutral-700">Exercises per muscle</h2>
+      <Row title="Most for one muscle in a workout">
+        <PerMuscleStepper value={perMuscleOf(trainingPrefs.perMuscle)} onChange={(n) => setTrainingPrefs({ perMuscle: n })} />
+      </Row>
+      <Row title="When a workout would have more">
+        <select aria-label="When a workout would have more" value={extraTimeOf(trainingPrefs.extraTime)} onChange={(e) => setTrainingPrefs({ extraTime: e.target.value as ExtraTimeChoice })} className="max-w-[11rem] rounded-lg bg-neutral-100 px-2 py-1.5 text-sm">
+          {EXTRA_TIME_CHOICES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+        </select>
+      </Row>
+      <p className="px-1 text-sm text-neutral-500">Most people grow best on about 10–15 hard sets for one muscle in a session, usually 4–5 exercises; past that, extra sets mostly add fatigue. When filling the time would give one muscle more than your number, generated workouts and plans use the time another way: fewer exercises done heavier (more sets, fewer reps, longer rests), a cardio finisher, another body part, or a shorter session. “Keep adding exercises” turns this off.</p>
       </>)}
 
       {page === 'look' && (<>

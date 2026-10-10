@@ -11,6 +11,7 @@ import { repairState, SCHEMA_VERSION } from './lib/migrate'
 import { SYNC_KEYS } from './lib/sync'
 import type { RestPref } from './lib/timing'
 import type { WorkoutStyle } from './lib/randomizer'
+import type { ExtraTimeChoice } from './lib/volumePrefs'
 
 import { setOwnedGear } from './lib/equipment'
 import { setChosenModes, withChosenMode } from './lib/exerciseModes'
@@ -41,6 +42,10 @@ export interface TrainingPrefs {
   cardioMinutes?: number | null
   /** Weekly cardio distance to aim for, in miles (optional; no distance target when unset). */
   cardioMiles?: number | null
+  /** Most exercises for one muscle in a generated workout before it asks how to use the time (default 5). */
+  perMuscle?: number
+  /** What generated workouts do when filling the time would give one muscle more than that (see lib/volumePrefs.ts). */
+  extraTime?: ExtraTimeChoice
 }
 
 export type ThemeMode = 'dark' | 'light' | 'auto'

@@ -1,8 +1,12 @@
 import { useState } from 'react'
 import { parseISO, weekdayIndex } from '../lib/dates'
 import {
-  bringsOwnWarmup, generateWorkout, LIFT_GROUPS, minutesFor, replaceExercise, STYLE_GROUPS, styleInfo, swapExercise, type WorkoutStyle,
+  bringsOwnWarmup, extraTimeOptions, generateWorkout, LIFT_GROUPS, minutesFor, replaceExercise, STYLE_GROUPS, styleInfo, swapExercise,
+  type ExtraTime, type ExtraTimeOption, type GenerateOptions, type WorkoutStyle,
 } from '../lib/randomizer'
+import { overloaded, type Overload } from '../lib/muscles'
+import { extraTimeOf, perMuscleOf } from '../lib/volumePrefs'
+import { VolumeCheck } from './VolumeCheck'
 import { expandParts, isFullBody, LOWER_PARTS, UPPER_PARTS } from '../lib/bodyParts'
 import { useStore } from '../store'
 import type { PlannedExercise } from '../types'
@@ -45,8 +49,14 @@ interface Props {
   onUse?: (items: PlannedExercise[]) => void
 }
 
+/** A workout that gave one muscle too much: what was made, the other ways to use the time, and what they picked. */
+interface Volume { over: Overload[]; options: ExtraTimeOption[]; base: PlannedExercise[]; opts: GenerateOptions; chosen: ExtraTime | 'more' | null; auto: boolean }
+
 export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
-  const { addPlanned, saveRoutine, genPrefs, setGenPrefs, equipment, trainingPrefs } = useStore()
+  const { addPlanned, saveRoutine, genPrefs, setGenPrefs, equipment, trainingPrefs, setTrainingPrefs } = useStore()
+  const perMuscle = perMuscleOf(trainingPrefs.perMuscle)
+  const extraTime = extraTimeOf(trainingPrefs.extraTime)
+  const [volume, setVolume] = useState<Volume | null>(null)
   const [gear, setGear] = useState<string[] | null>(equipment)
   const warm = genPrefs.warmup
   const rest = genPrefs.rest
@@ -164,18 +174,40 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
     const cardioSpec = hasKind('cardio') ? { exerciseId: one, kind: sessionKind } : undefined
     // Cardio on its own: its session has its own warm-up and cool-down, so no warm-up cardio or mobility before it.
     const warmup = cardioOnly ? {} : { ...warmSplit(), sets: warm.includes('sets') && lifting }
-    commit(withChoices(() => generateWorkout(genFocus, total0, {
+    const opts: GenerateOptions = {
       style: styles[0], styles, rest, warmup, cardio: cardioSpec,
       dropSets: !!genPrefs.drops && lifting,
       ...(showSplit ? { minutesByStyle: Object.fromEntries(styles.map((st) => [st, partMin(st)])), ...(hasCardio ? { cardioMinutes: partMin('cardio') } : {}) } : {}),
       avoid: new Set(avoid?.map((p) => p.exerciseId)),
-    })))
+    }
+    check(withChoices(() => generateWorkout(genFocus, total0, opts)), opts, perMuscle)
+  }
+  // Filling the time gave one muscle more than their limit (or past about 15 hard sets): offer other ways to use it,
+  // or do what they chose before.
+  const check = (base: PlannedExercise[], opts: GenerateOptions, limit: number) => {
+    const over = extraTime === 'more' ? [] : overloaded(base, (id) => BUILTIN_BY_ID.get(id), limit)
+    if (over.length === 0) { setVolume(null); commit(base); return }
+    const options = withChoices(() => extraTimeOptions(genFocus, total0, opts, limit, over.map((o) => o.part)))
+    const auto = extraTime !== 'ask' ? options.find((o) => o.id === extraTime) : undefined
+    setVolume({ over, options, base, opts, chosen: auto?.id ?? null, auto: !!auto })
+    commit(auto?.items ?? base)
+  }
+  const chooseVolume = (id: ExtraTime | 'more', remember: boolean) => {
+    if (!volume) return
+    if (remember) setTrainingPrefs({ extraTime: id })
+    commit(id === 'more' ? volume.base : volume.options.find((o) => o.id === id)!.items)
+    setVolume({ ...volume, chosen: id, auto: false })
+  }
+  const setLimit = (n: number) => {
+    setTrainingPrefs({ perMuscle: n })
+    if (volume) check(volume.base, volume.opts, n)
   }
 
   if (!items) {
     const condGroup = COND_GROUPS.find((g) => g.styles.includes(condStyle))
     return (
-      <Sheet title="Make me a workout" onClose={onClose} closeLabel="Cancel">
+      // Keys: the result opens at its top (with any note about the workout), not where Generate was.
+      <Sheet key="setup" title="Make me a workout" onClose={onClose} closeLabel="Cancel">
         <ModeSwitch mode="one" onChange={onSwitchMode} />
 
         <h3 className="mb-2 text-sm font-medium">What kind of workout? <span className="font-normal text-neutral-400">(one or more)</span></h3>
@@ -277,7 +309,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const total = minutesFor(items)
 
   return (
-    <Sheet title="Your workout" onClose={onClose} closeLabel="Close">
+    <Sheet key="result" title="Your workout" onClose={onClose} closeLabel="Close">
       <div className="mb-2 flex items-center justify-between text-sm">
         <button
           onClick={() => go(-1)}
@@ -300,6 +332,12 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
       <p className="mb-3 text-sm text-neutral-400">
         {styleLabel} · {focusLabel}{hasCardio ? ' + Cardio' : ''} · about {Math.round(total)} min
       </p>
+      {volume && (
+        <VolumeCheck
+          over={volume.over} options={volume.options} chosen={volume.chosen} auto={volume.auto} limit={perMuscle}
+          onLimit={setLimit} onChoose={chooseVolume} onReopen={() => setVolume({ ...volume, chosen: null, auto: false })}
+        />
+      )}
       {items.length === 0 ? (
         <p className="py-6 text-center text-neutral-400">Couldn’t build a workout for that. Try another mix.</p>
       ) : (
@@ -356,7 +394,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
           onClose={() => setPickIndex(null)}
         />
       )}
-      <button onClick={() => setHistory({ list: [], at: 0 })} className="mt-3 w-full text-center text-sm text-neutral-400">Change style, focus or time</button>
+      <button onClick={() => { setHistory({ list: [], at: 0 }); setVolume(null) }} className="mt-3 w-full text-center text-sm text-neutral-400">Change style, focus or time</button>
     </Sheet>
   )
 }

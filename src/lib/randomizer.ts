@@ -1,6 +1,7 @@
 import { EXERCISES } from '../data/exercises'
 import { hasGear } from './equipment'
 import { modeOf } from './exerciseModes'
+import { sessionSets } from './muscles'
 import type { Exercise, PlannedExercise } from '../types'
 import { generateCrossfit, generateHyrox, generateTimed } from './functionalStyles'
 import { liftMinutes, REST_SCALE, restFor, transitionMin, WARMUP_SET_MIN, workSeconds, type RestPref } from './timing'
@@ -235,6 +236,10 @@ export interface LiftOptions {
   setCap?: (part: string) => number
   /** Reps for weighted lifts: [big compound lifts, everything else] (e.g. [5, 8] for heavy work). */
   repRange?: [number, number]
+  /** Most different exercises for one muscle (default: 5 when sets are capped, else no limit). */
+  maxPerPart?: number
+  /** Sets each exercise starts with and grows to while filling the time (the style's own otherwise). */
+  setsPerExercise?: [number, number]
 }
 
 /** At most this many different exercises for one muscle in a session, when sets are capped. */
@@ -367,7 +372,9 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
   // Other choices go in random order and can get several exercises each.
   const fullBody = isFullBody(groups)
   const order = fullBody ? [...FULL_BODY_ORDER.filter((g) => groups.includes(g)), ...groups.filter((g) => !FULL_BODY_ORDER.includes(g))] : shuffle(groups, rng)
-  const maxSets = fullBody ? Math.max(cfg.maxSets, 5) : cfg.maxSets
+  const startSets = opts.setsPerExercise?.[0] ?? cfg.sets
+  const maxSets = opts.setsPerExercise?.[1] ?? (fullBody ? Math.max(cfg.maxSets, 5) : cfg.maxSets)
+  const perPartMax = opts.maxPerPart ?? (opts.setCap ? MAX_PER_PART : Infinity)
   const familiar = opts.familiar ?? new Set<string>()
   const queues = queuesFor(order, rng, avoid, cfg, familiar)
   const taken = new Set<string>()
@@ -430,7 +437,7 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
   }
   const fits = (limit: number) => cost() <= minutes * limit
   const tryAdd = (g: string, e: Exercise | undefined, sets: number, limit: number, main = false) => {
-    if (!e || !roomFor(e.group, sets) || (opts.setCap && (perPart.get(g) ?? 0) >= MAX_PER_PART)) return false
+    if (!e || !roomFor(e.group, sets) || (perPart.get(g) ?? 0) >= perPartMax) return false
     items.push(make(e, sets, main))
     if (!fits(limit)) { items.pop(); return false }
     taken.add(e.id)
@@ -448,7 +455,7 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
       const e = fullBody
         ? pickFor(g, (x) => (isHeavyLift(x) ? (equipmentRank(x) === 0 ? 6 : 3) : 0))
         : nextFrom(g, (x) => x.group === g && isHeavyLift(x) && equipmentRank(x) === 0) ?? nextFrom(g, (x) => x.group === g && isHeavyLift(x))
-      if (tryAdd(g, e, cfg.sets + 1, 0.8, true)) mains++
+      if (tryAdd(g, e, Math.min(maxSets, startSets + 1), 0.8, true)) mains++
     }
   }
   // Warm-up sets before the heavy lifts: more before the first one, fewer after (you're already warm).
@@ -473,7 +480,7 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
   // Full body: each part's classic movement with the heaviest equipment available (a squat for quads, a deadlift or
   // RDL for hamstrings, a bench press, a row, an overhead press, a hip thrust…), then the smaller parts while they fit.
   if (fullBody) {
-    for (const g of order) if (!perPart.get(g)) tryAdd(g, pickFor(g), cfg.sets, 1.02)
+    for (const g of order) if (!perPart.get(g)) tryAdd(g, pickFor(g), startSets, 1.02)
   }
 
   // Then round-robin through the groups adding exercises while they fit (full body: only parts still missing one).
@@ -484,7 +491,7 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
       for (const g of order) {
         if (items.length >= CAP) break
         if (onePerPart && perPart.get(g)) continue
-        const accessorySets = cfg.mains ? 3 : cfg.sets
+        const accessorySets = opts.setsPerExercise ? startSets : cfg.mains ? 3 : cfg.sets
         if (tryAdd(g, onePerPart ? nextFrom(g, (x) => x.group === g) : nextFrom(g, undefined, strict), accessorySets, 1.02)) added = true
       }
       if (!added || pass > 12) break
@@ -525,7 +532,7 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
   // A long session can still come up short (a few parts picked, or no equipment for some parts). Every part picked:
   // one more set each first. Then a part can get a second exercise, but only a different movement (never two squats).
   if (fullBody && fits(0.88) && !opts.noRepeats) {
-    if (BODY_PARTS.every((p) => groups.includes(p))) fillSets(maxSets + 1)
+    if (BODY_PARTS.every((p) => groups.includes(p))) fillSets(opts.setsPerExercise ? maxSets : maxSets + 1)
     if (fits(0.88)) {
       roundRobin(false, true)
       sortItems()
@@ -539,7 +546,7 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
     for (const g of order) if (cost() < minutes * 0.9 && (!fullBody || !perPart.get(g)) && tryAdd(g, fullBody ? nextFrom(g, (x) => x.group === g) : nextFrom(g), MIN_SETS, 1.08)) break
   }
   // Out of suitable exercises (a long bodyweight leg day): one more set each rather than ending early.
-  if (fits(0.88)) fillSets(maxSets + 1)
+  if (fits(0.88)) fillSets(opts.setsPerExercise ? maxSets : maxSets + 1)
   for (const p of items) p.est = Math.round(liftMinutes(p, BY_ID.get(p.exerciseId), pref) * 10) / 10
   return items
 }
@@ -548,17 +555,22 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
 function pickSupersets(groups: string[], minutes: number, rng: Rng, avoid: Set<string>, opts: LiftOptions = {}): PlannedExercise[] {
   const pref = opts.rest ?? 'normal'
   // Paired work is quicker, so ask for more exercises than straight sets would fit, then choose from them.
-  const pool = pickLifts(groups, minutes * 1.8, rng, avoid, { ...SUPERSET, maxSets: 3 }, { rest: pref, noRepeats: BODY_PARTS.every((p) => groups.includes(p)), familiar: opts.familiar, setCap: opts.setCap && ((g) => opts.setCap!(g) * 1.8), repRange: opts.repRange }).map((p) => ({ ...p, sets: 3, warmupSets: undefined }))
+  const pool = pickLifts(groups, minutes * 1.8, rng, avoid, { ...SUPERSET, maxSets: 3 }, { rest: pref, noRepeats: BODY_PARTS.every((p) => groups.includes(p)), familiar: opts.familiar, setCap: opts.setCap && ((g) => opts.setCap!(g) * 1.8), repRange: opts.repRange, maxPerPart: opts.maxPerPart && opts.maxPerPart * 2 }).map((p) => ({ ...p, sets: 3, warmupSets: undefined }))
   // Partners to fall back on: the chosen parts' usual moves (in the same order straight sets would offer them).
   const chosen = new Set(groups)
   const extras = [...new Set([...queuesFor(groups, rng, avoid, SUPERSET, opts.familiar).values()].flat())].filter((e) => chosen.has(e.group))
   const extra = (e: Exercise): PlannedExercise => { const t = repsIn(opts.repRange, e) ?? targetsFor(e, rng); return { exerciseId: e.id, sets: 3, ...t, rest: restFor(e, t.reps, t.seconds, pref) } }
-  // Within the session's sets per muscle, when capped.
+  // Within the session's sets and exercises per muscle, when capped.
   const withinCap = (list: PlannedExercise[]) => {
-    if (!opts.setCap) return true
-    const by = new Map<string, number>()
-    for (const p of list) { const g = BY_ID.get(p.exerciseId)?.group ?? ''; by.set(g, (by.get(g) ?? 0) + p.sets) }
-    return [...by].every(([g, n]) => n <= opts.setCap!(g))
+    if (!opts.setCap && !opts.maxPerPart) return true
+    const sets = new Map<string, number>()
+    const count = new Map<string, number>()
+    for (const p of list) {
+      const g = BY_ID.get(p.exerciseId)?.group ?? ''
+      sets.set(g, (sets.get(g) ?? 0) + p.sets)
+      count.set(g, (count.get(g) ?? 0) + 1)
+    }
+    return [...sets].every(([g, n]) => !opts.setCap || n <= opts.setCap(g)) && [...count].every(([, n]) => !opts.maxPerPart || n <= opts.maxPerPart)
   }
   const paired = makeSupersets(pool, extras, extra, BODY_PARTS.every((p) => groups.includes(p)))
   const pairs: PlannedExercise[][] = []
@@ -867,6 +879,10 @@ export interface GenerateOptions {
   setCap?: (part: string) => number
   /** Reps for weighted lifts: [big compound lifts, everything else]. */
   repRange?: [number, number]
+  /** Most different exercises for one muscle (see LiftOptions). */
+  maxPerPart?: number
+  /** Sets each exercise starts with and grows to (see LiftOptions). */
+  setsPerExercise?: [number, number]
 }
 
 /**
@@ -929,13 +945,13 @@ export function generateWorkout(focusIn: string[], minutes: number, opts: Genera
     return [...warm, ...main.filter((p) => !warm.some((x) => x.exerciseId === p.exerciseId))]
   }
   const { style = 'standard', rng = Math.random, avoid = new Set<string>() } = opts
-  const lift: LiftOptions = { rest: opts.rest, warmupSets: w.sets, familiar: opts.familiar, cardio: opts.cardio, setCap: opts.setCap, repRange: opts.repRange }
+  const lift: LiftOptions = { rest: opts.rest, warmupSets: w.sets, familiar: opts.familiar, cardio: opts.cardio, setCap: opts.setCap, repRange: opts.repRange, maxPerPart: opts.maxPerPart, setsPerExercise: opts.setsPerExercise }
   const custom = opts.cardioMinutes != null || (opts.minutesByStyle && Object.keys(opts.minutesByStyle).length > 0)
   if (opts.styles && (new Set(opts.styles).size > 1 || custom)) {
     const list = [...new Set(opts.styles)].sort((a, b) => STYLE_ORDER.indexOf(a) - STYLE_ORDER.indexOf(b))
     return generateMixed(focus, minutes, list, rng, avoid, opts.minutesByStyle, opts.cardioMinutes, lift)
   }
-  if (opts.styles?.length === 1) return generateWorkout(focus, minutes, { style: opts.styles[0], rng, avoid, rest: opts.rest, warmup: { sets: w.sets }, familiar: opts.familiar, cardio: opts.cardio, warmed: opts.warmed, setCap: opts.setCap, repRange: opts.repRange })
+  if (opts.styles?.length === 1) return generateWorkout(focus, minutes, { style: opts.styles[0], rng, avoid, rest: opts.rest, warmup: { sets: w.sets }, familiar: opts.familiar, cardio: opts.cardio, warmed: opts.warmed, setCap: opts.setCap, repRange: opts.repRange, maxPerPart: opts.maxPerPart, setsPerExercise: opts.setsPerExercise })
   // Cardio and no body parts with a conditioning style: that's a hard cardio session (intervals, or a time trial for
   // "for time"), not a bodyweight circuit with one cardio station.
   const cardioOnly = focus.includes('Cardio') && focus.every((g) => g === 'Cardio')
@@ -974,6 +990,48 @@ export function generateWorkout(focusIn: string[], minutes: number, opts: Genera
     default: items = pickLifts(groups, liftMin, rng, avoid, STANDARD, lift)
   }
   return cardio ? [...items, ...pickCardio(cardioMin, rng, avoid, opts.cardio)] : items
+}
+
+/** Easy cardio for whatever's left when a session comes up 10+ minutes short (marked as a finisher). */
+export function addFinisher(items: PlannedExercise[], minutes: number, rng: Rng = Math.random): PlannedExercise[] {
+  const spare = minutes - minutesFor(items)
+  if (spare < 10) return items
+  const used = new Set(items.map((p) => p.exerciseId))
+  const finisher = generateWorkout(['Cardio'], roundTo5(spare - 2), { style: 'standard', rng, avoid: used, cardio: { kind: 'steady' } })
+  return [...items, ...finisher.filter((p) => !used.has(p.exerciseId)).map((p) => ({ ...p, note: FINISHER }))]
+}
+export const FINISHER = 'Finisher, easy pace'
+
+/** Ways to use a session's time when filling it would give one muscle too much (see muscles.ts `overloaded`). */
+export type ExtraTime = 'heavier' | 'finisher' | 'part' | 'shorter'
+export interface ExtraTimeOption {
+  id: ExtraTime
+  items: PlannedExercise[]
+  /** For 'part': the body part added. */
+  part?: string
+}
+/** A related part to add when one muscle has too much: chest → triceps, back → biceps… */
+const ADD_PART: Record<string, string[]> = {
+  Chest: ['Triceps', 'Shoulders'], Back: ['Biceps', 'Shoulders'], Shoulders: ['Triceps', 'Chest'], Biceps: ['Triceps', 'Back'], Triceps: ['Biceps', 'Chest'],
+  Quads: ['Hamstrings', 'Glutes'], Hamstrings: ['Glutes', 'Quads'], Glutes: ['Hamstrings', 'Quads'], Calves: ['Quads', 'Hamstrings'], Core: ['Glutes', 'Quads'],
+}
+
+/**
+ * The same workout, using the time another way than more and more exercises for `over` (the muscles past their limit):
+ * heavier (fewer exercises, 4-5 sets each, 5-8 reps, longer rests), a cardio finisher, a related body part, or simply
+ * shorter. Each keeps at most `maxPer` exercises per muscle (and, except heavier, about 15 hard sets: see sessionSets).
+ */
+export function extraTimeOptions(focus: string[], minutes: number, opts: GenerateOptions, maxPer: number, over: string[]): ExtraTimeOption[] {
+  const rng = opts.rng ?? Math.random
+  const capped: GenerateOptions = { ...opts, rng, maxPerPart: maxPer, setCap: sessionSets }
+  const out: ExtraTimeOption[] = [{ id: 'heavier', items: generateWorkout(focus, minutes, { ...opts, rng, maxPerPart: maxPer, setsPerExercise: [4, 5], repRange: [5, 8] }) }]
+  const short = generateWorkout(focus, minutes, capped)
+  // A workout with its own cardio part doesn't need a finisher too.
+  if (!focus.includes('Cardio')) out.push({ id: 'finisher', items: addFinisher(short, minutes, rng) })
+  const part = over.flatMap((g) => ADD_PART[g] ?? []).find((g) => !focus.includes(g))
+  if (part) out.push({ id: 'part', part, items: generateWorkout([...focus, part], minutes, capped) })
+  out.push({ id: 'shorter', items: short })
+  return out
 }
 
 /** Swap one item for a different random exercise from the same group or style (keeps sets/minutes/block). */

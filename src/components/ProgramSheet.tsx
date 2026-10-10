@@ -19,6 +19,8 @@ import { WorkoutList } from './WorkoutList'
 import { GearChoice } from './GearChoice'
 import { FavoritesPicker } from './FavoritesPicker'
 import { MoveChoice } from './TrainingPrefsPicker'
+import { PerMuscleStepper } from './VolumeCheck'
+import { extraTimeOf, perMuscleOf } from '../lib/volumePrefs'
 
 const DURATIONS = [30, 45, 60, 75, 90]
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -101,7 +103,10 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
   const lookup = (id: string) => findExercise(custom, id)
   const hasHistory = familiarLifts(logs, fromDate).size > 0
   const toggleDay = (i: number) => setDays((d) => (d.includes(i) ? d.filter((x) => x !== i) : [...d, i].sort()))
-  const dayOptions: DayOptions = { warmup: defaultWarmup(genPrefs.warmup, true, genPrefs.warmMinutes), rest: genPrefs.rest, dropSets: !!genPrefs.drops, reps, sets: setScheme, deload }
+  const perMuscle = perMuscleOf(trainingPrefs.perMuscle)
+  // "Keep adding exercises" (Settings → Workouts) means no limit per muscle here too.
+  const noLimit = extraTimeOf(trainingPrefs.extraTime) === 'more'
+  const dayOptions: DayOptions = { warmup: defaultWarmup(genPrefs.warmup, true, genPrefs.warmMinutes), rest: genPrefs.rest, dropSets: !!genPrefs.drops, reps, sets: setScheme, deload, perMuscle, capVolume: !noLimit }
 
   const build = () => {
     setGenPrefs({ plan: { reps, sets: setScheme, deload, keepLifts } })
@@ -125,7 +130,8 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
     const last = i === STEPS.length - 1
     const fits = splitInfo(split).fits.includes(days.length)
     return (
-      <Sheet title="Plan a week or month" onClose={onClose} closeLabel="Cancel">
+      // Each step (and the review) opens at its top.
+      <Sheet key={step} title="Plan a week or month" onClose={onClose} closeLabel="Cancel">
         {step === 'goal' && <ModeSwitch mode="program" onChange={onSwitchMode} />}
         <div className="mb-3 flex items-center justify-between">
           <p className="text-xs text-neutral-400">Step {i + 1} of {STEPS.length}</p>
@@ -250,7 +256,18 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
             ) : (
               <p className={`mb-5 ${note}`}>A month-long plan also adds sets as it goes and can end with a lighter week.</p>
             )}
-            <p className={note}>Volume: each session keeps a muscle to about 15 hard sets (10 for arms, calves and core); past that, more sets add fatigue rather than muscle. Spare time goes to an easy cardio finisher. You’ll see each muscle’s weekly sets before you add the plan.</p>
+            <h4 className={h3}>Exercises per muscle</h4>
+            <div className="mb-2 space-y-2">
+              <Option on={!noLimit} onClick={() => setTrainingPrefs({ extraTime: extraTimeOf(trainingPrefs.extraTime) === 'more' ? 'ask' : trainingPrefs.extraTime })} title="Keep it to what works" blurb={`Up to ${perMuscle} exercises (and about 15 hard sets; 10 for arms, calves and core) per muscle in a session. Spare time goes to the muscles still short of their weekly target, then an easy cardio finisher.`} />
+              <Option on={noLimit} onClick={() => setTrainingPrefs({ extraTime: 'more' })} title="No limit" blurb="Fill each session with more exercises for its muscles." />
+            </div>
+            {!noLimit && (
+              <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+                <span className="text-neutral-600">Most exercises for one muscle</span>
+                <PerMuscleStepper value={perMuscle} onChange={(n) => setTrainingPrefs({ perMuscle: n })} />
+              </div>
+            )}
+            <p className={note}>Most people grow best on about 10–15 hard sets for one muscle in a session, usually 4–5 exercises; past that, more sets add fatigue rather than muscle. You’ll see each muscle’s weekly sets before you add the plan.</p>
           </>
         )}
 
@@ -306,7 +323,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
   }
 
   return (
-    <Sheet title="Your plan" onClose={onClose} closeLabel="Close">
+    <Sheet key="review" title="Your plan" onClose={onClose} closeLabel="Close">
       <p className="mb-1 text-sm text-neutral-500">
         {goalsLabel(goal)}{split !== 'auto' && ` · ${splitInfo(split).label}`} · {workouts.length} workout{workouts.length === 1 ? '' : 's'} · {result.length - workouts.length} rest day{result.length - workouts.length === 1 ? '' : 's'}
       </p>
