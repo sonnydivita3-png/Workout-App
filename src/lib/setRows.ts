@@ -23,3 +23,39 @@ export function setRows(p: Pick<PlannedExercise, 'sets' | 'warmupSets' | 'dropSe
 
 /** The working sets among a card's rows: not warm-ups, not drop sets. */
 export const workingRows = (rows: StrengthSet[]) => rows.filter((s) => !s.warmup && !s.drop)
+
+/**
+ * `n` more working sets, each after the last working set (and after any drop sets already done straight after it, so
+ * they stay with their set; planned ones not done yet stay at the end).
+ */
+export function addWorkingSets(rows: StrengthSet[], n: number): StrengthSet[] {
+  let out = rows
+  for (let k = 0; k < n; k++) {
+    const last = out.findLastIndex((s) => !s.warmup && !s.drop)
+    let at = last >= 0 ? last + 1 : out.findLastIndex((s) => s.warmup) + 1
+    while (at < out.length && out[at].drop && isTicked(out[at])) at++
+    out = [...out.slice(0, at), { weight: null, reps: null }, ...out.slice(at)]
+  }
+  return out
+}
+
+/** Without the last `n` working sets (their numbers too); warm-ups and drop sets stay. */
+export function removeWorkingSets(rows: StrengthSet[], n: number): StrengthSet[] {
+  let out = rows
+  for (let k = 0; k < n; k++) {
+    const i = out.findLastIndex((s) => !s.warmup && !s.drop)
+    if (i < 0) break
+    out = out.filter((_, j) => j !== i)
+  }
+  return out
+}
+
+/** With an empty drop set straight after row `after`. */
+export const insertDropSet = (rows: StrengthSet[], after: number): StrengthSet[] =>
+  [...rows.slice(0, after + 1), { weight: null, reps: null, drop: true }, ...rows.slice(after + 1)]
+
+/** A row's number among its own kind: warm-ups, working sets and drop sets are each counted from 1. */
+export function rowNumber(rows: StrengthSet[], i: number): number {
+  const kind = (s: StrengthSet) => (s.warmup ? 'w' : s.drop ? 'd' : 's')
+  return rows.slice(0, i + 1).filter((s) => kind(s) === kind(rows[i])).length
+}

@@ -8,6 +8,7 @@ import { findExercise, selectLastLog, useStore } from '../store'
 import { replaceExercise, swapExercise } from '../lib/randomizer'
 import { hasData } from '../lib/stats'
 import { dayPlanOf } from '../lib/plan'
+import { addWorkingSets, removeWorkingSets, setRows, workingRows } from '../lib/setRows'
 import { useToday } from '../lib/useToday'
 import type { Exercise, PlannedExercise } from '../types'
 import { CardioCard } from './CardioCard'
@@ -104,13 +105,14 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
                   current={current}
                   last={last}
                   onSetCount={(n) => {
-                    // Fewer sets: the removed set's numbers go too, so they don't count anywhere unseen. Drop sets
-                    // (after the working sets) keep their place either way.
+                    // With sets logged, rows go in their place: a new set after the last one (and after any drop
+                    // set already done straight after it); fewer sets drop the last ones, numbers too, so nothing
+                    // counts unseen. Drop sets stay where they are either way.
                     const cur = current?.sets
-                    if (cur && cur.length > (p.warmupSets ?? 0) + Math.min(n, p.sets)) {
-                      const keep = (p.warmupSets ?? 0) + Math.min(n, p.sets)
-                      const pad = Array.from({ length: Math.max(0, n - p.sets) }, () => ({ weight: null, reps: null }))
-                      s.saveStrength(date, ex.id, [...cur.slice(0, keep), ...pad, ...cur.slice((p.warmupSets ?? 0) + p.sets)])
+                    if (cur?.length) {
+                      const rows = setRows(p, cur)
+                      const have = workingRows(rows).length
+                      s.saveStrength(date, ex.id, n > have ? addWorkingSets(rows, n - have) : removeWorkingSets(rows, have - n))
                     }
                     s.setSetCount(date, ex.id, n)
                   }}
