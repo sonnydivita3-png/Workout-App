@@ -20,6 +20,7 @@ import { placeWarmups } from './lib/warmups'
 import { workSets } from './lib/progression'
 import { setCardioPrefs } from './lib/cardioPrefs'
 import { activePrograms, clearRange, removeProgramDays } from './lib/programs'
+import { customFields, newCustomId, sameName, usageOf, type CustomExerciseInput } from './lib/customExercises'
 import type {
   AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Benchmark, AboutMe, Sport, TimedLog, StrengthSet, Units, WeekPlan,
 } from './types'
@@ -194,8 +195,12 @@ interface State extends Data {
   saveCardio: (date: string, exerciseId: string, cardio: CardioEntry) => void
   /** Delete one logged session, or every session of an exercise when no date is given. */
   deleteLogs: (exerciseId: string, date?: string) => void
-  /** `group` files it under a body part (e.g. the one being browsed when it was created). */
-  createCustom: (name: string, kind: ExerciseKind, mode?: ExerciseMode, group?: string) => Exercise
+  /** Add an exercise of their own. One they deleted with the same name comes back instead, so its history carries on. */
+  createCustom: (input: CustomExerciseInput) => Exercise
+  /** Change one of their exercises. Lifting stays lifting (and cardio cardio) once it's logged or planned. */
+  updateCustom: (id: string, input: CustomExerciseInput) => Exercise | undefined
+  /** Delete one of their exercises. Once it's logged or planned it's only hidden, so history and plans keep its name. */
+  removeCustom: (id: string) => void
   exerciseModes: Record<string, ExerciseMode>
   /** Track an exercise with weight or as bodyweight (reps only), from now on. Going bodyweight, its 0 lb sets become bodyweight sets. */
   setExerciseMode: (exerciseId: string, mode: ExerciseMode) => void
@@ -230,6 +235,19 @@ interface State extends Data {
 }
 
 const emptyPlan = (): WeekPlan => Array.from({ length: 7 }, () => [])
+
+// 0 lb meant bodyweight all along: those sets are logged as reps only, like the rest from now on.
+function zeroToBodyweight(logs: ExerciseLog[], id: string): ExerciseLog[] {
+  const zero = (l: ExerciseLog) => l.exerciseId === id && !!l.sets?.some((x) => x.weight === 0)
+  return logs.some(zero) ? logs.map((l) => (zero(l) ? { ...l, sets: l.sets!.map((x) => (x.weight === 0 ? { ...x, weight: null } : x)) } : l)) : logs
+}
+
+/** Their own exercise is tracked the way its form says from now on (over an earlier choice from the ⋯ menu). */
+function trackAs(s: Pick<Data, 'exerciseModes' | 'logs'>, id: string, mode: ExerciseMode | undefined): Pick<Data, 'exerciseModes' | 'logs'> {
+  const exerciseModes = { ...s.exerciseModes }
+  delete exerciseModes[id]
+  return { exerciseModes, logs: mode === 'reps' ? zeroToBodyweight(s.logs, id) : s.logs }
+}
 
 /** Apply `fn` to a date's exercises, editing its override if present, else the weekly template. */
 function editDay(s: Pick<Data, 'plan' | 'overrides' | 'custom'>, date: string, fn: (items: PlannedExercise[]) => PlannedExercise[]) {
@@ -390,25 +408,40 @@ export const useStore = create<State>()(
       deleteDay: (date) => set((s) => ({ logs: s.logs.filter((l) => l.date !== date), timedLogs: s.timedLogs.filter((t) => t.date !== date) })),
       deleteLogs: (exerciseId, date) =>
         set((s) => ({ logs: s.logs.filter((l) => !(l.exerciseId === exerciseId && (date === undefined || l.date === date))) })),
-      createCustom: (name, kind, mode, group) => {
-        const ex: Exercise = {
-          id: `custom-${Date.now().toString(36)}`,
-          name: name.trim(),
-          kind,
-          mode: kind === 'strength' ? (mode ?? 'weight') : undefined,
-          group: kind === 'cardio' ? 'Cardio' : group ?? 'Other',
-          equipment: 'Custom',
-          custom: true,
-        }
-        set({ custom: [...get().custom, ex] })
+      createCustom: (input) => {
+        const s = get()
+        const fields = customFields(input)
+        const back = s.custom.find((e) => e.retired && e.kind === fields.kind && sameName(e.name, fields.name))
+        const ex: Exercise = { ...(back ?? { id: newCustomId(s.custom) }), ...fields, custom: true, retired: undefined }
+        set({ custom: back ? s.custom.map((e) => (e.id === ex.id ? ex : e)) : [...s.custom, ex], ...trackAs(s, ex.id, ex.mode) })
         return ex
       },
+      updateCustom: (id, input) => {
+        const s = get()
+        const old = s.custom.find((e) => e.id === id)
+        const fields = customFields(input)
+        // Logged sets and planned items are for one kind of exercise, so it can't turn into the other.
+        if (!old || (fields.kind !== old.kind && usageOf(s as unknown as Record<string, unknown>, id).used)) return old
+        const ex: Exercise = { ...old, ...fields }
+        set({ custom: s.custom.map((e) => (e.id === id ? ex : e)), ...trackAs(s, id, ex.mode) })
+        return ex
+      },
+      removeCustom: (id) =>
+        set((s) => {
+          const { used } = usageOf(s as unknown as Record<string, unknown>, id)
+          const exerciseModes = { ...s.exerciseModes }
+          if (!used) delete exerciseModes[id]
+          return {
+            custom: used ? s.custom.map((e) => (e.id === id ? { ...e, retired: true } : e)) : s.custom.filter((e) => e.id !== id),
+            favorites: s.favorites.filter((f) => f !== id),
+            exerciseModes,
+          }
+        }),
       setExerciseMode: (id, mode) =>
         set((s) => ({
           exerciseModes: { ...s.exerciseModes, [id]: mode },
           ...(s.custom.some((e) => e.id === id && e.mode !== mode) ? { custom: s.custom.map((e) => (e.id === id ? { ...e, mode } : e)) } : {}),
-          // 0 lb meant bodyweight all along: those sets are logged as reps only, like the rest from now on.
-          ...(mode === 'reps' ? { logs: s.logs.map((l) => (l.exerciseId === id && l.sets?.some((x) => x.weight === 0) ? { ...l, sets: l.sets.map((x) => (x.weight === 0 ? { ...x, weight: null } : x)) } : l)) } : {}),
+          ...(mode === 'reps' ? { logs: zeroToBodyweight(s.logs, id) } : {}),
         })),
       toggleFavorite: (id) => set((s) => ({ favorites: s.favorites.includes(id) ? s.favorites.filter((f) => f !== id) : [...s.favorites, id] })),
       setUnits: (u) => set((s) => ({ units: { ...s.units, ...u } })),

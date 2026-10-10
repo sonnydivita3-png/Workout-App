@@ -4,7 +4,9 @@ import { hasGear } from '../lib/equipment'
 import { BODY_PARTS } from '../lib/bodyParts'
 import { isStaple, isTechnical } from '../lib/randomUtil'
 import { useStore } from '../store'
-import type { Exercise, ExerciseMode } from '../types'
+import type { Exercise } from '../types'
+import { CUSTOM_GROUPS, sameName } from '../lib/customExercises'
+import { CustomExerciseSheet } from './CustomExercise'
 
 interface Props {
   taken: Set<string>
@@ -18,8 +20,6 @@ interface Props {
 
 const GROUPS = ['All', 'Favorites', ...BODY_PARTS, 'Forearms', 'Cardio', 'Conditioning', 'Mobility', 'Other']
 const PART_ORDER: string[] = [...BODY_PARTS, 'Forearms']
-// Body parts a new custom exercise can be filed under (the one being browsed).
-const PARTS: string[] = [...BODY_PARTS, 'Forearms']
 // Equipment filters; a few rarer kinds are folded into the closest one or "Other".
 const EQUIPMENT = ['Any', 'Mine', 'Barbell', 'Dumbbell', 'Bodyweight', 'Cable', 'Machine', 'Kettlebell', 'Bands', 'Other'] as const
 type Equip = (typeof EQUIPMENT)[number]
@@ -37,16 +37,11 @@ const ALIASES: Record<string, string> = {
 }
 const rank = (e: Exercise) => (e.custom ? 0 : e.fullName ? 1 : e.suggest && isStaple(e) && !isTechnical(e) ? 2 : e.suggest ? 3 : 4)
 const partRank = (e: Exercise) => { const i = PART_ORDER.indexOf(e.group); return i < 0 ? PART_ORDER.length : i }
-const CREATE_AS: [string, 'strength' | 'cardio', ExerciseMode | undefined][] = [
-  ['Weights', 'strength', 'weight'],
-  ['Bodyweight reps', 'strength', 'reps'],
-  ['Timed hold', 'strength', 'time'],
-  ['Cardio', 'cardio', undefined],
-]
 
 export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise', initialGroup = 'All' }: Props) {
   const custom = useStore((s) => s.custom)
-  const createCustom = useStore((s) => s.createCustom)
+  // An exercise of their own being made (with what was typed) or changed.
+  const [making, setMaking] = useState<{ name?: string; exercise?: Exercise } | null>(null)
   // Starred exercises: listed first, all together under Favorites, and picked more often in generated workouts.
   const favorites = useStore((s) => s.favorites)
   const toggleFavorite = useStore((s) => s.toggleFavorite)
@@ -82,7 +77,7 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
   const inPart = (e: Exercise) => group === 'All' || (group === 'Favorites' ? !!query || favorites.includes(e.id) : e.group === group)
   // Muscle group and search first, so each equipment chip can say how many it would leave.
   const inGroup = useMemo(
-    () => [...custom, ...EXERCISES, ...yours].filter((e) => inPart(e) && matches(e)),
+    () => [...custom.filter((e) => !e.retired), ...EXERCISES, ...yours].filter((e) => inPart(e) && matches(e)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [custom, yours, query, group, favorites],
   )
@@ -104,9 +99,10 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
           || (recent.get(b.id) ?? '').localeCompare(recent.get(a.id) ?? '') || rank(a) - rank(b) || a.name.localeCompare(b.name)),
     [inGroup, equip, recent, favorites, group, query],
   )
-  const exact = results.some((e) => e.name.toLowerCase() === query)
+  const exact = results.some((e) => sameName(e.name, query))
 
   return (
+    <>
     <div className="fixed inset-0 z-20 flex items-end bg-black/30 sm:items-center sm:justify-center" onClick={onClose}>
       <div
         className="flex max-h-[85vh] w-full flex-col rounded-t-3xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:max-w-md sm:rounded-3xl"
@@ -164,22 +160,16 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
             </button>
           ))}
         </div>
-        <p className="mb-1 shrink-0 text-xs text-neutral-400">{results.length} exercise{results.length === 1 ? '' : 's'}{equip === 'Mine' ? ' · my equipment' : equip !== 'Any' ? ` · ${equip.toLowerCase()}` : ''}{group !== 'All' ? ` · ${group.toLowerCase()}` : ''}</p>
+        <div className="mb-1 flex shrink-0 items-center justify-between gap-2">
+          <p className="min-w-0 truncate text-xs text-neutral-400">{results.length} exercise{results.length === 1 ? '' : 's'}{equip === 'Mine' ? ' · my equipment' : equip !== 'Any' ? ` · ${equip.toLowerCase()}` : ''}{group !== 'All' ? ` · ${group.toLowerCase()}` : ''}</p>
+          <button onClick={() => setMaking({ name: q })} className="shrink-0 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">+ Custom exercise</button>
+        </div>
         <ul className="-mx-1 overflow-y-auto">
           {q.trim() && !exact && (
-            <li className="mb-1 rounded-xl bg-neutral-50 px-3 py-2.5">
-              <span className="mb-2 block truncate text-sm">Create “{q.trim()}” as</span>
-              <span className="flex flex-wrap gap-2 text-xs">
-                {CREATE_AS.map(([label, kind, mode]) => (
-                  <button
-                    key={label}
-                    onClick={() => { onPick(createCustom(q, kind, mode, PARTS.includes(group) ? group : undefined)); setQ('') }}
-                    className="rounded-full bg-accent px-3 py-1 text-on-accent"
-                  >
-                    {label}
-                  </button>
-                ))}
-              </span>
+            <li className="mb-1">
+              <button onClick={() => setMaking({ name: q })} className="w-full truncate rounded-xl bg-neutral-50 px-3 py-2.5 text-left text-sm">
+                Can’t find it? <span className="font-medium">Create “{q.trim()}”</span>
+              </button>
             </li>
           )}
           {results.slice(0, limit).map((e) => (
@@ -192,6 +182,9 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
                 <span>{e.name}</span>
                 <span className="shrink-0 text-xs text-neutral-400">{taken.has(e.id) ? 'Added' : group === 'All' || group === 'Favorites' ? `${e.group} · ${e.equipment}` : e.equipment}</span>
               </button>
+              {e.custom && (
+                <button onClick={() => setMaking({ exercise: e })} aria-label={`Edit ${e.name}`} title="Edit your exercise" className="flex h-10 w-8 shrink-0 items-center justify-center text-neutral-400">✎</button>
+              )}
               {e.kind === 'strength' ? (
                 <button
                   onClick={() => toggleFavorite(e.id)}
@@ -222,5 +215,17 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
         </ul>
       </div>
     </div>
+    {making && (
+      <CustomExerciseSheet
+        exercise={making.exercise}
+        name={making.name}
+        group={CUSTOM_GROUPS.includes(group) ? group : undefined}
+        // A new one goes straight in, like any exercise picked from the list.
+        onSaved={(e) => { setMaking(null); if (!making.exercise) { setQ(''); onPick(e) } }}
+        onUse={(e) => { setMaking(null); if (taken.has(e.id)) setQ(e.name); else onPick(e) }}
+        onClose={() => setMaking(null)}
+      />
+    )}
+    </>
   )
 }

@@ -488,9 +488,16 @@ test('exercise picker: legs and arms are split into parts, and a new exercise la
   await parts.getByRole('button', { name: 'Hamstrings', exact: true }).click()
   await expect(picker.getByRole('button', { name: /^Leg Curl/ }).first()).toBeVisible()
   await picker.getByPlaceholder(/search/i).fill('Nordic curl band')
-  await picker.getByRole('button', { name: 'Bodyweight reps' }).click()
+  await picker.getByRole('button', { name: /Create “Nordic curl band”/ }).click()
+  const form = page.locator('.fixed').filter({ has: page.getByRole('heading', { name: 'New exercise' }) })
+  await expect(form.getByLabel('Name')).toHaveValue('Nordic curl band')
+  await expect(form.getByRole('group', { name: 'Body part' }).getByRole('button', { name: 'Hamstrings' })).toHaveAttribute('aria-pressed', 'true')
+  await form.getByRole('group', { name: 'Equipment' }).getByRole('button', { name: 'Bodyweight' }).click()
+  await expect(form.getByRole('button', { name: 'Reps only' })).toHaveAttribute('aria-pressed', 'true')
+  await form.getByRole('button', { name: 'Save exercise' }).click()
+  await expect(form).toHaveCount(0)
   const s = await state(page)
-  expect(s.custom[0]).toMatchObject({ name: 'Nordic curl band', group: 'Hamstrings' })
+  expect(s.custom[0]).toMatchObject({ name: 'Nordic curl band', group: 'Hamstrings', equipment: 'Bodyweight', mode: 'reps' })
 })
 
 test('cardio cards: a GPX import for runs and rides outside, not for machines', async ({ page }) => {

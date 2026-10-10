@@ -15,7 +15,7 @@ export interface Exercise {
   custom?: boolean
   suggest?: boolean // sensible for the randomizer to pick
   tags?: string[] // 'hiit' | 'crossfit' | 'hyrox' — which workout styles can draw on it
-  /** No longer offered (the library keeps 500 everyday moves), but still known for old logs and plans. */
+  /** No longer offered (the library keeps 500 everyday moves, or they deleted their own), but still known for old logs and plans. */
   retired?: boolean
 }
 
@@ -26,7 +26,7 @@ export interface StrengthSet {
   seconds?: number | null // timed exercises
   /** Warm-up sets don't count toward records, volume or progress. */
   warmup?: boolean
-  /** A drop set (after the working sets). Doesn't count toward "beat last time" or bests. */
+  /** A drop set, straight after the set before it. Doesn't count toward "beat last time" or bests. */
   drop?: boolean
   /** How hard it felt, 1-10 (10 = nothing left). */
   rpe?: number | null
