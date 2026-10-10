@@ -1,5 +1,6 @@
 import { EXERCISES } from '../data/exercises'
 import { hasGear } from './equipment'
+import { modeOf } from './exerciseModes'
 import type { Exercise, PlannedExercise } from '../types'
 import { generateCrossfit, generateHyrox, generateTimed } from './functionalStyles'
 import { liftMinutes, REST_SCALE, restFor, transitionMin, WARMUP_SET_MIN, workSeconds, type RestPref } from './timing'
@@ -61,7 +62,7 @@ const equipmentRank = (e: Exercise) =>
 /** Rep target by exercise style: heavy barbell work low, accessories higher. */
 export function repsFor(e: Exercise, rng: Rng = Math.random): number {
   if (e.group === 'Core') return 15
-  if (e.mode === 'reps') return [10, 12, 15][Math.floor(rng() * 3)]
+  if (modeOf(e) === 'reps') return [10, 12, 15][Math.floor(rng() * 3)]
   const r = equipmentRank(e)
   if (r === 0) return rng() < 0.5 ? 6 : 8
   if (r <= 2) return rng() < 0.5 ? 10 : 12
@@ -228,7 +229,7 @@ const STANDARD: LiftConfig = {
   sets: 3, maxSets: MAX_SETS, filter: () => true, fallback: 'any', targets: targetsFor, sortByRank: true,
 }
 
-const isHeavyLift = (e: Exercise) => e.mode === 'weight' && equipmentRank(e) <= 1 && isMainLift(e)
+const isHeavyLift = (e: Exercise) => modeOf(e) === 'weight' && equipmentRank(e) <= 1 && isMainLift(e)
 
 const STRENGTH: LiftConfig = {
   sets: 3, maxSets: 5,
@@ -238,14 +239,15 @@ const STRENGTH: LiftConfig = {
   fallback: { Calves: 'Quads', Biceps: 'any', Triceps: 'any', Forearms: 'any', Core: 'any' },
   // Main lifts heavy (3-6 reps); accessories after them in the 6-10 range.
   mainTargets: (e, rng) => ({ reps: equipmentRank(e) === 0 ? pick([3, 5], rng) : pick([5, 6], rng) }),
-  targets: (e, rng) => (e.mode === 'weight' ? { reps: pick([6, 8, 10], rng) } : targetsFor(e, rng)),
+  targets: (e, rng) => (modeOf(e) === 'weight' ? { reps: pick([6, 8, 10], rng) } : targetsFor(e, rng)),
   sortByRank: true,
   mains: true,
 }
 
 const BODYWEIGHT: LiftConfig = {
   sets: 3, maxSets: 4,
-  filter: (e) => e.equipment === 'Bodyweight' && e.mode !== 'weight' && !isAdvanced(e),
+  // Moves people log as bodyweight (their choice where they've made one; weighted dips and pull-ups otherwise aren't).
+  filter: (e) => e.equipment === 'Bodyweight' && modeOf(e) !== 'weight' && !isAdvanced(e),
   fallback: { Shoulders: 'Chest', Biceps: 'Back', Triceps: 'Chest', Glutes: 'Quads', Hamstrings: 'Glutes', Calves: 'Quads' },
   targets: (e, rng) =>
     e.mode === 'time'

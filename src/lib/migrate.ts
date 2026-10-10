@@ -51,6 +51,12 @@ export function repairState<T extends Obj>(saved: unknown, defaults: T): T {
   if (Array.isArray(out.custom)) out.custom = (out.custom as Obj[]).map((e) => (typeof e.group === 'string' && typeof e.name === 'string' ? { ...e, group: partFromName(e.group, e.name) } : e))
   if (isObj(out.genPrefs) && Array.isArray(out.genPrefs.focus)) out.genPrefs = { ...out.genPrefs, focus: expandParts(out.genPrefs.focus.filter((f): f is string => typeof f === 'string')) }
   out.bodyweight = arr(saved.bodyweight, (b): b is Obj => isObj(b) && typeof b.date === 'string' && typeof b.lb === 'number')
+  // How the person tracks particular exercises (with weight, or bodyweight reps only): only known modes are kept.
+  if ('exerciseModes' in defaults) {
+    const modes: Obj = {}
+    if (isObj(saved.exerciseModes)) for (const [id, m] of Object.entries(saved.exerciseModes)) if (m === 'weight' || m === 'reps' || m === 'time') modes[id] = m
+    out.exerciseModes = modes
+  }
   // Keep anything the app no longer knows about (e.g. from a newer version) so it isn't lost.
   for (const [k, v] of Object.entries(saved)) if (!(k in out) && typeof v !== 'function') out[k] = v
   return out as T

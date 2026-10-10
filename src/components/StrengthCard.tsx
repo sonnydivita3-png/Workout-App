@@ -55,6 +55,9 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
   const units = useStore((s) => s.units)
   const trackRpe = useStore((s) => s.trackRpe)
   const mode = exercise.mode ?? 'weight'
+  // How they said they track this one (bodyweight or with weight), if they have.
+  const chosenMode = useStore((s) => s.exerciseModes[exercise.id])
+  const setExerciseMode = useStore((s) => s.setExerciseMode)
   const [timing, setTiming] = useState<number | null>(null)
   const [menu, setMenu] = useState(false)
   const [plates, setPlates] = useState(false)
@@ -140,6 +143,8 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
     return compareSet(s, lastWork[workIndex], mode)
   })
   const beat = vsLast.filter((v) => v === 'up').length
+  // 0 lb on a weighted lift usually means bodyweight: ask once, and remember the answer for this exercise.
+  const askBodyweight = !readOnly && mode === 'weight' && !chosenMode && sets.some((x) => !x.warmup && !x.drop && x.weight === 0)
 
   const target = mode === 'time' ? (targetSeconds ? `${setCount} × ${targetSeconds}s` : '') : targetReps ? `${setCount} × ${targetReps}` : ''
   const cols = [
@@ -190,6 +195,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
           <p className="text-xs text-neutral-400">
             {exercise.group}
             {mode === 'time' && ' · timed'}
+            {chosenMode === 'reps' && exercise.equipment !== 'Bodyweight' && ' · bodyweight'}
             {target && ` · ${target}`}
             {warmupSets > 0 && ` · +${warmupSets} warm-up`}
             {dropSets > 0 && ` · +${dropSets} drop`}
@@ -263,6 +269,16 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
         })}
       </div>
       )}
+      {askBodyweight && (
+        <div className="mt-3 rounded-xl bg-neutral-50 px-3 py-2.5" role="group" aria-label="Bodyweight exercise?">
+          <p className="text-sm font-medium">0 {units.weight}: is {exercise.name} a bodyweight exercise?</p>
+          <p className="mt-0.5 text-xs text-neutral-500">Then it’s logged as reps only, today and from now on.</p>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+            <button onClick={() => setExerciseMode(exercise.id, 'reps')} className="rounded-full bg-accent px-3 py-1.5 font-medium text-on-accent">Yes, bodyweight</button>
+            <button onClick={() => setExerciseMode(exercise.id, 'weight')} className="rounded-full bg-neutral-100 px-3 py-1.5 text-neutral-600">No, it’s weighted</button>
+          </div>
+        </div>
+      )}
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-neutral-500">
         {/* One more row than the card shows now (it can show more sets than planned, if the plan changed after logging). */}
@@ -300,6 +316,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
           {onDropSets && mode === 'weight' && menuItem(dropSets ? 'Add another drop set' : 'Add a drop set', () => onDropSets(dropSets + 1))}
           {onNote && menuItem(current?.note ? 'Edit note' : 'Add a note', () => setEditingNote(true))}
           {barbell && menuItem(plates ? 'Hide plates' : 'Plates for this weight', () => setPlates((p) => !p))}
+          {mode !== 'time' && menuItem(mode === 'weight' ? 'Track as bodyweight (reps only)' : 'Track with weight', () => setExerciseMode(exercise.id, mode === 'weight' ? 'reps' : 'weight'))}
           {readOnly && setCount > 1 && menuItem('Remove a set', () => onSetCount(setCount - 1))}
           {menuItem('Remove exercise', onRemove, true)}
         </Sheet>

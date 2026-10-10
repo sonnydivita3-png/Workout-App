@@ -1,8 +1,9 @@
 import type { Exercise, PlannedExercise } from '../types'
+import { modeOf } from './exerciseModes'
 
 /** Warm-up sets (and drop sets) are for weight lifting: never bodyweight moves, core, cardio, holds or timed blocks. */
 export const takesWarmup = (e?: Exercise) =>
-  !!e && e.kind === 'strength' && (e.mode ?? 'weight') === 'weight' && e.group !== 'Core' && e.equipment !== 'Bodyweight'
+  !!e && e.kind === 'strength' && (modeOf(e) ?? 'weight') === 'weight' && e.group !== 'Core' && e.equipment !== 'Bodyweight'
 
 /**
  * Warm-up sets always sit on the first two weight-lifting exercises of the day, whatever the order: more before the
