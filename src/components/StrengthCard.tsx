@@ -43,6 +43,12 @@ interface Props {
   onDropSets?: (n: number) => void
   /** Delete one drop set (its numbers too). */
   onDeleteDrop?: (index: number) => void
+  /** The day being logged (a long break since last time changes the target). */
+  date?: string
+  /** They chose to keep the planned number of sets over last time's. */
+  keepSets?: boolean
+  /** Keep the planned number of sets (when asked about last time's). No question without it. */
+  onKeepSets?: () => void
 }
 
 const MARK = { up: { t: '▲', c: 'text-green-600', l: 'beat last time' }, same: { t: '=', c: 'text-neutral-400', l: 'matched last time' }, down: { t: '▼', c: 'text-red-600', l: 'below last time' } } as const
@@ -51,7 +57,7 @@ const MARK = { up: { t: '▲', c: 'text-green-600', l: 'beat last time' }, same:
  * One exercise to log: a target from last time, then a row per set. ✓ logs a set (filling in the target if nothing
  * was typed). Everything else (note, plates, fewer sets, remove) is under ⋯ so the card stays simple.
  */
-export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, warmupSets = 0, rest, note, current, last, onSetCount, onChange, onNote, onRemove, onSetDone, restNote, onSwap, onHistory, onDeleteSet, readOnly, dropSets = 0, onDropSets, onDeleteDrop }: Props) {
+export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, warmupSets = 0, rest, note, current, last, onSetCount, onChange, onNote, onRemove, onSetDone, restNote, onSwap, onHistory, onDeleteSet, readOnly, dropSets = 0, onDropSets, onDeleteDrop, date, keepSets, onKeepSets }: Props) {
   const units = useStore((s) => s.units)
   const trackRpe = useStore((s) => s.trackRpe)
   const mode = exercise.mode ?? 'weight'
@@ -73,7 +79,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
   const allLogs = useStore((s) => s.logs)
   const history = last ? allLogs.filter((l) => l.exerciseId === exercise.id && l.date <= last.date).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4) : []
   const custom = useStore((s) => s.custom)
-  const fromLast = suggestNext(exercise, last, { reps: targetReps, seconds: targetSeconds, sets: setCount }, units, history)
+  const fromLast = suggestNext(exercise, last, { reps: targetReps, seconds: targetSeconds, sets: setCount }, units, history, date)
   // Never done this one: start from the most recent similar lift they have logged.
   const tip = (fromLast.kind === 'first' && estimateStart(exercise, allLogs, targetReps, units, (id) => findExercise(custom, id))) || fromLast
 
@@ -143,6 +149,9 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
     return compareSet(s, lastWork[workIndex], mode)
   })
   const beat = vsLast.filter((v) => v === 'up').length
+  // Done before with a different number of sets: ask whether to do the same as last time (until a set is ticked).
+  const lastCount = lastWork.length
+  const askSets = !readOnly && !!onKeepSets && !keepSets && lastCount > 0 && lastCount !== setCount && !sets.some((x) => !x.warmup && !x.drop && ticked(x))
   // 0 lb on a weighted lift usually means bodyweight: ask once, and remember the answer for this exercise.
   const askBodyweight = !readOnly && mode === 'weight' && !chosenMode && sets.some((x) => !x.warmup && !x.drop && x.weight === 0)
 
@@ -216,6 +225,15 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
         </div>
       )}
       {tip.kind === 'first' && <p className="mb-3 text-xs text-neutral-400">{tip.why}</p>}
+      {askSets && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl bg-neutral-50 px-3 py-2" role="group" aria-label="Sets this time">
+          <span className="text-sm">Last time you did {lastCount} set{lastCount === 1 ? '' : 's'}. Do {lastCount} again?</span>
+          <span className="flex gap-2 text-xs">
+            <button onClick={() => onSetCount(lastCount)} className="rounded-full bg-accent px-3 py-1.5 font-medium text-on-accent">Yes, {lastCount} set{lastCount === 1 ? '' : 's'}</button>
+            <button onClick={onKeepSets} className="rounded-full bg-neutral-100 px-3 py-1.5 text-neutral-600">Keep {setCount}</button>
+          </span>
+        </div>
+      )}
 
       {readOnly ? (
         <p className="text-sm text-neutral-500">{target || `${setCount} sets`}{warmupSets > 0 ? ` (+${warmupSets} warm-up)` : ''}. Tick the sets off on the day.</p>
