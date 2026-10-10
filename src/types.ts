@@ -15,6 +15,8 @@ export interface Exercise {
   custom?: boolean
   suggest?: boolean // sensible for the randomizer to pick
   tags?: string[] // 'hiit' | 'crossfit' | 'hyrox' — which workout styles can draw on it
+  /** No longer offered (the library keeps 500 everyday moves), but still known for old logs and plans. */
+  retired?: boolean
 }
 
 /** All weights are stored in pounds and distances in miles; units only affect display. */

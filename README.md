@@ -1,6 +1,6 @@
 # Durata
 
-Minimal weekly workout tracker, installable as a phone app (PWA). Plan exercises per weekday from a 750+ exercise library, log sets (weight × reps) or cardio (distance, time, auto pace), see what you did last time inline, and track progress over time.
+Minimal weekly workout tracker, installable as a phone app (PWA). Plan exercises per weekday from a 500-exercise library of everyday moves, log sets (weight × reps) or cardio (distance, time, auto pace), see what you did last time inline, and track progress over time.
 
 **Stack:** Vite · React 19 · TypeScript · Tailwind v4 · Zustand (localStorage) · vite-plugin-pwa
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { EXERCISES } from '../data/exercises'
+import { BUILTIN_BY_ID, EXERCISES } from '../data/exercises'
 import { hasGear } from '../lib/equipment'
 import { BODY_PARTS } from '../lib/bodyParts'
 import { isStaple, isTechnical } from '../lib/randomUtil'
@@ -67,11 +67,13 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
   // Gym shorthand works too (RDL, OHP, DB…), and hyphens and spaces don't matter (pushup finds Push-Up).
   const words = query.split(/\s+/).flatMap((w) => (ALIASES[w] ?? w).split(' ')).map(squash).filter(Boolean)
   const matches = (e: Exercise) => { const hay = squash(`${e.name} ${e.fullName ?? ''}`); return words.every((w) => hay.includes(w)) }
+  // Retired exercises (no longer in the library) stay pickable for anyone who has logged them.
+  const yours = useMemo(() => [...recent.keys()].map((id) => BUILTIN_BY_ID.get(id)).filter((e): e is Exercise => !!e?.retired), [recent])
   // Muscle group and search first, so each equipment chip can say how many it would leave.
   const inGroup = useMemo(
-    () => [...custom, ...EXERCISES].filter((e) => (group === 'All' || e.group === group) && matches(e)),
+    () => [...custom, ...EXERCISES, ...yours].filter((e) => (group === 'All' || e.group === group) && matches(e)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [custom, query, group],
+    [custom, yours, query, group],
   )
   const counts = useMemo(() => {
     const c = new Map<Equip, number>()
@@ -104,7 +106,7 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
           <input
             value={q}
             onChange={(e) => { setQ(e.target.value); setLimit(PAGE) }}
-            placeholder={`Search ${EXERCISES.length}+ exercises`}
+            placeholder={`Search ${EXERCISES.length} exercises`}
             className="min-w-0 flex-1 rounded-xl bg-neutral-100 px-4 py-2.5 outline-none"
           />
           <button

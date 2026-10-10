@@ -22,7 +22,7 @@ describe('body parts', () => {
     expect(group('Calf Raise')).toBe('Calves')
     expect(group('Dumbbell Curl')).toBe('Biceps')
     expect(group('Triceps Pushdown')).toBe('Triceps')
-    expect(group('Bench Press - Powerlifting')).toBe('Chest') // the source calls it triceps
+    expect(BUILTIN_BY_ID.get('Bench_Press_-_Powerlifting')?.group).toBe('Chest') // the source calls it triceps (retired, still known)
   })
 
   it('reads the old broad names', () => {

@@ -1,5 +1,6 @@
 import type { Exercise } from '../types'
 import raw from './exercises.json'
+import retired from './retired.json'
 
 // Built from free-exercise-db (public domain): [id, name, body part, equipment, isCardio, suggest, mode 0=weight 1=reps 2=timed].
 // Body parts come from each exercise's primary muscle (scripts/split-groups.py).
@@ -79,6 +80,8 @@ for (const e of EXERCISES) {
   if (e.id === 'Rowing_Stationary') e.suggest = false // the same machine as the Rower; kept for old logs
   // A jump rope isn't a machine: bodyweight-and-a-rope workouts should be able to use it.
   if (e.id === 'Rope_Jumping') e.equipment = 'Jump rope'
+  // The air squat of CrossFit and HIIT workouts (it replaced a duplicate "Air Squat").
+  if (e.id === 'Bodyweight_Squat') e.tags = ['hiit', 'crossfit']
 }
 
 // The library files some no-equipment moves under "Other"; they're bodyweight, which matters for home workouts.
@@ -89,6 +92,23 @@ const NO_GEAR = new Set([
   'Single Leg Push-off', 'Stride Jump Crossover', 'Prone Manual Hamstring', 'London Bridges',
 ])
 for (const e of EXERCISES) if (e.equipment === 'Other' && NO_GEAR.has(e.name)) e.equipment = 'Bodyweight'
+// Equipment audit. "Bodyweight" means no gear beyond a bar or bench to hang from, push off or lie on (pull-ups were
+// already filed that way, so dips and hanging/bar moves are too); "Other" is specialist kit (rings, TRX, ab wheel,
+// plates, ropes, balls). The rest are filed under the kit they actually need.
+const EQUIPMENT_FIX: Record<string, string> = {
+  'Dips_-_Chest_Version': 'Bodyweight', Knee_Hip_Raise_On_Parallel_Bars: 'Bodyweight', Inverted_Row: 'Bodyweight',
+  Weighted_Pull_Ups: 'Bodyweight', Mixed_Grip_Chin: 'Bodyweight', Muscle_Up: 'Bodyweight', Weighted_Bench_Dip: 'Bodyweight',
+  Hyperextensions_Back_Extensions: 'Machine', Donkey_Calf_Raises: 'Machine',
+  'Band_Assisted_Pull-Up': 'Bands', Seated_Band_Hamstring_Curl: 'Bands',
+  Trap_Bar_Deadlift: 'Barbell', 'Close-Grip_EZ_Bar_Curl': 'EZ bar', Decline_EZ_Bar_Triceps_Extension: 'EZ bar',
+  'Crunch_-_Legs_On_Exercise_Ball': 'Exercise ball',
+}
+// ...and a couple of body parts: mountain climbers and flutter kicks are ab work, not quads and glutes.
+const GROUP_FIX: Record<string, string> = { Mountain_Climbers: 'Core', Flutter_Kicks: 'Core' }
+for (const e of EXERCISES) {
+  if (EQUIPMENT_FIX[e.id]) e.equipment = EQUIPMENT_FIX[e.id]
+  if (GROUP_FIX[e.id]) e.group = GROUP_FIX[e.id]
+}
 // Moves that are always done with bodyweight but were filed as weighted lifts: log them as reps, with no weight box.
 // (Lifts people often load, like dips and pull-ups, stay weighted; a set with no weight there counts as bodyweight.)
 const REPS_ONLY = new Set([
@@ -132,6 +152,14 @@ const SHORT: Record<string, string> = {
   'Calf_Press_On_The_Leg_Press_Machine': 'Leg Press Calf Raise',
   // The dataset's "Air Bike" is a crunch, not the Assault/Echo bike.
   Air_Bike: 'Bicycle Crunch',
+  Butterfly: 'Pec Deck',
+  Side_Bridge: 'Side Plank',
+  Butt_Lift_Bridge: 'Glute Bridge',
+  Natural_Glute_Ham_Raise: 'Nordic Hamstring Curl',
+  'Kettlebell_Turkish_Get-Up_Squat_style': 'Turkish Get-Up',
+  Overhead_Slam: 'Medicine Ball Slam',
+  Hyperextensions_Back_Extensions: 'Back Extension',
+  Knee_Hip_Raise_On_Parallel_Bars: 'Captain’s Chair Knee Raise',
 }
 // Suffixes that rarely matter day to day ("Bench Press - Powerlifting" keeps its suffix if dropping it would clash).
 const DROP = [/ - Medium Grip$/i, / -\s*Pronated Grip$/i]
@@ -146,4 +174,13 @@ for (const e of EXERCISES) {
   taken.add(short.toLowerCase())
 }
 
-export const BUILTIN_BY_ID = new Map(EXERCISES.map((e) => [e.id, e]))
+// The library is kept to 500 everyday exercises. The rest of the dataset (strongman events, sport drills, band-and-chain
+// variations, near-duplicates) is retired: never offered, but still known, so old workouts and plans keep their names.
+const RETIRED = new Set<string>(retired)
+for (const e of EXERCISES) if (RETIRED.has(e.id)) e.retired = true
+
+/** Every exercise ever in the library, retired ones included: for looking up what's already in logs and plans. */
+export const ALL_EXERCISES: Exercise[] = [...EXERCISES]
+export const BUILTIN_BY_ID = new Map(ALL_EXERCISES.map((e) => [e.id, e]))
+// From here on, the library: what's offered in search, workouts and plans.
+EXERCISES.splice(0, EXERCISES.length, ...ALL_EXERCISES.filter((e) => !e.retired))

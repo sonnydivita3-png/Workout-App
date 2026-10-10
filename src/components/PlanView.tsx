@@ -146,7 +146,7 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
       {addMenu && (
         <Sheet title={`Add to ${DAY_NAMES[day]}`} onClose={() => setAddMenu(false)}>
           {([
-            ['Add an exercise', 'Search or browse 750+ exercises', () => setPicking(true)],
+            ['Add an exercise', 'Search or browse 500 exercises', () => setPicking(true)],
             ['Make me a workout', 'Pick body parts and time, get a full workout', () => setGenerator('one')],
             ['Plan a week or month', 'Training and rest days built around a goal', () => setGenerator('program')],
             ['Timed workout', 'AMRAP, EMOM, for time or Tabata, with a clock', () => setWodBuilder(true)],

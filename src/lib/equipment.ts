@@ -6,7 +6,7 @@ export type Gear = (typeof GEAR)[number]
 
 export const GEAR_LABELS: Record<Gear, string> = {
   Barbell: 'Barbell & plates', Dumbbell: 'Dumbbells', Kettlebell: 'Kettlebells', Cable: 'Cable machine',
-  Machine: 'Machines (leg press, rower…)', Bands: 'Resistance bands', Other: 'Other (dip bars, bench, balls, sled…)',
+  Machine: 'Machines (leg press, rower…)', Bands: 'Resistance bands', Other: 'Other (rings, TRX, balls, ab wheel, sled…)',
 }
 
 export const GEAR_PRESETS: { id: string; label: string; gear: Gear[] | null }[] = [
