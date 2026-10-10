@@ -64,6 +64,28 @@ describe('suggestNext (slow double progression, a set or two at a time)', () => 
     expect(suggestNext(push, undefined, {}, lb).why).toMatch(/reps short of failure/)
     expect(suggestNext(plank, undefined, {}, lb).why).toMatch(/hold until/)
   })
+  it('a different rep target works the weight out from last time, not last time plus a step', () => {
+    // 3 × 12 at 135, then 3 × 6: about 150 (not 140), from 135 × 12's estimated max with a rep in reserve.
+    const down = suggestNext(bench, log([w(135, 12), w(135, 12), w(135, 12)]), { reps: 6, sets: 3 }, lb)
+    expect(down).toMatchObject({ kind: 'estimate', weight: 150, reps: 6, changed: 3 })
+    expect(down.sets!.every((x) => x.weight === 150 && x.reps === 6)).toBe(true)
+    expect(down.why).toBe('6 reps today, 12 last time: weight worked out from your 135 lb × 12.')
+    // 5s at 225, then 10s: about 190, not "225, on the way to 10".
+    expect(suggestNext(squat, log([w(225, 5), w(225, 5), w(225, 5)]), { reps: 10, sets: 3 }, lb)).toMatchObject({ kind: 'estimate', weight: 190, reps: 10 })
+    // A rep or two off is still ordinary double progression.
+    expect(suggestNext(bench, log([w(185, 8), w(185, 8), w(185, 8)]), { reps: 10, sets: 3 }, lb)).toMatchObject({ kind: 'add-reps', weight: 185, reps: 9 })
+  })
+  it('a month or more off: about 90% to ease back in', () => {
+    const before = { date: '2026-08-01', exerciseId: 'x', sets: [w(185, 8), w(185, 8), w(185, 8)] }
+    const s = suggestNext(bench, before, { reps: 8, sets: 3 }, lb, [before], '2026-09-15')
+    expect(s).toMatchObject({ kind: 'deload', weight: 165, reps: 8, changed: 3 })
+    expect(s.why).toMatch(/^6 weeks since you last did this/)
+    // Three weeks: carry on as usual.
+    expect(suggestNext(bench, before, { reps: 8, sets: 3 }, lb, [before], '2026-08-22').kind).not.toBe('deload')
+    // Bodyweight: repeat last time.
+    const pushups = { date: '2026-08-01', exerciseId: 'x', sets: [{ weight: null, reps: 20 }] }
+    expect(suggestNext(push, pushups, {}, lb, [pushups], '2026-09-15')).toMatchObject({ kind: 'repeat', reps: 20 })
+  })
   it('uses 2.5 kg steps in kg', () => {
     const s = suggestNext(bench, log([{ weight: 100 * 2.20462262, reps: 7 }, { weight: 100 * 2.20462262, reps: 5 }]), { reps: 5 }, { weight: 'kg', distance: 'km' })
     expect(Math.round((s.weight! / 2.20462262) * 10) / 10).toBe(102.5)

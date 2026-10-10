@@ -109,6 +109,8 @@ export interface PlannedExercise {
   dropSets?: number
   /** Part of the warm-up (easy cardio or mobility), not the workout itself: not tracked as progress. */
   warmup?: boolean
+  /** The person kept this set count when asked whether to do last time's number of sets instead. */
+  keepSets?: boolean
 }
 
 /** Plan is a weekly template: 0 = Monday ... 6 = Sunday. */

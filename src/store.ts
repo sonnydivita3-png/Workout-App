@@ -16,6 +16,7 @@ import { setOwnedGear } from './lib/equipment'
 import { setChosenModes, withChosenMode } from './lib/exerciseModes'
 import { setFavorites } from './lib/favorites'
 import { placeWarmups } from './lib/warmups'
+import { workSets } from './lib/progression'
 import { setCardioPrefs } from './lib/cardioPrefs'
 import { activePrograms, clearRange, removeProgramDays } from './lib/programs'
 import type {
@@ -338,7 +339,12 @@ export const useStore = create<State>()(
       setNotifPrefs: (p) => set((s) => ({ notifPrefs: { ...s.notifPrefs, ...p } })),
       deleteBodyweight: (date) => set((s) => ({ bodyweight: s.bodyweight.filter((b) => b.date !== date) })),
       addExercise: (date, exerciseId, kind) =>
-        set((s) => editDay(s, date, (d) => (d.some((p) => p.exerciseId === exerciseId) ? d : [...d, { exerciseId, sets: kind === 'strength' ? 3 : 1 }]))),
+        set((s) => {
+          // Done before: as many sets as last time.
+          const before = workSets(selectLastLog(s.logs, exerciseId, date)).length
+          const sets = kind !== 'strength' ? 1 : before ? Math.min(before, 10) : 3
+          return editDay(s, date, (d) => (d.some((p) => p.exerciseId === exerciseId) ? d : [...d, { exerciseId, sets }]))
+        }),
       removeExercise: (date, exerciseId) => set((s) => editDay(s, date, (d) => d.filter((p) => p.exerciseId !== exerciseId))),
       setSetCount: (date, exerciseId, sets) =>
         set((s) => editDay(s, date, (d) => d.map((p) => (p.exerciseId === exerciseId ? { ...p, sets } : p)))),

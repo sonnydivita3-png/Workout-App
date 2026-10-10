@@ -119,6 +119,10 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
                     const n = (p.dropSets ?? 1) - 1
                     s.setDayItems(date, planned.map((q, j) => (j === index ? { ...q, dropSets: n || undefined } : q)))
                   }}
+                  date={date}
+                  keepSets={p.keepSets}
+                  // Straight sets only: a superset's rounds go together.
+                  onKeepSets={p.block ? undefined : () => s.setDayItems(date, planned.map((q, j) => (j === index ? { ...q, keepSets: true } : q)))}
                   onSwap={() => { setSwapMsg(null); setSwap({ index, ex, step: 'how' }) }}
                   onHistory={() => setHistory(ex)}
                   readOnly={future}
