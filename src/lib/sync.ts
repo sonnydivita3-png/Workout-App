@@ -1,5 +1,5 @@
 /** Everything that gets backed up: workouts, plans and goals. Settings like theme stay per device. */
-export const SYNC_KEYS = ['plan', 'overrides', 'logs', 'custom', 'units', 'name', 'bodyweight', 'routines', 'goals', 'timedLogs', 'measurements', 'programs', 'equipment', 'finishedDays', 'trainingPrefs', 'benchmarks', 'aboutMe', 'exerciseModes'] as const
+export const SYNC_KEYS = ['plan', 'overrides', 'logs', 'custom', 'units', 'name', 'bodyweight', 'routines', 'goals', 'timedLogs', 'measurements', 'programs', 'equipment', 'finishedDays', 'trainingPrefs', 'benchmarks', 'aboutMe', 'exerciseModes', 'favorites'] as const
 
 export function syncPayload(state: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(SYNC_KEYS.map((k) => [k, state[k]]))

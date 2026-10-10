@@ -8,7 +8,8 @@ import { addDropSets, placeWarmups } from './warmups'
 import { cardioSession, type CardioSessionKind } from './cardioSession'
 import { cardioSplit, likedCardio, wodAmount, wodCardio } from './cardioPrefs'
 import { expandParts, FULL_BODY_ORDER, isFullBody, LOWER_PARTS, UPPER_PARTS, BODY_PARTS } from './bodyParts'
-import { byPreference, moveScore, tooAdvanced } from './movePrefs'
+import { byPreference, preferenceBonus, tooAdvanced, unwanted } from './movePrefs'
+import { favoriteIds, isFavorite } from './favorites'
 import { stationOf, staysPut, walkCost } from './stations'
 import { BY_ID, familyOf, FULL_BODY_GROUPS, isAdvanced, isIsolation, isMainLift, isQuirky, isStaple, isTechnical, POOL, pick, roundTo5, shuffle, softShuffle, type Rng } from './randomUtil'
 
@@ -265,13 +266,17 @@ const RELATED: Record<string, string[]> = {
   Triceps: ['Chest', 'Biceps'], Core: ['Glutes', 'Quads'],
 }
 
+/** Favorite library exercises that random workouts wouldn't usually pick (they're in the running too). */
+const favoritesOutsidePool = () => [...favoriteIds()].map((id) => BY_ID.get(id)).filter((e): e is Exercise => !!e && !e.suggest)
+
 /** Candidate exercises per group, in the order they'll be offered: the group's own first, then related groups. */
 function queuesFor(groups: string[], rng: Rng, avoid: Set<string>, cfg: LiftConfig, familiar = new Set<string>()) {
   // Olympic lifts stay out of random straight-set workouts (CrossFit-style keeps its own list).
   // Random workouts stick to mainstream moves; niche and advanced ones only if a group would otherwise be empty.
+  // Favorites are always in the running, whatever they are.
   const strengthPool = (g: string) => {
-    const all = POOL.filter((e) => e.kind === 'strength' && e.group === g && !isTechnical(e) && hasGear(e))
-    const plain = all.filter((e) => !isQuirky(e) && !tooAdvanced(e))
+    const all = [...POOL, ...favoritesOutsidePool()].filter((e) => e.kind === 'strength' && e.group === g && (isFavorite(e) || !isTechnical(e)) && hasGear(e))
+    const plain = all.filter((e) => isFavorite(e) || (!isQuirky(e) && !tooAdvanced(e)))
     return plain.length ? plain : all
   }
   const own = (g: string) => {
@@ -289,9 +294,10 @@ function queuesFor(groups: string[], rng: Rng, avoid: Set<string>, cfg: LiftConf
     const known = mixed.filter((e) => familiar.has(e.id) && !avoid.has(e.id))
     const rest = mixed.filter((e) => !known.includes(e))
     const tiered = [...known, ...rest.filter((e) => isStaple(e) && weighted(e)), ...rest.filter((e) => isStaple(e) && !weighted(e)), ...rest.filter((e) => !isStaple(e))]
-    // The kinds of movement they asked for more of move up a tier (and less of, down), last workout's picks after.
-    const tierOf = (e: Exercise) => (known.includes(e) ? 0 : !isStaple(e) ? 3 : weighted(e) ? 1 : 2) + (avoid.has(e.id) ? 1 : 0)
-    return byPreference(tiered, tierOf)
+    // Kinds of movement they asked for more of, and favorites, are likelier picks (less of: last); last workout's
+    // picks a tier down.
+    const tierOf = (e: Exercise) => (known.includes(e) ? 0 : !isStaple(e) ? 3 : weighted(e) ? 1 : 2)
+    return byPreference(tiered, rng, tierOf, avoid)
   }
   return new Map(
     groups.map((g) => {
@@ -367,12 +373,18 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
     const q = queues.get(g)!
     const ok = (e: Exercise) => !taken.has(e.id) && (!want || want(e))
     // Only repeat a movement when nothing else is left (e.g. a bodyweight-only chest day), and never when strict.
-    // The part's own moves come before borrowing a related part's (an arm day stays arms, not rows).
+    // The part's own moves come before borrowing a related part's (an arm day stays arms, not rows), and a kind they
+    // asked for less of only when the part has nothing else at all.
     const mine = (e: Exercise) => e.group === g
-    let i = q.findIndex((e) => ok(e) && mine(e) && !tooSimilar(e))
-    if (i < 0 && !strict) i = q.findIndex((e) => ok(e) && mine(e))
-    if (i < 0) i = q.findIndex((e) => ok(e) && !tooSimilar(e))
-    if (i < 0 && !strict) i = q.findIndex(ok)
+    const find = (fits: (e: Exercise) => boolean) => {
+      let i = q.findIndex((e) => fits(e) && !tooSimilar(e))
+      if (i < 0 && !strict) i = q.findIndex(fits)
+      return i
+    }
+    let i = find((e) => ok(e) && mine(e) && !unwanted(e))
+    if (i < 0) i = find((e) => ok(e) && mine(e))
+    if (i < 0) i = find((e) => ok(e) && !unwanted(e))
+    if (i < 0) i = find(ok)
     return i < 0 ? undefined : q.splice(i, 1)[0]
   }
   /**
@@ -391,8 +403,8 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
       const score = (avoid.has(e.id) ? 0 : 16) + (tooSimilar(e) ? 0 : 8)
         + (pats[0]?.test(e.name) ? 4 : pats[1]?.test(e.name) ? 2 : 0) + (equipmentRank(e) <= 1 ? 1.5 : 0)
         + (e.fullName ? 2 : 0) + (isMainLift(e) ? 1 : 0) - (COMPOUND_PARTS.has(g) && isIsolation(e) ? 3 : 0) + bonus(e)
-        // The kinds of movement they like (free weights, one-arm/one-leg…) win close calls.
-        + 1.5 * moveScore(e)
+        // Kinds of movement they like (free weights, one arm / one leg…) and favorites win close calls, often not always.
+        + preferenceBonus(e, rng)
         // A lift they've been doing keeps its progress going (but not over a squat for quads with a leg extension).
         + (familiar.has(e.id) && !(COMPOUND_PARTS.has(g) && isIsolation(e)) ? 5 : 0)
       if (score > bestScore) { bestScore = score; best = i }
@@ -693,7 +705,7 @@ const UPPER = new Set(UPPER_PARTS)
 function roundRobinPick(groups: string[], count: number, poolFor: (g: string) => Exercise[], avoid: Set<string>, rng: Rng, maxFixed = 1, already: Exercise[] = []) {
   const order = shuffle(groups, rng)
   const run = (stay: boolean) => {
-    const queues = new Map(order.map((g) => [g, byPreference(softShuffle(poolFor(g), avoid, rng))] as const))
+    const queues = new Map(order.map((g) => [g, byPreference(softShuffle(poolFor(g), avoid, rng), rng, () => 0, avoid)] as const))
     const picked: Exercise[] = []
     const taken = new Set<string>()
     while (picked.length < count) {

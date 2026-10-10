@@ -104,6 +104,39 @@ describe('exercise types you prefer', () => {
     expect(share({ bodyweight: 1 }, 'bodyweight')).toBeGreaterThan(share({}, 'bodyweight') * 2)
   })
 
+  it('"More" always raises a kind\'s share, whatever it starts from, on any kind of day (full body too)', () => {
+    const days: string[][] = [['Chest'], ['Quads', 'Hamstrings', 'Glutes', 'Calves'], ['Chest', 'Shoulders', 'Triceps'], FOCUS[3]]
+    const shareOn = (focus: string[], prefs: MovePrefs, kind: MoveType) => {
+      setMovePrefs(prefs)
+      let n = 0
+      let total = 0
+      for (let seed = 1; seed <= 40; seed++) {
+        for (const p of generateWorkout(focus, 45, { style: 'standard', rng: mulberry32(seed) })) {
+          const e = ex(p.exerciseId)
+          if (e.kind !== 'strength') continue
+          total++
+          if (matchesMove(kind, e)) n++
+        }
+      }
+      return n / total
+    }
+    for (const focus of days) {
+      for (const kind of ['compound', 'free', 'machine', 'unilateral', 'isolation'] as MoveType[]) {
+        const before = shareOn(focus, {}, kind)
+        const after = shareOn(focus, { [kind]: 1 }, kind)
+        // Never lower; higher wherever there's room (a full-body day keeps one main lift per part, so it can't
+        // always change: a press stays the chest pick however much someone likes isolation work).
+        expect(after, `${kind} on ${focus.join('+')}`).toBeGreaterThanOrEqual(before - 0.02)
+        if (before < 0.75 && focus !== FOCUS[3]) expect(after, `${kind} on ${focus.join('+')}`).toBeGreaterThan(before)
+        expect(shareOn(focus, { [kind]: -1 }, kind), `less ${kind} on ${focus.join('+')}`).toBeLessThanOrEqual(before)
+      }
+    }
+    // Full-body days used to ignore most of these: more machines now means a fair few machines, not all of them.
+    const machines = shareOn(FOCUS[3], { machine: 1 }, 'machine')
+    expect(machines).toBeGreaterThan(shareOn(FOCUS[3], {}, 'machine') + 0.15)
+    expect(machines).toBeLessThan(0.6)
+  })
+
   it('ignores unknown or broken saved values, and sums up the choice', () => {
     setMovePrefs({ nonsense: 1, free: 5, machine: -1 } as unknown as MovePrefs)
     expect(share({ ...({ nonsense: 1 } as MovePrefs) }, 'free')).toBeGreaterThan(0)

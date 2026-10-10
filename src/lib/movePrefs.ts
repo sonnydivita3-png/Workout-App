@@ -1,5 +1,6 @@
 import type { Exercise } from '../types'
-import { isAdvanced, isIsolation } from './randomUtil'
+import { hasFavorites, isFavorite } from './favorites'
+import { isAdvanced, isIsolation, type Rng } from './randomUtil'
 
 /** Kinds of movement someone can ask for more or less of. Generated workouts lean towards (or away from) them. */
 export const MOVE_TYPES = [
@@ -59,27 +60,47 @@ export function moveScore(e: Exercise): number {
  */
 export const tooAdvanced = (e: Exercise) => isAdvanced(e) && !(prefs.unilateral === 1 && isUnilateral(e) && !HARD_ONE_SIDED.test(text(e)))
 
+/** How much likelier a pick is: 3× for each kind they asked for more of (up to 9×). */
+const likedWeight = (e: Exercise) => { const s = moveScore(e); return s > 0 ? 3 ** Math.min(2, s) : 1 }
+
+/** A favorite is a sure pick in about three workouts out of four that train its body part (and can turn up anyway). */
+export const FAVORITE_ODDS = 0.75
+
+/** A kind they asked for less of (and not a favorite): only used when nothing else fits. */
+export const unwanted = (e: Exercise) => moveScore(e) < 0 && !isFavorite(e)
+
 /**
- * Re-order candidates by preference while keeping each list's own order (staples first, last workout's picks last…):
- * liked kinds take turns with the rest, so "More" means about half of the picks rather than all of them, and a liked
- * move never jumps more than one tier ahead. Unwanted kinds go to the back, used only when nothing else is left.
+ * Order candidates by preference, keeping the list's tiers (`tier`: lifts they've been logging, everyday lifts,
+ * everyday bodyweight moves, the rest; anything in `avoid` a tier lower):
+ * - a favorite goes first, most times (FAVORITE_ODDS);
+ * - a kind they asked for more of is about three times as likely within its tier, and can move up one tier, so it
+ *   gains whatever share it starts from without pushing out everything else;
+ * - a kind they asked for less of goes to the back.
  */
-export function byPreference<T extends Exercise>(list: T[], tier: (e: T) => number = () => 0): T[] {
-  if (!hasMovePrefs()) return list
-  const liked = list.filter((e) => moveScore(e) > 0)
-  const plain = list.filter((e) => moveScore(e) === 0)
-  const less = list.filter((e) => moveScore(e) < 0)
-  const out: T[] = []
-  let i = 0
-  let j = 0
-  let lastLiked = false
-  while (i < liked.length || j < plain.length) {
-    const canLiked = i < liked.length && (j >= plain.length || tier(liked[i]) <= tier(plain[j]) + 1)
-    // Liked first when it's at least as good a tier, then alternate; a strongly liked move (two kinds) can go twice.
-    const takeLiked = canLiked && (j >= plain.length || !lastLiked || moveScore(liked[i]) >= 2 || tier(liked[i]) < tier(plain[j]))
-    if (takeLiked) { out.push(liked[i++]); lastLiked = true } else { out.push(plain[j++]); lastLiked = false }
-  }
-  return [...out, ...less]
+export function byPreference<T extends Exercise>(list: T[], rng: Rng, tier: (e: T) => number = () => 0, avoid: ReadonlySet<string> = new Set()): T[] {
+  if (!hasMovePrefs() && !hasFavorites()) return list
+  const keyed = list.filter((e) => !unwanted(e)).map((e) => {
+    const fav = isFavorite(e) && rng() < FAVORITE_ODDS
+    const w = fav ? 5 : likedWeight(e)
+    const t = tier(e)
+    const up = fav ? 0 : w > 1 ? Math.max(t - 1, Math.min(t, 1)) : t
+    // Weighted random order within a tier (Efraimidis-Spirakis): log(u) / w, largest first.
+    return { e, t: up + (avoid.has(e.id) ? 1 : 0), key: Math.log(rng()) / w }
+  })
+  keyed.sort((a, b) => a.t - b.t || b.key - a.key)
+  return [...keyed.map((x) => x.e), ...list.filter(unwanted)]
+}
+
+/**
+ * The same for picks made by score (one exercise per part on full-body days): a liked kind gets a random bonus, so it
+ * wins close calls often but not always (+2.2 on average); a favorite, most times, enough to beat the part's usual
+ * lift (but not something just like an exercise already in); a kind they want less of loses to anything else that
+ * fits. No preferences or favorites: no bonus, and no random numbers used.
+ */
+export function preferenceBonus(e: Exercise, rng: Rng): number {
+  if (unwanted(e)) return -20
+  const w = likedWeight(e)
+  return (w > 1 ? Math.log(w) * rng() * 4 : 0) + (isFavorite(e) && rng() < FAVORITE_ODDS ? 7.5 : 0)
 }
 
 /** "More free weights, one arm / one leg · less machines", or null with no preference. */

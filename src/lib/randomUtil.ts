@@ -57,7 +57,7 @@ export const isMainLift = (e: Exercise) =>
  * rest of the library to fill gaps (checked against the everyday and the full name).
  */
 const STAPLES = new RegExp([
-  'squat', 'leg press', 'lunge', 'split squat', 'step-?up', 'deadlift', 'hip thrust', 'glute bridge', 'leg curl', 'leg extension', 'calf raise',
+  'squat', 'leg press', 'lunge', 'split squat', 'step-?up', 'deadlift', 'hip thrust', 'glute bridge', 'leg curl', 'leg extension', 'calf raise', 'back extension', 'good morning',
   'bench press', 'incline .*press', 'chest press', 'push-?up', 'chest dip', '\\bfly', 'flyes', 'crossover',
   '\\brow\\b', '\\brows\\b', 'pulldown', 'pull-?up', 'chin-?up', 'face pull', 'shrug',
   'overhead press', 'shoulder press', 'military press', 'arnold', 'lateral raise', 'front raise', 'rear delt', 'reverse fly',

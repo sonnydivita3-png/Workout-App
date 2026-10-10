@@ -16,7 +16,8 @@ interface Props {
   initialGroup?: string
 }
 
-const GROUPS = ['All', ...BODY_PARTS, 'Forearms', 'Cardio', 'Conditioning', 'Mobility', 'Other']
+const GROUPS = ['All', 'Favorites', ...BODY_PARTS, 'Forearms', 'Cardio', 'Conditioning', 'Mobility', 'Other']
+const PART_ORDER: string[] = [...BODY_PARTS, 'Forearms']
 // Body parts a new custom exercise can be filed under (the one being browsed).
 const PARTS: string[] = [...BODY_PARTS, 'Forearms']
 // Equipment filters; a few rarer kinds are folded into the closest one or "Other".
@@ -35,6 +36,7 @@ const ALIASES: Record<string, string> = {
   bw: 'bodyweight', tri: 'tricep', bi: 'bicep', ghr: 'glute ham',
 }
 const rank = (e: Exercise) => (e.custom ? 0 : e.fullName ? 1 : e.suggest && isStaple(e) && !isTechnical(e) ? 2 : e.suggest ? 3 : 4)
+const partRank = (e: Exercise) => { const i = PART_ORDER.indexOf(e.group); return i < 0 ? PART_ORDER.length : i }
 const CREATE_AS: [string, 'strength' | 'cardio', ExerciseMode | undefined][] = [
   ['Weights', 'strength', 'weight'],
   ['Bodyweight reps', 'strength', 'reps'],
@@ -45,6 +47,10 @@ const CREATE_AS: [string, 'strength' | 'cardio', ExerciseMode | undefined][] = [
 export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise', initialGroup = 'All' }: Props) {
   const custom = useStore((s) => s.custom)
   const createCustom = useStore((s) => s.createCustom)
+  // Starred exercises: listed first, all together under Favorites, and picked more often in generated workouts.
+  const favorites = useStore((s) => s.favorites)
+  const toggleFavorite = useStore((s) => s.toggleFavorite)
+  const isFav = (e: Exercise) => favorites.includes(e.id)
   // Remembered between visits: someone with a home gym usually wants the same equipment every time.
   const owned = useStore((s) => s.equipment)
   const logs = useStore((s) => s.logs)
@@ -67,13 +73,18 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
   // Gym shorthand works too (RDL, OHP, DB…), and hyphens and spaces don't matter (pushup finds Push-Up).
   const words = query.split(/\s+/).flatMap((w) => (ALIASES[w] ?? w).split(' ')).map(squash).filter(Boolean)
   const matches = (e: Exercise) => { const hay = squash(`${e.name} ${e.fullName ?? ''}`); return words.every((w) => hay.includes(w)) }
-  // Retired exercises (no longer in the library) stay pickable for anyone who has logged them.
-  const yours = useMemo(() => [...recent.keys()].map((id) => BUILTIN_BY_ID.get(id)).filter((e): e is Exercise => !!e?.retired), [recent])
+  // Retired exercises (no longer in the library) stay pickable for anyone who has logged them, or starred them.
+  const yours = useMemo(
+    () => [...new Set([...recent.keys(), ...favorites])].map((id) => BUILTIN_BY_ID.get(id)).filter((e): e is Exercise => !!e?.retired),
+    [recent, favorites],
+  )
+  // Favorites with something typed searches everything (favorites still first).
+  const inPart = (e: Exercise) => group === 'All' || (group === 'Favorites' ? !!query || favorites.includes(e.id) : e.group === group)
   // Muscle group and search first, so each equipment chip can say how many it would leave.
   const inGroup = useMemo(
-    () => [...custom, ...EXERCISES, ...yours].filter((e) => (group === 'All' || e.group === group) && matches(e)),
+    () => [...custom, ...EXERCISES, ...yours].filter((e) => inPart(e) && matches(e)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [custom, yours, query, group],
+    [custom, yours, query, group, favorites],
   )
   const counts = useMemo(() => {
     const c = new Map<Equip, number>()
@@ -85,9 +96,13 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
     () =>
       inGroup
         .filter((e) => equip === 'Any' || (equip === 'Mine' ? hasGear(e) : equipOf(e) === equip))
-        // Your own exercises, then everyday lifts (Back Squat, Leg Curl…), then common moves, then the rest, A to Z.
-        .sort((a, b) => (recent.get(b.id) ?? '').localeCompare(recent.get(a.id) ?? '') || rank(a) - rank(b) || a.name.localeCompare(b.name)),
-    [inGroup, equip, recent],
+        // Favorites (by body part when they're all listed), then what you've done lately, then your own exercises,
+        // everyday lifts (Back Squat, Leg Curl…), common moves, and the rest, A to Z.
+        .sort((a, b) =>
+          Number(favorites.includes(b.id)) - Number(favorites.includes(a.id))
+          || (group === 'Favorites' && !query ? partRank(a) - partRank(b) : 0)
+          || (recent.get(b.id) ?? '').localeCompare(recent.get(a.id) ?? '') || rank(a) - rank(b) || a.name.localeCompare(b.name)),
+    [inGroup, equip, recent, favorites, group, query],
   )
   const exact = results.some((e) => e.name.toLowerCase() === query)
 
@@ -168,15 +183,26 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
             </li>
           )}
           {results.slice(0, limit).map((e) => (
-            <li key={e.id}>
+            <li key={e.id} className="flex items-center">
               <button
                 disabled={taken.has(e.id)}
                 onClick={() => onPick(e)}
-                className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-neutral-50 disabled:opacity-40"
+                className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl py-2.5 pl-3 pr-1 text-left hover:bg-neutral-50 disabled:opacity-40"
               >
                 <span>{e.name}</span>
-                <span className="shrink-0 text-xs text-neutral-400">{taken.has(e.id) ? 'Added' : group === 'All' ? `${e.group} · ${e.equipment}` : e.equipment}</span>
+                <span className="shrink-0 text-xs text-neutral-400">{taken.has(e.id) ? 'Added' : group === 'All' || group === 'Favorites' ? `${e.group} · ${e.equipment}` : e.equipment}</span>
               </button>
+              {e.kind === 'strength' ? (
+                <button
+                  onClick={() => toggleFavorite(e.id)}
+                  aria-pressed={isFav(e)}
+                  aria-label={`Favorite: ${e.name}`}
+                  title={isFav(e) ? 'Remove from favorites' : 'Add to favorites'}
+                  className={`flex h-10 w-9 shrink-0 items-center justify-center text-lg leading-none ${isFav(e) ? 'text-amber-700' : 'text-neutral-300'}`}
+                >
+                  {isFav(e) ? '★' : '☆'}
+                </button>
+              ) : <span className="w-9 shrink-0" />}
             </li>
           ))}
           {results.length > limit && (
@@ -188,7 +214,9 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
           )}
           {results.length === 0 && !q.trim() && (
             <li className="px-3 py-6 text-center text-neutral-400">
-              No matches.{equip !== 'Any' && <> <button onClick={() => setEquip('Any')} className="underline">Show any equipment</button></>}
+              {group === 'Favorites' && favorites.length === 0
+                ? <>No favorites yet. Tap ☆ next to an exercise to add it: favorites are listed first and turn up more in workouts made for you.</>
+                : <>No matches.{equip !== 'Any' && <> <button onClick={() => setEquip('Any')} className="underline">Show any equipment</button></>}</>}
             </li>
           )}
         </ul>
