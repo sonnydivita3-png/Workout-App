@@ -60,6 +60,13 @@ export interface Suggestion {
 /** Progress a little at a time: one or two sets per session, the rest repeat last time. */
 const PER_SESSION = 2
 
+/** What to aim for the first time, by how the exercise is logged. */
+const FIRST: Record<NonNullable<Exercise['mode']>, string> = {
+  weight: 'First time: pick a weight you could lift a couple more times, and log it.',
+  reps: 'First time: stop a couple of reps short of failure, and log it.',
+  time: 'First time: hold until your form starts to slip, and log it.',
+}
+
 /**
  * "Try this next", the slow way that holds up: double progression a set or two at a time.
  *
@@ -81,7 +88,7 @@ export function suggestNext(
 ): Suggestion {
   const done = workSets(last)
   const mode = ex.mode ?? 'weight'
-  if (done.length === 0) return { kind: 'first', why: 'First time: pick a weight you could lift a couple more times, and log it.', reps: target.reps ?? null, seconds: target.seconds ?? null }
+  if (done.length === 0) return { kind: 'first', why: FIRST[mode], reps: target.reps ?? null, seconds: target.seconds ?? null }
   const n = Math.max(1, target.sets ?? done.length)
   const lb = (w: number) => `${showWeight(w, units)} ${units.weight}`
   const plural = (k: number, w: string) => `${k} ${w}${k === 1 ? '' : 's'}`
@@ -261,7 +268,8 @@ export function sessionScore(l: ExerciseLog | undefined, mode: Exercise['mode'],
 /** One set for display: "185×5", "12 reps" (bodyweight on a weighted lift), "12" (reps moves) or "0:45" (holds). */
 export function formatSet(s: StrengthSet, mode: Exercise['mode'], units: Units): string {
   if (mode === 'time') return s.seconds ? formatSeconds(s.seconds) : '–'
-  if (mode === 'reps') return s.reps ? `${s.reps}` : '–'
+  // Reps only, with any weight shown (sets logged before the exercise was switched to bodyweight keep their load).
+  if (mode === 'reps') return s.reps ? (s.weight ? `${showWeight(s.weight, units)}×${s.reps}` : `${s.reps}`) : '–'
   if (!s.weight) return s.reps ? `${s.reps} reps` : '–'
   return `${showWeight(s.weight, units)}×${s.reps ?? '–'}`
 }

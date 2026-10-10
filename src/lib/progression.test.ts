@@ -59,6 +59,10 @@ describe('suggestNext (slow double progression, a set or two at a time)', () => 
     expect(suggestNext(push, log([{ weight: null, reps: 20 }, { weight: null, reps: 18 }, { weight: null, reps: 18 }]), {}, lb)).toMatchObject({ reps: 19, changed: 2 })
     expect(suggestNext(plank, log([{ weight: null, reps: null, seconds: 60 }]), {}, lb)).toMatchObject({ seconds: 65 })
     expect(suggestNext(bench, undefined, { reps: 8 }, lb).kind).toBe('first')
+    // The first-time hint fits how it's logged: no "pick a weight" for push-ups or planks.
+    expect(suggestNext(bench, undefined, {}, lb).why).toMatch(/pick a weight/)
+    expect(suggestNext(push, undefined, {}, lb).why).toMatch(/reps short of failure/)
+    expect(suggestNext(plank, undefined, {}, lb).why).toMatch(/hold until/)
   })
   it('uses 2.5 kg steps in kg', () => {
     const s = suggestNext(bench, log([{ weight: 100 * 2.20462262, reps: 7 }, { weight: 100 * 2.20462262, reps: 5 }]), { reps: 5 }, { weight: 'kg', distance: 'km' })
@@ -171,6 +175,8 @@ describe('bodyweight sets on weighted lifts (no weight, or 0)', () => {
     expect(formatSet(bw(12), 'weight', lbs)).toBe('12 reps')
     expect(formatSet({ weight: 135, reps: 5 }, 'weight', lbs)).toBe('135×5')
     expect(formatSet({ weight: null, reps: 15 }, 'reps', lbs)).toBe('15')
+    // Logged with a load before the exercise was switched to bodyweight: the load still shows.
+    expect(formatSet({ weight: 25, reps: 8 }, 'reps', lbs)).toBe('25×8')
   })
 
   it('the ab roller is a reps move', () => {

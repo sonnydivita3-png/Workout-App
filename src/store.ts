@@ -13,6 +13,7 @@ import type { RestPref } from './lib/timing'
 import type { WorkoutStyle } from './lib/randomizer'
 
 import { setOwnedGear } from './lib/equipment'
+import { setChosenModes, withChosenMode } from './lib/exerciseModes'
 import { placeWarmups } from './lib/warmups'
 import { setCardioPrefs } from './lib/cardioPrefs'
 import { activePrograms, clearRange, removeProgramDays } from './lib/programs'
@@ -63,6 +64,8 @@ export interface Data {
   timedLogs?: TimedLog[]
   measurements?: Measurement[]
   benchmarks?: Benchmark[]
+  /** Exercises the person tracks their own way: bodyweight (reps only) or with weight, by exercise id. */
+  exerciseModes?: Record<string, ExerciseMode>
 }
 
 interface State extends Data {
@@ -184,6 +187,9 @@ interface State extends Data {
   deleteLogs: (exerciseId: string, date?: string) => void
   /** `group` files it under a body part (e.g. the one being browsed when it was created). */
   createCustom: (name: string, kind: ExerciseKind, mode?: ExerciseMode, group?: string) => Exercise
+  exerciseModes: Record<string, ExerciseMode>
+  /** Track an exercise with weight or as bodyweight (reps only), from now on. Going bodyweight, its 0 lb sets become bodyweight sets. */
+  setExerciseMode: (exerciseId: string, mode: ExerciseMode) => void
   setUnits: (u: Partial<Units>) => void
   /** A cardio card's own distance unit (a rower in km, a swim in yards). */
   setDistanceUnit: (exerciseId: string, unit: NonNullable<Units['byExercise']>[string]) => void
@@ -260,6 +266,7 @@ const defaults = () => ({
   timedLogs: [] as TimedLog[],
   benchmarks: [] as Benchmark[],
   measurements: [] as Measurement[],
+  exerciseModes: {} as Record<string, ExerciseMode>,
   cloud: { enabled: false, lastSyncedAt: null, lastHash: null, conflict: false, error: null, checkedAt: null } as State['cloud'],
   theme: 'dark' as ThemeMode,
   accent: 'lime' as Accent,
@@ -293,7 +300,7 @@ export const useStore = create<State>()(
           theme: s.theme,
           accent: s.accent,
           // Erasing turns cloud backup off, so the cloud copy stays as a safety net rather than being wiped too.
-          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone, tourVersion: s.tourVersion, onboarded: s.onboarded, tipsSeen: s.tipsSeen, equipment: s.equipment, trainingPrefs: s.trainingPrefs, aboutMe: s.aboutMe } : {}),
+          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone, tourVersion: s.tourVersion, onboarded: s.onboarded, tipsSeen: s.tipsSeen, equipment: s.equipment, trainingPrefs: s.trainingPrefs, aboutMe: s.aboutMe, exerciseModes: s.exerciseModes } : {}),
         })),
       pushNotifications: (items) => {
         const existing = new Map(get().notifications.map((n) => [n.id, n]))
@@ -378,6 +385,13 @@ export const useStore = create<State>()(
         set({ custom: [...get().custom, ex] })
         return ex
       },
+      setExerciseMode: (id, mode) =>
+        set((s) => ({
+          exerciseModes: { ...s.exerciseModes, [id]: mode },
+          ...(s.custom.some((e) => e.id === id && e.mode !== mode) ? { custom: s.custom.map((e) => (e.id === id ? { ...e, mode } : e)) } : {}),
+          // 0 lb meant bodyweight all along: those sets are logged as reps only, like the rest from now on.
+          ...(mode === 'reps' ? { logs: s.logs.map((l) => (l.exerciseId === id && l.sets?.some((x) => x.weight === 0) ? { ...l, sets: l.sets.map((x) => (x.weight === 0 ? { ...x, weight: null } : x)) } : l)) } : {}),
+        })),
       setUnits: (u) => set((s) => ({ units: { ...s.units, ...u } })),
       setDistanceUnit: (id, unit) => set((s) => ({ units: { ...s.units, byExercise: { ...s.units.byExercise, [id]: unit } } })),
       setName: (name) => set({ name }),
@@ -557,6 +571,9 @@ export const useStore = create<State>()(
 // The workout generators read the person's equipment from here (see lib/equipment.ts).
 setOwnedGear(useStore.getState().equipment)
 useStore.subscribe((s, prev) => { if (s.equipment !== prev.equipment) setOwnedGear(s.equipment) })
+// ...how they track each exercise, where they've said (see lib/exerciseModes.ts)...
+setChosenModes(useStore.getState().exerciseModes)
+useStore.subscribe((s, prev) => { if (s.exerciseModes !== prev.exerciseModes) setChosenModes(s.exerciseModes) })
 // ...and the cardio they like (see lib/cardioPrefs.ts).
 setCardioPrefs(useStore.getState().trainingPrefs.cardio, useStore.getState().trainingPrefs.cardioSplit)
 setMovePrefs(useStore.getState().trainingPrefs.moves)
@@ -566,9 +583,10 @@ useStore.subscribe((s, prev) => {
   setMovePrefs(s.trainingPrefs.moves)
 })
 
-/** Resolve an exercise id against the built-in library and the user's custom exercises. */
+/** Resolve an exercise id against the built-in library and the user's custom exercises, tracked the way they chose. */
 export function findExercise(custom: Exercise[], id: string): Exercise | undefined {
-  return BUILTIN_BY_ID.get(id) ?? custom.find((e) => e.id === id)
+  const e = BUILTIN_BY_ID.get(id) ?? custom.find((x) => x.id === id)
+  return e && withChosenMode(e)
 }
 
 /** Most recent log for an exercise strictly before `date` — powers the "last time" hint. */
