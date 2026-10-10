@@ -105,9 +105,17 @@ const EQUIPMENT_FIX: Record<string, string> = {
 }
 // ...and a couple of body parts: mountain climbers and flutter kicks are ab work, not quads and glutes.
 const GROUP_FIX: Record<string, string> = { Mountain_Climbers: 'Core', Flutter_Kicks: 'Core' }
+// Everyday moves the dataset left out of random workouts (so "More bodyweight" never brought dips, hanging leg raises
+// or inverted rows, and no back day ever had shrugs).
+const SUGGEST_FIX = new Set([
+  'Barbell_Shrug', 'Dumbbell_Shrug', 'Good_Morning', 'Trap_Bar_Deadlift', 'Push_Press', 'Hyperextensions_Back_Extensions',
+  'Dips_-_Chest_Version', 'Decline_Push-Up', 'Inverted_Row', 'Bodyweight_Walking_Lunge',
+  'Hanging_Leg_Raise', 'Knee_Hip_Raise_On_Parallel_Bars', 'Mountain_Climbers', 'Ab_Roller',
+])
 for (const e of EXERCISES) {
   if (EQUIPMENT_FIX[e.id]) e.equipment = EQUIPMENT_FIX[e.id]
   if (GROUP_FIX[e.id]) e.group = GROUP_FIX[e.id]
+  if (SUGGEST_FIX.has(e.id)) e.suggest = true
 }
 // Moves that are always done with bodyweight but were filed as weighted lifts: log them as reps, with no weight box.
 // (Lifts people often load, like dips and pull-ups, stay weighted; a set with no weight there counts as bodyweight.)

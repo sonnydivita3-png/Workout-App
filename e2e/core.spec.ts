@@ -353,7 +353,7 @@ test('exercise picker: muscle plus equipment filters, remembered next time', asy
   await sheet.getByRole('button', { name: /^Equipment filter/ }).click()
   await sheet.getByRole('group', { name: 'Equipment' }).getByRole('button', { name: /^Dumbbell \d+$/ }).click()
   await expect(sheet.getByRole('group', { name: 'Equipment' })).toHaveCount(0)
-  const rows = sheet.locator('ul li button')
+  const rows = sheet.locator('ul li')
   const n = await rows.count()
   expect(n).toBeGreaterThan(5)
   for (let i = 0; i < n; i++) await expect(rows.nth(i)).toContainText('Dumbbell')

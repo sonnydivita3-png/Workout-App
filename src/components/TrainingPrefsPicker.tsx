@@ -128,7 +128,7 @@ export function MoveChoice() {
     <div className="mb-5">
       <h3 className="mb-2 text-sm font-medium">Exercise types you prefer</h3>
       <MovePrefsPicker />
-      <p className="mt-2 text-xs text-neutral-400">Saved as your default (also in Settings → Profile). Workouts lean towards “More” and away from “Less”, without dropping a body part.</p>
+      <p className="mt-2 text-xs text-neutral-400">Saved as your default (also in Settings → Profile). “More” is picked about three times as often, “Less” only when nothing else fits, and every body part still gets trained.</p>
     </div>
   )
 }

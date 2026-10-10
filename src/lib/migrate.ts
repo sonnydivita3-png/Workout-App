@@ -57,6 +57,7 @@ export function repairState<T extends Obj>(saved: unknown, defaults: T): T {
     if (isObj(saved.exerciseModes)) for (const [id, m] of Object.entries(saved.exerciseModes)) if (m === 'weight' || m === 'reps' || m === 'time') modes[id] = m
     out.exerciseModes = modes
   }
+  if ('favorites' in defaults) out.favorites = [...new Set(arr(saved.favorites, (f): f is string => typeof f === 'string'))]
   // Keep anything the app no longer knows about (e.g. from a newer version) so it isn't lost.
   for (const [k, v] of Object.entries(saved)) if (!(k in out) && typeof v !== 'function') out[k] = v
   return out as T

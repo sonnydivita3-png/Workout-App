@@ -14,6 +14,7 @@ import type { WorkoutStyle } from './lib/randomizer'
 
 import { setOwnedGear } from './lib/equipment'
 import { setChosenModes, withChosenMode } from './lib/exerciseModes'
+import { setFavorites } from './lib/favorites'
 import { placeWarmups } from './lib/warmups'
 import { setCardioPrefs } from './lib/cardioPrefs'
 import { activePrograms, clearRange, removeProgramDays } from './lib/programs'
@@ -66,6 +67,8 @@ export interface Data {
   benchmarks?: Benchmark[]
   /** Exercises the person tracks their own way: bodyweight (reps only) or with weight, by exercise id. */
   exerciseModes?: Record<string, ExerciseMode>
+  /** Favorite exercises (ids): starred in the picker, and picked more often by generated workouts. */
+  favorites?: string[]
 }
 
 interface State extends Data {
@@ -190,6 +193,9 @@ interface State extends Data {
   exerciseModes: Record<string, ExerciseMode>
   /** Track an exercise with weight or as bodyweight (reps only), from now on. Going bodyweight, its 0 lb sets become bodyweight sets. */
   setExerciseMode: (exerciseId: string, mode: ExerciseMode) => void
+  favorites: string[]
+  /** Star or unstar an exercise. */
+  toggleFavorite: (exerciseId: string) => void
   setUnits: (u: Partial<Units>) => void
   /** A cardio card's own distance unit (a rower in km, a swim in yards). */
   setDistanceUnit: (exerciseId: string, unit: NonNullable<Units['byExercise']>[string]) => void
@@ -267,6 +273,7 @@ const defaults = () => ({
   benchmarks: [] as Benchmark[],
   measurements: [] as Measurement[],
   exerciseModes: {} as Record<string, ExerciseMode>,
+  favorites: [] as string[],
   cloud: { enabled: false, lastSyncedAt: null, lastHash: null, conflict: false, error: null, checkedAt: null } as State['cloud'],
   theme: 'dark' as ThemeMode,
   accent: 'lime' as Accent,
@@ -300,7 +307,7 @@ export const useStore = create<State>()(
           theme: s.theme,
           accent: s.accent,
           // Erasing turns cloud backup off, so the cloud copy stays as a safety net rather than being wiped too.
-          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone, tourVersion: s.tourVersion, onboarded: s.onboarded, tipsSeen: s.tipsSeen, equipment: s.equipment, trainingPrefs: s.trainingPrefs, aboutMe: s.aboutMe, exerciseModes: s.exerciseModes } : {}),
+          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone, tourVersion: s.tourVersion, onboarded: s.onboarded, tipsSeen: s.tipsSeen, equipment: s.equipment, trainingPrefs: s.trainingPrefs, aboutMe: s.aboutMe, exerciseModes: s.exerciseModes, favorites: s.favorites } : {}),
         })),
       pushNotifications: (items) => {
         const existing = new Map(get().notifications.map((n) => [n.id, n]))
@@ -392,6 +399,7 @@ export const useStore = create<State>()(
           // 0 lb meant bodyweight all along: those sets are logged as reps only, like the rest from now on.
           ...(mode === 'reps' ? { logs: s.logs.map((l) => (l.exerciseId === id && l.sets?.some((x) => x.weight === 0) ? { ...l, sets: l.sets.map((x) => (x.weight === 0 ? { ...x, weight: null } : x)) } : l)) } : {}),
         })),
+      toggleFavorite: (id) => set((s) => ({ favorites: s.favorites.includes(id) ? s.favorites.filter((f) => f !== id) : [...s.favorites, id] })),
       setUnits: (u) => set((s) => ({ units: { ...s.units, ...u } })),
       setDistanceUnit: (id, unit) => set((s) => ({ units: { ...s.units, byExercise: { ...s.units.byExercise, [id]: unit } } })),
       setName: (name) => set({ name }),
@@ -574,6 +582,9 @@ useStore.subscribe((s, prev) => { if (s.equipment !== prev.equipment) setOwnedGe
 // ...how they track each exercise, where they've said (see lib/exerciseModes.ts)...
 setChosenModes(useStore.getState().exerciseModes)
 useStore.subscribe((s, prev) => { if (s.exerciseModes !== prev.exerciseModes) setChosenModes(s.exerciseModes) })
+// ...their favorite exercises (see lib/favorites.ts)...
+setFavorites(useStore.getState().favorites)
+useStore.subscribe((s, prev) => { if (s.favorites !== prev.favorites) setFavorites(s.favorites) })
 // ...and the cardio they like (see lib/cardioPrefs.ts).
 setCardioPrefs(useStore.getState().trainingPrefs.cardio, useStore.getState().trainingPrefs.cardioSplit)
 setMovePrefs(useStore.getState().trainingPrefs.moves)
