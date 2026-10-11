@@ -14,7 +14,7 @@ interface Props {
   onClose: () => void
   /** e.g. "Swap Bench Press" (default "Add exercise"). */
   title?: string
-  /** Body part to start on (e.g. the one being swapped). */
+  /** Muscle group to start on (e.g. the one being swapped). */
   initialGroup?: string
 }
 
@@ -28,6 +28,7 @@ const equipOf = (e: Exercise): Equip => {
   if (k === 'EZ bar') return 'Barbell'
   return (EQUIPMENT as readonly string[]).includes(k) && k !== 'Any' && k !== 'Mine' ? (k as Equip) : 'Other'
 }
+const fitsEquip = (e: Exercise, k: Equip) => k === 'Any' || (k === 'Mine' ? hasGear(e) : equipOf(e) === k)
 const equipLabel = (k: Equip) => (k === 'Any' ? 'any' : k === 'Mine' ? 'my equipment' : k)
 const PAGE = 50
 const squash = (t: string) => t.toLowerCase().replace(/[-\s]/g, '')
@@ -37,6 +38,33 @@ const ALIASES: Record<string, string> = {
 }
 const rank = (e: Exercise) => (e.custom ? 0 : e.fullName ? 1 : e.suggest && isStaple(e) && !isTechnical(e) ? 2 : e.suggest ? 3 : 4)
 const partRank = (e: Exercise) => { const i = PART_ORDER.indexOf(e.group); return i < 0 ? PART_ORDER.length : i }
+
+/** A filter as one button ("Equipment ▾", or what's chosen), which shows or hides its options. */
+function FilterButton({ label, on, open, onClick, 'aria-label': ariaLabel }: { label: string; on: boolean; open: boolean; onClick: () => void; 'aria-label': string }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-expanded={open}
+      aria-label={ariaLabel}
+      className={`flex min-w-0 flex-1 items-center justify-between gap-1 rounded-xl px-3 py-2 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`}
+    >
+      <span className="truncate">{label}</span>
+      <span aria-hidden className={`text-xs transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
+    </button>
+  )
+}
+
+function Option({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={on}
+      className={`rounded-full px-3 py-1 text-sm ring-1 ${on ? 'bg-neutral-900 text-surface ring-neutral-900' : 'bg-surface text-neutral-600 ring-neutral-200'}`}
+    >
+      {children}
+    </button>
+  )
+}
 
 export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise', initialGroup = 'All' }: Props) {
   const custom = useStore((s) => s.custom)
@@ -62,7 +90,9 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
   const [q, setQ] = useState('')
   const [group, setGroup] = useState(GROUPS.includes(initialGroup) ? initialGroup : 'All')
   const [limit, setLimit] = useState(PAGE)
-  const [gearOpen, setGearOpen] = useState(false)
+  // Which filter's options are showing (one at a time).
+  const [open, setOpen] = useState<'muscle' | 'gear' | null>(null)
+  const toggle = (f: 'muscle' | 'gear') => setOpen(open === f ? null : f)
 
   const query = q.trim().toLowerCase()
   // Gym shorthand works too (RDL, OHP, DB…), and hyphens and spaces don't matter (pushup finds Push-Up).
@@ -73,14 +103,26 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
     () => [...new Set([...recent.keys(), ...favorites])].map((id) => BUILTIN_BY_ID.get(id)).filter((e): e is Exercise => !!e?.retired),
     [recent, favorites],
   )
+  const all = useMemo(() => [...custom.filter((e) => !e.retired), ...EXERCISES, ...yours], [custom, yours])
   // Favorites with something typed searches everything (favorites still first).
   const inPart = (e: Exercise) => group === 'All' || (group === 'Favorites' ? !!query || favorites.includes(e.id) : e.group === group)
   // Muscle group and search first, so each equipment chip can say how many it would leave.
   const inGroup = useMemo(
-    () => [...custom.filter((e) => !e.retired), ...EXERCISES, ...yours].filter((e) => inPart(e) && matches(e)),
+    () => all.filter((e) => inPart(e) && matches(e)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [custom, yours, query, group, favorites],
+    [all, query, group, favorites],
   )
+  // And search and equipment first, so each muscle group can say how many it has.
+  const groupCounts = useMemo(() => {
+    const c = new Map<string, number>()
+    for (const e of all) {
+      if (!matches(e) || !fitsEquip(e, equip)) continue
+      c.set(e.group, (c.get(e.group) ?? 0) + 1)
+      if (favorites.includes(e.id)) c.set('Favorites', (c.get('Favorites') ?? 0) + 1)
+    }
+    return c
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [all, query, equip, favorites])
   const counts = useMemo(() => {
     const c = new Map<Equip, number>()
     for (const e of inGroup) c.set(equipOf(e), (c.get(equipOf(e)) ?? 0) + 1)
@@ -90,7 +132,7 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
   const results = useMemo(
     () =>
       inGroup
-        .filter((e) => equip === 'Any' || (equip === 'Mine' ? hasGear(e) : equipOf(e) === equip))
+        .filter((e) => fitsEquip(e, equip))
         // Favorites (by body part when they're all listed), then what you've done lately, then your own exercises,
         // everyday lifts (Back Squat, Leg Curl…), common moves, and the rest, A to Z.
         .sort((a, b) =>
@@ -112,54 +154,47 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
           <h2 className="text-lg font-semibold">{title}</h2>
           <button onClick={onClose} className="text-sm text-neutral-500">Done</button>
         </div>
-        {/* Search, with the equipment filter as one button beside it (it opens a panel showing every option at once). */}
+        {/* Search, then the muscle group and equipment filters: each one button that opens a panel showing every option at once. */}
+        <input
+          value={q}
+          onChange={(e) => { setQ(e.target.value); setLimit(PAGE) }}
+          placeholder={`Search ${EXERCISES.length} exercises`}
+          className="mb-2 w-full shrink-0 rounded-xl bg-neutral-100 px-4 py-2.5 outline-none"
+        />
         <div className="mb-3 flex shrink-0 gap-2">
-          <input
-            value={q}
-            onChange={(e) => { setQ(e.target.value); setLimit(PAGE) }}
-            placeholder={`Search ${EXERCISES.length} exercises`}
-            className="min-w-0 flex-1 rounded-xl bg-neutral-100 px-4 py-2.5 outline-none"
+          <FilterButton
+            label={group === 'All' ? 'Muscle group' : group}
+            aria-label={`Muscle group filter: ${group === 'All' ? 'all' : group}`}
+            on={group !== 'All'}
+            open={open === 'muscle'}
+            onClick={() => toggle('muscle')}
           />
-          <button
-            onClick={() => setGearOpen(!gearOpen)}
-            aria-expanded={gearOpen}
+          <FilterButton
+            label={equip === 'Any' ? 'Equipment' : equip === 'Mine' ? 'My gear' : equip}
             aria-label={`Equipment filter: ${equipLabel(equip)}`}
-            className={`flex shrink-0 items-center gap-1 rounded-xl px-3 text-sm ${equip === 'Any' ? 'bg-neutral-100 text-neutral-600' : 'bg-accent text-on-accent'}`}
-          >
-            <span className="max-w-[6.5rem] truncate">{equip === 'Any' ? 'Equipment' : equip === 'Mine' ? 'My gear' : equip}</span>
-            <span aria-hidden className={`text-xs transition-transform ${gearOpen ? 'rotate-180' : ''}`}>▾</span>
-          </button>
+            on={equip !== 'Any'}
+            open={open === 'gear'}
+            onClick={() => toggle('gear')}
+          />
         </div>
-        {gearOpen && (
-          <div className="mb-3 flex shrink-0 flex-wrap gap-2 rounded-2xl bg-neutral-50 p-2" role="group" aria-label="Equipment">
-            {EQUIPMENT.filter((k) => k === 'Any' || k === equip || (k === 'Mine' ? !!owned : counts.get(k))).map((k) => (
-              <button
-                key={k}
-                onClick={() => { setEquip(k); setLimit(PAGE); setGearOpen(false) }}
-                aria-pressed={k === equip}
-                className={`rounded-full px-3 py-1 text-sm ring-1 ${
-                  k === equip ? 'bg-neutral-900 text-surface ring-neutral-900' : 'bg-surface text-neutral-600 ring-neutral-200'
-                }`}
-              >
-                {k === 'Any' ? 'Any equipment' : k === 'Mine' ? `My equipment ${counts.get(k) ?? 0}` : `${k} ${counts.get(k) ?? 0}`}
-              </button>
+        {open === 'muscle' && (
+          <div className="mb-3 flex shrink-0 flex-wrap gap-2 rounded-2xl bg-neutral-50 p-2" role="group" aria-label="Muscle group">
+            {GROUPS.filter((g) => g === 'All' || g === 'Favorites' || g === group || groupCounts.get(g)).map((g) => (
+              <Option key={g} on={g === group} onClick={() => { setGroup(g); setLimit(PAGE); setOpen(null) }}>
+                {g === 'All' ? 'All muscle groups' : `${g} ${groupCounts.get(g) ?? 0}`}
+              </Option>
             ))}
           </div>
         )}
-        <div className="mb-3 flex shrink-0 gap-2 overflow-x-auto pb-1" role="group" aria-label="Body part">
-          {GROUPS.map((g) => (
-            <button
-              key={g}
-              onClick={() => { setGroup(g); setLimit(PAGE) }}
-              aria-pressed={g === group}
-              className={`shrink-0 rounded-full px-3 py-1 text-sm ${
-                g === group ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'
-              }`}
-            >
-              {g}
-            </button>
-          ))}
-        </div>
+        {open === 'gear' && (
+          <div className="mb-3 flex shrink-0 flex-wrap gap-2 rounded-2xl bg-neutral-50 p-2" role="group" aria-label="Equipment">
+            {EQUIPMENT.filter((k) => k === 'Any' || k === equip || (k === 'Mine' ? !!owned : counts.get(k))).map((k) => (
+              <Option key={k} on={k === equip} onClick={() => { setEquip(k); setLimit(PAGE); setOpen(null) }}>
+                {k === 'Any' ? 'Any equipment' : k === 'Mine' ? `My equipment ${counts.get(k) ?? 0}` : `${k} ${counts.get(k) ?? 0}`}
+              </Option>
+            ))}
+          </div>
+        )}
         <div className="mb-1 flex shrink-0 items-center justify-between gap-2">
           <p className="min-w-0 truncate text-xs text-neutral-400">{results.length} exercise{results.length === 1 ? '' : 's'}{equip === 'Mine' ? ' · my equipment' : equip !== 'Any' ? ` · ${equip.toLowerCase()}` : ''}{group !== 'All' ? ` · ${group.toLowerCase()}` : ''}</p>
           <button onClick={() => setMaking({ name: q })} className="shrink-0 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">+ Custom exercise</button>

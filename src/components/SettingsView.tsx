@@ -249,7 +249,7 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
       </Row>
       <p className="px-1 text-sm text-neutral-500">Most people grow best on about 10–15 hard sets for one muscle in a session, usually 4–5 exercises; past that, extra sets mostly add fatigue. When filling the time would give one muscle more than your number, generated workouts and plans use the time another way: fewer exercises done heavier (more sets, fewer reps, longer rests), a cardio finisher, another body part, or a shorter session. “Keep adding exercises” turns this off.</p>
       <h2 className="pt-4 text-sm font-semibold text-neutral-700">Your own exercises</h2>
-      <p className="px-1 text-sm text-neutral-500">Exercises that aren’t in the list. They show up under the body part you picked when you add exercises, and are saved (and backed up) with your workouts. Make one here, or with “+ Custom exercise” when adding exercises.</p>
+      <p className="px-1 text-sm text-neutral-500">Exercises that aren’t in the list. They show up under the muscle group you picked when you add exercises, and are saved (and backed up) with your workouts. Make one here, or with “+ Custom exercise” when adding exercises.</p>
       <CustomExercisesList />
       </>)}
 

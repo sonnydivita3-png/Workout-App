@@ -8,9 +8,13 @@ test('star favorites in the exercise list: they come first, all together under F
   await page.getByRole('button', { name: '+ Add', exact: true }).click()
   await page.getByText('Add an exercise').click()
   const picker = page.locator('.fixed')
-  await picker.getByRole('button', { name: 'Favorites', exact: true }).click()
+  const muscle = async (name: RegExp) => {
+    await picker.getByRole('button', { name: /^Muscle group filter/ }).click()
+    await picker.getByRole('group', { name: 'Muscle group' }).getByRole('button', { name }).click()
+  }
+  await muscle(/^Favorites 0$/)
   await expect(picker.getByText(/No favorites yet/)).toBeVisible()
-  await picker.getByRole('button', { name: 'All', exact: true }).click()
+  await muscle(/^All muscle groups$/)
   await picker.getByPlaceholder(/search/i).fill('leg press')
   const star = picker.getByRole('button', { name: 'Favorite: Leg Press', exact: true })
   await star.click()
@@ -18,7 +22,7 @@ test('star favorites in the exercise list: they come first, all together under F
   await picker.getByPlaceholder(/search/i).fill('')
   // Favorites first, whatever the list.
   await expect(picker.locator('ul li').first()).toContainText('Leg Press')
-  await picker.getByRole('button', { name: 'Favorites', exact: true }).click()
+  await muscle(/^Favorites 1$/)
   await expect(picker.locator('ul li')).toHaveCount(1)
   // Quick add from there.
   await picker.locator('ul li').first().getByRole('button', { name: /^Leg Press/ }).click()
