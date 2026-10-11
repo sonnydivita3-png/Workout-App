@@ -7,14 +7,14 @@ import { SYNC_KEYS } from './sync'
 /** What someone fills in for an exercise of their own. */
 export interface CustomExerciseInput {
   name: string
-  /** A body part, or Cardio, Conditioning, Mobility or Other: the exercise list's tabs. */
+  /** A body part, or Cardio, Conditioning, Mobility or Other: the exercise list's muscle groups. */
   group: string
   equipment: string
   /** How sets are logged (lifting only). Left out: what suits the equipment. */
   mode?: ExerciseMode
 }
 
-/** Where it's filed, in the same order as the exercise list's tabs. Cardio makes it a cardio exercise. */
+/** Where it's filed, in the same order as the exercise list's muscle groups. Cardio makes it a cardio exercise. */
 export const CUSTOM_GROUPS: string[] = [...BODY_PARTS, 'Forearms', 'Cardio', 'Conditioning', 'Mobility', 'Other']
 /** The exercise list's equipment filters, and what cardio is done on. */
 export const LIFT_EQUIPMENT: string[] = ['Barbell', 'Dumbbell', 'Bodyweight', 'Cable', 'Machine', 'Kettlebell', 'Bands', 'Other']

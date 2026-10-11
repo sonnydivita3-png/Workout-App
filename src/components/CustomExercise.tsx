@@ -29,7 +29,7 @@ function Chips({ label, options, value, onChange, disabled }: { label: string; o
 interface Props {
   /** The exercise being changed; none for a new one. */
   exercise?: Exercise
-  /** For a new one: what was typed in search, and the body part being browsed. */
+  /** For a new one: what was typed in search, and the muscle group being browsed. */
   name?: string
   group?: string
   onSaved: (e: Exercise) => void
@@ -38,7 +38,7 @@ interface Props {
   onClose: () => void
 }
 
-/** An exercise of their own: name, body part, equipment and how it's logged. Saved with the rest of their workouts. */
+/** An exercise of their own: name, muscle group, equipment and how it's logged. Saved with the rest of their workouts. */
 export function CustomExerciseSheet({ exercise, name: typed = '', group: browsing, onSaved, onUse, onClose }: Props) {
   const custom = useStore((s) => s.custom)
   const createCustom = useStore((s) => s.createCustom)
@@ -88,7 +88,7 @@ export function CustomExerciseSheet({ exercise, name: typed = '', group: browsin
           {onUse && <> <button onClick={() => onUse(taken)} className="font-medium underline underline-offset-2">Use it</button></>}
         </p>
       )}
-      <Chips label="Body part" options={CUSTOM_GROUPS} value={group} onChange={pickGroup} disabled={(g) => !!locked && kindOf(g) !== locked} />
+      <Chips label="Muscle group" options={CUSTOM_GROUPS} value={group} onChange={pickGroup} disabled={(g) => !!locked && kindOf(g) !== locked} />
       {locked && (
         <p className="mt-1.5 text-xs text-neutral-400">
           {usage.days ? `Logged on ${usage.days} day${usage.days === 1 ? '' : 's'}` : 'In your plans'}, so it stays {locked === 'cardio' ? 'cardio' : 'a lifting exercise'}.
@@ -98,7 +98,7 @@ export function CustomExerciseSheet({ exercise, name: typed = '', group: browsin
       {kind === 'strength' && <Chips label="Log it with" options={MODE_CHOICES.map(([, l]) => l)} value={MODE_CHOICES.find(([m]) => m === track)![1]} onChange={(l) => setMode(MODE_CHOICES.find(([, x]) => x === l)![0])} />}
       {kind === 'cardio' && <p className="mt-4 text-sm text-neutral-500">Logged with time and distance, like other cardio.</p>}
       <button onClick={save} disabled={!ready} className={`${primaryBtn} mt-5`}>{exercise ? 'Save changes' : 'Save exercise'}</button>
-      {!ready && !taken && <p className="mt-2 text-center text-xs text-neutral-400">{!cleanName(name) ? 'Give it a name' : !group ? 'Pick a body part' : 'Pick the equipment'}</p>}
+      {!ready && !taken && <p className="mt-2 text-center text-xs text-neutral-400">{!cleanName(name) ? 'Give it a name' : !group ? 'Pick a muscle group' : 'Pick the equipment'}</p>}
       {exercise && (
         <div className="mt-4 flex justify-center gap-4 text-sm">
           {deleting ? (
