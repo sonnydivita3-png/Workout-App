@@ -168,6 +168,7 @@ const SHORT: Record<string, string> = {
   Overhead_Slam: 'Medicine Ball Slam',
   Hyperextensions_Back_Extensions: 'Back Extension',
   Knee_Hip_Raise_On_Parallel_Bars: 'Captain’s Chair Knee Raise',
+  Lateral_Bound: 'Skater Hops',
 }
 // Suffixes that rarely matter day to day ("Bench Press - Powerlifting" keeps its suffix if dropping it would clash).
 const DROP = [/ - Medium Grip$/i, / -\s*Pronated Grip$/i]

@@ -6,6 +6,7 @@ import { isStaple, isTechnical } from '../lib/randomUtil'
 import { useStore } from '../store'
 import type { Exercise } from '../types'
 import { CUSTOM_GROUPS, sameName } from '../lib/customExercises'
+import { matchesSearch, searchWords } from '../lib/exerciseSearch'
 import { CustomExerciseSheet } from './CustomExercise'
 
 interface Props {
@@ -31,11 +32,6 @@ const equipOf = (e: Exercise): Equip => {
 const fitsEquip = (e: Exercise, k: Equip) => k === 'Any' || (k === 'Mine' ? hasGear(e) : equipOf(e) === k)
 const equipLabel = (k: Equip) => (k === 'Any' ? 'any' : k === 'Mine' ? 'my equipment' : k)
 const PAGE = 50
-const squash = (t: string) => t.toLowerCase().replace(/[-\s]/g, '')
-const ALIASES: Record<string, string> = {
-  rdl: 'romanian deadlift', sldl: 'stiff legged', ohp: 'overhead press', db: 'dumbbell', bb: 'barbell', kb: 'kettlebell',
-  bw: 'bodyweight', tri: 'tricep', bi: 'bicep', ghr: 'glute ham',
-}
 const rank = (e: Exercise) => (e.custom ? 0 : e.fullName ? 1 : e.suggest && isStaple(e) && !isTechnical(e) ? 2 : e.suggest ? 3 : 4)
 const partRank = (e: Exercise) => { const i = PART_ORDER.indexOf(e.group); return i < 0 ? PART_ORDER.length : i }
 
@@ -95,9 +91,9 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
   const toggle = (f: 'muscle' | 'gear') => setOpen(open === f ? null : f)
 
   const query = q.trim().toLowerCase()
-  // Gym shorthand works too (RDL, OHP, DB…), and hyphens and spaces don't matter (pushup finds Push-Up).
-  const words = query.split(/\s+/).flatMap((w) => (ALIASES[w] ?? w).split(' ')).map(squash).filter(Boolean)
-  const matches = (e: Exercise) => { const hay = squash(`${e.name} ${e.fullName ?? ''}`); return words.every((w) => hay.includes(w)) }
+  // Gym shorthand works too (RDL, OHP, DB…), plurals, and the muscle group ("bicep curl", "dumbbell overhead press").
+  const words = searchWords(query)
+  const matches = (e: Exercise) => matchesSearch(e, words)
   // Retired exercises (no longer in the library) stay pickable for anyone who has logged them, or starred them.
   const yours = useMemo(
     () => [...new Set([...recent.keys(), ...favorites])].map((id) => BUILTIN_BY_ID.get(id)).filter((e): e is Exercise => !!e?.retired),
