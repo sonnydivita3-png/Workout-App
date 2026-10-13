@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import { findExercise, useStore } from '../store'
 import type { Exercise } from '../types'
-import { modeOf, setChosenModes, withChosenMode } from './exerciseModes'
+import { modeOf, setChosenModes, timedWithWeight, withChosenMode } from './exerciseModes'
 import { repairState } from './migrate'
 import { takesWarmup } from './warmups'
 
@@ -75,6 +75,18 @@ describe('setExerciseMode', () => {
     useStore.setState({ custom: [mine] })
     useStore.getState().setExerciseMode(mine.id, 'reps')
     expect(useStore.getState().custom[0].mode).toBe('reps')
+  })
+})
+
+describe('timed sets', () => {
+  it('log a weight with free weights, cables and machines, not with bodyweight or a rowing erg', () => {
+    const ex = (id: string) => BUILTIN_BY_ID.get(id)!
+    expect(timedWithWeight(ex('x-farmers-carry'))).toBe(true)
+    expect(timedWithWeight(ex('Dumbbell_Bicep_Curl'))).toBe(true)
+    expect(timedWithWeight(ex('Leg_Extensions'))).toBe(true)
+    expect(timedWithWeight(ex('Plank'))).toBe(false)
+    expect(timedWithWeight(ex('x-row-erg'))).toBe(false)
+    expect(timedWithWeight(ex('Lateral_Bound'))).toBe(false)
   })
 })
 

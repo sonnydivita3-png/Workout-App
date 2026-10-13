@@ -86,14 +86,15 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
             label={`${exercise.name} distance`}
             value={showDistanceIn(c.distance, unit)}
             step={unit === 'm' || unit === 'yd' ? (exercise.id === 'swimming' ? 25 : 100) : 0.1}
-            placeholder={showDistanceIn(targetDistance ?? prev?.distance ?? null, unit)?.toString() ?? '–'}
+            // Empty boxes show a dash: the target is in the line above and last time below, never in the box.
+            placeholder="–"
             onChange={(v) => onChange({ ...c, distance: storeDistanceIn(v, unit) })}
           />
         </label>
         <div className="text-xs font-medium text-neutral-500">
           Time <span className="font-normal text-neutral-400">min : sec</span>
           <div className="flex items-center gap-1">
-            <NumberInput label={`${exercise.name} minutes`} value={wholeMin} placeholder={targetMinutes != null ? String(targetMinutes) : prev?.minutes != null ? String(Math.floor(prev.minutes)) : '–'} onChange={(v) => (v != null && !Number.isInteger(v) ? onChange({ ...c, minutes: v }) : setTime(v, secs))} />
+            <NumberInput label={`${exercise.name} minutes`} value={wholeMin} placeholder="–" onChange={(v) => (v != null && !Number.isInteger(v) ? onChange({ ...c, minutes: v }) : setTime(v, secs))} />
             <span className="text-neutral-400">:</span>
             <NumberInput label={`${exercise.name} seconds`} value={secs || (wholeMin != null ? 0 : null)} placeholder="00" onChange={(v) => setTime(wholeMin, v)} />
           </div>

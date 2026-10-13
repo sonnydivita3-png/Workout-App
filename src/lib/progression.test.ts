@@ -62,7 +62,19 @@ describe('suggestNext (slow double progression, a set or two at a time)', () => 
     // The first-time hint fits how it's logged: no "pick a weight" for push-ups or planks.
     expect(suggestNext(bench, undefined, {}, lb).why).toMatch(/pick a weight/)
     expect(suggestNext(push, undefined, {}, lb).why).toMatch(/reps short of failure/)
-    expect(suggestNext(plank, undefined, {}, lb).why).toMatch(/hold until/)
+    expect(suggestNext(plank, undefined, {}, lb).why).toMatch(/until your form starts to slip/)
+  })
+  it('timed sets with a weight (a carry, curls for 30 s) keep the weight and add time', () => {
+    const timedCurl = { ...curl, mode: 'time' as const }
+    const s = suggestNext(timedCurl, log([{ weight: 20, reps: null, seconds: 30 }, { weight: 20, reps: null, seconds: 30 }]), { seconds: 30 }, lb)
+    expect(s).toMatchObject({ kind: 'add-time', weight: 20, seconds: 35 })
+    expect(s.sets!.map((x) => x.weight)).toEqual([20, 20])
+    expect(formatSet({ weight: 20, reps: null, seconds: 30 }, 'time', lb)).toBe('20×30s')
+    expect(formatSet({ weight: null, reps: null, seconds: 45 }, 'time', lb)).toBe('45s')
+    // Just switched to time: last time's sets were reps, so start from the planned time with last time's weight.
+    const switched = suggestNext(timedCurl, log([{ weight: 20, reps: 10 }, { weight: 20, reps: 10 }]), { seconds: 30 }, lb)
+    expect(switched).toMatchObject({ kind: 'first', weight: 20, seconds: 30 })
+    expect(formatSet({ weight: 20, reps: 10 }, 'time', lb)).toBe('20×10')
   })
   it('a different rep target works the weight out from last time, not last time plus a step', () => {
     // 3 × 12 at 135, then 3 × 6: about 150 (not 140), from 135 × 12's estimated max with a rep in reserve.

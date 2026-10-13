@@ -1,11 +1,13 @@
-import { useRef, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import { fmtRest } from '../lib/describe'
 import { compareSet, estimateStart, formatSet, platesFor, suggestNext, weightStep, workSets } from '../lib/progression'
 import { restFor, warmupRamp } from '../lib/timing'
+import { BUILTIN_BY_ID } from '../data/exercises'
+import { timedWithWeight } from '../lib/exerciseModes'
 import { hasNumbers, insertDropSet, isTicked, rowNumber, setRows, workingRows } from '../lib/setRows'
-import { showWeight, storeWeight } from '../lib/units'
+import { formatSeconds, showWeight, storeWeight } from '../lib/units'
 import { findExercise, useStore } from '../store'
-import type { Exercise, ExerciseLog, StrengthSet } from '../types'
+import type { Exercise, ExerciseLog, ExerciseMode, StrengthSet } from '../types'
 import { HoldTimerSheet } from './IntervalTimerSheet'
 import { NumberInput } from './NumberInput'
 import { rowBtn, Sheet } from './Sheet'
@@ -53,16 +55,21 @@ interface Props {
   onKeepSets?: () => void
 }
 
+const TRACK: [ExerciseMode, string][] = [['weight', 'Track with weight'], ['reps', 'Track as bodyweight (reps only)'], ['time', 'Track by time (seconds)']]
 const MARK = { up: { t: '▲', c: 'text-green-600', l: 'beat last time' }, same: { t: '=', c: 'text-neutral-400', l: 'matched last time' }, down: { t: '▼', c: 'text-red-600', l: 'below last time' } } as const
 
 /**
  * One exercise to log: a target from last time, then a row per set. ✓ logs a set (filling in the target if nothing
  * was typed). Everything else (note, plates, fewer sets, remove) is under ⋯ so the card stays simple.
  */
-export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, warmupSets = 0, rest, note, current, last, onSetCount, onChange, onNote, onRemove, onSetDone, restNote, onSwap, onHistory, onDeleteSet, readOnly, dropSets = 0, onDropSets, onDeleteDrop, date, keepSets, onKeepSets, deload }: Props) {
+export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: plannedSeconds, warmupSets = 0, rest, note, current, last, onSetCount, onChange, onNote, onRemove, onSetDone, restNote, onSwap, onHistory, onDeleteSet, readOnly, dropSets = 0, onDropSets, onDeleteDrop, date, keepSets, onKeepSets, deload }: Props) {
   const units = useStore((s) => s.units)
   const trackRpe = useStore((s) => s.trackRpe)
   const mode = exercise.mode ?? 'weight'
+  // Done for time with nothing planned (e.g. curls switched to time): 30 seconds a set.
+  const targetSeconds = plannedSeconds ?? (mode === 'time' ? 30 : undefined)
+  // Timed sets with free weights, cables or machines log the weight too.
+  const withWeight = mode === 'weight' || (mode === 'time' && timedWithWeight(exercise))
   // How they said they track this one (bodyweight or with weight), if they have.
   const chosenMode = useStore((s) => s.exerciseModes[exercise.id])
   const setExerciseMode = useStore((s) => s.setExerciseMode)
@@ -95,12 +102,6 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
     const k = sets.slice(0, i).filter((x) => !x.warmup && !x.drop).length
     return tip.sets?.[k] ?? { weight: tip.weight, reps: tip.reps, seconds: tip.seconds }
   }
-  const fromTip = (s: StrengthSet, i: number): StrengthSet => ({
-    ...s,
-    weight: s.weight ?? (mode === 'weight' ? aim(i).weight ?? null : null),
-    reps: s.reps ?? (mode === 'time' ? null : aim(i).reps ?? targetReps ?? null),
-    ...(mode === 'time' ? { seconds: s.seconds ?? aim(i).seconds ?? targetSeconds ?? null } : {}),
-  })
   // Warm-up ramp from the weight you're working up to (rounded to what you can load), by each warm-up's place among
   // the warm-ups, including sets you turned into warm-ups yourself.
   const ramp = warmupRamp(sets.filter((x) => x.warmup).length)
@@ -128,6 +129,23 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
     const step = weightStep(exercise, units)
     return Math.max(step, Math.round((base * 0.8) / step) * step)
   }
+  /** Row i's target, shown beside it and filled in by ✓ where nothing's typed: a warm-up's ramp, a drop's lighter weight, else the set's own. */
+  const targetFor = (i: number): Pick<StrengthSet, 'weight' | 'reps' | 'seconds'> => {
+    const s = sets[i]
+    if (s.warmup) { const r = rampFor(i); return { weight: r?.weight ?? null, reps: r?.reps ?? null } }
+    if (s.drop) return { weight: dropFor(i), reps: targetReps ?? null }
+    return {
+      weight: withWeight ? aim(i).weight ?? null : null,
+      reps: mode === 'time' ? null : aim(i).reps ?? targetReps ?? null,
+      ...(mode === 'time' ? { seconds: aim(i).seconds ?? targetSeconds ?? null } : {}),
+    }
+  }
+  /** "135×8", "12 reps", "30s", "20×30s", or "–" with nothing to aim for yet. */
+  const targetText = (t: ReturnType<typeof targetFor>) => {
+    const w = t.weight ? showWeight(t.weight, units) : null
+    if (mode === 'time') return t.seconds ? `${w ? `${w}×` : ''}${formatSeconds(t.seconds)}` : '–'
+    return w && t.reps ? `${w}×${t.reps}` : t.reps ? `${t.reps} reps` : w ? `${w} ${units.weight}` : '–'
+  }
   // Drop sets for lifts and bodyweight moves (an easier version, to failure), not timed holds.
   const canDrop = !!onDropSets && mode !== 'time'
   const lastDone = sets.findLastIndex((x) => !x.warmup && isTicked(x))
@@ -149,10 +167,8 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
       update(i, s.auto ? { weight: null, reps: null, seconds: null, rpe: null, done: false, auto: false } : { done: false })
       return
     }
-    const r = s.warmup ? rampFor(i) : null
-    const d = s.drop ? dropFor(i) : null
-    const next = s.warmup ? { ...s, weight: s.weight ?? r?.weight ?? null, reps: s.reps ?? r?.reps ?? null }
-      : s.drop ? { ...s, weight: s.weight ?? d, reps: s.reps ?? targetReps ?? null } : fromTip(s, i)
+    const t = targetFor(i)
+    const next = { ...s, weight: s.weight ?? t.weight ?? null, reps: s.reps ?? t.reps ?? null, ...(mode === 'time' ? { seconds: s.seconds ?? t.seconds ?? null } : {}) }
     update(i, { ...next, done: true, auto: !filled(s) })
     // That was the last one: the card folds up; bring it to the top so the next exercise is right below.
     if (!readOnly && sets.every((x, j) => x.warmup || j === i || ticked(x))) setTimeout(() => card.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60)
@@ -177,17 +193,19 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
   const askBodyweight = !readOnly && mode === 'weight' && !chosenMode && sets.some((x) => !x.warmup && !x.drop && x.weight === 0)
 
   const target = mode === 'time' ? (targetSeconds ? `${setCount} × ${targetSeconds}s` : '') : targetReps ? `${setCount} × ${targetReps}` : ''
+  // Timed sets give the seconds more room: the box shares it with the ⏱ button.
   const cols = [
     '2rem',
-    ...(mode === 'weight' ? ['minmax(0,1.2fr)'] : []),
-    'minmax(0,1fr)',
+    mode === 'time' ? '3.25rem' : '3.75rem',
+    ...(withWeight ? [mode === 'time' ? 'minmax(0,1fr)' : 'minmax(0,1.2fr)'] : []),
+    mode === 'time' ? 'minmax(0,1.6fr)' : 'minmax(0,1fr)',
     ...(trackRpe ? ['3.25rem'] : []),
     '2.75rem',
   ].join(' ')
   const setText = (p: StrengthSet) => formatSet(p, mode, units)
   const headline =
     tip.kind === 'first' ? null
-    : mode === 'time' ? `${tip.seconds}s`
+    : mode === 'time' ? `${tip.weight ? `${showWeight(tip.weight, units)} ${units.weight} × ` : ''}${tip.seconds}s`
     // Reps moves, and weighted lifts done with bodyweight last time: aim for more reps.
     : mode === 'reps' || tip.weight == null ? `${tip.reps} reps`
     : `${showWeight(tip.weight, units)} ${units.weight} × ${tip.reps}`
@@ -246,7 +264,13 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
           {lastWork.length > 0 && <span className="mt-0.5 block text-neutral-400">Last time: {lastWork.map(setText).join(' · ')}</span>}
         </div>
       )}
-      {tip.kind === 'first' && <p className="mb-3 text-xs text-neutral-400">{tip.why}</p>}
+      {tip.kind === 'first' && (
+        <p className="mb-3 text-xs text-neutral-400">
+          {tip.why}
+          {/* Done before, another way (e.g. for reps before being switched to time). */}
+          {lastWork.length > 0 && <span className="mt-0.5 block">Last time: {lastWork.map(setText).join(' · ')}</span>}
+        </p>
+      )}
       {askSets && (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl bg-neutral-50 px-3 py-2" role="group" aria-label="Sets this time">
           <span className="text-sm">Last time you did {lastCount} set{lastCount === 1 ? '' : 's'}. Do {lastCount} again?</span>
@@ -263,13 +287,13 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
       <div className="space-y-2">
         <div className="grid gap-2 text-xs font-medium text-neutral-500" style={{ gridTemplateColumns: cols }}>
           <span>Set</span>
-          {mode === 'weight' && <span className="text-center">{units.weight}</span>}
+          <span className="text-center">Target</span>
+          {withWeight && <span className="text-center">{units.weight}</span>}
           <span className="text-center">{mode === 'time' ? 'Seconds' : 'Reps'}</span>
           {trackRpe && <span className="text-center">RPE</span>}
           <span />
         </div>
         {sets.map((s, i) => {
-          const prev = last?.sets?.[i]
           const mark = vsLast[i] ? MARK[vsLast[i]!] : null
           // Warm-ups, working sets and drop sets are numbered separately: W W, 1 D 2 3 D.
           const n = rowNumber(sets, i)
@@ -285,22 +309,26 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
                 {s.warmup ? 'W' : s.drop ? 'D' : n}
                 {mark && <span className={`ml-0.5 text-[10px] ${mark.c}`} aria-label={mark.l}>{mark.t}</span>}
               </button>
-              {mode === 'weight' && (
+              {/* The target sits beside the boxes, not in them: a number in a box is always one you put there (or ✓ did). */}
+              <span title={`Target for ${label.toLowerCase()}`} className="truncate text-center text-xs tabular-nums text-neutral-500">
+                <span className="sr-only">Target: </span>{targetText(targetFor(i))}
+              </span>
+              {withWeight && (
                 <NumberInput
                   label={`${label} ${units.weight}`}
                   value={showWeight(s.weight, units)}
                   step={units.weight === 'kg' ? 1 : 2.5}
-                  placeholder={showWeight(s.warmup ? rampFor(i)?.weight ?? null : s.drop ? dropFor(i) : aim(i).weight ?? prev?.weight ?? null, units)?.toString() ?? '–'}
+                  placeholder="–"
                   onChange={(v) => update(i, { weight: storeWeight(v, units) })}
                 />
               )}
               {mode === 'time' ? (
                 <div className="flex items-center gap-1">
-                  <NumberInput label={`${label} seconds`} value={s.seconds ?? null} step={5} placeholder={(aim(i).seconds ?? prev?.seconds ?? targetSeconds)?.toString() ?? '–'} onChange={(v) => update(i, { seconds: v })} />
-                  <button onClick={() => setTiming(i)} aria-label={`Time set ${i + 1}`} title="Time this hold" className="h-9 w-9 shrink-0 rounded-lg bg-neutral-100 text-base">⏱</button>
+                  <NumberInput label={`${label} seconds`} value={s.seconds ?? null} step={5} placeholder="–" onChange={(v) => update(i, { seconds: v })} />
+                  <button onClick={() => setTiming(i)} aria-label={`Time set ${i + 1}`} title="Time this set" className="h-9 w-8 shrink-0 rounded-lg bg-neutral-100 text-base">⏱</button>
                 </div>
               ) : (
-                <NumberInput label={`${label} reps`} value={s.reps} placeholder={(s.warmup ? rampFor(i)?.reps : aim(i).reps ?? prev?.reps ?? targetReps)?.toString() ?? '–'} onChange={(v) => update(i, { reps: v })} />
+                <NumberInput label={`${label} reps`} value={s.reps} placeholder="–" onChange={(v) => update(i, { reps: v })} />
               )}
               {trackRpe && <NumberInput label={`${label} RPE`} value={s.rpe ?? null} placeholder="–" onChange={(v) => update(i, { rpe: v == null ? null : Math.min(10, Math.max(1, v)) })} />}
               <button onClick={() => done(i)} aria-label={`${label} done`} aria-pressed={ticked(s)} title={ticked(s) ? 'Tap to untick' : 'Tap when done'} className={`h-10 rounded-xl text-base font-bold ${ticked(s) ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-400'}`}>✓</button>
@@ -359,7 +387,8 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds, wa
           {canDrop && menuItem(dropSets ? 'Add another drop set' : 'Add a drop set', () => addDrop())}
           {onNote && menuItem(current?.note ? 'Edit note' : 'Add a note', () => setEditingNote(true))}
           {barbell && menuItem(plates ? 'Hide plates' : 'Plates for this weight', () => setPlates((p) => !p))}
-          {mode !== 'time' && menuItem(mode === 'weight' ? 'Track as bodyweight (reps only)' : 'Track with weight', () => setExerciseMode(exercise.id, mode === 'weight' ? 'reps' : 'weight'))}
+          {/* The other ways to track it, from now on: with weight, bodyweight reps, or for time (30 s of curls). Holds stay timed. */}
+          {!(mode === 'time' && BUILTIN_BY_ID.get(exercise.id)?.mode === 'time') && TRACK.filter(([m]) => m !== mode).map(([m, l]) => <Fragment key={m}>{menuItem(l, () => setExerciseMode(exercise.id, m))}</Fragment>)}
           {readOnly && setCount > 1 && menuItem('Remove a set', () => onSetCount(setCount - 1))}
           {menuItem('Remove exercise', onRemove, true)}
         </Sheet>

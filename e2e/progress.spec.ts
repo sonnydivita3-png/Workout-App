@@ -15,7 +15,10 @@ test('suggests the next step and marks sets that beat last time', async ({ page 
   await page.locator('nav').getByText('Workouts').click()
   // 3 × 8 once: a rep more on two sets, the third repeats.
   await expect(page.getByText('🎯 Try 135 lb × 9 on 2 sets')).toBeVisible()
-  await expect(page.getByRole('spinbutton', { name: 'Set 3 reps' })).toHaveAttribute('placeholder', '8')
+  // Each set's target beside its boxes (the boxes show a dash until you type, or ✓ fills the target in).
+  await expect(page.getByTitle('Target for set 1')).toContainText('135×9')
+  await expect(page.getByTitle('Target for set 3')).toContainText('135×8')
+  await expect(page.getByRole('spinbutton', { name: 'Set 3 reps' })).toHaveAttribute('placeholder', '–')
   await expect(page.getByText('Last note: “felt easy”')).toBeVisible()
   for (let i = 1; i <= 3; i++) await page.getByRole('button', { name: `Set ${i} done` }).click()
   // Done: the card folds up (with the result); open it again to keep editing.

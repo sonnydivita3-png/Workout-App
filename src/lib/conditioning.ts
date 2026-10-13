@@ -79,7 +79,7 @@ export function conditioningWeek(
   const add = (k: ConditioningKind, m: number) => { by.set(k, (by.get(k) ?? 0) + m); sessions++ }
   for (const t of timedLogs) if (inRange(t.date, range)) add(t.hyrox ? 'Hyrox' : KIND_LABEL[t.wod.kind], timedMinutes(t))
   for (let d = range[0]; d <= range[1]; d = toISO(addDays(parseISO(d), 1))) {
-    const circuit = dayPlanOf(plan, overrides, d).filter((p) => p.block === 'circuit' || p.block === 'pha')
+    const circuit = dayPlanOf(plan, overrides, d).filter((p) => p.block === 'pha' || /^circuit/.test(p.block ?? ''))
     const done = circuit.filter((p) => logs.some((l) => l.date === d && l.exerciseId === p.exerciseId && (l.sets?.some((s) => s.reps || s.seconds || s.weight) || l.cardio)))
     if (done.length) add('Circuits', circuit.reduce((a, p) => a + (p.est ?? 0), 0))
   }
