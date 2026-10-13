@@ -52,7 +52,8 @@ export function ChallengeSheet({ friendId, fromDate, onClose }: Props) {
   const [to, setTo] = useState<string | null>(friendId ?? null)
   const [kind, setKind] = useState<string>(fromDate ? 'workout' : 'pushups') // preset id, 'pick', or 'workout'
   const [mode, setMode] = useState<'total' | 'best'>('total')
-  const [target, setTarget] = useState<number | null>(null)
+  // undefined: not changed, so the suggested amount; null: cleared while typing a new one (it must not jump back).
+  const [target, setTarget] = useState<number | null | undefined>(undefined)
   const [days, setDays] = useState(7)
   const [emoji, setEmoji] = useState<string | undefined>('💪')
   const [picked, setPicked] = useState<Exercise | null>(null)
@@ -76,9 +77,7 @@ export function ChallengeSheet({ friendId, fromDate, onClose }: Props) {
 
   const modes: ('total' | 'best')[] = kind === 'pick' ? (picked?.mode === 'weight' || (picked && !picked.mode && picked.kind !== 'cardio') ? [] : ['total', 'best']) : preset?.defaults.total !== undefined ? ['total', 'best'] : []
   const effectiveMode = modes.length ? mode : 'best'
-  const shownTarget = target ?? (preset ? preset.defaults[effectiveMode] ?? preset.defaults.total ?? preset.defaults.best : null)
-
-  const amount = target ?? shownTarget
+  const amount = target !== undefined ? target : preset ? preset.defaults[effectiveMode] ?? preset.defaults.total ?? preset.defaults.best ?? null : null
 
   // Work out the challenge from the choices.
   const spec = ((): { spec: ChallengeSpec; target: number; title: string } | null => {
@@ -135,8 +134,8 @@ export function ChallengeSheet({ friendId, fromDate, onClose }: Props) {
       <Sheet title="Challenge a friend" onClose={onClose} closeLabel="Cancel">
         <p className={label}>Challenge</p>
         <div className="mb-4 flex flex-wrap gap-2">
-          {PRESETS.map((p) => <button key={p.id} onClick={() => { setKind(p.id); setTarget(null); setMode(p.defaults.total !== undefined ? 'total' : 'best') }} className={chip(kind === p.id)}>{p.label}</button>)}
-          <button onClick={() => { setKind('pick'); setTarget(null); if (!picked) setPicking(true) }} className={chip(kind === 'pick')}>Any exercise…</button>
+          {PRESETS.map((p) => <button key={p.id} onClick={() => { setKind(p.id); setTarget(undefined); setMode(p.defaults.total !== undefined ? 'total' : 'best') }} className={chip(kind === p.id)}>{p.label}</button>)}
+          <button onClick={() => { setKind('pick'); setTarget(undefined); if (!picked) setPicking(true) }} className={chip(kind === 'pick')}>Any exercise…</button>
           {doneDays.length > 0 && <button onClick={() => { setKind('workout'); setWorkoutDate(workoutDate ?? doneDays[0]) }} className={chip(kind === 'workout')}>A workout I did</button>}
         </div>
 
@@ -168,13 +167,13 @@ export function ChallengeSheet({ friendId, fromDate, onClose }: Props) {
           <>
             {modes.length > 0 && (
               <div className="mb-4 flex gap-2">
-                <button onClick={() => { setMode('total'); setTarget(null) }} className={chip(effectiveMode === 'total')}>Add up over the days</button>
-                <button onClick={() => { setMode('best'); setTarget(null) }} className={chip(effectiveMode === 'best')}>Best single {kind === 'pick' && picked?.kind !== 'cardio' ? 'set' : 'effort'}</button>
+                <button onClick={() => { setMode('total'); setTarget(undefined) }} className={chip(effectiveMode === 'total')}>Add up over the days</button>
+                <button onClick={() => { setMode('best'); setTarget(undefined) }} className={chip(effectiveMode === 'best')}>Best single {kind === 'pick' && picked?.kind !== 'cardio' ? 'set' : 'effort'}</button>
               </div>
             )}
             <label className="mb-4 block text-sm text-neutral-500">
               Target ({unitLabel})
-              <div className="mt-1 w-32"><NumberInput value={target ?? shownTarget ?? null} step={1} onChange={setTarget} /></div>
+              <div className="mt-1 w-32"><NumberInput value={amount} step={1} onChange={setTarget} /></div>
             </label>
           </>
         )}
@@ -209,7 +208,7 @@ export function ChallengeSheet({ friendId, fromDate, onClose }: Props) {
         <button disabled={!ready || busy} onClick={send} className={primary}>{busy ? 'Sending…' : 'Send challenge'}</button>
         <p className="mt-2 text-center text-xs text-neutral-400">They can accept or decline. If they accept, you’ll see their progress on this challenge.</p>
       </Sheet>
-      {picking && <ExercisePicker taken={new Set()} onPick={(e) => { setPicked(e); setPicking(false); setTarget(null) }} onClose={() => setPicking(false)} />}
+      {picking && <ExercisePicker taken={new Set()} onPick={(e) => { setPicked(e); setPicking(false); setTarget(undefined) }} onClose={() => setPicking(false)} />}
     </>
   )
 }
