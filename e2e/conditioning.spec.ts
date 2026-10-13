@@ -217,8 +217,9 @@ test('cardio has no "beat last time" target: an easy run is just a run, and only
   await page.locator('nav').getByText('Workouts').click()
   await expect(page.getByText('Last time: 3.1 mi · 27 min · 8:43 /mi')).toBeVisible()
   await expect(page.getByText(/Beat it/)).toHaveCount(0)
-  // The plan's 30 minutes is the hint, not last time's 27.
-  await expect(page.getByLabel('Running minutes')).toHaveAttribute('placeholder', '30')
+  // The plan's 30 minutes is the target, not last time's 27; the boxes stay empty until you log.
+  await expect(page.getByText('Cardio · target 30 min')).toBeVisible()
+  await expect(page.getByLabel('Running minutes')).toHaveAttribute('placeholder', '–')
   // A short, quick run: a faster pace than ever, but no mile or 5K, so no record and no "faster than last time".
   await page.getByLabel('Running distance').fill('2')
   await page.getByLabel('Running minutes').fill('15')

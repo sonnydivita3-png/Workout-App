@@ -118,13 +118,42 @@ export interface Segment {
   detail?: string
 }
 
-/** Work/rest timing for a HIIT circuit block, read back from how the randomizer describes it. */
-export function parseCircuit(label: string | undefined, items: PlannedExercise[]): { rounds: number; work: number; rest: number; roundRest: number } | null {
+export interface CircuitTiming { rounds: number; work: number; rest: number; roundRest: number }
+
+/** Work/rest timing for a HIIT circuit block, read back from how it's described (see `circuitLabel`). */
+export function parseCircuit(label: string | undefined, items: PlannedExercise[]): CircuitTiming | null {
   if (!label?.startsWith('HIIT circuit') || items.length === 0) return null
   const t = /(\d+)s on \/ (\d+)s off/.exec(items[0].note ?? '') ?? /(\d+)s on \/ (\d+)s off/.exec(label)
   if (!t) return null
   const rr = /(\d+(?:\.\d+)?) min rest/.exec(label)
-  return { rounds: Math.max(1, items[0].sets), work: Number(t[1]), rest: Number(t[2]), roundRest: rr ? Math.round(Number(rr[1]) * 60) : 0 }
+  const rs = /(\d+)s rest between rounds/.exec(label)
+  return { rounds: Math.max(1, items[0].sets), work: Number(t[1]), rest: Number(t[2]), roundRest: rr ? Math.round(Number(rr[1]) * 60) : rs ? Number(rs[1]) : 0 }
+}
+
+/** A circuit's header: "HIIT circuit · 3 rounds · 30s on / 15s off · 1 min rest between rounds". */
+export function circuitLabel(c: CircuitTiming): string {
+  const between = !c.roundRest ? 'no rest between rounds' : `${c.roundRest % 60 ? `${c.roundRest}s` : `${c.roundRest / 60} min`} rest between rounds`
+  return `HIIT circuit · ${c.rounds} round${c.rounds === 1 ? '' : 's'} · ${c.work}s on / ${c.rest}s off · ${between}`
+}
+
+/** How long a circuit of `n` moves takes, in seconds: as `circuitSegments` plays it. */
+export const circuitSeconds = (n: number, c: CircuitTiming) =>
+  c.rounds * n * c.work + c.rounds * (n - 1) * c.rest + (c.rounds - 1) * (c.roundRest || c.rest)
+
+/** Planned items for a circuit you build: each move for the work time, one after another, round after round. */
+export function buildCircuitItems(p: CircuitTiming & { moves: { exerciseId: string; timed: boolean; note?: string }[]; block: string }): PlannedExercise[] {
+  const label = circuitLabel(p)
+  const per = Math.round((circuitSeconds(p.moves.length, p) / 60 / Math.max(1, p.moves.length)) * 10) / 10
+  return p.moves.map((m) => ({
+    exerciseId: m.exerciseId,
+    sets: p.rounds,
+    // A hold gets the work time as its target; everything else does as many reps as fit.
+    ...(m.timed ? { seconds: p.work } : {}),
+    note: [m.note, `${p.work}s on / ${p.rest}s off`].filter(Boolean).join(' · '),
+    est: per,
+    block: p.block,
+    blockLabel: label,
+  }))
 }
 
 /** The whole circuit as a list of timed segments: work and rest per movement, a longer break between rounds. */

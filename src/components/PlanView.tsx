@@ -149,7 +149,7 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
             ['Add an exercise', 'Search or browse 500 exercises', () => setPicking(true)],
             ['Make me a workout', 'Pick body parts and time, get a full workout', () => setGenerator('one')],
             ['Plan a week or month', 'Training and rest days built around a goal', () => setGenerator('program')],
-            ['Timed workout', 'AMRAP, EMOM, for time or Tabata, with a clock', () => setWodBuilder(true)],
+            ['Timed workout', 'A circuit (like 30 s of each move), AMRAP, EMOM, for time or Tabata, with a clock', () => setWodBuilder(true)],
             ...(s.benchmarks.length ? [['Benchmark workout', `Repeat one of your ${s.benchmarks.length} saved benchmarks`, () => setBenchSheet(true)] as const] : []),
             ['Run or ride plan', 'Build up to a distance or a race', () => setGenerator('cardio')],
           ] as const).map(([title, hint, go]) => (

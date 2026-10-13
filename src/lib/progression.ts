@@ -65,7 +65,7 @@ const PER_SESSION = 2
 const FIRST: Record<NonNullable<Exercise['mode']>, string> = {
   weight: 'First time: pick a weight you could lift a couple more times, and log it.',
   reps: 'First time: stop a couple of reps short of failure, and log it.',
-  time: 'First time: hold until your form starts to slip, and log it.',
+  time: 'First time: keep going until your form starts to slip, and log the time.',
 }
 
 /**
@@ -96,13 +96,16 @@ export function suggestNext(
   const done = workSets(last)
   const mode = ex.mode ?? 'weight'
   if (done.length === 0) return { kind: 'first', why: FIRST[mode], reps: target.reps ?? null, seconds: target.seconds ?? null }
+  // Never timed before (curls just switched to time): start from the planned time, with last time's weight.
+  if (mode === 'time' && !done.some((s) => s.seconds)) return { kind: 'first', why: 'First time for time: keep going until your form starts to slip, and log the time.', weight: done.find((s) => s.weight)?.weight ?? null, reps: null, seconds: target.seconds ?? null }
   const n = Math.max(1, target.sets ?? done.length)
   const lb = (w: number) => `${showWeight(w, units)} ${units.weight}`
   const plural = (k: number, w: string) => `${k} ${w}${k === 1 ? '' : 's'}`
   // Last time's sets, set by set (more planned now: the extras repeat the last set).
   const base: SetTarget[] = Array.from({ length: n }, (_, i) => {
     const d = done[Math.min(i, done.length - 1)]
-    return { weight: mode === 'weight' ? d.weight ?? null : null, reps: mode === 'time' ? null : d.reps ?? null, seconds: mode === 'time' ? d.seconds ?? null : null }
+    // Timed sets keep any weight they were done with (a carry, curls for time): the step up is more time.
+    return { weight: mode === 'reps' ? null : d.weight ?? null, reps: mode === 'time' ? null : d.reps ?? null, seconds: mode === 'time' ? d.seconds ?? null : null }
   })
   const out = (kind: Suggestion['kind'], sets: SetTarget[], idx: number[], why: string): Suggestion => {
     const head = sets[idx[0] ?? 0]
@@ -298,11 +301,12 @@ export function sessionScore(l: ExerciseLog | undefined, mode: Exercise['mode'],
   return Math.max(0, ...sets.map((s) => s.reps ?? 0))
 }
 
-/** One set for display: "185×5", "12 reps" (bodyweight on a weighted lift), "12" (reps moves) or "0:45" (holds). */
+/** One set for display: "185×5", "12 reps" (bodyweight on a weighted lift), "12" (reps moves), "45s" (holds) or "50×40s" (a carry). */
 export function formatSet(s: StrengthSet, mode: Exercise['mode'], units: Units): string {
-  if (mode === 'time') return s.seconds ? formatSeconds(s.seconds) : '–'
-  // Reps only, with any weight shown (sets logged before the exercise was switched to bodyweight keep their load).
-  if (mode === 'reps') return s.reps ? (s.weight ? `${showWeight(s.weight, units)}×${s.reps}` : `${s.reps}`) : '–'
+  if (mode === 'time' && s.seconds) return `${s.weight ? `${showWeight(s.weight, units)}×` : ''}${formatSeconds(s.seconds)}`
+  // Reps only, with any weight shown (sets logged before the exercise was switched to bodyweight keep their load, and
+  // sets done for reps before it was switched to time keep their reps).
+  if (mode === 'reps' || mode === 'time') return s.reps ? (s.weight ? `${showWeight(s.weight, units)}×${s.reps}` : `${s.reps}`) : '–'
   if (!s.weight) return s.reps ? `${s.reps} reps` : '–'
   return `${showWeight(s.weight, units)}×${s.reps ?? '–'}`
 }

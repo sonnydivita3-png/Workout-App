@@ -13,6 +13,10 @@ export function setChosenModes(modes: Record<string, ExerciseMode> | undefined) 
 /** The mode an exercise is tracked in: the person's choice, else the library's. */
 export const modeOf = (e: Exercise): ExerciseMode | undefined => (e.kind === 'strength' ? chosen[e.id] ?? e.mode : e.mode)
 
+/** Timed sets that carry a weight too (a farmer's carry, curls for 30 s): free weights, cables and machines, not ergs. */
+export const timedWithWeight = (e: Exercise) =>
+  e.kind === 'strength' && (['Barbell', 'Dumbbell', 'EZ bar', 'Kettlebell', 'Cable', 'Sled', 'Sandbag', 'Medicine ball'].includes(e.equipment ?? '') || (e.equipment === 'Machine' && e.group !== 'Conditioning'))
+
 const copies = new WeakMap<Exercise, Exercise>()
 
 /** The exercise as the person tracks it. The same object when nothing changes, so per-exercise caches keep working. */

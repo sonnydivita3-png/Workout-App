@@ -18,7 +18,7 @@ test('a drop set straight after the set you just did, or after any set, on lifts
   // Right after the set just done, about 20% lighter.
   await bench.getByRole('button', { name: '+ Drop set' }).click()
   expect(await order(bench)).toEqual(['Set 1', 'Drop set 1', 'Set 2', 'Set 3'])
-  await expect(bench.getByRole('spinbutton', { name: 'Drop set 1 lb' })).toHaveAttribute('placeholder', '110')
+  await expect(bench.getByTitle('Target for drop set 1')).toContainText('110×8')
   await bench.getByRole('button', { name: 'Drop set 1 done' }).click()
   await expect(bench.getByRole('spinbutton', { name: 'Drop set 1 lb' })).toHaveValue('110')
   // After any set, from that set's menu.

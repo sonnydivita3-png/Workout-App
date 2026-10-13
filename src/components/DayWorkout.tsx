@@ -61,7 +61,9 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
       const ex = findExercise(s.custom, p.exerciseId)
       return ex?.kind === 'strength' ? p.rest ?? restFor(ex, p.reps, p.seconds) : 0
     }))
-    return { superset, roundRest }
+    // A circuit's own timer sets the work and rest, not each exercise's usual rest.
+    const circuit = !!parseCircuit(g.label, g.items.map((x) => x.item))
+    return { superset, roundRest, circuit }
   })
   return (
     <>
@@ -100,7 +102,7 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
                   targetSeconds={p.seconds}
                   warmupSets={p.warmupSets}
                   rest={p.block ? undefined : p.rest}
-                  restNote={meta[gi].superset ? (mi === g.items.length - 1 ? `then rest ${fmtRest(meta[gi].roundRest)}` : 'straight into the next') : undefined}
+                  restNote={meta[gi].superset ? (mi === g.items.length - 1 ? `then rest ${fmtRest(meta[gi].roundRest)}` : 'straight into the next') : meta[gi].circuit ? 'timed circuit' : undefined}
                   note={p.note}
                   current={current}
                   last={last}

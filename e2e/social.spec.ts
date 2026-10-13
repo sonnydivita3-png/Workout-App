@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures'
-import { iso, openSettings, seed } from './helpers'
+import { iso, openSettings, seed, signUp } from './helpers'
 
 test('social sign-up without email needs the age check, then friends work', async ({ page }) => {
   await seed(page, { socialChoice: 'unset' })
@@ -69,6 +69,34 @@ test('a challenge you send shows when it is accepted; emoji show sent and seen',
   await expect(page.getByText('Your challenges', { exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Challenges', exact: true }).click()
   await expect(page.getByText(/To .+ · ✅ .+ accepted/)).toBeVisible()
+})
+
+test('a run challenge for any distance: clearing the box leaves it empty, so 5 miles can be typed', async ({ page }) => {
+  await seed(page, { socialChoice: 'unset' })
+  await page.goto('/')
+  await signUp(page, 'e2e_run')
+  await page.locator('nav').getByText('Social').click()
+  await page.getByRole('button', { name: 'Review' }).first().click()
+  await page.getByRole('button', { name: 'Allow all' }).click()
+  await page.getByRole('button', { name: 'Accept' }).click()
+  await page.getByRole('button', { name: 'Friends', exact: true }).click()
+  await page.getByText('@alex').click()
+  await page.getByRole('button', { name: 'Challenge', exact: true }).click()
+  await page.getByRole('button', { name: 'Run distance', exact: true }).click()
+  const box = page.getByLabel(/^Target \(mi\)/)
+  await expect(box).toHaveValue('10')
+  // It used to jump back to 10 once emptied, so only 1x numbers could be typed.
+  await box.fill('')
+  await expect(box).toHaveValue('')
+  await expect(page.getByRole('button', { name: 'Send challenge' })).toBeDisabled()
+  await box.fill('5')
+  await expect(box).toHaveValue('5')
+  await page.getByRole('button', { name: 'Send challenge' }).click()
+  await expect(page.getByText(/You’ll get a notification when they accept or decline/)).toBeVisible()
+  await page.getByRole('button', { name: 'Done' }).first().click()
+  await page.getByRole('button', { name: 'Close', exact: true }).click()
+  await page.getByRole('button', { name: 'Challenges', exact: true }).click()
+  await expect(page.getByText(/Run distance: 5 mi total in/).first()).toBeVisible()
 })
 
 test('a shared workout: reply with an emoji, keep it, add it later; the sender sees what happened', async ({ page }) => {

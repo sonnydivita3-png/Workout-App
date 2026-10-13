@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import type { TimedLog } from '../types'
-import { buildWodItems, circuitSegments, derivedLogs, emomIntervals, formatResult, makeTabata, parseCircuit, tabataOf, wodOf, wodTitle } from './wod'
+import { buildCircuitItems, buildWodItems, circuitLabel, circuitSeconds, circuitSegments, derivedLogs, emomIntervals, formatResult, makeTabata, parseCircuit, tabataOf, wodOf, wodTitle } from './wod'
+import { conditioningWeek } from './conditioning'
 
 const lookup = (id: string) => BUILTIN_BY_ID.get(id)
 const items = (kind: 'amrap' | 'emom' | 'fortime') =>
@@ -79,5 +80,27 @@ describe('circuit timer', () => {
     expect(seg.map((s) => `${s.phase}:${s.seconds}`)).toEqual(['work:40', 'rest:20', 'work:40', 'rest:60', 'work:40', 'rest:20', 'work:40', 'rest:60', 'work:40', 'rest:20', 'work:40'])
     expect(seg.reduce((a, s) => a + s.seconds, 0)).toBe(3 * 2 * 40 + 3 * 20 + 2 * 60)
     expect(parseCircuit('Superset 1', its)).toBeNull()
+  })
+
+  it('a circuit you build: 30 s of each move in turn, read back by the same timer, counted as conditioning', () => {
+    const items = buildCircuitItems({
+      work: 30, rest: 15, rounds: 3, roundRest: 45, block: 'circuit-x',
+      moves: [{ exerciseId: 'Dumbbell_Bicep_Curl', timed: false }, { exerciseId: 'Bodyweight_Walking_Lunge', timed: false }, { exerciseId: 'Plank', timed: true }],
+    })
+    expect(items[0]).toMatchObject({ sets: 3, note: '30s on / 15s off', block: 'circuit-x', blockLabel: 'HIIT circuit · 3 rounds · 30s on / 15s off · 45s rest between rounds' })
+    expect(items[0].reps).toBeUndefined()
+    expect(items[2].seconds).toBe(30) // a hold aims for the work time
+    const c = parseCircuit(items[0].blockLabel, items)!
+    expect(c).toEqual({ rounds: 3, work: 30, rest: 15, roundRest: 45 })
+    const total = circuitSegments(['A', 'B', 'C'], c).reduce((a, x) => a + x.seconds, 0)
+    expect(circuitSeconds(3, c)).toBe(total)
+    expect(items.reduce((a, p) => a + (p.est ?? 0), 0)).toBeCloseTo(total / 60, 0)
+    expect(circuitLabel({ rounds: 1, work: 40, rest: 0, roundRest: 0 })).toBe('HIIT circuit · 1 round · 40s on / 0s off · no rest between rounds')
+    expect(circuitLabel({ rounds: 4, work: 40, rest: 20, roundRest: 120 })).toMatch(/2 min rest between rounds$/)
+    // Done on a day: its minutes count as conditioning, like a generated circuit.
+    const plan = Array.from({ length: 7 }, () => [])
+    const logs = [{ date: '2026-10-01', exerciseId: 'Plank', sets: [{ weight: null, reps: null, seconds: 30 }] }]
+    const w = conditioningWeek([], logs, plan, { '2026-10-01': items }, ['2026-09-28', '2026-10-04'])
+    expect(w.byKind).toEqual([{ label: 'Circuits', minutes: items.reduce((a, p) => a + (p.est ?? 0), 0) }])
   })
 })
