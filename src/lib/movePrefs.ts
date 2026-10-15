@@ -68,6 +68,8 @@ export const FAVORITE_ODDS = 0.75
 
 /** A kind they asked for less of (and not a favorite): only used when nothing else fits. */
 export const unwanted = (e: Exercise) => moveScore(e) < 0 && !isFavorite(e)
+/** A kind they asked for more of. */
+export const liked = (e: Exercise) => moveScore(e) > 0
 
 /**
  * Order candidates by preference, keeping the list's tiers (`tier`: lifts they've been logging, everyday lifts,

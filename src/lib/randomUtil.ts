@@ -4,8 +4,18 @@ import { FULL_BODY_ORDER } from './bodyParts'
 
 export type Rng = () => number
 
-/** Any library exercise by id, retired ones included (they can still be in old plans). */
-export const BY_ID = BUILTIN_BY_ID
+// The person's own exercises, set from their profile (store.ts) like their favorites, so every generator can use them.
+let mine = new Map<string, Exercise>()
+export function setCustomExercises(list: Exercise[] | undefined) {
+  mine = new Map((Array.isArray(list) ? list : []).map((e) => [e.id, e]))
+}
+/** Their own lifting exercises, for workouts made for them (not ones they deleted). */
+export const customPool = (): Exercise[] => [...mine.values()].filter((e) => !e.retired && e.kind === 'strength')
+/** Any exercise by id: the library (retired ones included: they can still be in old plans) and their own. */
+export const BY_ID = {
+  get: (id: string): Exercise | undefined => BUILTIN_BY_ID.get(id) ?? mine.get(id),
+  has: (id: string) => BUILTIN_BY_ID.has(id) || mine.has(id),
+}
 /** Exercises sensible to auto-pick in ordinary workouts. */
 export const POOL = EXERCISES.filter((e) => e.suggest)
 export const byName = (name: string) => EXERCISES.find((e) => e.name === name)
@@ -45,7 +55,9 @@ export const roundTo5 = (n: number) => Math.max(5, roundTo(n, 5))
 export const pick = <T>(arr: T[], rng: Rng): T => arr[Math.floor(rng() * arr.length)]
 
 /** Exercises that are mostly single-joint, so poor picks for timed circuits and heavy strength work. */
-export const isIsolation = (e: Exercise) => /curl|raise|fly|flye|extension|kickback|crossover|shrug|pullover|pushdown|lateral|wrist|calf/i.test(e.name)
+export const isIsolation = (e: Exercise) =>
+  /curl|raise|fly|flye|extension|kickback|crossover|iron cross|pec deck|butterfly|shrug|pullover|pushdown|wrist|calf|external rotation|internal rotation|abduct|adduct|scaption|triceps press|tate press|leg lift/i.test(e.name)
+  && !/step-?up/i.test(e.name) // a step-up with a knee raise is still a step-up
 
 /** Big, classic barbell/dumbbell lifts, for strength work and CrossFit primers. */
 export const isMainLift = (e: Exercise) =>
@@ -82,16 +94,49 @@ function perExercise<T>(fn: (e: Exercise) => T): (e: Exercise) => T {
 const ODD_VARIANT = /\b(kneeling squat|speed|deficit|cambered|against|off of|with no|sprint|pass through|inner|plie|long bar|bosu|zercher|jefferson|anderson|pin|board|partial|tempo|bottoms?[- ]up|lying cambered|close and wide|side to side|one-legged|reverse triceps bench|front raise and pullover|bent-arm|mixed grip|suspended|sled|neck|bodyweight flyes)\b/i
 export const isStaple = perExercise((e) => STAPLES.test(`${e.name} ${e.fullName ?? ''}`) && !ODD_VARIANT.test(e.name))
 
-// Movement families, so a workout doesn't repeat the same thing (three squats, three incline presses...).
+// Movement patterns ("families"), so a workout covers different movements instead of variations of one: one deadlift
+// (not an RDL, a stiff-legged deadlift and a sumo deadlift), one squat, one flat press. Programs are built from distinct
+// patterns (squat, hinge, lunge, horizontal and vertical push and pull...), and variation helps when each exercise works
+// a muscle differently (squats plus leg extensions for quads), not when it repeats one (Kassiano et al. 2022, J Strength
+// Cond Res). First match wins, so specific patterns come before general ones (seated calf raise before calf raise).
 const FAMILIES: [string, RegExp][] = [
-  ['squat', /squat/i], ['hinge', /deadlift|good morning|pull through|swing/i], ['lunge', /lunge|split squat|step-?up/i],
-  ['incline', /incline.*(press|bench)/i], ['bench', /bench press|chest press|floor press/i], ['pushup', /push-?up/i],
-  ['row', /\brows?\b/i], ['vertical pull', /pulldown|pull-?up|chin-?up/i], ['overhead', /overhead press|shoulder press|military|arnold|push press/i],
-  ['raise', /lateral raise|front raise|rear delt|reverse fly/i], ['fly', /\bfly|flyes|crossover/i], ['curl', /(?<!leg )curl/i],
-  ['triceps', /pushdown|triceps? extension|skull|kickback/i], ['calf', /calf/i], ['bridge', /hip thrust|glute bridge|hip bridge|butt lift/i],
-  ['crunch', /crunch|sit-?up/i], ['plank', /plank/i],
+  // Legs and hips
+  ['seated calf', /seated.*calf|calf.*seated/i], ['calf', /calf|calves/i],
+  ['leg curl', /leg curl|hamstring curl|nordic|glute[- ]ham/i], ['leg extension', /leg extension|sissy squat/i], ['leg press', /leg press/i],
+  ['hinge', /deadlift|\brdl\b|good ?morning|pull[- ]?through|(kettlebell|dumbbell)s? swings?|rack pull|stiff[- ]legs?\b/i],
+  ['lunge', /lunge|split squat|step[- ]?ups?\b/i], ['jump', /jump|bound\b|\bhops?\b|skater/i], ['squat', /squat|thruster/i],
+  ['bridge', /hip thrust|glute bridge|hip bridge|butt lift|hip lift|leg bridge/i], ['abduction', /abduct|monster walk/i], ['adduction', /adduct/i],
+  ['glute kickback', /glute kickback|hip extension|legged cable kickback|^leg lift\b/i], ['back extension', /back extension|hyperextension|superman/i],
+  // Pushing
+  ['incline', /incline.*press/i], ['overhead', /overhead press|shoulder press|military|arnold|push press|pike push|handstand push|see-saw press/i],
+  ['decline pushup', /decline push|feet elevated|feet on an exercise ball/i], ['close pushup', /(close|diamond).*push[- ]?up|push[- ]?ups?.*(close|diamond|triceps position)/i], ['pushup', /push[- ]?ups?\b/i],
+  ['bench', /bench press|chest press|floor press|decline.*press|svend press/i], ['dip', /\bdips?\b|dip machine/i],
+  ['rear delt', /rear[- ]delt|rear lateral|bent over.*lateral|reverse.*fly|reverse.*flye|face pull|pull apart/i], ['fly', /\bfly|flye|crossover|pec deck|iron cross|butterfly/i],
+  ['lateral raise', /lateral raise|laterals|deltoid raise|scaption/i], ['front raise', /front.*raise/i], ['rotator cuff', /external rotation|internal rotation|cuban press/i],
+  // Pulling
+  ['upright row', /upright.*row|high pull\b/i], ['shrug', /shrug/i], ['pullover', /pullover|straight[- ]arm pulldown/i],
+  ['vertical pull', /pulldown|pull[- ]?ups?\b|chin[- ]?ups?\b|chin\b|muscle[- ]up/i], ['row', /\brows?\b|bench pull/i],
+  // Arms
+  ['hammer curl', /hammer.*curl|cross body hammer/i], ['reverse curl', /reverse.*curl|zottman/i], ['wrist', /wrist|finger curl/i], ['curl', /(?<!leg |hamstring )curl/i],
+  ['overhead triceps', /overhead.*(triceps|extension)|seated triceps press|standing triceps press|french press|standing (one-arm )?dumbbell triceps extension|one-arm triceps extension|low-pulley one-arm triceps/i],
+  ['lying triceps', /skull|lying.*triceps?|triceps?.*lying|tate press|jm press|decline.*triceps extension|incline barbell triceps/i],
+  ['pushdown', /push-?down|triceps? extension|kickback/i],
+  // Trunk and the rest
+  ['side plank', /side plank|side bridge|side bend/i], ['plank', /plank|rollout|ab roller|ab wheel|dead bug/i],
+  ['leg raise', /leg raise|knee raise|leg lift|knee tuck|leg tuck|pull-in|toes to bar|hanging pike|flutter kick|scissor kick|reverse crunch|hip raise/i],
+  ['crunch', /crunch|sit-?up|v-?up|jackknife|toe touch|elbow to knee|heel touch/i], ['rotation', /russian twist|woodchop|wood chop|twist|pallof|landmine 180|cable lift/i],
+  ['carry', /carry|farmer|yoke/i], ['olympic', /\bclean\b|snatch|jerk/i], ['burpee', /burpee/i], ['slam', /slam|wall ball/i],
 ]
-export const familyOf = perExercise((e) => FAMILIES.find(([, re]) => re.test(`${e.name} ${e.fullName ?? ''}`))?.[0])
+/** The big lifts a session never doubles up on, even to fill the time: a second squat or deadlift only adds fatigue. */
+export const ONE_ONLY = new Set(['squat', 'hinge', 'bench', 'incline', 'overhead', 'leg press', 'olympic', 'bridge'])
+export const familyOf = perExercise((e) => {
+  const text = `${e.name} ${e.fullName ?? ''}`
+  const f = FAMILIES.find(([, re]) => re.test(text))?.[0]
+  if (f) return f
+  // Presses named by their kit (Seated Dumbbell Press, Close-Grip EZ-Bar Press): what they are depends on the muscle.
+  if (/press/i.test(text)) return e.group === 'Shoulders' ? 'overhead' : e.group === 'Triceps' || e.group === 'Chest' ? 'bench' : undefined
+  return undefined
+})
 
 /** Niche or gimmicky moves that make a random workout feel odd. Still available to pick by hand. */
 export const isQuirky = perExercise((e) =>

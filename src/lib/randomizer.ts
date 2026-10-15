@@ -9,10 +9,10 @@ import { addDropSets, placeWarmups } from './warmups'
 import { cardioSession, type CardioSessionKind } from './cardioSession'
 import { cardioSplit, likedCardio, wodAmount, wodCardio } from './cardioPrefs'
 import { expandParts, FULL_BODY_ORDER, isFullBody, LOWER_PARTS, UPPER_PARTS, BODY_PARTS } from './bodyParts'
-import { byPreference, preferenceBonus, tooAdvanced, unwanted } from './movePrefs'
+import { byPreference, liked, preferenceBonus, tooAdvanced, unwanted } from './movePrefs'
 import { favoriteIds, isFavorite } from './favorites'
 import { stationOf, staysPut, walkCost } from './stations'
-import { BY_ID, familyOf, FULL_BODY_GROUPS, isAdvanced, isIsolation, isMainLift, isQuirky, isStaple, isTechnical, POOL, pick, roundTo5, shuffle, softShuffle, type Rng } from './randomUtil'
+import { BY_ID, customPool, familyOf, FULL_BODY_GROUPS, isAdvanced, isIsolation, isMainLift, isQuirky, isStaple, isTechnical, ONE_ONLY, POOL, pick, roundTo5, shuffle, softShuffle, type Rng } from './randomUtil'
 
 export const FOCUS_OPTIONS = [...BODY_PARTS, 'Cardio'] as const
 export const LIFT_GROUPS: string[] = [...BODY_PARTS]
@@ -61,10 +61,13 @@ const MAX_SETS = 4
 const equipmentRank = (e: Exercise) =>
   ({ Barbell: 0, Dumbbell: 1, Kettlebell: 1, Machine: 2, Cable: 2, 'EZ bar': 2, Bodyweight: 3 })[e.equipment ?? ''] ?? 4
 
+/** Bodyweight moves few people can do 15 of: pull-ups, chin-ups, dips, inverted rows, Nordic curls… */
+const HARD_BODYWEIGHT = /pull-?up|chin-?up|\bdips?\b|inverted|australian|muscle-?up|nordic|pistol|handstand/i
+
 /** Rep target by exercise style: heavy barbell work low, accessories higher. */
 export function repsFor(e: Exercise, rng: Rng = Math.random): number {
   if (e.group === 'Core') return 15
-  if (modeOf(e) === 'reps') return [10, 12, 15][Math.floor(rng() * 3)]
+  if (modeOf(e) === 'reps') return (HARD_BODYWEIGHT.test(e.name) ? [6, 8, 10] : [10, 12, 15])[Math.floor(rng() * 3)]
   const r = equipmentRank(e)
   if (r === 0) return rng() < 0.5 ? 6 : 8
   if (r <= 2) return rng() < 0.5 ? 10 : 12
@@ -246,19 +249,28 @@ export interface LiftOptions {
 const MAX_PER_PART = 5
 
 const STANDARD: LiftConfig = {
-  sets: 3, maxSets: MAX_SETS, filter: () => true, fallback: 'any', targets: targetsFor, sortByRank: true,
+  sets: 3, maxSets: MAX_SETS, fallback: 'any', targets: targetsFor, sortByRank: true,
+  // Jumps are power and conditioning work (plyometrics), not straight sets: they're for circuits and bodyweight days.
+  filter: (e) => familyOf(e) !== 'jump',
 }
 
 const isHeavyLift = (e: Exercise) => modeOf(e) === 'weight' && equipmentRank(e) <= 1 && isMainLift(e)
+/** Heavy work that loads the lower back: a heavy lift, or any barbell squat or hinge (a good morning too). */
+const loadsBack = (e: Exercise) => isHeavyLift(e) || (e.equipment === 'Barbell' && modeOf(e) === 'weight' && (familyOf(e) === 'squat' || familyOf(e) === 'hinge'))
+/** A big squat or deadlift: it tires out everything else that's heavy, so it pairs with lighter work. */
+const bigLegLift = (e: Exercise) => loadsBack(e) && (familyOf(e) === 'squat' || familyOf(e) === 'hinge')
+/** Two lifts too heavy to pair: a squat with a deadlift or good morning, a deadlift with a heavy row. */
+const tooHeavyPair = (a: Exercise, b: Exercise) => (bigLegLift(a) && loadsBack(b)) || (bigLegLift(b) && loadsBack(a))
 
 const STRENGTH: LiftConfig = {
   sets: 3, maxSets: 5,
   // Compound work only. Arms and core fall back to their usual moves (they're isolation by nature); calves get more
   // heavy leg work instead of calf raises.
-  filter: (e) => e.mode !== 'time' && e.group !== 'Core' && !isIsolation(e) && !isAdvanced(e),
+  filter: (e) => e.mode !== 'time' && e.group !== 'Core' && !isIsolation(e) && !isAdvanced(e) && familyOf(e) !== 'jump',
   fallback: { Calves: 'Quads', Biceps: 'any', Triceps: 'any', Forearms: 'any', Core: 'any' },
-  // Main lifts heavy (3-6 reps); accessories after them in the 6-10 range.
-  mainTargets: (e, rng) => ({ reps: equipmentRank(e) === 0 ? pick([3, 5], rng) : pick([5, 6], rng) }),
+  // Main lifts heavy: 3-5 reps for barbell squats, deadlifts and presses, 5-6 for the rest (rows, dumbbells, hip
+  // thrusts); accessories after them in the 6-10 range (ACSM 2009: heavy multi-joint work first, 1-6 reps for strength).
+  mainTargets: (e, rng) => ({ reps: equipmentRank(e) === 0 && ['squat', 'hinge', 'bench', 'incline', 'overhead'].includes(familyOf(e) ?? '') ? pick([3, 5], rng) : pick([5, 6], rng) }),
   targets: (e, rng) => (modeOf(e) === 'weight' ? { reps: pick([6, 8, 10], rng) } : targetsFor(e, rng)),
   sortByRank: true,
   mains: true,
@@ -272,7 +284,7 @@ const BODYWEIGHT: LiftConfig = {
   targets: (e, rng) =>
     e.mode === 'time'
       ? { seconds: pick([30, 45, 60], rng) }
-      : { reps: pick(/pull-?up|chin-?up|dip|inverted|australian/i.test(e.name) ? [6, 8, 10] : e.group === 'Core' ? [15, 20] : [12, 15, 20], rng) },
+      : { reps: pick(HARD_BODYWEIGHT.test(e.name) ? [6, 8, 10] : e.group === 'Core' ? [15, 20] : [12, 15, 20], rng) },
   sortByRank: false,
 }
 
@@ -286,16 +298,28 @@ const RELATED: Record<string, string[]> = {
 }
 
 /** Favorite library exercises that random workouts wouldn't usually pick (they're in the running too). */
-const favoritesOutsidePool = () => [...favoriteIds()].map((id) => BY_ID.get(id)).filter((e): e is Exercise => !!e && !e.suggest)
+const favoritesOutsidePool = () => [...favoriteIds()].map((id) => BY_ID.get(id)).filter((e): e is Exercise => !!e && !e.suggest && !e.custom)
+
+/**
+ * Deadlifts and other hip hinges belong on days that train the legs, or a back-and-biceps (pull) day, not a chest and
+ * back upper-body day (upper/lower and push/pull/legs splits put them with the legs or the pulling).
+ */
+export const hingeFits = (groups: string[]) =>
+  groups.some((g) => LOWER_PARTS.includes(g)) || (groups.includes('Back') && !groups.some((g) => ['Chest', 'Shoulders', 'Triceps'].includes(g)))
+
+/** Everyday lifts first in random workouts; their own exercises count as everyday (they made them to use them). */
+const everyday = (e: Exercise) => !!e.custom || isStaple(e)
 
 /** Candidate exercises per group, in the order they'll be offered: the group's own first, then related groups. */
 function queuesFor(groups: string[], rng: Rng, avoid: Set<string>, cfg: LiftConfig, familiar = new Set<string>()) {
   // Olympic lifts stay out of random straight-set workouts (CrossFit-style keeps its own list).
   // Random workouts stick to mainstream moves; niche and advanced ones only if a group would otherwise be empty.
   // Favorites are always in the running, whatever they are.
+  // Their own exercises are in the running too, like favorites.
+  const hinges = hingeFits(groups)
   const strengthPool = (g: string) => {
-    const all = [...POOL, ...favoritesOutsidePool()].filter((e) => e.kind === 'strength' && e.group === g && (isFavorite(e) || !isTechnical(e)) && hasGear(e))
-    const plain = all.filter((e) => isFavorite(e) || (!isQuirky(e) && !tooAdvanced(e)))
+    const all = [...POOL, ...favoritesOutsidePool(), ...customPool()].filter((e) => e.kind === 'strength' && e.group === g && (isFavorite(e) || !!e.custom || !isTechnical(e)) && hasGear(e) && (hinges || familyOf(e) !== 'hinge'))
+    const plain = all.filter((e) => isFavorite(e) || !!e.custom || (!isQuirky(e) && !tooAdvanced(e)))
     return plain.length ? plain : all
   }
   const own = (g: string) => {
@@ -312,10 +336,10 @@ function queuesFor(groups: string[], rng: Rng, avoid: Set<string>, cfg: LiftConf
     // Lifts they've been logging go first, so the numbers carry over from plan to plan.
     const known = mixed.filter((e) => familiar.has(e.id) && !avoid.has(e.id))
     const rest = mixed.filter((e) => !known.includes(e))
-    const tiered = [...known, ...rest.filter((e) => isStaple(e) && weighted(e)), ...rest.filter((e) => isStaple(e) && !weighted(e)), ...rest.filter((e) => !isStaple(e))]
+    const tiered = [...known, ...rest.filter((e) => everyday(e) && weighted(e)), ...rest.filter((e) => everyday(e) && !weighted(e)), ...rest.filter((e) => !everyday(e))]
     // Kinds of movement they asked for more of, and favorites, are likelier picks (less of: last); last workout's
     // picks a tier down.
-    const tierOf = (e: Exercise) => (known.includes(e) ? 0 : !isStaple(e) ? 3 : weighted(e) ? 1 : 2)
+    const tierOf = (e: Exercise) => (known.includes(e) ? 0 : !everyday(e) ? 3 : weighted(e) ? 1 : 2)
     return byPreference(tiered, rng, tierOf, avoid)
   }
   return new Map(
@@ -364,14 +388,42 @@ const PART_PATTERNS: Record<string, RegExp[]> = {
 }
 /** Parts whose full-body pick should be a multi-joint lift when the pattern list finds nothing. */
 const COMPOUND_PARTS = new Set(['Quads', 'Hamstrings', 'Chest', 'Back', 'Shoulders', 'Glutes'])
+/**
+ * Each part's movements in the order programs reach for them: its main compound pattern first (a row or pull-down for
+ * back, a press for chest, a squat for quads, a deadlift for hamstrings), then the next one, then work for what those
+ * miss (ACSM 2009; NSCA: core lifts, then assistance). Exercises for a part are picked from its next two patterns not
+ * yet in the workout, so an upper-body day gets a row before a shrug.
+ */
+const PATTERN_ORDER: Record<string, string[]> = {
+  Chest: ['bench', 'incline', 'fly', 'dip', 'pushup', 'decline pushup', 'pullover'],
+  Back: ['row', 'vertical pull', 'pullover', 'back extension', 'shrug', 'hinge'],
+  Shoulders: ['overhead', 'lateral raise', 'rear delt', 'upright row', 'front raise'],
+  Biceps: ['curl', 'hammer curl', 'reverse curl'],
+  Triceps: ['pushdown', 'overhead triceps', 'lying triceps', 'dip', 'bench', 'close pushup'],
+  Quads: ['squat', 'lunge', 'leg press', 'leg extension'],
+  Hamstrings: ['hinge', 'leg curl', 'back extension'],
+  Glutes: ['bridge', 'lunge', 'abduction', 'glute kickback'],
+  Calves: ['calf', 'seated calf'],
+  Core: ['plank', 'crunch', 'leg raise', 'rotation', 'side plank'],
+}
+/** Each part's main lift, what it starts with and what leads a strength day: the movements programs are built on. */
+const MAIN_LIFTS: Record<string, string[]> = {
+  Quads: ['squat'], Hamstrings: ['hinge'], Chest: ['bench', 'incline'], Back: ['row', 'vertical pull'], Shoulders: ['overhead'], Glutes: ['bridge'],
+}
+/** One of the part's main lifts (a squat for quads, a deadlift or RDL for hamstrings, a row or pull-down for back…). */
+const isMainMove = (e: Exercise) => (MAIN_LIFTS[e.group] ?? []).includes(familyOf(e) ?? '')
+
+/** Workout order: big multi-joint lifts first, then single-joint work, core last; heavier equipment first within each. */
+const orderKey = (e: Exercise) => (e.group === 'Core' ? 3 : isIsolation(e) ? 2 : isMainLift(e) ? 0 : 1) * 10 + equipmentRank(e)
 
 function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<string>, cfg: LiftConfig, opts: LiftOptions = {}): PlannedExercise[] {
   if (groups.length === 0 || minutes < 5) return []
   const pref = opts.rest ?? 'normal'
   // Full body: one exercise per body part, big movements first (squat, press, pull, hinge…), extra time as extra sets.
-  // Other choices go in random order and can get several exercises each.
+  // Other choices can get several exercises each, and the bigger parts get theirs first (a lunge and a leg curl before a
+  // second calf raise; ACSM 2009: large muscle groups before small).
   const fullBody = isFullBody(groups)
-  const order = fullBody ? [...FULL_BODY_ORDER.filter((g) => groups.includes(g)), ...groups.filter((g) => !FULL_BODY_ORDER.includes(g))] : shuffle(groups, rng)
+  const order = [...FULL_BODY_ORDER.filter((g) => groups.includes(g)), ...groups.filter((g) => !FULL_BODY_ORDER.includes(g))]
   const startSets = opts.setsPerExercise?.[0] ?? cfg.sets
   const maxSets = opts.setsPerExercise?.[1] ?? (fullBody ? Math.max(cfg.maxSets, 5) : cfg.maxSets)
   const perPartMax = opts.maxPerPart ?? (opts.setCap ? MAX_PER_PART : Infinity)
@@ -388,27 +440,34 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
   // Hard sets per muscle so far, against the session cap (when there is one).
   const setsIn = (g: string) => items.reduce((a, p) => a + (BY_ID.get(p.exerciseId)?.group === g ? p.sets : 0), 0)
   const roomFor = (g: string | undefined, n: number) => !opts.setCap || !g || setsIn(g) + n <= opts.setCap(g)
-  // At most two of the same movement family per workout (one on full-body days: a squat for quads, so no second
-  // squat for glutes), where the library allows.
+  // One exercise per movement pattern (one deadlift, one squat, one flat press, one leg curl…): programs are built from
+  // distinct patterns, and a second variation of one adds fatigue more than anything new (Kassiano et al. 2022). A kind
+  // they asked for more of can have a second variation of a smaller movement on a day that isn't full body (two lunges
+  // for someone who wants more one-leg work), never of a big lift.
   const family = new Map<string, number>()
-  const familyCap = fullBody ? 1 : 2
-  const tooSimilar = (e: Exercise) => { const f = familyOf(e); return !!f && (family.get(f) ?? 0) >= familyCap }
-  const nextFrom = (g: string, want?: (e: Exercise) => boolean, strict = false) => {
+  const tooSimilar = (e: Exercise) => {
+    const f = familyOf(e)
+    return !!f && (family.get(f) ?? 0) >= (!fullBody && liked(e) && !ONE_ONLY.has(f) ? 2 : 1)
+  }
+  /**
+   * The part's next exercise. Strict: only a new movement for the part itself. Normal: when the part has nothing new
+   * left (a long biceps day), a second variation of a smaller movement before borrowing a related part's (an arm day
+   * stays arms, not rows), never a second of the big lifts. Neither uses a kind they asked for less of; 'any' does,
+   * when the part has nothing else at all.
+   */
+  const nextFrom = (g: string, want?: (e: Exercise) => boolean, mode: 'strict' | 'normal' | 'any' = 'any') => {
     const q = queues.get(g)!
     const ok = (e: Exercise) => !taken.has(e.id) && (!want || want(e))
-    // Only repeat a movement when nothing else is left (e.g. a bodyweight-only chest day), and never when strict.
-    // The part's own moves come before borrowing a related part's (an arm day stays arms, not rows), and a kind they
-    // asked for less of only when the part has nothing else at all.
     const mine = (e: Exercise) => e.group === g
     const find = (fits: (e: Exercise) => boolean) => {
       let i = q.findIndex((e) => fits(e) && !tooSimilar(e))
-      if (i < 0 && !strict) i = q.findIndex(fits)
+      if (i < 0 && mode !== 'strict') i = q.findIndex((e) => fits(e) && !ONE_ONLY.has(familyOf(e) ?? ''))
       return i
     }
     let i = find((e) => ok(e) && mine(e) && !unwanted(e))
-    if (i < 0) i = find((e) => ok(e) && mine(e))
-    if (i < 0) i = find((e) => ok(e) && !unwanted(e))
-    if (i < 0) i = find(ok)
+    if (i < 0 && mode === 'any') i = find((e) => ok(e) && mine(e))
+    if (i < 0 && mode !== 'strict') i = find((e) => ok(e) && !unwanted(e))
+    if (i < 0 && mode === 'any') i = find(ok)
     return i < 0 ? undefined : q.splice(i, 1)[0]
   }
   /**
@@ -416,14 +475,14 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
    * something rerolled away, a different movement from the rest of the workout, the part's classic pattern (a squat
    * for quads, a row for back…), free weights, and an everyday lift (Back Squat over Squat with Plate Movers).
    */
-  const pickFor = (g: string, bonus: (e: Exercise) => number = () => 0) => {
+  const pickFor = (g: string, bonus: (e: Exercise) => number = () => 0, only?: (e: Exercise) => boolean) => {
     const q = queues.get(g)!
     const pats = PART_PATTERNS[g] ?? []
     let best = -1
     let bestScore = -Infinity
     q.forEach((e, i) => {
       // Only the part's own moves: a part with nothing suitable is left out rather than borrowing another's.
-      if (taken.has(e.id) || e.group !== g) return
+      if (taken.has(e.id) || e.group !== g || (only && !only(e))) return
       const score = (avoid.has(e.id) ? 0 : 16) + (tooSimilar(e) ? 0 : 8)
         + (pats[0]?.test(e.name) ? 4 : pats[1]?.test(e.name) ? 2 : 0) + (equipmentRank(e) <= 1 ? 1.5 : 0)
         + (e.fullName ? 2 : 0) + (isMainLift(e) ? 1 : 0) - (COMPOUND_PARTS.has(g) && isIsolation(e) ? 3 : 0) + bonus(e)
@@ -434,6 +493,19 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
       if (score > bestScore) { bestScore = score; best = i }
     })
     return best < 0 ? undefined : q.splice(best, 1)[0]
+  }
+  // The part's next movement in program order (see PATTERN_ORDER): its main lift first where it has one (a squat for
+  // quads, a deadlift or RDL for hamstrings), then one of its next two patterns not yet in, at random between them.
+  // Favorites, lifts they've been logging and their own exercises of a kind it can't tell are always in the running;
+  // once the part has its first exercise, so are kinds they asked for more of (from further down the list, or a second
+  // variation).
+  const nextInOrder = (g: string, strict: boolean) => {
+    const open = (PATTERN_ORDER[g] ?? []).filter((f) => !family.get(f))
+    const started = (perPart.get(g) ?? 0) > 0
+    const from = (win: string[]) => win.length
+      ? nextFrom(g, (x) => x.group === g && (isFavorite(x) || familiar.has(x.id) || win.includes(familyOf(x) ?? '') || (!!x.custom && !familyOf(x)) || (started && liked(x))), 'strict')
+      : undefined
+    return (started ? undefined : from((MAIN_LIFTS[g] ?? []).filter((f) => open.includes(f)))) ?? from(open.slice(0, 2)) ?? nextFrom(g, undefined, strict ? 'strict' : 'normal')
   }
   const fits = (limit: number) => cost() <= minutes * limit
   const tryAdd = (g: string, e: Exercise | undefined, sets: number, limit: number, main = false) => {
@@ -447,14 +519,18 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
     return true
   }
 
-  // Strength: a heavy main lift for each chosen group first (up to three), trimmed if they'd crowd out everything else.
+  // Strength: the day's big lifts first, heavy, one per movement, in the classic order: a squat, a bench press, a row,
+  // a deadlift or RDL, an overhead press (up to three). Arms, calves and core get no main lift; a hip thrust leads
+  // only when there's no squat or deadlift to lead the legs.
   let mains = 0
   if (cfg.mains) {
-    // Prefer a barbell lift for the heavy work; dumbbells if the group has none.
-    for (const g of order.slice(0, 3)) {
-      const e = fullBody
-        ? pickFor(g, (x) => (isHeavyLift(x) ? (equipmentRank(x) === 0 ? 6 : 3) : 0))
-        : nextFrom(g, (x) => x.group === g && isHeavyLift(x) && equipmentRank(x) === 0) ?? nextFrom(g, (x) => x.group === g && isHeavyLift(x))
+    const lead = FULL_BODY_ORDER.filter((g) => groups.includes(g) && MAIN_LIFTS[g] && !(g === 'Glutes' && (groups.includes('Quads') || groups.includes('Hamstrings'))))
+    for (const g of lead.slice(0, 3)) {
+      // (A favorite or their own exercise of that movement can lead too, with a barbell or dumbbells.)
+      const heavy = (x: Exercise) => isHeavyLift(x) || ((isFavorite(x) || !!x.custom) && modeOf(x) === 'weight' && equipmentRank(x) <= 1)
+      const isMain = (x: Exercise) => x.group === g && heavy(x) && MAIN_LIFTS[g].includes(familyOf(x) ?? '')
+      // The classic version (Bench Press, Back Squat, Deadlift, Barbell Row), with a barbell; dumbbells if there's none.
+      const e = pickFor(g, (x) => (equipmentRank(x) === 0 ? 6 : 3), isMain)
       if (tryAdd(g, e, Math.min(maxSets, startSets + 1), 0.8, true)) mains++
     }
   }
@@ -479,8 +555,15 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
 
   // Full body: each part's classic movement with the heaviest equipment available (a squat for quads, a deadlift or
   // RDL for hamstrings, a bench press, a row, an overhead press, a hip thrust…), then the smaller parts while they fit.
+  // A part with nothing but kinds they asked for less of (curls, for less isolation) waits until the rest are in.
   if (fullBody) {
-    for (const g of order) if (!perPart.get(g)) tryAdd(g, pickFor(g), startSets, 1.02)
+    const later: string[] = []
+    for (const g of order) {
+      if (perPart.get(g)) continue
+      const e = pickFor(g)
+      if (e && unwanted(e)) { queues.get(g)!.unshift(e); later.push(g) } else tryAdd(g, e, startSets, 1.02)
+    }
+    for (const g of later) tryAdd(g, pickFor(g), startSets, 1.02)
   }
 
   // Then round-robin through the groups adding exercises while they fit (full body: only parts still missing one).
@@ -492,12 +575,12 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
         if (items.length >= CAP) break
         if (onePerPart && perPart.get(g)) continue
         const accessorySets = opts.setsPerExercise ? startSets : cfg.mains ? 3 : cfg.sets
-        if (tryAdd(g, onePerPart ? nextFrom(g, (x) => x.group === g) : nextFrom(g, undefined, strict), accessorySets, 1.02)) added = true
+        if (tryAdd(g, onePerPart ? nextFrom(g, (x) => x.group === g) : nextInOrder(g, strict), accessorySets, 1.02)) added = true
       }
       if (!added || pass > 12) break
     }
   }
-  roundRobin(fullBody)
+  roundRobin(fullBody, true)
   if (items.length === 0) {
     // Not even one exercise at the usual sets: take the first candidate with fewer sets.
     const e = order.map((g) => nextFrom(g)).find(Boolean)
@@ -507,9 +590,7 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
   const sortItems = () => {
     if (!cfg.sortByRank) return
     const heavy = items.slice(0, mains)
-    // Big multi-joint lifts first, then single-joint work, core last; heavier equipment first within each.
-    const tier = (e: Exercise) => (e.group === 'Core' ? 3 : isIsolation(e) ? 2 : isMainLift(e) ? 0 : 1)
-    const key = (p: PlannedExercise) => { const e = BY_ID.get(p.exerciseId)!; return tier(e) * 10 + equipmentRank(e) }
+    const key = (p: PlannedExercise) => orderKey(BY_ID.get(p.exerciseId)!)
     const rest = items.slice(mains).sort((a, b) => key(a) - key(b))
     items.splice(0, items.length, ...heavy, ...rest)
   }
@@ -540,10 +621,21 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
       fillSets()
     }
   }
+  // Every movement in with its sets and still well short (one small part for a long time, a bodyweight leg day): a
+  // second variation where the part has nothing new (a seated calf raise after a standing one), never of a big lift.
+  if (!fullBody && fits(0.85)) {
+    roundRobin(false)
+    sortItems()
+    warmups()
+    fillSets()
+  }
 
   // Still short (e.g. every exercise at max sets): squeeze in one more exercise with fewer sets.
   if (fits(0.9)) {
-    for (const g of order) if (cost() < minutes * 0.9 && (!fullBody || !perPart.get(g)) && tryAdd(g, fullBody ? nextFrom(g, (x) => x.group === g) : nextFrom(g), MIN_SETS, 1.08)) break
+    // (A kind they asked for less of only when nothing else will do.)
+    const squeeze = (mode: 'normal' | 'any') => order.some((g) =>
+      cost() < minutes * 0.9 && (!fullBody || !perPart.get(g)) && tryAdd(g, nextFrom(g, fullBody ? (x) => x.group === g : undefined, mode), MIN_SETS, 1.08))
+    if (!squeeze('normal')) squeeze('any')
   }
   // Out of suitable exercises (a long bodyweight leg day): one more set each rather than ending early.
   if (fits(0.88)) fillSets(opts.setsPerExercise ? maxSets : maxSets + 1)
@@ -554,8 +646,14 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
 /** Supersets: pick exercises, pair them, then choose how many pairs and rounds come closest to the time. */
 function pickSupersets(groups: string[], minutes: number, rng: Rng, avoid: Set<string>, opts: LiftOptions = {}): PlannedExercise[] {
   const pref = opts.rest ?? 'normal'
-  // Paired work is quicker, so ask for more exercises than straight sets would fit, then choose from them.
-  const pool = pickLifts(groups, minutes * 1.8, rng, avoid, { ...SUPERSET, maxSets: 3 }, { rest: pref, noRepeats: BODY_PARTS.every((p) => groups.includes(p)), familiar: opts.familiar, setCap: opts.setCap && ((g) => opts.setCap!(g) * 1.8), repRange: opts.repRange, maxPerPart: opts.maxPerPart && opts.maxPerPart * 2 }).map((p) => ({ ...p, sets: 3, warmupSets: undefined }))
+  // Paired work is quicker, so ask for more exercises than straight sets would fit, then choose from them: they come in
+  // the order they were picked (each part's main movement first), so the ones that make the cut are the important ones.
+  const picked = pickLifts(groups, minutes * 1.8, rng, avoid, { ...SUPERSET, maxSets: 3, sortByRank: false }, { rest: pref, noRepeats: BODY_PARTS.every((p) => groups.includes(p)), familiar: opts.familiar, setCap: opts.setCap && ((g) => opts.setCap!(g) * 1.8), repRange: opts.repRange, maxPerPart: opts.maxPerPart && opts.maxPerPart * 2 }).map((p) => ({ ...p, sets: 3, warmupSets: undefined }))
+  // A second variation of a movement (when a long day runs out of new ones) goes after every first one, so it's the
+  // first to go when the pairs fill the time.
+  const seen = new Set<string>()
+  const again = picked.map((p) => { const f = familyOf(BY_ID.get(p.exerciseId)!); const was = !!f && seen.has(f); if (f) seen.add(f); return was })
+  const pool = [...picked.filter((_, i) => !again[i]), ...picked.filter((_, i) => again[i])]
   // Partners to fall back on: the chosen parts' usual moves (in the same order straight sets would offer them).
   const chosen = new Set(groups)
   const extras = [...new Set([...queuesFor(groups, rng, avoid, SUPERSET, opts.familiar).values()].flat())].filter((e) => chosen.has(e.group))
@@ -572,13 +670,7 @@ function pickSupersets(groups: string[], minutes: number, rng: Rng, avoid: Set<s
     }
     return [...sets].every(([g, n]) => !opts.setCap || n <= opts.setCap(g)) && [...count].every(([, n]) => !opts.maxPerPart || n <= opts.maxPerPart)
   }
-  const paired = makeSupersets(pool, extras, extra, BODY_PARTS.every((p) => groups.includes(p)))
-  const pairs: PlannedExercise[][] = []
-  for (let i = 0; i < paired.length; ) {
-    const n = paired[i].block && paired[i + 1]?.block === paired[i].block ? 2 : 1
-    pairs.push(paired.slice(i, i + n))
-    i += n
-  }
+  const pairs = entriesOf(makeSupersets(pool, extras, extra, BODY_PARTS.every((p) => groups.includes(p))))
   let best: PlannedExercise[] = []
   let bestScore = Infinity
   for (let k = 1; k <= pairs.length; k++) {
@@ -607,6 +699,7 @@ function pickSupersets(groups: string[], minutes: number, rng: Rng, avoid: Set<s
     }
     if (pick) best = [...best, pick]
   }
+  best = bigLiftsFirst(best)
   if (opts.warmupSets) best = placeWarmups(best, (id) => BY_ID.get(id), 2)
   // Spread each pair's time over its two exercises for the per-item estimate.
   for (let i = 0; i < best.length; ) {
@@ -622,6 +715,30 @@ function pickSupersets(groups: string[], minutes: number, rng: Rng, avoid: Set<s
     }
   }
   return best
+}
+
+/** A workout's supersets (two exercises) and straight sets (one), in order. */
+function entriesOf(list: PlannedExercise[]): PlannedExercise[][] {
+  const out: PlannedExercise[][] = []
+  for (let i = 0; i < list.length; ) {
+    const n = list[i].block && list[i + 1]?.block === list[i].block ? 2 : 1
+    out.push(list.slice(i, i + n))
+    i += n
+  }
+  return out
+}
+
+/** Supersets and straight sets ordered by their biggest lift (bigger one first in each pair), numbered in that order. */
+function bigLiftsFirst(list: PlannedExercise[]): PlannedExercise[] {
+  const key = (p: PlannedExercise) => { const e = BY_ID.get(p.exerciseId); return e ? orderKey(e) : 99 }
+  const entries = entriesOf(list).map((e) => [...e].sort((a, b) => key(a) - key(b)))
+  entries.sort((a, b) => key(a[0]) - key(b[0]))
+  let n = 0
+  return entries.flatMap((e) => {
+    if (e.length < 2 || !e[0].block?.startsWith('ss')) return e
+    n++
+    return e.map((p) => ({ ...p, block: `ss${n}`, blockLabel: p.blockLabel?.replace(/^Superset \d+/, `Superset ${n}`) }))
+  })
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -649,7 +766,10 @@ export function pairScore(a: Exercise, b: Exercise): number {
     : ANTAGONISTS[a.group]?.includes(b.group) ? 3
     : COMPETING[a.group]?.includes(b.group) ? -1
     : 1
-  return muscle - 2.5 * walkCost(a, b)
+  // A heavy squat or deadlift tires out everything else that's heavy (a squat with a deadlift, a deadlift with a row): it
+  // pairs with lighter work. Heavy pushing with heavy pulling (bench press and row) is fine (Robbins et al. 2010).
+  const heavy = tooHeavyPair(a, b) ? -4 : 0
+  return muscle + heavy - 2.5 * walkCost(a, b)
 }
 
 const PLACE: Record<string, string> = {
@@ -681,9 +801,11 @@ function whereLabel(a: Exercise, b: Exercise): string {
  * of the chosen body parts that can be done in the same spot, favouring the parts with the fewest exercises so far.
  */
 function makeSupersets(items: PlannedExercise[], extras: Exercise[] = [], extra: (e: Exercise) => PlannedExercise = (e) => ({ exerciseId: e.id, sets: 3 }), oneEach = false): PlannedExercise[] {
+  const wontPair = (a: Exercise, b: Exercise) => walkCost(a, b) >= 3 || tooHeavyPair(a, b)
   const ex = (p: PlannedExercise) => BY_ID.get(p.exerciseId)!
   const left = items.filter((p) => BY_ID.has(p.exerciseId))
   const used = new Set(left.map((p) => p.exerciseId))
+  const again = new Set(left.filter((p, i) => { const f = familyOf(ex(p)); return !!f && left.slice(0, i).some((q) => familyOf(ex(q)) === f) }).map((p) => p.exerciseId))
   const perGroup = new Map<string, number>()
   const count = (e: Exercise) => perGroup.set(e.group, (perGroup.get(e.group) ?? 0) + 1)
   const out: PlannedExercise[] = []
@@ -693,31 +815,47 @@ function makeSupersets(items: PlannedExercise[], extras: Exercise[] = [], extra:
     const ea = ex(a)
     let best = -1
     let bestScore = -Infinity
-    left.forEach((p, i) => { const sc = pairScore(ea, ex(p)); if (sc > bestScore) { bestScore = sc; best = i } })
+    // A second variation of a movement (picked when a long day ran out of new ones) only when nothing else pairs, and a
+    // partner across the gym or too heavy to pair only when there's no other (it's swapped or left as straight sets).
+    const consider = (ok: (p: PlannedExercise) => boolean) =>
+      left.forEach((p, i) => { const sc = pairScore(ea, ex(p)) - (again.has(p.exerciseId) ? 4 : 0); if (ok(p) && sc > bestScore) { bestScore = sc; best = i } })
+    consider((p) => !wontPair(ea, ex(p)))
+    if (best < 0) consider(() => true)
     // Something unpicked that suits this spot clearly better (no walking), keeping body parts balanced.
     let alt: Exercise | undefined
+    let altFor: PlannedExercise | undefined
     let altScore = bestScore + 2
     const families = new Set([...out, a, ...left].map((p) => familyOf(ex(p))).filter(Boolean))
     for (const e of extras) {
-      if (used.has(e.id) || (familyOf(e) && families.has(familyOf(e)))) continue
-      // It takes the place of an unpaired move for the same part, or (unless it's one per part) joins as an extra.
-      const replaces = left.some((p) => ex(p).group === e.group)
-      if (oneEach && !replaces) continue
-      const sc = pairScore(ea, e) - 0.75 * (perGroup.get(e.group) ?? 0) + (replaces ? 0.5 : 0)
-      if (sc > altScore && walkCost(ea, e) === 0) { alt = e; altScore = sc }
+      if (used.has(e.id) || (familyOf(e) && families.has(familyOf(e))) || unwanted(e)) continue
+      // It takes the place of an unpaired move for the same part (the last one picked), or (unless it's one per part)
+      // joins as an extra; never in place of the part's main lift for a smaller one (the row stays, not a back extension
+      // that shares the bench).
+      const replaced = left.filter((p) => ex(p).group === e.group && !(isMainMove(ex(p)) && !isMainMove(e))).at(-1)
+      if (oneEach && !replaced) continue
+      const sc = pairScore(ea, e) - 0.75 * (perGroup.get(e.group) ?? 0) + (replaced ? 0.5 : 0)
+      if (sc > altScore && walkCost(ea, e) === 0 && !tooHeavyPair(ea, e)) { alt = e; altFor = replaced; altScore = sc }
     }
     let b: PlannedExercise | undefined
     if (alt) {
-      const g = alt.group
-      const i = left.findIndex((p) => ex(p).group === g)
-      if (i >= 0) left.splice(i, 1)
+      if (altFor) left.splice(left.indexOf(altFor), 1)
       b = extra(alt)
       used.add(alt.id)
-    } else if (best >= 0) b = left.splice(best, 1)[0]
+    } else if (best >= 0) {
+      b = left.splice(best, 1)[0]
+      if (wontPair(ea, ex(b))) {
+        // Its partner is across the gym or too heavy: the same movement somewhere closer or lighter instead (a dumbbell
+        // RDL rather than the Smith machine one, a calf raise on the leg press), or straight sets when there's none.
+        const eb = ex(b)
+        const near = extras.find((e) => !used.has(e.id) && e.group === eb.group && !!familyOf(e) && familyOf(e) === familyOf(eb) && !wontPair(ea, e) && !unwanted(e))
+        if (near) { b = extra(near); used.add(near.id) } else { left.splice(best, 0, b); b = undefined }
+      }
+    }
     count(ea)
     if (!b) {
-      out.push(a) // odd one out stays a straight set
-      break
+      // Nothing to pair it with without crossing the gym (or the odd one out): straight sets.
+      out.push(a)
+      continue
     }
     count(ex(b))
     n++
@@ -744,24 +882,29 @@ function roundRobinPick(groups: string[], count: number, poolFor: (g: string) =>
     const queues = new Map(order.map((g) => [g, byPreference(softShuffle(poolFor(g), avoid, rng), rng, () => 0, avoid)] as const))
     const picked: Exercise[] = []
     const taken = new Set<string>()
-    while (picked.length < count) {
-      let progressed = false
-      for (const g of order) {
-        if (picked.length >= count) break
-        const q = queues.get(g)!
-        // A different movement at each station (not two floor presses or two pull-ups), when the pool allows.
-        const fams = new Set([...already, ...picked].map(familyOf).filter(Boolean))
-        const ok = (e: Exercise) => !taken.has(e.id) && (!stay || staysPut([...already, ...picked], e, maxFixed))
-        let i = q.findIndex((e) => ok(e) && !(familyOf(e) && fams.has(familyOf(e))))
-        if (i < 0) i = q.findIndex(ok)
-        if (i < 0) continue
-        const [next] = q.splice(i, 1)
-        picked.push(next)
-        taken.add(next.id)
-        progressed = true
+    // A different movement at each station (not two deadlifts or two pull-ups); a second of a smaller movement only if
+    // the circuit would otherwise come up short, never a second squat or deadlift.
+    const fill = (repeats: boolean) => {
+      while (picked.length < count) {
+        let progressed = false
+        for (const g of order) {
+          if (picked.length >= count) break
+          const q = queues.get(g)!
+          const fams = new Set([...already, ...picked].map(familyOf).filter(Boolean))
+          const ok = (e: Exercise) => !taken.has(e.id) && (!stay || staysPut([...already, ...picked], e, maxFixed))
+          let i = q.findIndex((e) => ok(e) && !(familyOf(e) && fams.has(familyOf(e))))
+          if (i < 0 && repeats) i = q.findIndex((e) => ok(e) && !ONE_ONLY.has(familyOf(e) ?? ''))
+          if (i < 0) continue
+          const [next] = q.splice(i, 1)
+          picked.push(next)
+          taken.add(next.id)
+          progressed = true
+        }
+        if (!progressed) break
       }
-      if (!progressed) break
     }
+    fill(false)
+    fill(true)
     return picked
   }
   const near = run(true)
@@ -786,8 +929,8 @@ function generateCircuit(groups: string[], minutes: number, rng: Rng, avoid: Set
   const ROUND_REST = 1
   const hiitOk = (e: Exercise) =>
     e.kind === 'strength' &&
-    (e.tags?.includes('hiit') || (e.suggest && ['Bodyweight', 'Kettlebell', 'Dumbbell'].includes(e.equipment ?? '') && !isIsolation(e) && !isTechnical(e) && !isQuirky(e) && !tooAdvanced(e)))
-  const poolFor = (g: string) => EXERCISES.filter((e) => e.group === g && hiitOk(e) && hasGear(e))
+    (e.tags?.includes('hiit') || ((e.suggest || e.custom) && ['Bodyweight', 'Kettlebell', 'Dumbbell'].includes(e.equipment ?? '') && !isIsolation(e) && !isTechnical(e) && !isQuirky(e) && !tooAdvanced(e)))
+  const poolFor = (g: string) => [...EXERCISES, ...customPool()].filter((e) => e.group === g && hiitOk(e) && hasGear(e))
   const withConditioning = [...new Set([...groups, 'Conditioning'])]
 
   let n = minutes <= 20 ? 5 : minutes <= 35 ? 6 : minutes <= 50 ? 7 : 8
@@ -816,9 +959,10 @@ function generatePha(groups: string[], minutes: number, rng: Rng, avoid: Set<str
   while (n > 4 && roundMin(n) * 2 > minutes) n--
   // Quick, low-skill stations: not barbell lifts, and compound moves where the group has any.
   const poolFor = (g: string) => {
-    const base = POOL.filter((e) => e.kind === 'strength' && e.group === g && equipmentRank(e) >= 1 && !tooAdvanced(e) && !isTechnical(e) && !isQuirky(e) && hasGear(e))
+    const base = [...POOL, ...customPool()].filter((e) => e.kind === 'strength' && e.group === g && equipmentRank(e) >= 1 && !tooAdvanced(e) && !isTechnical(e) && !isQuirky(e) && hasGear(e))
+    // (Three different movements: hip thrusts and glute bridges are one.)
     const compound = base.filter((e) => !isIsolation(e))
-    return compound.length >= 3 ? compound : base
+    return new Set(compound.map(familyOf)).size >= 3 ? compound : base
   }
 
   // Half the stations upper body, half lower; Core counts as lower. Falls back to whatever was chosen.
@@ -1048,16 +1192,22 @@ export function swapExercise(items: PlannedExercise[], index: number, rng: Rng =
     const next: PlannedExercise = { ...prev, exerciseId: e.id, ...(prev.wod ? { note: wodAmount(e.id, prev.wod.kind === 'fortime' ? 1.25 : 1) } : {}) }
     return items.map((p, i) => (i === index ? next : p))
   }
-  const options = EXERCISES.filter(
+  const groups = [...new Set(items.map((p) => BY_ID.get(p.exerciseId)?.group).filter((g): g is string => !!g))]
+  const options = [...EXERCISES, ...customPool()].filter(
     (e) =>
       e.kind === cur.kind &&
       e.group === cur.group &&
       !used.has(e.id) &&
       hasGear(e) &&
-      (e.suggest || (cur.tags && e.tags?.some((t) => cur.tags!.includes(t)))),
+      (e.suggest || e.custom || (cur.tags && e.tags?.some((t) => cur.tags!.includes(t)))) &&
+      (familyOf(e) !== 'hinge' || familyOf(cur) === 'hinge' || hingeFits(groups)),
   )
-  if (options.length === 0) return items
-  return replaceExercise(items, index, options[Math.floor(rng() * options.length)], rng)
+  // A movement the rest of the workout doesn't already have (no second deadlift when swapping the leg curl).
+  const others = new Set(items.filter((_, i) => i !== index).map((p) => BY_ID.get(p.exerciseId)).map((e) => e && familyOf(e)).filter(Boolean))
+  const fresh = options.filter((e) => !familyOf(e) || !others.has(familyOf(e)))
+  const from = fresh.length ? fresh : options
+  if (from.length === 0) return items
+  return replaceExercise(items, index, from[Math.floor(rng() * from.length)], rng)
 }
 
 /** Put a specific exercise in slot `index`, keeping its position, sets, minutes, and block. */
