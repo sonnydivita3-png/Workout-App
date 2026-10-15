@@ -6,7 +6,7 @@ import { isStaple, isTechnical } from '../lib/randomUtil'
 import { useStore } from '../store'
 import type { Exercise } from '../types'
 import { CUSTOM_GROUPS, sameName } from '../lib/customExercises'
-import { matchesSearch, searchWords } from '../lib/exerciseSearch'
+import { closestExercises, matchesSearch, searchWords } from '../lib/exerciseSearch'
 import { CustomExerciseSheet } from './CustomExercise'
 
 interface Props {
@@ -125,19 +125,52 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
     c.set('Mine', inGroup.filter(hasGear).length)
     return c
   }, [inGroup])
+  // Favorites (by body part when they're all listed), then what you've done lately, then your own exercises,
+  // everyday lifts (Back Squat, Leg Curl…), common moves, and the rest, A to Z.
+  const prefer = (a: Exercise, b: Exercise) =>
+    Number(favorites.includes(b.id)) - Number(favorites.includes(a.id))
+    || (group === 'Favorites' && !query ? partRank(a) - partRank(b) : 0)
+    || (recent.get(b.id) ?? '').localeCompare(recent.get(a.id) ?? '') || rank(a) - rank(b) || a.name.localeCompare(b.name)
   const results = useMemo(
-    () =>
-      inGroup
-        .filter((e) => fitsEquip(e, equip))
-        // Favorites (by body part when they're all listed), then what you've done lately, then your own exercises,
-        // everyday lifts (Back Squat, Leg Curl…), common moves, and the rest, A to Z.
-        .sort((a, b) =>
-          Number(favorites.includes(b.id)) - Number(favorites.includes(a.id))
-          || (group === 'Favorites' && !query ? partRank(a) - partRank(b) : 0)
-          || (recent.get(b.id) ?? '').localeCompare(recent.get(a.id) ?? '') || rank(a) - rank(b) || a.name.localeCompare(b.name)),
+    () => inGroup.filter((e) => fitsEquip(e, equip)).sort(prefer),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [inGroup, equip, recent, favorites, group, query],
   )
+  // Nothing has every word typed (a typo, an extra word, or not in the list): the closest exercises instead, from the
+  // muscle group and equipment chosen, or from everything when those have none.
+  const closest = useMemo(() => {
+    if (!query || results.length) return []
+    const near = closestExercises(all.filter((e) => inPart(e) && fitsEquip(e, equip)).sort(prefer), query)
+    return near.length ? near : closestExercises([...all].sort(prefer), query)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results, all, query, group, equip, recent, favorites])
   const exact = results.some((e) => sameName(e.name, query))
+  const row = (e: Exercise, both: boolean) => (
+    <li key={e.id} className="flex items-center">
+      <button
+        disabled={taken.has(e.id)}
+        onClick={() => onPick(e)}
+        className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl py-2.5 pl-3 pr-1 text-left hover:bg-neutral-50 disabled:opacity-40"
+      >
+        <span>{e.name}</span>
+        <span className="shrink-0 text-xs text-neutral-400">{taken.has(e.id) ? 'Added' : both ? `${e.group} · ${e.equipment}` : e.equipment}</span>
+      </button>
+      {e.custom && (
+        <button onClick={() => setMaking({ exercise: e })} aria-label={`Edit ${e.name}`} title="Edit your exercise" className="flex h-10 w-8 shrink-0 items-center justify-center text-neutral-400">✎</button>
+      )}
+      {e.kind === 'strength' ? (
+        <button
+          onClick={() => toggleFavorite(e.id)}
+          aria-pressed={isFav(e)}
+          aria-label={`Favorite: ${e.name}`}
+          title={isFav(e) ? 'Remove from favorites' : 'Add to favorites'}
+          className={`flex h-10 w-9 shrink-0 items-center justify-center text-lg leading-none ${isFav(e) ? 'text-amber-700' : 'text-neutral-300'}`}
+        >
+          {isFav(e) ? '★' : '☆'}
+        </button>
+      ) : <span className="w-9 shrink-0" />}
+    </li>
+  )
 
   return (
     <>
@@ -192,47 +225,35 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
           </div>
         )}
         <div className="mb-1 flex shrink-0 items-center justify-between gap-2">
-          <p className="min-w-0 truncate text-xs text-neutral-400">{results.length} exercise{results.length === 1 ? '' : 's'}{equip === 'Mine' ? ' · my equipment' : equip !== 'Any' ? ` · ${equip.toLowerCase()}` : ''}{group !== 'All' ? ` · ${group.toLowerCase()}` : ''}</p>
+          <p className="min-w-0 truncate text-xs text-neutral-400">
+            {closest.length ? 'No exact match' : <>{results.length} exercise{results.length === 1 ? '' : 's'}{equip === 'Mine' ? ' · my equipment' : equip !== 'Any' ? ` · ${equip.toLowerCase()}` : ''}{group !== 'All' ? ` · ${group.toLowerCase()}` : ''}</>}
+          </p>
           <button onClick={() => setMaking({ name: q })} className="shrink-0 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">+ Custom exercise</button>
         </div>
         <ul className="-mx-1 overflow-y-auto">
-          {q.trim() && !exact && (
+          {q.trim() && !exact && results.length > 0 && (
             <li className="mb-1">
               <button onClick={() => setMaking({ name: q })} className="w-full truncate rounded-xl bg-neutral-50 px-3 py-2.5 text-left text-sm">
                 Can’t find it? <span className="font-medium">Create “{q.trim()}”</span>
               </button>
             </li>
           )}
-          {results.slice(0, limit).map((e) => (
-            <li key={e.id} className="flex items-center">
-              <button
-                disabled={taken.has(e.id)}
-                onClick={() => onPick(e)}
-                className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl py-2.5 pl-3 pr-1 text-left hover:bg-neutral-50 disabled:opacity-40"
-              >
-                <span>{e.name}</span>
-                <span className="shrink-0 text-xs text-neutral-400">{taken.has(e.id) ? 'Added' : group === 'All' || group === 'Favorites' ? `${e.group} · ${e.equipment}` : e.equipment}</span>
-              </button>
-              {e.custom && (
-                <button onClick={() => setMaking({ exercise: e })} aria-label={`Edit ${e.name}`} title="Edit your exercise" className="flex h-10 w-8 shrink-0 items-center justify-center text-neutral-400">✎</button>
-              )}
-              {e.kind === 'strength' ? (
-                <button
-                  onClick={() => toggleFavorite(e.id)}
-                  aria-pressed={isFav(e)}
-                  aria-label={`Favorite: ${e.name}`}
-                  title={isFav(e) ? 'Remove from favorites' : 'Add to favorites'}
-                  className={`flex h-10 w-9 shrink-0 items-center justify-center text-lg leading-none ${isFav(e) ? 'text-amber-700' : 'text-neutral-300'}`}
-                >
-                  {isFav(e) ? '★' : '☆'}
-                </button>
-              ) : <span className="w-9 shrink-0" />}
-            </li>
-          ))}
+          {closest.length > 0 && <li className="px-3 py-1 text-xs text-neutral-500">Closest to “{q.trim()}”:</li>}
+          {closest.map((e) => row(e, true))}
+          {results.slice(0, limit).map((e) => row(e, group === 'All' || group === 'Favorites'))}
           {results.length > limit && (
             <li>
               <button onClick={() => setLimit(limit + PAGE)} className="w-full py-3 text-sm text-neutral-500">
                 Show more ({results.length - limit})
+              </button>
+            </li>
+          )}
+          {/* Not in the list: offer to make it, under the closest ones. */}
+          {q.trim() && results.length === 0 && (
+            <li className="mt-2">
+              {closest.length === 0 && <p className="px-3 pb-2 text-sm text-neutral-400">No exercise matches “{q.trim()}”.</p>}
+              <button onClick={() => setMaking({ name: q })} className="w-full rounded-xl bg-neutral-50 px-3 py-2.5 text-left text-sm">
+                {closest.length > 0 && 'Not one of these? '}<span className="font-medium">Create “{q.trim()}”</span> as your own exercise
               </button>
             </li>
           )}
