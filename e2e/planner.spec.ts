@@ -59,3 +59,28 @@ test('plan a month step by step: favorites, a rep range, sets that build, a delo
   expect(items(0, 21).some((p) => p.deload)).toBe(false)
   expect(items(21, 28).some((p) => p.deload)).toBe(true)
 })
+
+test('a plan that can’t fit every muscle’s weekly sets says which come up short, and why', async ({ page }) => {
+  await seed(page, { trainingPrefs: { styles: [], cardio: [], cardioSplit: false, setTarget: 16 } })
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: '+ Add' }).click()
+  await page.getByRole('button', { name: /Plan a week or month/ }).click()
+  const next = page.getByRole('button', { name: 'Next', exact: true })
+  await next.click()
+  // Three 45-minute workouts can't give every muscle 16 sets a week.
+  await page.getByText('Next week', { exact: true }).click()
+  await page.getByRole('button', { name: '3 days' }).click()
+  await page.getByRole('button', { name: '45 min' }).click()
+  await next.click()
+  await page.getByRole('button', { name: 'Push / Pull / Legs' }).click()
+  for (const step of ['Exercises', 'How it progresses', 'Warm-up and rest']) {
+    await next.click()
+    await expect(page.getByRole('heading', { name: step })).toBeVisible()
+  }
+  await page.getByRole('button', { name: 'Build my plan' }).click()
+
+  const volume = page.getByRole('region', { name: 'Weekly sets per muscle' })
+  await expect(volume.getByRole('listitem').filter({ hasText: 'Quads' })).toContainText(/\d+ \/ 16/)
+  await expect(volume.getByText(/come up short: there isn’t room for more in 45-minute workouts\. Longer workouts, another day for them, or a lower weekly target \(Settings\) would close the gap\./)).toBeVisible()
+})

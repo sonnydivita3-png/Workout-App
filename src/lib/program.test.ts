@@ -255,10 +255,12 @@ describe('named splits', () => {
       for (const d of bro) {
         if (d.rest) continue
         expect(d.items.length).toBeGreaterThan(2)
-        // Lifts for the day's muscles only (spare time on a one-muscle day goes to an easy cardio finisher).
+        // Lifts for the day's muscles only (spare time on a one-muscle day goes to an easy cardio finisher), except calves
+        // or core that their own days had no room for, on a day for two or more muscles (calf raises on arms day).
         const lifts = d.items.filter((p) => p.note !== 'Finisher, easy pace')
         const parts = new Set(lifts.map((p) => BUILTIN_BY_ID.get(p.exerciseId)?.group))
-        for (const g of parts) expect([...d.focus, undefined]).toContain(g)
+        const extras = d.focus.length >= 2 ? ['Calves', 'Core'] : []
+        for (const g of parts) expect([...d.focus, ...extras, undefined]).toContain(g)
       }
     }
   })
@@ -512,6 +514,44 @@ describe('weekly volume per muscle', () => {
     const [s, f] = balanceWeek([{ items: core }, { items: fixed, fixed: true }], 45, target)
     expect(by(s).Core).toBeLessThanOrEqual(Math.ceil(target('Core') * 1.75))
     expect(f).toEqual(fixed)
+  })
+
+  it('a six-day push / pull / legs week reaches every muscle\'s target: core off the leg days, calf raises where there\'s room', () => {
+    const goals: ProgramGoal[] = ['muscle', 'strength']
+    const plan = (seed: number, rest: 'short' | 'normal') =>
+      generateProgram(base({ goal: goals, split: 'ppl', trainWeekdays: defaultWeekdays(6), minutes: 60, reps: 'heavy', setTarget: 20, rest, rng: mulberry32(seed) }))
+    for (let seed = 1; seed <= 5; seed++) {
+      for (const rest of ['short', 'normal'] as const) {
+        const days = plan(seed, rest).filter((d) => !d.rest)
+        const sets = plannedSets(days.flatMap((d) => d.items), (id) => BUILTIN_BY_ID.get(id))
+        for (const g of MUSCLE_GROUPS) {
+          const t = weeklyTarget(g, goals, 20)
+          const label = `${rest} rest, seed ${seed}: ${g} ${sets[g]} / ${t}`
+          // Short rests fit it all; normal rests (heavy sets take longer) come within a set or two on the legs.
+          expect(sets[g], label).toBeGreaterThanOrEqual(rest === 'short' ? t : t - 2)
+          // Nothing piles up: at most a quarter over (or three sets, for small targets).
+          expect(sets[g], label).toBeLessThanOrEqual(Math.max(t * 1.25, t + 3))
+        }
+        for (const d of days) expect(minutesFor(d.items), `${d.name}`).toBeLessThanOrEqual(60 * 1.05)
+        if (rest === 'normal') for (const d of days.filter((x) => x.name === 'Legs')) expect(by(d.items).Core, 'core on a leg day').toBe(0)
+      }
+    }
+  })
+
+  it('moves calves or core to a session with room when a big muscle needs their time, never onto a one-muscle day', () => {
+    // A full leg day short of quads and hamstrings, with calf raises in it; an upper-body day and a chest day with room.
+    const legs = [lift('Barbell_Squat', 4), lift('Romanian_Deadlift', 4), lift('Standing_Calf_Raises', 4)]
+    const upper = [lift('Barbell_Bench_Press_-_Medium_Grip', 3), lift('Bent_Over_Barbell_Row', 3)]
+    const chest = [lift('Dumbbell_Bench_Press', 3)]
+    const full = minutesFor(legs)
+    // Chest and back already have their sets; quads and hamstrings want 12.
+    const goal = (g: string) => (g === 'Quads' || g === 'Hamstrings' ? 12 : g === 'Calves' ? 4 : 3)
+    const [l, u, c] = balanceWeek([{ items: legs }, { items: upper }, { items: chest }], full, goal, (part) => (part === 'Calves' ? lift('Seated_Calf_Raise', 3) : undefined))
+    expect(by(l).Calves).toBe(0)
+    expect(by(u).Calves).toBeGreaterThanOrEqual(4)
+    expect(by(l).Quads + by(l).Hamstrings).toBeGreaterThan(8)
+    expect(minutesFor(l)).toBeLessThanOrEqual(full * 1.02)
+    expect(c.map((p) => p.exerciseId)).toEqual(['Dumbbell_Bench_Press'])
   })
 
   it('plans land near each muscle\'s weekly target, without piling sets on the small ones', () => {

@@ -299,6 +299,9 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
   // Weekly sets per muscle for a full week (the first may start part way through).
   const fullWeek = byWeek.reduce((a, w) => (w.filter((d) => !d.rest).length > a.filter((d) => !d.rest).length ? w : a), byWeek[0])
   const sets = plannedSets(fullWeek.flatMap((d) => d.items), lookup)
+  // Muscles the plan trains but can't bring to their target (their days are full): "Quads and hamstrings".
+  const short = MUSCLE_GROUPS.filter((g) => sets[g] > 0 && sets[g] < weeklyTarget(g, goal, trainingPrefs.setTarget))
+  const shortList = short.map((g, i) => (i ? g.toLowerCase() : g)).join(', ').replace(/, ([^,]*)$/, ' and $1')
   const choices = [
     goalsLabel(goal), split !== 'auto' ? splitInfo(split).label : null, `${days.length} days`, `${minutes} min`,
     reps !== 'auto' ? REP_SCHEMES.find((r) => r.id === reps)!.label : null,
@@ -350,6 +353,11 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
           })}
         </ul>
         <p className={`mt-2 ${note}`}>Hard sets in a full week of this plan, against the target for your goal{trainingPrefs.setTarget ? ' (your own number)' : ''}. Smaller muscles also work in the big lifts, so their targets are lower.{weeks === 4 ? ` ${setScheme === 'week3' ? 'Week 3 adds a set to the main lifts. ' : setScheme === 'weekly' ? 'Weeks 2 and 3 each add a set to the main lifts. ' : ''}${deload ? 'Week 4 is lighter.' : ''}` : ''}</p>
+        {short.length > 0 && (
+          <p className="mt-2 text-xs text-neutral-600">
+            {shortList} {short.length === 1 ? 'comes' : 'come'} up short: there isn’t room for more in {minutes}-minute workouts. Longer workouts, another day for {short.length === 1 ? 'it' : 'them'}, or a lower weekly target (Settings) would close the gap.
+          </p>
+        )}
       </section>
 
       <p className={`mb-4 ${note}`}>Tap a day to see the exercises or reroll it{weeks === 4 ? ' (lifting days repeat every week, so the numbers can climb)' : ''}.</p>
