@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { BUILTIN_BY_ID } from '../data/exercises'
 import { partFromName } from '../lib/bodyParts'
 import type { Overload } from '../lib/muscles'
 import { FINISHER, minutesFor, type ExtraTime, type ExtraTimeOption } from '../lib/randomizer'
+import { BY_ID } from '../lib/randomUtil'
 import type { PlannedExercise } from '../types'
 
 /** "Up to [−] 5 [+] exercises per muscle". */
@@ -17,7 +17,7 @@ export function PerMuscleStepper({ value, onChange }: { value: number; onChange:
 }
 
 const partOf = (p: PlannedExercise) => {
-  const e = BUILTIN_BY_ID.get(p.exerciseId)
+  const e = BY_ID.get(p.exerciseId)
   return e && e.kind === 'strength' && !p.warmup && !p.wod ? partFromName(e.group, e.name) : null
 }
 const lower = (s: string) => s.toLowerCase()

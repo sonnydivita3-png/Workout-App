@@ -16,6 +16,7 @@ import type { ExtraTimeChoice } from './lib/volumePrefs'
 import { setOwnedGear } from './lib/equipment'
 import { setChosenModes, withChosenMode } from './lib/exerciseModes'
 import { setFavorites } from './lib/favorites'
+import { setCustomExercises } from './lib/randomUtil'
 import { placeWarmups } from './lib/warmups'
 import { workSets } from './lib/progression'
 import { setCardioPrefs } from './lib/cardioPrefs'
@@ -629,6 +630,9 @@ useStore.subscribe((s, prev) => { if (s.exerciseModes !== prev.exerciseModes) se
 // ...their favorite exercises (see lib/favorites.ts)...
 setFavorites(useStore.getState().favorites)
 useStore.subscribe((s, prev) => { if (s.favorites !== prev.favorites) setFavorites(s.favorites) })
+// ...their own exercises, which workouts made for them use too...
+setCustomExercises(useStore.getState().custom)
+useStore.subscribe((s, prev) => { if (s.custom !== prev.custom) setCustomExercises(s.custom) })
 // ...and the cardio they like (see lib/cardioPrefs.ts).
 setCardioPrefs(useStore.getState().trainingPrefs.cardio, useStore.getState().trainingPrefs.cardioSplit)
 setMovePrefs(useStore.getState().trainingPrefs.moves)

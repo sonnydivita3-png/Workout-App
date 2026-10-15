@@ -24,6 +24,7 @@ import { CardioActivityPicker } from './CardioActivityPicker'
 import { cardioIds, exerciseFor, setupFromIds, type CardioSetup } from '../lib/cardioSetup'
 import { CARDIO_SESSIONS, type CardioSessionKind } from '../lib/cardioSession'
 import { BUILTIN_BY_ID } from '../data/exercises'
+import { BY_ID } from '../lib/randomUtil'
 
 const MAX_HISTORY = 50
 const DURATIONS = [20, 30, 45, 60, 75, 90]
@@ -185,7 +186,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   // Filling the time gave one muscle more than their limit (or past about 15 hard sets): offer other ways to use it,
   // or do what they chose before.
   const check = (base: PlannedExercise[], opts: GenerateOptions, limit: number) => {
-    const over = extraTime === 'more' ? [] : overloaded(base, (id) => BUILTIN_BY_ID.get(id), limit)
+    const over = extraTime === 'more' ? [] : overloaded(base, (id) => BY_ID.get(id), limit)
     if (over.length === 0) { setVolume(null); commit(base); return }
     const options = withChoices(() => extraTimeOptions(genFocus, total0, opts, limit, over.map((o) => o.part)))
     const auto = extraTime !== 'ask' ? options.find((o) => o.id === extraTime) : undefined

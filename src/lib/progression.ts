@@ -214,7 +214,7 @@ export function suggestNext(
  */
 const LOAD: Record<string, number> = { Barbell: 1, 'EZ bar': 0.9, Machine: 1, Cable: 0.6, Dumbbell: 0.4, Kettlebell: 0.4 }
 /** Close movements in different families (incline pressing is about 80% of flat). */
-const NEAR: Record<string, [string, number][]> = { incline: [['bench', 0.8]], bench: [['incline', 1.2]] }
+const NEAR: Record<string, [string, number][]> = { incline: [['bench', 0.8]], bench: [['incline', 1.2]], 'hammer curl': [['curl', 1]], curl: [['hammer curl', 1]] }
 
 /**
  * A starting weight for a lift they've never logged, from the most recent similar lift they have (same movement, same

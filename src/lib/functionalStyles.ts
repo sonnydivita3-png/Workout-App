@@ -4,7 +4,7 @@ import { likedCardio, wodAmount, wodCardio } from './cardioPrefs'
 import type { Exercise, PlannedExercise, Wod, WodKind } from '../types'
 import { buildWodItems, makeTabata } from './wod'
 import { staysPut } from './stations'
-import { BY_ID, byName, familyOf, isAdvanced, isIsolation, isMainLift, isQuirky, isStaple, isTechnical, pick, roundTo, roundTo5, softShuffle, type Rng } from './randomUtil'
+import { BY_ID, byName, customPool, familyOf, isAdvanced, isIsolation, isMainLift, isQuirky, isStaple, isTechnical, pick, roundTo, roundTo5, softShuffle, type Rng } from './randomUtil'
 
 const RUN = 'running'
 const minutesOf = (n: number) => Math.round(n * 10) / 10
@@ -253,20 +253,23 @@ const widerPool = (focus: string[]) =>
 /** Movements that suit a timed piece, limited to the chosen body parts when there are any. */
 function timedPool(focus: string[]): Exercise[] {
   const base = crossfitPool()
-  if (focus.length === 0) return base
-  const inFocus = (e: Exercise) => focus.includes(e.group)
+  const inFocus = (e: Exercise) => focus.length === 0 || focus.includes(e.group)
   // Simple, quick moves for the clock: no Olympic lifts, gimmicks or advanced skills.
   // Single-joint moves (flyes, curls) only when the focus is a small muscle; a chest AMRAP is presses and push-ups.
   const small = focus.some((g) => ['Biceps', 'Triceps', 'Calves', 'Core', 'Shoulders'].includes(g))
-  const extra = EXERCISES.filter((e) => e.suggest && e.kind === 'strength' && (e.mode !== 'time' || focus.includes('Core')) && inFocus(e) && HOME_GEAR.includes(e.equipment ?? '') && !isTechnical(e) && !isQuirky(e) && !isAdvanced(e) && (small || !isIsolation(e)) && hasGear(e))
-  return [...new Map([...base.filter(inFocus), ...extra].map((e) => [e.id, e])).values()]
+  const simple = (e: Exercise) => e.kind === 'strength' && (e.mode !== 'time' || focus.includes('Core')) && inFocus(e) && HOME_GEAR.includes(e.equipment ?? '') && !isTechnical(e) && !isQuirky(e) && !isAdvanced(e) && (small || !isIsolation(e)) && hasGear(e)
+  // Their own exercises of that kind are in the running too.
+  const mine = customPool().filter(simple)
+  if (focus.length === 0) return [...base, ...mine]
+  return [...new Map([...base.filter(inFocus), ...EXERCISES.filter((e) => e.suggest && simple(e)), ...mine].map((e) => [e.id, e])).values()]
 }
 
 /** An AMRAP, EMOM or for-time workout that fits about `minutes`. Long sessions get a second and third part. */
 export function generateTimed(kind: WodKind, focus: string[], minutes: number, rng: Rng, avoid: Set<string>, cardio = false): PlannedExercise[] {
-  // Everyday moves first (push-ups, goblet squats, swings…), the rest of the library only to fill gaps.
+  // Everyday moves first (push-ups, goblet squats, swings…, and their own), the rest of the library only to fill gaps.
   const shuffled = softShuffle(timedPool(focus), avoid, rng)
-  const pool = [...shuffled.filter((e) => e.tags?.includes('crossfit') || isStaple(e)), ...shuffled.filter((e) => !e.tags?.includes('crossfit') && !isStaple(e))]
+  const everyday = (e: Exercise) => !!e.tags?.includes('crossfit') || isStaple(e) || !!e.custom
+  const pool = [...shuffled.filter(everyday), ...shuffled.filter((e) => !everyday(e))]
   // A cardio machine joins full-body pieces, and any piece when Cardio was picked as a focus.
   const wantMachine = (used: Set<string>) => (cardio || focus.length === 0 ? machineFor(rng, used, avoid, cardio) : undefined)
   // At most one core move per piece, unless core is all they asked for.
