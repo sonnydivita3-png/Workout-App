@@ -2,6 +2,7 @@ import type { Exercise, ExerciseLog, StrengthSet, Units } from '../types'
 import { parseISO } from './dates'
 import { epley } from './stats'
 import { familyOf } from './randomUtil'
+import { stationOf } from './stations'
 import { formatSeconds, showWeight } from './units'
 
 /** Working sets with data (warm-ups and drop sets left out). */
@@ -209,17 +210,107 @@ export function suggestNext(
 }
 
 /**
- * Rough load per piece of kit compared with a barbell, for the same movement: each dumbbell is about 40% of the bar
- * (a 185 bench ≈ 70s), cables a bit over half. Rough on purpose; the estimate is then trimmed to stay on the safe side.
+ * How much each kind of free weight lets you move in the same movement, against a barbell: each dumbbell (or
+ * kettlebell) is about 40% of the bar (a 185 bench ≈ 70s), an EZ bar a little under it. Machines and cables aren't
+ * here: their numbers depend on the machine's leverage and the pulleys, so they only compare with the same machine, or
+ * with other cables, never with free weights.
  */
-const LOAD: Record<string, number> = { Barbell: 1, 'EZ bar': 0.9, Machine: 1, Cable: 0.6, Dumbbell: 0.4, Kettlebell: 0.4 }
-/** Close movements in different families (incline pressing is about 80% of flat). */
-const NEAR: Record<string, [string, number][]> = { incline: [['bench', 0.8]], bench: [['incline', 1.2]], 'hammer curl': [['curl', 1]], curl: [['hammer curl', 1]] }
+const FREE: Record<string, number> = { Barbell: 1, 'EZ bar': 0.9, Dumbbell: 0.4, Kettlebell: 0.4 }
 
 /**
- * A starting weight for a lift they've never logged, from the most recent similar lift they have (same movement, same
- * muscle): its best set's estimated max, scaled for the equipment, cut 10% to be safe, then worked back to `reps`.
- * Null when there's nothing close enough to go on.
+ * Variations that move a different load from their family's standard lift (a deadlift, a back squat, a flat bench
+ * press, a standing overhead press, a barbell row or curl, an EZ-bar skull crusher…), as the [low, high] share of it
+ * they usually allow, from coaching norms and strength-standards data: an RDL is 60-80% of a deadlift, a front squat
+ * 80-90% of a back squat, and a good morning about half a deadlift even for those who train it (reps at 60-70% of a back
+ * squat). `own`: the share is of the whole lift, whatever it's done with (a goblet squat's one dumbbell). null: no
+ * estimate at all (swings and other ballistic moves, a plate squeeze, Olympic lifts).
+ */
+const VARIANTS: [family: string, re: RegExp, band: [number, number] | null, own?: boolean][] = [
+  ['hinge', /swing|pull[- ]?through|jefferson|\bclean\b/i, null],
+  ['hinge', /good ?morning/i, [0.35, 0.5]],
+  ['hinge', /single[- ]leg|one[- ]legged|one[- ]leg/i, [0.25, 0.4], true],
+  ['hinge', /romanian|\brdl\b/i, [0.65, 0.8]],
+  ['hinge', /stiff[- ]?legs?/i, [0.55, 0.75]],
+  ['hinge', /deficit|snatch[- ]grip/i, [0.8, 0.95]],
+  ['hinge', /rack pull|block pull|partial/i, [1, 1.3]],
+  ['squat', /pistol|get-?up|turkish/i, null],
+  ['squat', /thruster/i, [0.4, 0.55]],
+  ['squat', /goblet|plie/i, [0.3, 0.45], true],
+  ['squat', /overhead squat/i, [0.5, 0.7]],
+  ['squat', /zercher/i, [0.65, 0.8]],
+  ['squat', /front/i, [0.8, 0.9]],
+  ['squat', /hack/i, [0.6, 0.8]],
+  ['squat', /box|to a bench/i, [0.85, 1]],
+  ['squat', /pause|tempo|pin|speed/i, [0.75, 0.9]],
+  ['bench', /svend|plate press|squeeze/i, null],
+  ['bench', /close[- ]grip|reverse[- ]grip|underhand/i, [0.85, 0.95]],
+  ['bench', /floor press/i, [0.85, 0.95]],
+  ['bench', /board|spoto|pause|pin/i, [0.85, 1.05]],
+  ['bench', /decline/i, [1, 1.1]],
+  ['overhead', /landmine|z[- ]press/i, null],
+  ['overhead', /push press|jerk/i, [1.1, 1.35]],
+  ['overhead', /arnold|bradford|see-saw|behind (the )?neck/i, [0.75, 0.9]],
+  ['row', /seal|chest[- ]supported|incline|prone/i, [0.75, 0.9]],
+  ['row', /renegade/i, [0.5, 0.7]],
+  ['row', /t-?bar|long bar/i, [0.8, 1.1]],
+  ['curl', /preacher|scott|spider|concentration|drag/i, [0.75, 0.9]],
+  ['reverse curl', /preacher/i, [0.75, 0.9]],
+  ['curl', /incline/i, [0.7, 0.85]],
+  ['lying triceps', /jm press/i, [1.2, 1.5]],
+  ['lying triceps', /tate/i, [0.6, 0.8]],
+  ['overhead triceps', /one[- ]arm|single[- ]arm/i, [0.25, 0.4], true],
+  ['overhead triceps', /dumbbell|kettlebell/i, [0.7, 0.9], true],
+  ['leg curl', /standing/i, [0.4, 0.55]],
+  ['leg curl', /seated/i, [1, 1.25]],
+  ['lunge', /get-?up|turkish/i, null],
+  ['lunge', /bulgarian|rear[- ]foot|elevated/i, [0.7, 0.85]],
+  ['lunge', /step[- ]?up/i, [0.6, 0.8]],
+  ['lunge', /side|lateral|cossack/i, [0.6, 0.8]],
+  ['bridge', /single[- ]leg|one[- ]leg/i, [0.3, 0.5]],
+  // A rear-delt row is a row, not a raise; a sumo high pull isn't an upright row; rotator cuff loads are too small and
+  // too personal to carry over.
+  ['rear delt', /row/i, null],
+  ['upright row', /high pull/i, null],
+  ['rotator cuff', /./, null],
+  ['olympic', /./, null],
+  // Rollouts and other plank work: the bar or wheel is a roller, not a load.
+  ['plank', /./, null],
+]
+/** One arm or one leg on a lift that's usually two (a single-leg leg extension, a one-arm pulldown): about half. */
+const ONE_SIDE = /single[- ]arm|one[- ]arm|single[- ]leg|one[- ]legged|one[- ]leg/i
+/** Families done one side at a time anyway (lunges, kickbacks): one-sided names change nothing there. */
+const SIDED = new Set(['lunge', 'glute kickback', 'hinge', 'bridge', 'overhead triceps'])
+/** Close movements in different families, as the share of the other's standard lift (incline pressing is about 80% of flat). */
+const NEAR: Record<string, [string, number][]> = { incline: [['bench', 0.8]], bench: [['incline', 1.2]], 'hammer curl': [['curl', 1]], curl: [['hammer curl', 1]] }
+/** Never estimate a lift more than this much heavier than a lighter variation you've done (a deadlift from RDLs at
+ * most), and never heavier at all than one under LIMITED of the standard lift (a back squat from goblet squats, an RDL
+ * from good mornings): those are held back by something else (grip, balance, the bar's position), so they say little
+ * about a bigger lift. */
+const MAX_STEP_UP = 1.6
+const LIMITED = 0.6
+
+/** What a lift's loads compare with: free weights, cables, or that one machine. */
+const kitOf = (e: Exercise): string | null =>
+  FREE[e.equipment ?? ''] ? 'free' : e.equipment === 'Cable' ? 'cable' : e.equipment === 'Machine' ? stationOf(e) : null
+
+/**
+ * A lift's load next to its family's standard lift: the movement's [low, high] share (one side of a barbell, machine or
+ * cable lift about half; dumbbells already count per hand), and the kit's (FREE). Null for no estimate.
+ */
+function loadShare(e: Exercise, fam: string): { lo: number; hi: number; kit: number } | null {
+  const text = `${e.name} ${e.fullName ?? ''}`
+  const v = VARIANTS.find(([f, re]) => f === fam && re.test(`${text} ${e.equipment ?? ''}`))
+  if (v && !v[2]) return null
+  const [lo, hi] = v?.[2] ?? [1, 1]
+  const side = ONE_SIDE.test(text) && !SIDED.has(fam) && !(e.equipment === 'Dumbbell' || e.equipment === 'Kettlebell') ? [0.4, 0.55] : [1, 1]
+  return { lo: lo * side[0], hi: hi * side[1], kit: v?.[3] ? 1 : FREE[e.equipment ?? ''] ?? 1 }
+}
+
+/**
+ * A starting weight for a lift they've never logged, from the most recent similar lift they have (the same movement
+ * with comparable equipment, whichever muscle the library files it under): its best set's estimated max, taken as the light end of what the new lift usually
+ * allows next to it (and the heavy end for the one they've done), cut 10% to be safe, then worked back to `reps`. A good
+ * morning after RDLs of 225×6 starts at 80 lb, not 200. Null when there's nothing close enough to go on.
  */
 export function estimateStart(
   ex: Exercise,
@@ -228,9 +319,11 @@ export function estimateStart(
   units: Units,
   lookup: (id: string) => Exercise | undefined,
 ): Suggestion | null {
-  if ((ex.mode ?? 'weight') !== 'weight' || !LOAD[ex.equipment ?? '']) return null
+  if ((ex.mode ?? 'weight') !== 'weight') return null
   const fam = familyOf(ex)
-  if (!fam) return null
+  const kit = kitOf(ex)
+  const share = fam && kit ? loadShare(ex, fam) : null
+  if (!fam || !share) return null
   const near = new Map<string, number>([[fam, 1], ...(NEAR[fam] ?? [])])
   const goal = reps ?? 10
   const recent = [...logs].sort((a, b) => b.date.localeCompare(a.date))
@@ -238,13 +331,20 @@ export function estimateStart(
     if (l.exerciseId === ex.id) continue
     const src = lookup(l.exerciseId)
     const f = src && familyOf(src)
-    if (!src || !f || !near.has(f) || src.group !== ex.group || (src.mode ?? 'weight') !== 'weight' || !LOAD[src.equipment ?? '']) continue
+    if (!src || !f || !near.has(f) || (src.mode ?? 'weight') !== 'weight' || kitOf(src) !== kit) continue
+    const from = loadShare(src, f)
+    if (!from) continue
+    // The new lift's light end (never above its family's standard lift: a push press starts like an overhead press)
+    // against the known lift's heavy end, kit aside: never far heavier than what they've done.
+    const step = (Math.min(1, share.lo) / from.hi) * near.get(f)!
+    if (step > MAX_STEP_UP || (from.hi < LIMITED && step > 1)) continue
+    const ratio = step * (share.kit / from.kit)
     const sets = workSets(l).filter((s) => s.weight && s.reps)
     if (sets.length === 0) continue
     const best = sets.reduce((a, s) => (epley(s.weight!, s.reps!) > epley(a.weight!, a.reps!) ? s : a))
-    const max = epley(best.weight!, best.reps!) * near.get(f)! * (LOAD[ex.equipment!] / LOAD[src.equipment!]) * 0.9
-    const step = weightStep(ex, units)
-    const weight = Math.floor(max / (1 + goal / 30) / step) * step
+    const max = epley(best.weight!, best.reps!) * ratio * 0.9
+    const jump = weightStep(ex, units)
+    const weight = Math.floor(max / (1 + goal / 30) / jump) * jump
     if (weight <= 0) return null
     return {
       kind: 'estimate', weight, reps: goal,

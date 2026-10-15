@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BUILTIN_BY_ID } from '../data/exercises'
+import { BUILTIN_BY_ID, EXERCISES } from '../data/exercises'
 import type { ExerciseLog, Units } from '../types'
 import { compareSet, estimateStart, formatSet, plateau, platesFor, sessionBasis, sessionScore, suggestNext } from './progression'
 
@@ -170,7 +170,7 @@ describe('starting weight for a new lift', () => {
     expect(Math.round((s.weight! / 2.20462262) * 10) / 10 % 2.5).toBe(0)
   })
 
-  it('needs the same movement and muscle, with weights', () => {
+  it('needs the same movement, with comparable equipment and weights', () => {
     expect(estimateStart(ex('Cable_Crossover'), [benchLog], 12, lbs, lookup)).toBeNull() // a fly isn't a press
     expect(estimateStart(ex('Leg_Press'), [benchLog], 10, lbs, lookup)).toBeNull()
     const bodyweightOnly: ExerciseLog = { ...benchLog, sets: [{ weight: null, reps: 20 }] }
@@ -180,6 +180,39 @@ describe('starting weight for a new lift', () => {
   it('uses the most recent similar lift', () => {
     const later: ExerciseLog = { date: '2026-09-27', exerciseId: 'Barbell_Bench_Press_-_Medium_Grip', sets: [{ weight: 225, reps: 5 }] }
     expect(estimateStart(ex('Dumbbell_Bench_Press'), [benchLog, later], 10, lbs, lookup)!.why).toMatch(/225×5/)
+  })
+
+  const log = (name: string, weight: number, reps: number): ExerciseLog => ({ date: '2026-10-01', exerciseId: named(name).id, sets: [{ weight, reps }] })
+  const named = (name: string) => EXERCISES.find((e) => e.name === name)!
+  const start = (name: string, from: ExerciseLog, reps: number) => estimateStart(named(name), [from], reps, lbs, lookup)?.weight ?? null
+
+  it('a variation starts from what it usually allows: a good morning is far lighter than an RDL or deadlift', () => {
+    // RDLs of 225×6 used to suggest a 200 lb good morning.
+    expect(start('Good Morning', log('Romanian Deadlift', 225, 6), 6)).toBe(80)
+    expect(start('Good Morning', log('Deadlift', 315, 5), 8)).toBeLessThanOrEqual(315 * 0.35)
+    expect(start('Romanian Deadlift', log('Deadlift', 315, 5), 8)).toBe(160)
+    expect(start('Front Squat', log('Back Squat', 225, 5), 5)).toBe(160)
+    expect(start('Goblet Squat', log('Back Squat', 225, 5), 10)).toBe(50)
+    expect(start('Close-Grip Bench Press', log('Bench Press', 185, 5), 8)).toBe(130)
+    expect(start('Preacher Curl', log('Barbell Curl', 85, 8), 10)).toBe(50)
+    // From the lighter lift to the heavier one: on the light side, and never from a much lighter variation.
+    expect(start('Deadlift', log('Romanian Deadlift', 225, 8), 5)).toBe(270)
+    expect(start('Romanian Deadlift', log('Good Morning', 135, 8), 8)).toBeNull()
+    expect(start('Back Squat', log('Goblet Squat', 70, 10), 5)).toBeNull()
+  })
+
+  it('machines and cables only compare with the same machine, or other cables; one leg or arm is about half', () => {
+    expect(start('Leverage Chest Press', log('Bench Press', 185, 5), 10)).toBeNull()
+    expect(start('Standing Biceps Cable Curl', log('Barbell Curl', 85, 8), 10)).toBeNull()
+    expect(start('Seated Leg Curl', log('Leg Curl', 120, 10), 10)).toBe(105)
+    expect(start('Single-Leg Leg Extension', log('Leg Extension', 150, 10), 10)).toBe(50)
+    expect(start('Close-Grip Front Lat Pulldown', log('Lat Pulldown', 150, 10), 10)).toBe(135)
+  })
+
+  it('no estimate where the load isn\'t comparable: a plate squeeze, a roller, swings', () => {
+    expect(start('Svend Press', log('Bench Press', 185, 5), 12)).toBeNull()
+    expect(start('Barbell Ab Rollout - On Knees', log('Barbell Ab Rollout', 45, 10), 10)).toBeNull()
+    expect(start('One-Arm Kettlebell Swings', log('Romanian Deadlift', 225, 8), 15)).toBeNull()
   })
 })
 
