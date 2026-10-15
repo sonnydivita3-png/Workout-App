@@ -343,80 +343,157 @@ const partOf = (p: PlannedExercise) => {
 const adjustable = (p: PlannedExercise) => !p.block && !p.minutes && !p.warmup && !p.wod && (p.reps !== undefined || p.seconds !== undefined)
 const reEstimate = (p: PlannedExercise) => { p.est = Math.round(liftMinutes(p, BY_ID.get(p.exerciseId)) * 10) / 10 }
 
-/** A muscle past this many times its weekly target gets sets cut: beyond about 20 sets for a big muscle (or 12 for a
- * small one already worked by the big lifts) more sets mostly add fatigue. */
-const TOO_MUCH = 1.75
+/** Calves and core recover fast and fit into any session (arms stay with the pushing and pulling they help). */
+const anyDay = (part: string) => part === 'Calves' || part === 'Core'
+/** A muscle more than this far past its weekly target loses sets: about a quarter over, more sets mostly add fatigue. */
+const TOO_MUCH = 1.25
 
 /**
- * Even out a week of sessions against each muscle's weekly target (`target`). Generated sessions share their time
- * evenly between body parts, so a lower-body day gave calves and core as many sets as quads and hamstrings, and a
- * six-day week piled 20+ sets onto core and biceps. In order:
- * 1. Trim: a muscle past TOO_MUCH × its target loses sets.
- * 2. Level: within a session, a set moves from the muscle furthest past its target to the one furthest short of it
- *    (the session keeps its length).
- * 3. Fill: spare minutes in a session go to muscles still short, up to the session cap (sessionSets) and `minutes`.
- * Only straight sets change, between 2 and 5 sets; `fixed` sessions (cardio, timed formats) count but don't change.
+ * Even out a week of sessions against each muscle's weekly target (`target`), within each session's time. Sessions are
+ * generated one at a time, sharing their time evenly between their body parts, so a six-day push/pull/legs week gave
+ * core and arms far more than they need while the legs, two sessions a week shared with core, came up short.
+ * 1. Short muscles get sets, furthest behind first: in one of their sessions, from spare time or from a muscle there
+ *    that's past its target and stays at it (a set at a time down to two, then a whole smaller exercise: core on a leg
+ *    day when the pull days already cover it). Every muscle but calves and core goes first, and can take their time
+ *    too: quads and hamstrings can only train on leg day, calves and core fit in anywhere. (Unless that leaves calves
+ *    and core nowhere to go: the week is worked out both ways, keeping the one closer to every target.)
+ * 2. Then calves and core: in their own sessions, else an exercise (from `extraFor`) in another session with room that
+ *    trains two or more muscles: calf raises on a push day (not on a chest-only day, which keeps to chest).
+ * 3. Muscles more than a quarter past their target lose sets (accessories first) or extra exercises; the time goes to
+ *    anyone still short, else to the finisher.
+ * 4. Muscles still short even out within a session (the furthest behind takes a set from one further along).
+ * Only straight sets change, between 2 and 5 sets; a big muscle's first lift in a session stays; `fixed` sessions
+ * (cardio, timed formats) count but don't change.
  */
-export function balanceWeek(sessions: { items: PlannedExercise[]; fixed?: boolean }[], minutes: number, target: (part: string) => number): PlannedExercise[][] {
+export function balanceWeek(
+  sessions: { items: PlannedExercise[]; fixed?: boolean }[],
+  minutes: number,
+  target: (part: string) => number,
+  extraFor?: (part: string, used: Set<string>) => PlannedExercise | undefined,
+): PlannedExercise[][] {
+  const parts = [...new Set(sessions.flatMap((s) => s.items.map(partOf)).filter((g): g is string => !!g))]
+  const inSession = (s: PlannedExercise[], g: string) => s.reduce((a, p) => a + (partOf(p) === g ? p.sets : 0), 0)
+  // How far short the week is: each muscle's missing share of its target, added up.
+  const shortfall = (week: PlannedExercise[][]) =>
+    parts.reduce((a, g) => a + Math.max(0, 1 - week.reduce((b, s) => b + inSession(s, g), 0) / Math.max(1, target(g))), 0)
+  // Taking calves' and core's time for the big muscles only pays when calves and core have somewhere else to go (not
+  // on three full-body days, where it left them none): both ways, keeping the one that comes closer.
+  const bigFirst = run(true)
+  const even = run(false)
+  return shortfall(even) < shortfall(bigFirst) - 1e-9 ? even : bigFirst
+
+  function run(takeSmall: boolean): PlannedExercise[][] {
   const out = sessions.map((s) => s.items.map((p) => ({ ...p })))
   const open = out.filter((_, i) => !sessions[i].fixed)
-  const ratioNow = () => {
-    const m = new Map<string, number>()
-    for (const s of out) for (const p of s) { const g = partOf(p); if (g) m.set(g, (m.get(g) ?? 0) + p.sets) }
-    return (g: string) => (m.get(g) ?? 0) / Math.max(1, target(g))
-  }
-  const inSession = (s: PlannedExercise[], g: string) => s.reduce((a, p) => a + (partOf(p) === g ? p.sets : 0), 0)
-  const canGive = (p: PlannedExercise) => adjustable(p) && p.sets > 2 && !!partOf(p)
-  const canTake = (s: PlannedExercise[], p: PlannedExercise) => adjustable(p) && p.sets < 5 && !!partOf(p) && inSession(s, partOf(p)!) < sessionSets(partOf(p)!)
+  const setsOf = (g: string) => out.reduce((a, s) => a + inSession(s, g), 0)
+  const ratio = (g: string) => setsOf(g) / Math.max(1, target(g))
   const step = (p: PlannedExercise, d: number) => { p.sets += d; reEstimate(p) }
-
-  // 1. Trim: a set at a time, then (down to two sets each) a whole extra exercise for that muscle in a session.
-  for (let guard = 0; guard < 300; guard++) {
-    const ratio = ratioNow()
-    const over = (p: PlannedExercise) => adjustable(p) && !!partOf(p) && ratio(partOf(p)!) > TOO_MUCH
-    const s = open.find((x) => x.some((p) => over(p) && p.sets > 2))
-    if (s) { step(s.filter((p) => over(p) && p.sets > 2).sort((a, b) => b.sets - a.sets)[0], -1); continue }
-    const extra = open.find((x) => x.some((p) => over(p) && x.filter((q) => partOf(q) === partOf(p)).length > 1))
-    if (!extra) break
-    const drop = extra.findLast((p) => over(p) && extra.filter((q) => partOf(q) === partOf(p)).length > 1)!
-    extra.splice(extra.indexOf(drop), 1)
-  }
-  // 2. Level (a big lift's set takes a little longer than a small one's, so a session can grow to `minutes` at most).
+  // A session can grow to the length picked (or what it already takes, if more).
   const limit = new Map(open.map((s) => [s, Math.max(minutes, minutesFor(s)) * 1.02]))
-  const full = new Set<PlannedExercise[]>()
+  const fits = (s: PlannedExercise[]) => minutesFor(s) <= limit.get(s)!
+  const roomiest = (list: PlannedExercise[][]) => [...list].sort((a, b) => (limit.get(b)! - minutesFor(b)) - (limit.get(a)! - minutesFor(a)))
+  const mainLift = (s: PlannedExercise[], p: PlannedExercise) => MAJOR_GROUPS.includes(partOf(p)!) && s.find((q) => partOf(q) === partOf(p)) === p
+  // Where calves or core can go from their own days: a session for two or more muscles (a one-muscle day stays
+  // about that muscle, its spare time going to the finisher).
+  const takesExtras = (s: PlannedExercise[]) => new Set(s.map(partOf).filter(Boolean)).size >= 2
+
+  // Time in `s` for `part` from muscles past their target that stay at it (and, for a muscle that can only train here,
+  // from calves and core, which can go elsewhere); false (and nothing changed) if not enough.
+  const makeRoom = (s: PlannedExercise[], part: string) => {
+    const spare = (g: string, n: number) => setsOf(g) - n >= target(g) || (takeSmall && !anyDay(part) && anyDay(g))
+    while (!fits(s)) {
+      const givers = s.filter((q) => adjustable(q) && !!partOf(q) && partOf(q) !== part && spare(partOf(q)!, 1))
+        .sort((a, b) => ratio(partOf(b)!) - ratio(partOf(a)!) || s.indexOf(b) - s.indexOf(a))
+      const fewer = givers.find((q) => q.sets > 2)
+      const drop = givers.find((q) => !mainLift(s, q) && spare(partOf(q)!, q.sets))
+      if (fewer && (!drop || ratio(partOf(fewer)!) >= ratio(partOf(drop)!))) step(fewer, -1)
+      else if (drop) s.splice(s.indexOf(drop), 1)
+      else return false
+    }
+    return true
+  }
+  // Try a change to a session, keeping it only if the session still fits (making room if need be).
+  const attempt = (s: PlannedExercise[], part: string, change: () => boolean) => {
+    const before = s.map((p) => ({ ...p }))
+    if (change() && (fits(s) || makeRoom(s, part))) return true
+    s.splice(0, s.length, ...before)
+    return false
+  }
+  // One more set for a short muscle: in one of its own sessions, else (calves, core, arms) a new exercise in another.
+  const addSet = (g: string) => {
+    for (const s of roomiest(open)) {
+      if (inSession(s, g) >= sessionSets(g)) continue
+      const grow = () => {
+        const p = s.filter((x) => partOf(x) === g && adjustable(x) && x.sets < 5).sort((a, b) => a.sets - b.sets)[0]
+        if (p) step(p, 1)
+        return !!p
+      }
+      if (attempt(s, g, grow)) return true
+    }
+    if (!extraFor || !anyDay(g)) return false
+    for (const s of roomiest(open)) {
+      if (s.some((p) => partOf(p) === g) || !takesExtras(s)) continue
+      const add = () => {
+        const e = extraFor(g, new Set(out.flat().map((p) => p.exerciseId)))
+        if (!e) return false
+        const p = { ...e, sets: Math.min(3, Math.max(2, Math.ceil(target(g) - setsOf(g)))) }
+        reEstimate(p)
+        s.push(p)
+        return true
+      }
+      if (attempt(s, g, add)) return true
+    }
+    return false
+  }
+  // Everyone but calves and core first, then calves and core in whatever room is left.
+  const fillShort = () => {
+    for (const late of [false, true]) {
+      const stuck = new Set<string>()
+      for (let guard = 0; guard < 400; guard++) {
+        const g = parts.filter((x) => anyDay(x) === late && !stuck.has(x) && setsOf(x) < target(x)).sort((a, b) => ratio(a) - ratio(b))[0]
+        if (!g) break
+        if (!addSet(g)) stuck.add(g)
+      }
+    }
+  }
+  // A set (or an extra exercise) less for the muscle furthest past its target, if any is more than a quarter over.
+  const trimOnce = () => {
+    const over = parts.filter((g) => setsOf(g) > Math.max(target(g) * TOO_MUCH, target(g) + 3)).sort((a, b) => ratio(b) - ratio(a))
+    for (const g of over) {
+      const items = open.flatMap((s) => s.filter((p) => partOf(p) === g && adjustable(p)).map((p) => ({ s, p })))
+      const fewer = items.filter((x) => x.p.sets > 2).sort((a, b) => Number(mainLift(a.s, a.p)) - Number(mainLift(b.s, b.p)) || b.p.sets - a.p.sets)[0]
+      if (fewer) { step(fewer.p, -1); return true }
+      const extra = items.filter((x) => !mainLift(x.s, x.p) && x.s.filter((q) => partOf(q) === g).length > 1).at(-1)
+      if (extra) { extra.s.splice(extra.s.indexOf(extra.p), 1); return true }
+    }
+    return false
+  }
+
+  fillShort()
+  let trimmed = false
+  for (let guard = 0; guard < 200 && trimOnce(); guard++) trimmed = true
+  if (trimmed) fillShort()
+  // 4. Even out what's still short within each session (a muscle at its target doesn't give).
   for (let guard = 0; guard < 300; guard++) {
-    const ratio = ratioNow()
     let moved = false
     for (const s of open) {
-      if (full.has(s)) continue
-      const give = s.filter(canGive).sort((a, b) => ratio(partOf(b)!) - ratio(partOf(a)!))[0]
-      const take = s.filter((p) => canTake(s, p) && ratio(partOf(p)!) < 1).sort((a, b) => ratio(partOf(a)!) - ratio(partOf(b)!))[0]
+      const short = s.filter((p) => adjustable(p) && !!partOf(p) && ratio(partOf(p)!) < 1)
+      const give = short.filter((p) => p.sets > 2).sort((a, b) => ratio(partOf(b)!) - ratio(partOf(a)!))[0]
+      const take = short.filter((p) => p.sets < 5 && inSession(s, partOf(p)!) < sessionSets(partOf(p)!)).sort((a, b) => ratio(partOf(a)!) - ratio(partOf(b)!))[0]
       if (!give || !take || partOf(give) === partOf(take)) continue
-      // Only when it evens things out: the giver stays at least as far along as the taker gets.
       const g = partOf(give)!
       const t = partOf(take)!
       if (ratio(g) - 1 / Math.max(1, target(g)) < ratio(t) + 1 / Math.max(1, target(t))) continue
       step(give, -1)
       step(take, 1)
-      if (minutesFor(s) > limit.get(s)!) { step(give, 1); step(take, -1); full.add(s); continue }
+      if (!fits(s)) { step(give, 1); step(take, -1); continue }
       moved = true
       break
     }
     if (!moved) break
   }
-  // 3. Fill.
-  for (const s of open) {
-    for (let guard = 0; guard < 20; guard++) {
-      const ratio = ratioNow()
-      const p = s.filter((x) => canTake(s, x) && ratio(partOf(x)!) < 1).sort((a, b) => ratio(partOf(a)!) - ratio(partOf(b)!))[0]
-      if (!p) break
-      const est = p.est
-      p.sets++
-      reEstimate(p)
-      if (minutesFor(s) > minutes * 1.02) { p.sets--; p.est = est; break }
-    }
-  }
   return out
+  }
 }
 
 /** Sessions for liked full-body formats that a goal doesn't include on its own. */
@@ -587,7 +664,11 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
     const week = [...new Set(out.map((d) => d.weekIndex))].map(weekOf).find((w) => w.length === dpw)
     if (week) {
       const target = (g: string) => weeklyTarget(g, goals, input.setTarget)
-      const balanced = balanceWeek(week.map((d) => ({ items: d.slot ? templates.get(d.slot)! : d.items, fixed: !d.slot })), minutes, target)
+      // Calves or core short of their target can go into another session with room: an everyday move for them.
+      const extraFor = (part: string, used: Set<string>) =>
+        generateWorkout([part], 15, { style: 'standard', rng, avoid: used, rest: input.rest, maxPerPart: 1, setCap: sessionSets, ...(input.reps && input.reps !== 'auto' ? { repRange: REP_RANGES[input.reps] } : {}) })
+          .find((p) => !p.warmup && !p.block && !used.has(p.exerciseId) && BY_ID.get(p.exerciseId)?.kind === 'strength')
+      const balanced = balanceWeek(week.map((d) => ({ items: d.slot ? templates.get(d.slot)! : d.items, fixed: !d.slot })), minutes, target, extraFor)
       week.forEach((d, i) => { if (d.slot) templates.set(d.slot, balanced[i]) })
     }
     for (const [slot, items] of templates) {
