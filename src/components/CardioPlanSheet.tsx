@@ -3,7 +3,7 @@ import { eventsFor, findEvent } from '../lib/cardioEvents'
 import { generateCardioPlan, type CardioPlan, type PlanLevel } from '../lib/cardioPlan'
 import { addDays, fmtShort, mondayOf, parseISO, toISO, weekdayIndex } from '../lib/dates'
 import { cardioWeekdays } from '../lib/program'
-import { activePrograms } from '../lib/programs'
+import { activePrograms, sharedDays, type StackOrder } from '../lib/programs'
 import { dayPlanOf } from '../lib/plan'
 import { distanceFactor, formatMinutes, formatPace, showDistance, speedUnit, storeDistance } from '../lib/units'
 import { useToday } from '../lib/useToday'
@@ -11,6 +11,7 @@ import { useStore } from '../store'
 import type { Sport } from '../types'
 import { NumberInput } from './NumberInput'
 import { primaryBtn, Sheet } from './Sheet'
+import { StackOrderPicker } from './StackOrderPicker'
 import { WeeklyVolumeChart } from './WeeklyVolumeChart'
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -30,7 +31,7 @@ interface Props {
 }
 
 export function CardioPlanSheet({ onClose, onApplied }: Props) {
-  const { units, plan: weeklyPlan, overrides, goals, programs, startCardioProgram, addGoal } = useStore()
+  const { units, plan: weeklyPlan, overrides, goals, programs, startCardioProgram, addGoal, trainingPrefs, setTrainingPrefs } = useStore()
   const today = useToday()
   const [sport, setSport] = useState<Sport>('run')
   const [eventId, setEventId] = useState('10k')
@@ -49,6 +50,7 @@ export function CardioPlanSheet({ onClose, onApplied }: Props) {
   const [addRaceGoal, setAddRaceGoal] = useState(true)
   const [replace, setReplace] = useState(false)
   const [stopOld, setStopOld] = useState(true)
+  const [order, setOrder] = useState<StackOrder | undefined>(trainingPrefs.stackOrder)
   const [openWeek, setOpenWeek] = useState<number | null>(0)
   const [openDay, setOpenDay] = useState<string | null>(null)
 
@@ -154,6 +156,7 @@ export function CardioPlanSheet({ onClose, onApplied }: Props) {
           <button onClick={() => setWhen('this')} className={chip(when === 'this')}>This week</button>
           <button onClick={() => setWhen('next')} className={chip(when === 'next')}>Next week</button>
         </div>
+        <p className="-mt-3 mb-5 text-xs text-neutral-400">Starts {when === 'this' ? 'today' : `Monday ${fmtShort(anchorMonday)}`}.</p>
 
         <h3 className={h3}>Training days</h3>
         {!c25k && (
@@ -223,6 +226,8 @@ export function CardioPlanSheet({ onClose, onApplied }: Props) {
   const clashes = new Set(sessions.filter((d) => dayPlanOf(weeklyPlan, overrides, d.date).length > 0).map((d) => d.date)).size
   const lastDate = sessions.at(-1)?.date
   const running = activePrograms(programs, today).filter((p) => p.kind === 'cardio' && p.sport === sport)
+  // Days this plan shares with a lifting plan: they pick lift or run first (unless the lifting is being replaced).
+  const shared = replace ? 0 : sharedDays(activePrograms(programs, today).filter((p) => p.kind === 'program'), today, { kind: 'cardio', dates: sessions.map((d) => d.date) }).length
   const goalLabel = c25k ? '5K' : ev.label
   const goalDate = result.raceDate ?? (c25k ? lastDate : undefined)
   const goalExists = goals.some((g) => g.type === 'race' && g.label === goalLabel && g.date === goalDate)
@@ -230,6 +235,7 @@ export function CardioPlanSheet({ onClose, onApplied }: Props) {
   const apply = () => {
     let goalId = goals.find((g) => g.type === 'race' && g.label === goalLabel && g.date === goalDate)?.id
     if (addRaceGoal && ev.miles && !goalExists) goalId = addGoal({ type: 'race', sport, label: goalLabel, distance: c25k ? 3.107 : ev.miles, ...(goalDate ? { date: goalDate } : {}) })
+    if (shared > 0 && order) setTrainingPrefs({ stackOrder: order })
     startCardioProgram({ sessions, sport, title: `${ev.label} plan`, goalId, replace, stopSame: stopOld && running.length > 0, today })
     onApplied(sessions[0].date)
     onClose()
@@ -318,9 +324,10 @@ export function CardioPlanSheet({ onClose, onApplied }: Props) {
             {clashes > 0 && (replace ? ` ${clashes} day${clashes === 1 ? '' : 's'} with other exercises will be replaced.` : ` ${clashes} day${clashes === 1 ? '' : 's'} already have exercises; those are kept alongside.`)}
             {' '}Rest days are left as they are.
           </p>
+          {shared > 0 && <StackOrderPicker value={order} onChange={setOrder} sport={sport} days={shared} />}
           <div className="flex gap-2">
             <button onClick={() => setResult(null)} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium">Change settings</button>
-            <button onClick={apply} className="flex-1 rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent">Add to my plan</button>
+            <button onClick={apply} disabled={shared > 0 && !order} className="flex-1 rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent disabled:opacity-40">Add to my plan</button>
           </div>
         </>
       )}

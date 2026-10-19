@@ -87,6 +87,43 @@ export function addSession(day: PlannedExercise[], item: PlannedExercise, progra
   return [...day.filter((x) => !replaced(x)), item]
 }
 
+/** On days with both: the run or ride from a run/bike plan first, or the lifting first. */
+export type StackOrder = 'lift' | 'cardio'
+
+/** Whether an item on `date` is a run/bike plan's session: by its tag, or for an untagged (older) one, by the plan's entry. */
+const isPlanSession = (x: PlannedExercise, date: string, cardio: Program[]) =>
+  x.plan ? cardio.some((q) => q.id === x.plan) : cardio.some((q) => q.entries.some((e) => e.date === date && e.exerciseId === x.exerciseId))
+
+/** A day with a run/bike plan's session and other exercises, in the order picked; anything else stays as it is. */
+export function orderDay(day: PlannedExercise[], date: string, programs: Program[], order: StackOrder): PlannedExercise[] {
+  const cardio = programs.filter((q) => q.kind === 'cardio')
+  const runs = day.filter((x) => isPlanSession(x, date, cardio))
+  if (runs.length === 0 || runs.length === day.length) return day
+  const rest = day.filter((x) => !runs.includes(x))
+  return order === 'cardio' ? [...runs, ...rest] : [...rest, ...runs]
+}
+
+/** Every day from `from` on, put in the order picked (see orderDay). */
+export function orderDays(overrides: PlanOverrides, programs: Program[], order: StackOrder, from: string): PlanOverrides {
+  const next = { ...overrides }
+  for (const [date, day] of Object.entries(overrides)) if (date >= from) next[date] = orderDay(day, date, programs, order)
+  return next
+}
+
+/**
+ * Upcoming dates where a run/bike plan and a lifting plan both have a session (not a lifting rest day): the days the
+ * lift-or-run-first question is about. `dates` narrows it to a plan about to be added.
+ */
+export function sharedDays(programs: Program[], from: string, extra: { kind: Program['kind']; dates: string[] } | null = null): string[] {
+  const days = (kind: Program['kind']) => {
+    const out = new Set(programs.filter((q) => q.kind === kind).flatMap((q) => q.entries.filter((e) => e.date >= from && (e.exerciseIds?.length ?? 1) > 0).map((e) => e.date)))
+    if (extra?.kind === kind) return new Set(extra.dates.filter((d) => d >= from))
+    return out
+  }
+  const lift = days('program')
+  return [...days('cardio')].filter((d) => lift.has(d)).sort()
+}
+
 /** Clear planned days in a date range back to the weekly plan, keeping any day with something logged. */
 export function clearRange(overrides: PlanOverrides, logs: ExerciseLog[], from: string, to: string): { overrides: PlanOverrides; count: number } {
   const next = { ...overrides }

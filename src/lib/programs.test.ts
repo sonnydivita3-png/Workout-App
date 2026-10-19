@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { ExerciseLog, PlanOverrides, Program } from '../types'
 import { useStore } from '../store'
 import type { CardioDay } from './cardioPlan'
-import { activePrograms, clearRange, removeProgramDays } from './programs'
+import { activePrograms, clearRange, removeProgramDays, sharedDays } from './programs'
 
 const run = { exerciseId: 'running', sets: 1 }
 const lift = { exerciseId: 'Barbell_Deadlift', sets: 3 }
@@ -39,7 +39,7 @@ describe('a lifting plan on top of a run plan', () => {
   const squat = { exerciseId: 'Barbell_Squat', sets: 3 }
   const bench = { exerciseId: 'Barbell_Bench_Press', sets: 3 }
   const cardioDays = (dates: string[]) => dates.map((date) => ({ date, weekIndex: 0, role: 'easy', title: 'Easy', note: '', minutes: 30 })) as CardioDay[]
-  const reset = () => useStore.setState({ overrides: {}, programs: [], logs: [] })
+  const reset = () => useStore.setState((s) => ({ overrides: {}, programs: [], logs: [], trainingPrefs: { ...s.trainingPrefs, stackOrder: undefined } }))
   // Plans added in the same millisecond (a fast machine) must still be told apart.
   beforeAll(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-05T12:00:00Z')) })
   afterAll(() => vi.useRealTimers())
@@ -119,6 +119,31 @@ describe('a lifting plan on top of a run plan', () => {
     useStore.getState().stopProgram(month.id, today)
     expect(ids('2026-10-05')).toEqual(['running'])
     expect(ids('2026-10-06')).toEqual(['running'])
+  })
+
+  it('lift or run first: a new plan follows the saved order, and changing it reorders every upcoming day with both', () => {
+    reset()
+    useStore.setState((s) => ({ trainingPrefs: { ...s.trainingPrefs, stackOrder: 'cardio' } }))
+    useStore.getState().startCardioProgram({ sessions: cardioDays(['2026-10-05', '2026-10-06']), sport: 'run', title: '10K plan', replace: false, stopSame: true, today })
+    useStore.getState().startProgram({ '2026-10-05': [lift, squat], '2026-10-06': [] }, 'Month plan', today)
+    expect(ids('2026-10-05')).toEqual(['running', 'Barbell_Deadlift', 'Barbell_Squat'])
+    expect(ids('2026-10-06')).toEqual(['running'])
+    useStore.getState().setStackOrder('lift', today)
+    expect(useStore.getState().trainingPrefs.stackOrder).toBe('lift')
+    expect(ids('2026-10-05')).toEqual(['Barbell_Deadlift', 'Barbell_Squat', 'running'])
+    // A run plan added on top of lifting follows it too.
+    useStore.getState().setStackOrder('cardio', today)
+    useStore.getState().startCardioProgram({ sessions: cardioDays(['2026-10-05']), sport: 'run', title: '5K plan', replace: false, stopSame: true, today })
+    expect(ids('2026-10-05')).toEqual(['running', 'Barbell_Deadlift', 'Barbell_Squat'])
+    expect(useStore.getState().programs.map((p) => p.title)).toEqual(['Month plan', '5K plan'])
+  })
+
+  it('sharedDays: dates with a run and a workout, not a lifting rest day', () => {
+    const month: Program = { id: 'm', kind: 'program', title: 'Month', createdAt: '', entries: [{ date: '2026-10-01', exerciseIds: ['x'] }, { date: '2026-10-05', exerciseIds: [] }, { date: '2026-09-28', exerciseIds: ['x'] }] }
+    expect(sharedDays([cardio, month], '2026-09-30')).toEqual(['2026-10-01'])
+    // A lifting plan about to be added stands in for the current one.
+    expect(sharedDays([cardio, month], '2026-09-30', { kind: 'program', dates: ['2026-10-05'] })).toEqual(['2026-10-05'])
+    expect(sharedDays([month], '2026-09-30', { kind: 'cardio', dates: ['2026-10-01', '2026-10-02'] })).toEqual(['2026-10-01'])
   })
 
   it('an older whole-day entry keeps what another plan put on that day', () => {

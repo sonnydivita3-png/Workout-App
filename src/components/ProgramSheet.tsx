@@ -10,11 +10,12 @@ import { defaultWarmup, minutesFor, styleInfo } from '../lib/randomizer'
 import { MUSCLE_GROUPS, plannedSets, weeklyTarget } from '../lib/muscles'
 import { useToday } from '../lib/useToday'
 import { findExercise, useStore } from '../store'
-import { activePrograms, keptItems } from '../lib/programs'
+import { activePrograms, keptItems, sharedDays, type StackOrder } from '../lib/programs'
 import { withGearFor } from '../lib/equipment'
 import { ModeSwitch, type GeneratorMode } from './ModeSwitch'
 import { WarmupRestControls } from './WarmupRestControls'
 import { primaryBtn, Sheet } from './Sheet'
+import { StackOrderPicker } from './StackOrderPicker'
 import { WorkoutList } from './WorkoutList'
 import { GearChoice } from './GearChoice'
 import { FavoritesPicker } from './FavoritesPicker'
@@ -96,6 +97,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
   const [keepLifts, setKeepLifts] = useState(saved.keepLifts ?? true)
   const [result, setResult] = useState<ProgramDay[] | null>(null)
   const [open, setOpen] = useState<string | null>(null)
+  const [order, setOrder] = useState<StackOrder | undefined>(trainingPrefs.stackOrder)
 
   const monday = mondayOf(parseISO(today))
   const anchorMonday = toISO(when === 'this' ? monday : addDays(monday, 7))
@@ -106,9 +108,13 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
   const perMuscle = perMuscleOf(trainingPrefs.perMuscle)
   // "Keep adding exercises" (Settings → Workouts) means no limit per muscle here too.
   const noLimit = extraTimeOf(trainingPrefs.extraTime) === 'more'
-  // A run/bike plan they're on is their cardio: this plan goes on top of it with no cardio days or finishers of its own.
+  // A run/bike plan they're on is their cardio: on top of it, this plan has no cardio days or finishers of its own (if
+  // the run plan only starts after this one ends, this one keeps its cardio).
   const underneath = onUse ? [] : activePrograms(programs, today).filter((p) => p.kind === 'cardio')
-  const dayOptions: DayOptions = { warmup: defaultWarmup(genPrefs.warmup, true, genPrefs.warmMinutes), rest: genPrefs.rest, dropSets: !!genPrefs.drops, reps, sets: setScheme, deload, perMuscle, capVolume: !noLimit, noCardio: underneath.length > 0 }
+  const lastDay = toISO(addDays(parseISO(anchorMonday), weeks * 7 - 1))
+  const nextRun = underneath.flatMap((p) => p.entries.map((e) => e.date)).filter((d) => d >= fromDate).sort()[0]
+  const overlaps = !!nextRun && nextRun <= lastDay
+  const dayOptions: DayOptions = { warmup: defaultWarmup(genPrefs.warmup, true, genPrefs.warmMinutes), rest: genPrefs.rest, dropSets: !!genPrefs.drops, reps, sets: setScheme, deload, perMuscle, capVolume: !noLimit, noCardio: overlaps }
 
   const build = () => {
     setGenPrefs({ plan: { reps, sets: setScheme, deload, keepLifts } })
@@ -295,6 +301,8 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
   const kept = (date: string) => keptItems(overrides, underneath, date).length
   const existing = result.filter((d) => dayPlanOf(plan, overrides, d.date).length > kept(d.date)).length
   const keptDays = result.filter((d) => kept(d.date) > 0).length
+  // Days with a run and a workout: they pick which comes first before the plan goes on.
+  const shared = onUse ? 0 : sharedDays(underneath, today, { kind: 'program', dates: workouts.map((d) => d.date) }).length
   const byWeek = [...new Set(result.map((d) => d.weekIndex))].map((w) => result.filter((d) => d.weekIndex === w))
   // Lifts in the plan they've never logged: the month's new moves (shown once they have some history to compare with).
   const logged = new Set(logs.map((l) => l.exerciseId))
@@ -324,7 +332,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
       return
     }
     // The plan's goal becomes their goal (it sets the weekly targets on Progress).
-    setTrainingPrefs({ goals: goal, goal: null })
+    setTrainingPrefs({ goals: goal, goal: null, ...(shared > 0 && order ? { stackOrder: order } : {}) })
     startProgram(Object.fromEntries(result.map((d) => [d.date, d.items])), `${split === 'auto' ? 'Random' : splitInfo(split).label} ${weeks === 4 ? 'month' : 'week'} plan`, today)
     onApplied(result[0].date)
     onClose()
@@ -418,9 +426,10 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
       )}
       {!onUse && underneath.length > 0 && (
         <p className="mt-2 text-xs text-neutral-500">
-          {underneath.map((p) => `“${p.title}”`).join(' and ')} stay{underneath.length === 1 ? 's' : ''} on your calendar
-          {keptDays > 0 && `, with its sessions on ${keptDays} day${keptDays === 1 ? '' : 's'} kept alongside this plan`}.
-          {' '}It’s your cardio, so this plan adds no cardio days or finishers of its own.
+          {underneath.map((p) => `“${p.title}”`).join(' and ')}
+          {overlaps
+            ? ` stay${underneath.length === 1 ? 's' : ''} on your calendar${keptDays > 0 ? `, with its sessions on ${keptDays} day${keptDays === 1 ? '' : 's'} kept alongside this plan` : ''}. It’s your cardio, so this plan adds no cardio days or finishers of its own.`
+            : ` start${underneath.length === 1 ? 's' : ''} ${nextRun ? fmtShort(nextRun) : 'later'}, after this plan ends, so the two don’t overlap.`}
         </p>
       )}
       {!onUse && runningProgram && <p className="mt-2 text-xs text-neutral-500">Your current lifting program “{runningProgram.title}” will be stopped and replaced.</p>}
@@ -428,7 +437,8 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
         <button onClick={build} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium">Regenerate</button>
         <button onClick={() => { setResult(null); setStep('goal') }} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium">Change settings</button>
       </div>
-      <button onClick={apply} className={`${primaryBtn} mt-2`}>{onUse ? 'Use this plan' : 'Apply to my plan'}</button>
+      {shared > 0 && <div className="mt-3"><StackOrderPicker value={order} onChange={setOrder} sport={underneath[0].sport ?? 'run'} days={shared} /></div>}
+      <button onClick={apply} disabled={shared > 0 && !order} className={`${primaryBtn} mt-2`}>{onUse ? 'Use this plan' : 'Apply to my plan'}</button>
     </Sheet>
   )
 }

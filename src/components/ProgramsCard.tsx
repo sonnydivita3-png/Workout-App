@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { addDays, fmtShort, parseISO, toISO } from '../lib/dates'
-import { activePrograms, clearRange, stoppableEntries } from '../lib/programs'
+import { activePrograms, clearRange, sharedDays, stoppableEntries } from '../lib/programs'
 import { useToday } from '../lib/useToday'
 import { useStore } from '../store'
 import type { Program } from '../types'
 import { primaryBtn, Sheet } from './Sheet'
+import { StackOrderPicker } from './StackOrderPicker'
 
 const RANGES = [
   { id: 'week', label: 'The rest of this week', days: 6 },
@@ -14,7 +15,7 @@ const RANGES = [
 
 /** Running programs on the Workouts tab: stop or replace them, or clear a stretch of the calendar. */
 export function ProgramsCard({ onReplace }: { onReplace: (kind: Program['kind']) => void }) {
-  const { programs, overrides, logs, stopProgram, clearPlan } = useStore()
+  const { programs, overrides, logs, stopProgram, clearPlan, trainingPrefs, setStackOrder } = useStore()
   const today = useToday()
   const [stopping, setStopping] = useState<Program | null>(null)
   const [clearing, setClearing] = useState(false)
@@ -29,6 +30,8 @@ export function ProgramsCard({ onReplace }: { onReplace: (kind: Program['kind'])
   const rangeTo = (id: (typeof RANGES)[number]['id']) => toISO(addDays(parseISO(today), RANGES.find((r) => r.id === id)!.days))
   const clearCount = clearRange(overrides, logs, today, rangeTo(range)).count
   const last = (p: Program) => p.entries.map((e) => e.date).sort().at(-1)!
+  const shared = sharedDays(active, today).length
+  const cardio = active.find((p) => p.kind === 'cardio')
 
   return (
     <section className="mt-3 rounded-2xl bg-surface p-3 shadow-sm ring-1 ring-neutral-200/70">
@@ -49,6 +52,17 @@ export function ProgramsCard({ onReplace }: { onReplace: (kind: Program['kind'])
           </li>
         ))}
       </ul>
+      {shared > 0 && cardio && (
+        <div className="border-t border-neutral-100 pt-2">
+          <StackOrderPicker
+            compact
+            value={trainingPrefs.stackOrder ?? 'lift'}
+            onChange={(o) => { setStackOrder(o, today); setMsg(`${o === 'lift' ? 'Lifting' : cardio.sport === 'bike' ? 'Riding' : 'Running'} first on the ${shared} day${shared === 1 ? '' : 's'} with both.`) }}
+            sport={cardio.sport ?? 'run'}
+            days={shared}
+          />
+        </div>
+      )}
 
       {stopping && (
         <Sheet title={`Stop ${stopping.title}?`} onClose={() => setStopping(null)} closeLabel="Cancel">
