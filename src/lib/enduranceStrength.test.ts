@@ -73,6 +73,48 @@ describe('strength made for a run or bike plan', () => {
     }
   })
 
+  it('3 or 4 a week: two leg sessions at most, the rest upper body and core on other days, never the long run or race', () => {
+    for (const [id, days, sport] of PLANS) {
+      const { sessions } = plan(id, days)
+      const on = new Map(sessions.map((s) => [s.date, s]))
+      for (const perWeek of [3, 4]) {
+        const out = strengthForPlan({ sessions, sport, from: START, perWeek, minutes: 45 })
+        const weeks = new Map<number, typeof out>()
+        for (const s of out) weeks.set(s.weekIndex, [...(weeks.get(s.weekIndex) ?? []), s])
+        for (const list of weeks.values()) {
+          const legs = list.filter((s) => !s.name.includes('upper'))
+          expect(legs.length, id).toBeLessThanOrEqual(2)
+          expect(list.length, id).toBeLessThanOrEqual(list[0].phase === 'base' || list[0].phase === 'build' ? perWeek : list[0].phase === 'taper' ? 1 : Math.ceil(perWeek / 2))
+          for (const s of legs) expect(['long', 'hard', 'race']).not.toContain(on.get(day(s.date, 1))?.kind)
+          for (const s of list) expect(['long', 'race']).not.toContain(on.get(s.date)?.kind)
+          expect(new Set(list.map((s) => s.date)).size).toBe(list.length)
+        }
+        const upper = out.filter((s) => s.name.includes('upper'))
+        expect(upper.length, `${id} ${perWeek}`).toBeGreaterThan(0)
+        // Upper body days don't load the legs.
+        const legGroups = ['Quads', 'Hamstrings', 'Glutes', 'Calves']
+        expect(upper.flatMap((s) => s.items).some((p) => legGroups.includes(BUILTIN_BY_ID.get(p.exerciseId)?.group ?? ''))).toBe(false)
+      }
+    }
+  })
+
+  it('on the days they pick: those weekdays in building weeks, the best of them in lighter weeks, never race day; clashes marked', () => {
+    const { sessions } = plan('half', [1, 2, 3, 5, 6]) // runs Tue Wed Thu Sat Sun, long run Saturday
+    const on = new Map(sessions.map((s) => [s.date, s]))
+    const picked = [0, 2, 4] // Mon, Wed, Fri: Friday is the day before the long run
+    const out = strengthForPlan({ sessions, sport: 'run', from: START, perWeek: 2, minutes: 45, days: picked })
+    for (const s of out) expect(picked).toContain((parseISO(s.date).getDay() + 6) % 7)
+    const build = out.filter((s) => s.phase === 'build')
+    expect(build.length % 3).toBe(0)
+    const fridays = out.filter((s) => (parseISO(s.date).getDay() + 6) % 7 === 4)
+    expect(fridays.length).toBeGreaterThan(0)
+    for (const f of fridays) expect(f.clash ?? (f.name.includes('upper') ? 'upper' : undefined)).toBeTruthy()
+    for (const s of out) expect(on.get(s.date)?.kind).not.toBe('race')
+    // Peak and taper weeks use fewer of their days.
+    const peakWeeks = new Set(out.filter((s) => s.phase === 'peak').map((s) => s.weekIndex))
+    for (const w of peakWeeks) expect(out.filter((s) => s.weekIndex === w).length).toBe(2)
+  })
+
   it('cyclists: no jumping; new runners (Couch to 5K): moderate weights, no jumps, leg curls before Nordics', () => {
     const bike = strengthForPlan({ sessions: plan('century', [1, 3, 5, 6]).sessions, sport: 'bike', from: START, perWeek: 2, minutes: 60 })
     expect(bike.flatMap((s) => s.items).some((p) => plyo(p.exerciseId) && p.exerciseId !== 'x-box-jump')).toBe(false)

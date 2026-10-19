@@ -59,9 +59,12 @@ export function planSessions(p: Program, overrides: PlanOverrides): PlanSession[
   return rows.map((r) => ({ date: r.date, kind: sessionKind(r.title), phase: r.phase ?? guess(weeks.indexOf(weekOf(r.date))) }))
 }
 
-/** Strength sessions a week in each phase of the plan, given what they picked for base and build (1 or 2). */
+/**
+ * Strength sessions a week in each phase of the plan, given what they picked for base and build (1 to 4): about half
+ * at peak and in cutback weeks (one a week is enough to keep strength), one light one in taper, none in race week.
+ */
 export const sessionsFor = (phase: WeekPhase, perWeek: number) =>
-  phase === 'race' ? 0 : phase === 'base' || phase === 'build' ? perWeek : 1
+  phase === 'race' ? 0 : phase === 'base' || phase === 'build' ? perWeek : phase === 'taper' ? 1 : Math.ceil(perWeek / 2)
 
 // Each slot: the first of these they have the gear for. Library ids.
 const PICK: Record<string, string[]> = {
@@ -81,21 +84,32 @@ const PICK: Record<string, string[]> = {
   coreB: ['Side_Bridge', 'x-copenhagen-plank', 'Plank'],
   pull: ['Seated_Cable_Rows', 'One-Arm_Dumbbell_Row', 'Inverted_Row'],
   push: ['Pushups', 'Dumbbell_Bench_Press'],
+  press: ['Dumbbell_Shoulder_Press', 'Standing_Military_Press', 'Kettlebell_Arnold_Press', 'Pushups'],
+  pullDown: ['Pullups', 'Wide-Grip_Lat_Pulldown', 'Chin-Up', 'Inverted_Row'],
+  bench: ['Dumbbell_Bench_Press', 'Barbell_Bench_Press_-_Medium_Grip', 'Pushups'],
+  coreC: ['Hanging_Leg_Raise', 'Ab_Roller', 'Dead_Bug'],
 }
 const pick = (slot: string) => PICK[slot].map((id) => BUILTIN_BY_ID.get(id)).find((e) => e && !e.retired && hasGear(e))
 
-/** The two sessions (A: squat day, B: hinge day), most important first; time decides how far down the list goes. */
-const SESSIONS: Record<Sport, [string[], string[]]> = {
+/**
+ * The sessions, most important first; time decides how far down the list goes. A: squat day, B: hinge day. C, for a
+ * third or fourth session a week: upper body and core, which strengthen without tiring the legs for the next run.
+ */
+const UPPER = ['pullDown', 'bench', 'pull', 'press', 'coreC', 'coreB', 'coreA']
+const SESSIONS: Record<Sport, [string[], string[], string[]]> = {
   run: [
     ['plyoA', 'squat', 'single', 'calfBent', 'coreA', 'hamstring', 'pull'],
     ['plyoB', 'hinge', 'singleHinge', 'calfStraight', 'coreB', 'single', 'push'],
+    UPPER,
   ],
   // Cyclists: heavy legs for pedalling economy, no impact work; back and core for the position on the bike.
   bike: [
     ['squat', 'single', 'hamstring', 'coreA', 'pull', 'calfBent', 'jump'],
     ['hinge', 'singleHinge', 'single', 'coreB', 'pull', 'push', 'calfStraight'],
+    UPPER,
   ],
 }
+const NAMES = ['Strength A · squat', 'Strength B · hinge', 'Strength C · upper body & core']
 
 type Dose = { main: [number, number]; other: [number, number]; plyo: [number, number]; core: number; drop?: boolean }
 /**
@@ -115,7 +129,7 @@ function dose(phase: WeekPhase, week: number, beginner: boolean): Dose {
 /** Items a session of `minutes` has room for, about 7 minutes each (heavy sets rest longer; core and hops are quick). */
 const roomFor = (minutes: number) => Math.max(3, Math.min(7, Math.round(minutes / 7.5)))
 
-function session(sport: Sport, which: 0 | 1, phase: WeekPhase, week: number, minutes: number, beginner: boolean): PlannedExercise[] {
+function session(sport: Sport, which: 0 | 1 | 2, phase: WeekPhase, week: number, minutes: number, beginner: boolean): PlannedExercise[] {
   const d = dose(phase, week, beginner)
   const slots = SESSIONS[sport][which].filter((s) => !(s.startsWith('plyo') || s === 'jump') || d.plyo[0] > 0)
   const out: PlannedExercise[] = []
@@ -138,14 +152,27 @@ function session(sport: Sport, which: 0 | 1, phase: WeekPhase, week: number, min
   return out
 }
 
-export interface StrengthDay { date: string; weekIndex: number; phase: WeekPhase; name: string; after?: PlanSession['kind'] | 'rest'; items: PlannedExercise[] }
+export interface StrengthDay {
+  date: string
+  weekIndex: number
+  phase: WeekPhase
+  name: string
+  after?: PlanSession['kind'] | 'rest'
+  /** A day they picked that the plan would avoid: on the long run or race, or the day before a long run or hard session. */
+  clash?: 'long' | 'race' | 'before-long' | 'before-hard' | 'before-race'
+  items: PlannedExercise[]
+}
 
 /**
- * Strength days for a run/bike plan, from `from` on: each week gets its phase's number of sessions on the best days
- * (see `dayScore`), at least two days apart, alternating squat and hinge sessions.
+ * Strength days for a run/bike plan, from `from` on, alternating squat and hinge sessions. Each week gets its phase's
+ * number of sessions (see sessionsFor). By default on the best days (see `score`), at least two days apart; or on the
+ * weekdays they pick (0 = Monday), which are kept even where the plan would avoid them (marked `clash`), the best of
+ * them used in lighter weeks.
  */
-export function strengthForPlan(input: { sessions: PlanSession[]; sport: Sport; from: string; perWeek: 1 | 2; minutes: number }): StrengthDay[] {
-  const { sessions, sport, from, perWeek, minutes } = input
+export function strengthForPlan(input: { sessions: PlanSession[]; sport: Sport; from: string; perWeek: number; minutes: number; days?: number[] }): StrengthDay[] {
+  const { sessions, sport, from, minutes } = input
+  const fixed = input.days?.length ? new Set(input.days) : null
+  const perWeek = fixed ? fixed.size : input.perWeek
   const on = new Map(sessions.map((s) => [s.date, s]))
   const beginner = !sessions.some((s) => s.kind === 'hard' || s.kind === 'long')
   const weeks = [...new Set(sessions.map((s) => toISO(mondayOf(parseISO(s.date)))))].sort()
@@ -154,7 +181,7 @@ export function strengthForPlan(input: { sessions: PlanSession[]; sport: Sport; 
   weeks.forEach((monday, w) => {
     const phase = sessions.find((s) => toISO(mondayOf(parseISO(s.date))) === monday)!.phase
     const want = sessionsFor(phase, perWeek)
-    const dates = Array.from({ length: 7 }, (_, i) => toISO(addDays(parseISO(monday), i))).filter((d) => d >= from)
+    const dates = Array.from({ length: 7 }, (_, i) => toISO(addDays(parseISO(monday), i))).filter((d, i) => d >= from && (!fixed || fixed.has(i)))
     const next = (d: string) => on.get(toISO(addDays(parseISO(d), 1)))
     const prev = (d: string) => on.get(toISO(addDays(parseISO(d), -1)))
     // Never: the long run or race itself, or the day before a long run, hard session or race.
@@ -168,16 +195,35 @@ export function strengthForPlan(input: { sessions: PlanSession[]; sport: Sport; 
       if (phase === 'taper') v -= dates.indexOf(d) * 0.5
       return v
     }
-    const picked: string[] = []
-    for (const d of [...dates].sort((a, b) => score(b) - score(a) || a.localeCompare(b))) {
-      if (picked.length >= want || score(d) === -Infinity) break
-      const gap = (a: string, b: string) => Math.abs(parseISO(a).getTime() - parseISO(b).getTime()) / 86400000
-      if (picked.every((p) => gap(p, d) >= 2)) picked.push(d)
+    const clash = (d: string): StrengthDay['clash'] => {
+      const s = on.get(d)?.kind, n = next(d)?.kind
+      return s === 'long' || s === 'race' ? s : n === 'long' || n === 'race' ? `before-${n}` : n === 'hard' ? 'before-hard' : undefined
     }
-    for (const d of picked.sort()) {
-      const which = (turn++ % 2) as 0 | 1
+    const gap = (a: string, b: string) => Math.abs(parseISO(a).getTime() - parseISO(b).getTime()) / 86400000
+    const choose = (n: number, rate: (d: string) => number, spaced: boolean) => {
+      const out: string[] = []
+      for (const d of [...dates].sort((a, b) => rate(b) - rate(a) || a.localeCompare(b))) {
+        if (out.length >= n || rate(d) === -Infinity) break
+        if (!spaced || out.every((p) => gap(p, d) >= 2)) out.push(d)
+      }
+      return out
+    }
+    // Leg sessions (two at most): on the best days. Days they picked are theirs, even where the plan would avoid them
+    // (never race day), the best of them used first.
+    const rank = (d: string) => (fixed ? (score(d) === -Infinity ? (on.get(d)?.kind === 'race' ? -Infinity : -10) : score(d)) : score(d))
+    const legs = choose(Math.min(want, 2), rank, !fixed)
+    // More than two: upper body and core, on another day (a rest day best), not the long run or race.
+    const upperRate = (d: string) => {
+      const k = on.get(d)?.kind
+      if (legs.includes(d) || k === 'race' || (k === 'long' && !fixed)) return -Infinity
+      return (k === 'long' ? 0 : k === 'hard' ? 1 : k ? 2 : 3) - (legs.some((l) => gap(l, d) <= 1) ? 0.5 : 0)
+    }
+    const upper = choose(want - legs.length, upperRate, !fixed)
+    for (const d of [...legs, ...upper].sort()) {
+      const which = upper.includes(d) ? 2 : ((turn++ % 2) as 0 | 1)
       const items = session(sport, which, phase, w, phase === 'taper' ? Math.min(minutes, 30) : minutes, beginner)
-      out.push({ date: d, weekIndex: w, phase, name: which === 0 ? 'Strength A · squat' : 'Strength B · hinge', after: on.get(d)?.kind ?? 'rest', items })
+      const c = which < 2 ? clash(d) : undefined
+      out.push({ date: d, weekIndex: w, phase, name: NAMES[which], after: on.get(d)?.kind ?? 'rest', ...(c ? { clash: c } : {}), items })
     }
   })
   return out
