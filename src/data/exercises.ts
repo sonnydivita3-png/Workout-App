@@ -189,8 +189,9 @@ for (const e of EXERCISES) {
   taken.add(short.toLowerCase())
 }
 
-// The library is kept to 500 everyday exercises. The rest of the dataset (strongman events, sport drills, band-and-chain
-// variations, near-duplicates) is retired: never offered, but still known, so old workouts and plans keep their names.
+// The library keeps 500 everyday exercises from the dataset, plus the extras above. The rest of the dataset (strongman
+// events, sport drills, band-and-chain variations, near-duplicates) is retired: never offered, but still known, so old
+// workouts and plans keep their names.
 const RETIRED = new Set<string>(retired)
 for (const e of EXERCISES) if (RETIRED.has(e.id)) e.retired = true
 

@@ -3,8 +3,8 @@ import { gearOf } from '../lib/equipment'
 import { ALL_EXERCISES, BUILTIN_BY_ID, EXERCISES } from './exercises'
 
 describe('the exercise library', () => {
-  it('offers 500 everyday exercises, each name once', () => {
-    expect(EXERCISES).toHaveLength(500)
+  it('offers everyday exercises (the 500 kept from the dataset, plus ones added for plans), each name once', () => {
+    expect(EXERCISES.length).toBeGreaterThanOrEqual(500)
     expect(EXERCISES.some((e) => e.retired)).toBe(false)
     const names = EXERCISES.map((e) => e.name.toLowerCase())
     expect(new Set(names).size).toBe(names.length)
