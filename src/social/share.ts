@@ -22,7 +22,8 @@ const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x)) as T
 /** Snapshot a plan for sharing. Only the plan travels: never logged results, weights, or anything private. */
 export function buildPayload(p: { scope: Scope; dates: string[]; plan: WeekPlan; overrides: PlanOverrides; custom: Exercise[]; results?: string[] }): SharedPayload {
   const days = p.dates.map((date, offset) => {
-    const items = dayPlanOf(p.plan, p.overrides, date).map((i) => clone(i))
+    // Which of their own plans put it there means nothing to anyone else.
+    const items = dayPlanOf(p.plan, p.overrides, date).map(({ plan: _plan, ...i }) => clone(i))
     return { offset, rest: items.length === 0, items }
   })
   const used = new Set(days.flatMap((d) => d.items.map((i) => i.exerciseId)))

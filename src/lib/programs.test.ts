@@ -88,6 +88,39 @@ describe('a lifting plan on top of a run plan', () => {
     expect(ids('2026-10-06')).toEqual(['running'])
   })
 
+  // What broke for a tester: a mileage plan, then a muscle month whose lifting days end with an easy-run finisher.
+  const finisher = { exerciseId: 'running', sets: 1, minutes: 15, note: 'Finisher, easy pace' }
+  const runOn = (date: string) => day(date)?.filter((x) => x.exerciseId === 'running')
+
+  it('a lifting day with its own run finisher never replaces the run plan’s run, and stops and replaces leave it', () => {
+    reset()
+    useStore.getState().startCardioProgram({ sessions: cardioDays(['2026-10-05', '2026-10-07']), sport: 'run', title: 'Build mileage plan', replace: false, stopSame: true, today })
+    const planned = runOn('2026-10-05')!
+    expect(planned).toHaveLength(1)
+    useStore.getState().startProgram({ '2026-10-05': [lift, finisher], '2026-10-07': [] }, 'Month plan', today)
+    expect(runOn('2026-10-05')).toContainEqual(planned[0])
+    expect(runOn('2026-10-07')).toHaveLength(1)
+    useStore.getState().startProgram({ '2026-10-05': [squat, finisher] }, 'Another month', today)
+    expect(runOn('2026-10-05')).toContainEqual(planned[0])
+    expect(runOn('2026-10-07')).toHaveLength(1)
+    useStore.getState().stopProgram(useStore.getState().programs.find((p) => p.kind === 'program')!.id, today)
+    expect(day('2026-10-05')).toEqual(planned) // just the run plan's run, exactly as planned
+    expect(runOn('2026-10-07')).toHaveLength(1)
+  })
+
+  it('a run plan added after a lifting plan takes the place of its cardio finisher, and survives the lifting plan stopping', () => {
+    reset()
+    useStore.getState().startProgram({ '2026-10-05': [lift, finisher], '2026-10-06': [squat, { ...finisher, exerciseId: 'x-row-erg' }] }, 'Month plan', today)
+    useStore.getState().startCardioProgram({ sessions: cardioDays(['2026-10-05', '2026-10-06']), sport: 'run', title: 'Build mileage plan', replace: false, stopSame: true, today })
+    expect(ids('2026-10-05')).toEqual(['Barbell_Deadlift', 'running'])
+    expect(runOn('2026-10-05')![0].minutes).toBe(30) // the plan's run, not the 15-minute finisher
+    expect(ids('2026-10-06')).toEqual(['Barbell_Squat', 'running']) // no row on top of the run
+    const month = useStore.getState().programs.find((p) => p.kind === 'program')!
+    useStore.getState().stopProgram(month.id, today)
+    expect(ids('2026-10-05')).toEqual(['running'])
+    expect(ids('2026-10-06')).toEqual(['running'])
+  })
+
   it('an older whole-day entry keeps what another plan put on that day', () => {
     const p: Program = { id: 'q', kind: 'program', title: 'Month', createdAt: '', entries: [{ date: '2026-10-01' }] }
     const r = removeProgramDays(p, { '2026-10-01': [lift, run] }, [], '2026-09-30', [cardio])

@@ -274,6 +274,8 @@ export interface ProgramInput {
   perMuscle?: number
   /** Their own weekly sets per muscle (Settings), instead of the goal's. */
   setTarget?: number | null
+  /** A run or bike plan already covers their cardio: no cardio days and no cardio finishers. */
+  noCardio?: boolean
 }
 
 export type RepScheme = 'auto' | 'heavy' | 'moderate' | 'light'
@@ -309,6 +311,8 @@ export interface DayOptions {
   capVolume?: boolean
   /** Most exercises for one muscle in a session (default PER_MUSCLE). */
   perMuscle?: number
+  /** A run or bike plan already covers their cardio: no cardio days and no cardio finishers. */
+  noCardio?: boolean
 }
 
 const LIFTING_STYLES: WorkoutStyle[] = ['standard', 'strength', 'supersets', 'bodyweight']
@@ -331,7 +335,7 @@ function makeDay(focus: string[], minutes: number, style: WorkoutStyle, rng: Rng
 
 /** A capped lifting session with 10+ minutes to spare finishes with easy cardio, so it still runs about as long as picked. */
 function withFinisher(items: PlannedExercise[], focus: string[], minutes: number, style: WorkoutStyle, rng: Rng, opts: DayOptions): PlannedExercise[] {
-  return capped(focus, opts) && LIFTING_STYLES.includes(style) ? addFinisher(items, minutes, rng) : items
+  return !opts.noCardio && capped(focus, opts) && LIFTING_STYLES.includes(style) ? addFinisher(items, minutes, rng) : items
 }
 
 /** The muscle a planned lift counts towards (null for warm-ups, cardio and timed pieces). */
@@ -595,7 +599,7 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
   const total = weeks * 7
   const dpw = new Set(trainWeekdays).size
   const goals = goalList(goal)
-  const types = withLikes(dayTypes(goals, dpw), input.likedStyles)
+  const types = withLikes(dayTypes(goals, dpw), input.likedStyles).filter((t) => !(input.noCardio && isCardioDay(t)))
   const split = input.split && input.split !== 'auto' ? splitRotation(input.split, dpw, SPLIT_STYLE[goals[0]]) : null
 
   const lastTrained = new Map<string, number>() // group -> day offset it was last trained
@@ -624,6 +628,12 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
 
     // Never repeat a major muscle group from yesterday. Cardio days have none, so a choice always exists.
     const allowed = types.filter((t) => !majorsOf(t).some((g) => prevMajors.has(g)))
+    // Without cardio days (a run plan covers them) every session trains a major muscle: after a full-body day, rest.
+    if (!split && allowed.length === 0) {
+      out.push({ date, rest: true, focus: [], groups: [], weekIndex, items: [] })
+      prevMajors = new Set()
+      continue
+    }
     const stale = (t: DayType) => {
       const m = majorsOf(t)
       if (m.length === 0) return 3

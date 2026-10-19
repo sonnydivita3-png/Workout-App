@@ -425,6 +425,29 @@ describe('cardio days in a plan', () => {
   })
 })
 
+describe('on top of a run plan (noCardio)', () => {
+  const loose = (d: { items: { exerciseId: string; warmup?: boolean; block?: string }[] }) =>
+    d.items.filter((p) => !p.warmup && !p.block && BUILTIN_BY_ID.get(p.exerciseId)?.kind === 'cardio')
+  it('adds no cardio days and no cardio finishers, for any goal, and still never repeats a muscle the next day', () => {
+    for (const goal of GOALS) {
+      for (let seed = 1; seed <= 5; seed++) {
+        const days = generateProgram(base({ goal, weeks: 4, trainWeekdays: [0, 1, 2, 3, 4, 5], minutes: 60, rng: mulberry32(seed), noCardio: true }))
+        expect(days.filter((d) => d.cardioKind)).toEqual([])
+        expect(days.flatMap(loose)).toEqual([])
+        for (let i = 1; i < days.length; i++) {
+          if (days[i].rest || days[i - 1].rest) continue
+          expect(majors(days[i].groups).filter((g) => majors(days[i - 1].groups).includes(g))).toEqual([])
+        }
+        expect(days.filter((d) => !d.rest).length).toBeGreaterThan(15)
+      }
+    }
+  })
+  it('without one, a muscle month still gets its finishers', () => {
+    const days = generateProgram(base({ goal: 'muscle', weeks: 4, trainWeekdays: [0, 1, 2, 3, 4, 5], minutes: 60, rng: mulberry32(2) }))
+    expect(days.flatMap(loose).length).toBeGreaterThan(0)
+  })
+})
+
 describe('plan options: volume per session, rep range, sets over the month, deload', () => {
   const setsBy = (items: { exerciseId: string; sets: number; warmup?: boolean }[]) => {
     const m = new Map<string, number>()

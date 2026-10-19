@@ -113,6 +113,11 @@ export interface PlannedExercise {
   keepSets?: boolean
   /** A planned lighter week (the end of a 4-week block): about 90% of last time, not more. */
   deload?: boolean
+  /**
+   * The plan (Program id) that put it on the calendar, so stopping or replacing that plan takes out only its own
+   * exercises, never another plan's run that happens to be the same exercise.
+   */
+  plan?: string
 }
 
 /** Plan is a weekly template: 0 = Monday ... 6 = Sunday. */
