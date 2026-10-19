@@ -214,7 +214,7 @@ test('strength made for a run plan: offered with the run plan, previewed week by
 
   // The strength sheet opens next, with what it does and a look at each week.
   await expect(page.getByRole('heading', { name: 'Strength for Half marathon plan' })).toBeVisible()
-  await expect(page.getByText(/2 a week while you build, 1 a week near race time/)).toBeVisible()
+  await expect(page.getByText(/2 a week while you build, fewer near race time/)).toBeVisible()
   await page.getByRole('button', { name: '1', exact: true }).click()
   await expect(page.getByText(/1 a week while you build/)).toBeVisible()
   await page.getByRole('button', { name: '2', exact: true }).click()
@@ -260,8 +260,19 @@ test('a run plan already on the calendar gets strength from My plans', async ({ 
   await page.getByRole('button', { name: 'Add to my plan' }).click()
   await page.getByRole('button', { name: '+ Strength made for it' }).click()
   await expect(page.getByRole('heading', { name: 'Strength for Build mileage plan' })).toBeVisible()
+  // Up to four a week; past two they're upper body and core.
+  await page.getByRole('button', { name: '4', exact: true }).click()
+  await expect(page.getByText(/Sessions past two are upper body and core/)).toBeVisible()
+  // Or their own days: Mon, Wed, Fri, Sat (Saturday is the long run, Friday the day before): kept, and flagged.
+  const days = page.getByRole('group', { name: 'Strength days' })
+  for (const d of ['Mon', 'Wed', 'Fri', 'Sat']) await days.getByRole('button', { name: d }).click()
+  await expect(page.getByText('4 a week, on the days you picked.')).toBeVisible()
+  await expect(page.getByRole('button', { name: '4', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('note')).toContainText(/leg sessions? falls? on or the day before a long run/)
   await page.getByRole('button', { name: 'Lift first' }).click()
   await page.getByRole('button', { name: 'Add strength plan' }).click()
   const s = await state(page)
   expect(s.programs.map((p: { title: string }) => p.title)).toEqual(['Build mileage plan', 'Strength for Build mileage plan'])
+  const weekdays = new Set(s.programs[1].entries.map((e: { date: string }) => (new Date(`${e.date}T12:00:00`).getDay() + 6) % 7))
+  expect([...weekdays].sort()).toEqual([0, 2, 4, 5])
 })
