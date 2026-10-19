@@ -198,8 +198,12 @@ export interface Program {
   /** The race goal this plan trains for, if any. */
   goalId?: string
   createdAt: string
-  /** The dates it wrote. Cardio entries name the exercise (running/cycling) so only that is removed. */
-  entries: { date: string; exerciseId?: string }[]
+  /**
+   * The dates it wrote and what it put on each, so stopping it removes only its own exercises and leaves another plan's
+   * (a run plan under a lifting plan) in place. Cardio entries name their run/ride; week/month entries list their
+   * exercises ([] on a rest day). Entries from before that have neither and owned the whole day.
+   */
+  entries: { date: string; exerciseId?: string; exerciseIds?: string[] }[]
 }
 
 export type NewGoal = Goal extends infer G ? (G extends Goal ? Omit<G, 'id'> : never) : never

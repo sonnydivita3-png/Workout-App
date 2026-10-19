@@ -53,8 +53,8 @@ export function ProgramsCard({ onReplace }: { onReplace: (kind: Program['kind'])
       {stopping && (
         <Sheet title={`Stop ${stopping.title}?`} onClose={() => setStopping(null)} closeLabel="Cancel">
           <p className="mb-4 text-sm text-neutral-600">
-            This removes its {stoppableEntries(stopping, logs, today).length} upcoming day{stoppableEntries(stopping, logs, today).length === 1 ? '' : 's'} from your calendar,
-            starting today. Anything you’ve already logged stays.
+            This removes its exercises from {stoppableEntries(stopping, logs, today).length} upcoming day{stoppableEntries(stopping, logs, today).length === 1 ? '' : 's'},
+            starting today. Your other plans and anything you’ve already logged stay.
           </p>
           <button
             onClick={() => { const n = stopProgram(stopping.id, today); setStopping(null); setMsg(`Stopped. ${n} day${n === 1 ? '' : 's'} removed.`) }}
