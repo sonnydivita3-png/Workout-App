@@ -325,6 +325,9 @@ const defaults = () => ({
   backendKind: null as 'demo' | 'supabase' | null,
 })
 
+// Unique even for two plans added in the same millisecond, since a plan's id tells its exercises from another's.
+const programId = () => `pr-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+
 export const useStore = create<State>()(
   persist(
     (set, get) => ({
@@ -535,7 +538,7 @@ export const useStore = create<State>()(
             overrides = removeProgramDays(p, overrides, s.logs, today, programs).overrides
           }
           const program: Program = {
-            id: `pr-${Date.now().toString(36)}`, kind: 'program', title, createdAt: new Date().toISOString(),
+            id: programId(), kind: 'program', title, createdAt: new Date().toISOString(),
             entries: Object.entries(days).map(([date, items]) => ({ date, exerciseIds: [...new Set(items.map((x) => x.exerciseId))] })),
           }
           // A run plan underneath stays: its runs are kept on the new plan's days, rest days included.
@@ -557,7 +560,7 @@ export const useStore = create<State>()(
             overrides = { ...overrides, [date]: replace ? [item] : [...existing.filter((p) => p.exerciseId !== item.exerciseId), item] }
           }
           const exerciseId = sport === 'run' ? 'running' : 'cycling'
-          const program: Program = { id: `pr-${Date.now().toString(36)}`, kind: 'cardio', title, sport, goalId, createdAt: new Date().toISOString(), entries: sessions.map((d) => ({ date: d.date, exerciseId })) }
+          const program: Program = { id: programId(), kind: 'cardio', title, sport, goalId, createdAt: new Date().toISOString(), entries: sessions.map((d) => ({ date: d.date, exerciseId })) }
           return { overrides, programs: [...s.programs.filter((p) => !stopped.has(p.id)), program] }
         }),
       stopProgram: (id, today) => {

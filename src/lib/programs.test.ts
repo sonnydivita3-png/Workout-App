@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { ExerciseLog, PlanOverrides, Program } from '../types'
 import { useStore } from '../store'
 import type { CardioDay } from './cardioPlan'
@@ -40,6 +40,9 @@ describe('a lifting plan on top of a run plan', () => {
   const bench = { exerciseId: 'Barbell_Bench_Press', sets: 3 }
   const cardioDays = (dates: string[]) => dates.map((date) => ({ date, weekIndex: 0, role: 'easy', title: 'Easy', note: '', minutes: 30 })) as CardioDay[]
   const reset = () => useStore.setState({ overrides: {}, programs: [], logs: [] })
+  // Plans added in the same millisecond (a fast machine) must still be told apart.
+  beforeAll(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-05T12:00:00Z')) })
+  afterAll(() => vi.useRealTimers())
   const today = '2026-10-05'
 
   it('keeps the runs on its lifting days and its rest days', () => {
