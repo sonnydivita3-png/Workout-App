@@ -20,7 +20,7 @@ import { setCustomExercises } from './lib/randomUtil'
 import { placeWarmups } from './lib/warmups'
 import { workSets } from './lib/progression'
 import { setCardioPrefs } from './lib/cardioPrefs'
-import { activePrograms, clearRange, removeProgramDays } from './lib/programs'
+import { activePrograms, clearRange, layerDays, removeProgramDays } from './lib/programs'
 import { customFields, newCustomId, sameName, usageOf, type CustomExerciseInput } from './lib/customExercises'
 import type {
   AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Benchmark, AboutMe, Sport, TimedLog, StrengthSet, Units, WeekPlan,
@@ -168,7 +168,10 @@ interface State extends Data {
   addBenchmark: (date: string, id: string) => void
   /** Plans added in one go (a week/month program or a run/bike plan), so they can be stopped or replaced. */
   programs: Program[]
-  /** Add a random week/month program. Any earlier program still running is stopped first. */
+  /**
+   * Add a random week/month program. Any earlier week/month program still running is stopped first; a run/bike plan
+   * stays, its runs kept alongside the new plan's days.
+   */
   startProgram: (days: PlanOverrides, title: string, today: string) => void
   /**
    * Add a run/bike training plan. `stopSame` first stops any plan still running for the same sport, so a new plan
@@ -321,6 +324,9 @@ const defaults = () => ({
   restSeconds: 0,
   backendKind: null as 'demo' | 'supabase' | null,
 })
+
+// Unique even for two plans added in the same millisecond, since a plan's id tells its exercises from another's.
+const programId = () => `pr-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
 
 export const useStore = create<State>()(
   persist(
@@ -526,13 +532,17 @@ export const useStore = create<State>()(
       startProgram: (days, title, today) =>
         set((s) => {
           let overrides = s.overrides
-          const stopped = new Set<string>()
+          let programs = s.programs
           for (const p of activePrograms(s.programs, today).filter((x) => x.kind === 'program')) {
-            overrides = removeProgramDays(p, overrides, s.logs, today).overrides
-            stopped.add(p.id)
+            programs = programs.filter((x) => x.id !== p.id)
+            overrides = removeProgramDays(p, overrides, s.logs, today, programs).overrides
           }
-          const program: Program = { id: `pr-${Date.now().toString(36)}`, kind: 'program', title, createdAt: new Date().toISOString(), entries: Object.keys(days).map((date) => ({ date })) }
-          return { overrides: { ...overrides, ...days }, programs: [...s.programs.filter((p) => !stopped.has(p.id)), program] }
+          const program: Program = {
+            id: programId(), kind: 'program', title, createdAt: new Date().toISOString(),
+            entries: Object.entries(days).map(([date, items]) => ({ date, exerciseIds: [...new Set(items.map((x) => x.exerciseId))] })),
+          }
+          // A run plan underneath stays: its runs are kept on the new plan's days, rest days included.
+          return { overrides: layerDays(days, overrides, programs, program), programs: [...programs, program] }
         }),
       startCardioProgram: ({ sessions, sport, title, goalId, replace, stopSame, today }) =>
         set((s) => {
@@ -540,8 +550,8 @@ export const useStore = create<State>()(
           const stopped = new Set<string>()
           if (stopSame) {
             for (const p of activePrograms(s.programs, today).filter((x) => x.kind === 'cardio' && x.sport === sport)) {
-              overrides = removeProgramDays(p, overrides, s.logs, today).overrides
               stopped.add(p.id)
+              overrides = removeProgramDays(p, overrides, s.logs, today, s.programs.filter((x) => !stopped.has(x.id))).overrides
             }
           }
           const items = Object.fromEntries(sessions.map((d) => [d.date, toPlanned(d, sport)!]))
@@ -550,15 +560,16 @@ export const useStore = create<State>()(
             overrides = { ...overrides, [date]: replace ? [item] : [...existing.filter((p) => p.exerciseId !== item.exerciseId), item] }
           }
           const exerciseId = sport === 'run' ? 'running' : 'cycling'
-          const program: Program = { id: `pr-${Date.now().toString(36)}`, kind: 'cardio', title, sport, goalId, createdAt: new Date().toISOString(), entries: sessions.map((d) => ({ date: d.date, exerciseId })) }
+          const program: Program = { id: programId(), kind: 'cardio', title, sport, goalId, createdAt: new Date().toISOString(), entries: sessions.map((d) => ({ date: d.date, exerciseId })) }
           return { overrides, programs: [...s.programs.filter((p) => !stopped.has(p.id)), program] }
         }),
       stopProgram: (id, today) => {
         const s = get()
         const p = s.programs.find((x) => x.id === id)
         if (!p) return 0
-        const r = removeProgramDays(p, s.overrides, s.logs, today)
-        set({ overrides: r.overrides, programs: s.programs.filter((x) => x.id !== id) })
+        const programs = s.programs.filter((x) => x.id !== id)
+        const r = removeProgramDays(p, s.overrides, s.logs, today, programs)
+        set({ overrides: r.overrides, programs })
         return r.count
       },
       clearPlan: (from, to) => {

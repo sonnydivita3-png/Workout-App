@@ -10,7 +10,7 @@ import { defaultWarmup, minutesFor, styleInfo } from '../lib/randomizer'
 import { MUSCLE_GROUPS, plannedSets, weeklyTarget } from '../lib/muscles'
 import { useToday } from '../lib/useToday'
 import { findExercise, useStore } from '../store'
-import { activePrograms } from '../lib/programs'
+import { activePrograms, keptItems } from '../lib/programs'
 import { withGearFor } from '../lib/equipment'
 import { ModeSwitch, type GeneratorMode } from './ModeSwitch'
 import { WarmupRestControls } from './WarmupRestControls'
@@ -289,7 +289,11 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
 
   const runningProgram = activePrograms(programs, today).find((p) => p.kind === 'program')
   const workouts = result.filter((d) => !d.rest)
-  const existing = result.filter((d) => dayPlanOf(plan, overrides, d.date).length > 0).length
+  // A run/bike plan stays underneath: its sessions are kept on these days, and only the rest of a day is replaced.
+  const underneath = activePrograms(programs, today).filter((p) => p.kind === 'cardio')
+  const kept = (date: string) => keptItems(overrides, underneath, date).length
+  const existing = result.filter((d) => dayPlanOf(plan, overrides, d.date).length > kept(d.date)).length
+  const keptDays = result.filter((d) => kept(d.date) > 0).length
   const byWeek = [...new Set(result.map((d) => d.weekIndex))].map((w) => result.filter((d) => d.weekIndex === w))
   // Lifts in the plan they've never logged: the month's new moves (shown once they have some history to compare with).
   const logged = new Set(logs.map((l) => l.exerciseId))
@@ -411,7 +415,12 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
           This replaces the plan on {existing} day{existing === 1 ? '' : 's'} that already have exercises. Your logged workouts are not affected.
         </p>
       )}
-      {!onUse && runningProgram && <p className="mt-2 text-xs text-neutral-500">Your current program “{runningProgram.title}” will be stopped and replaced.</p>}
+      {!onUse && keptDays > 0 && (
+        <p className="mt-2 text-xs text-neutral-500">
+          {underneath.map((p) => `“${p.title}”`).join(' and ')} stay{underneath.length === 1 ? 's' : ''} on your calendar: its sessions on {keptDays} day{keptDays === 1 ? '' : 's'} are kept alongside this plan.
+        </p>
+      )}
+      {!onUse && runningProgram && <p className="mt-2 text-xs text-neutral-500">Your current lifting program “{runningProgram.title}” will be stopped and replaced.</p>}
       <div className="mt-4 flex gap-2">
         <button onClick={build} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium">Regenerate</button>
         <button onClick={() => { setResult(null); setStep('goal') }} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium">Change settings</button>
