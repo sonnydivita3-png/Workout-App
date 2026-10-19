@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { fmtShort, mondayOf, parseISO, toISO, weekdayIndex } from '../lib/dates'
-import { planSessions, strengthForPlan, type StrengthDay } from '../lib/enduranceStrength'
+import { extraOrder, FOCUS, planSessions, SESSION_NAMES, strengthForPlan, type Focus, type StrengthDay } from '../lib/enduranceStrength'
 import { withGearFor } from '../lib/equipment'
 import { activePrograms, type StackOrder } from '../lib/programs'
 import { useToday } from '../lib/useToday'
@@ -27,13 +27,15 @@ export function StrengthForPlanSheet({ programId, onClose, onApplied }: { progra
     return next.length ? next : null
   })
   const [minutes, setMinutes] = useState(45)
+  const [focus, setFocus] = useState<Focus[]>([])
+  const toggleFocus = (f: Focus) => setFocus((cur) => (cur.includes(f) ? cur.filter((x) => x !== f) : [...cur, f]))
   const [order, setOrder] = useState<StackOrder | undefined>(trainingPrefs.stackOrder)
   const [open, setOpen] = useState<number | null>(0)
   const plan = programs.find((p) => p.id === programId)
   const sport = plan?.sport ?? 'run'
   const days = useMemo(
-    () => (plan ? withGearFor(equipment, () => strengthForPlan({ sessions: planSessions(plan, overrides).filter((s) => s.date >= today), sport, from: today, perWeek, minutes, days: picked ?? undefined })) : []),
-    [plan, overrides, today, equipment, sport, perWeek, minutes, picked],
+    () => (plan ? withGearFor(equipment, () => strengthForPlan({ sessions: planSessions(plan, overrides).filter((s) => s.date >= today), sport, from: today, perWeek, minutes, days: picked ?? undefined, focus })) : []),
+    [plan, overrides, today, equipment, sport, perWeek, minutes, picked, focus],
   )
   if (!plan) return null
 
@@ -62,7 +64,7 @@ export function StrengthForPlanSheet({ programId, onClose, onApplied }: { progra
       <ul className="mb-4 space-y-1.5 text-sm text-neutral-600">
         <li>• {ride ? 'Heavy legs, single-leg work and core: what research shows makes pedalling more economical. No jumping.' : 'Heavy legs, calves, single-leg work, hops and core: what research shows makes running more economical and your legs more robust.'}</li>
         <li>• {n} a week while you build, fewer near race time (one a week keeps the strength), none in race week.</li>
-        {n > 2 && <li>• Sessions past two are upper body and core, so your legs stay fresh for {ride ? 'riding' : 'running'}.</li>}
+        {n > 2 && <li>• Two leg days at most; the others are each different ({extraOrder(focus).slice(0, n - 2).map((t) => SESSION_NAMES[t].toLowerCase()).join(', ')}), so your legs stay fresh for {ride ? 'riding' : 'running'}. The same pattern each week, so the lifts can progress.</li>}
         <li>• {picked ? `On the days you pick. Heavy legs are best not the day before your long ${run} or a hard session; you’ll see where that happens.` : `Never the day before your long ${run} or a hard session; usually after a hard one, so easy days stay easy.`}</li>
         <li>• Sets stop a couple of reps short of failure, so your {ride ? 'riding' : 'running'} doesn’t suffer.</li>
       </ul>
@@ -79,10 +81,14 @@ export function StrengthForPlanSheet({ programId, onClose, onApplied }: { progra
         <>
           <h3 className="mb-2 text-sm font-semibold text-neutral-700">Sessions a week (base and build)</h3>
           <div className="mb-4 flex gap-2">
-            {[1, 2, 3, 4].map((k) => <button key={k} onClick={() => setPerWeek(k)} aria-pressed={perWeek === k} className={chip(perWeek === k)}>{k}</button>)}
+            {[1, 2, 3, 4, 5, 6].map((k) => <button key={k} onClick={() => setPerWeek(k)} aria-pressed={perWeek === k} className={chip(perWeek === k)}>{k}</button>)}
           </div>
         </>
       )}
+      <h3 className="mb-2 text-sm font-semibold text-neutral-700">Extra focus <span className="font-normal text-neutral-400">(optional, pick any)</span></h3>
+      <div role="group" aria-label="Extra focus" className="mb-4 flex flex-wrap gap-2">
+        {FOCUS.map((f) => <button key={f.id} onClick={() => toggleFocus(f.id)} aria-pressed={focus.includes(f.id)} className={chip(focus.includes(f.id))}>{f.label}</button>)}
+      </div>
       <h3 className="mb-2 text-sm font-semibold text-neutral-700">Length</h3>
       <div className="mb-4 flex gap-2">
         {[30, 45, 60].map((m) => <button key={m} onClick={() => setMinutes(m)} aria-pressed={minutes === m} className={chip(minutes === m)}>{m} min</button>)}

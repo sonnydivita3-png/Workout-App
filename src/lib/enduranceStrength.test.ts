@@ -3,7 +3,7 @@ import { BUILTIN_BY_ID } from '../data/exercises'
 import type { Program, Sport } from '../types'
 import { generateCardioPlan } from './cardioPlan'
 import { addDays, parseISO, toISO } from './dates'
-import { planSessions, sessionKind, strengthForPlan, type PlanSession } from './enduranceStrength'
+import { planSessions, sessionKind, strengthForPlan, type Focus, type PlanSession } from './enduranceStrength'
 import { withGearFor } from './equipment'
 
 const START = '2026-10-26'
@@ -73,7 +73,7 @@ describe('strength made for a run or bike plan', () => {
     }
   })
 
-  it('3 or 4 a week: two leg sessions at most, the rest upper body and core on other days, never the long run or race', () => {
+  it('3 or 4 a week: two leg sessions at most, the rest other sessions on other days, never the long run or race', () => {
     for (const [id, days, sport] of PLANS) {
       const { sessions } = plan(id, days)
       const on = new Map(sessions.map((s) => [s.date, s]))
@@ -82,20 +82,60 @@ describe('strength made for a run or bike plan', () => {
         const weeks = new Map<number, typeof out>()
         for (const s of out) weeks.set(s.weekIndex, [...(weeks.get(s.weekIndex) ?? []), s])
         for (const list of weeks.values()) {
-          const legs = list.filter((s) => !s.name.includes('upper'))
+          const legs = list.filter((s) => s.type.startsWith('legs'))
           expect(legs.length, id).toBeLessThanOrEqual(2)
           expect(list.length, id).toBeLessThanOrEqual(list[0].phase === 'base' || list[0].phase === 'build' ? perWeek : list[0].phase === 'taper' ? 1 : Math.ceil(perWeek / 2))
           for (const s of legs) expect(['long', 'hard', 'race']).not.toContain(on.get(day(s.date, 1))?.kind)
           for (const s of list) expect(['long', 'race']).not.toContain(on.get(s.date)?.kind)
           expect(new Set(list.map((s) => s.date)).size).toBe(list.length)
         }
-        const upper = out.filter((s) => s.name.includes('upper'))
+        const upper = out.filter((s) => !s.type.startsWith('legs'))
         expect(upper.length, `${id} ${perWeek}`).toBeGreaterThan(0)
-        // Upper body days don't load the legs.
+        // The other days don't load the legs.
         const legGroups = ['Quads', 'Hamstrings', 'Glutes', 'Calves']
         expect(upper.flatMap((s) => s.items).some((p) => legGroups.includes(BUILTIN_BY_ID.get(p.exerciseId)?.group ?? ''))).toBe(false)
       }
     }
+  })
+
+  it('every day of a week is a different session, and the weeks repeat the same pattern', () => {
+    const { sessions } = plan('marathon', [1, 2, 3, 5, 6]) // 5 runs
+    const out = strengthForPlan({ sessions, sport: 'run', from: START, perWeek: 2, minutes: 45, days: [0, 1, 2, 3, 4] }) // 5 strength days
+    const weeks = new Map<number, typeof out>()
+    for (const s of out) weeks.set(s.weekIndex, [...(weeks.get(s.weekIndex) ?? []), s])
+    const build = [...weeks.values()].filter((l) => l[0].phase === 'build')
+    for (const list of weeks.values()) expect(new Set(list.map((s) => s.type)).size).toBe(list.length)
+    for (const list of build) expect(list.map((s) => s.type).sort()).toEqual(['core', 'legsA', 'legsB', 'pull', 'push'])
+    // The two leg days aren't back to back when the picked days allow a gap.
+    for (const list of build) {
+      const legs = list.filter((s) => s.type.startsWith('legs')).map((s) => parseISO(s.date).getTime())
+      expect(Math.abs(legs[1] - legs[0])).toBeGreaterThanOrEqual(2 * 86400000)
+    }
+    // Same weekday, same session, week after week (so the lifts can progress).
+    const pattern = (l: typeof out) => l.map((s) => `${parseISO(s.date).getDay()}:${s.type}`).join(' ')
+    expect(new Set(build.map(pattern)).size).toBe(1)
+    // And the sessions themselves don't repeat each other's exercises much.
+    const [a, b] = [build[0].find((s) => s.type === 'pull')!, build[0].find((s) => s.type === 'push')!]
+    expect(a.items.filter((p) => b.items.some((q) => q.exerciseId === p.exerciseId)).length).toBeLessThanOrEqual(1)
+  })
+
+  it('a focus brings its session forward and adds its work to the other days', () => {
+    const { sessions } = plan('10k', [0, 2, 4, 5])
+    const types = (focus: Focus[]) => strengthForPlan({ sessions, sport: 'run', from: START, perWeek: 3, minutes: 45, focus }).filter((s) => s.phase === 'build').map((s) => s.type)
+    expect(new Set(types([]))).toEqual(new Set(['legsA', 'legsB', 'pull']))
+    expect(new Set(types(['mobility']))).toEqual(new Set(['legsA', 'legsB', 'mobility']))
+    expect(new Set(types(['chest']))).toEqual(new Set(['legsA', 'legsB', 'push']))
+    expect(new Set(types(['balance']))).toEqual(new Set(['legsA', 'legsB', 'core']))
+    const ids = (focus: Focus[], type: string) => strengthForPlan({ sessions, sport: 'run', from: START, perWeek: 4, minutes: 45, focus }).find((s) => s.phase === 'build' && s.type === type)!.items.map((p) => p.exerciseId)
+    expect(ids(['posture'], 'pull')).toContain('x-prone-ytw')
+    expect(ids(['posture'], 'push')).toContain('Face_Pull')
+    expect(ids(['balance'], 'legsA')).toContain('x-single-leg-balance')
+    expect(ids(['arms'], 'pull')).toContain('Dumbbell_Bicep_Curl')
+    expect(ids(['glutes'], 'legsA')).toContain('Barbell_Hip_Thrust')
+    // Mobility days are stretches, never in a warm-up's dynamic pool.
+    const mob = strengthForPlan({ sessions, sport: 'run', from: START, perWeek: 3, minutes: 30, focus: ['mobility'] }).find((s) => s.type === 'mobility')!
+    expect(mob.items.length).toBeGreaterThanOrEqual(5)
+    expect(mob.items.every((p) => BUILTIN_BY_ID.get(p.exerciseId)?.group === 'Mobility' && p.seconds)).toBe(true)
   })
 
   it('on the days they pick: those weekdays in building weeks, the best of them in lighter weeks, never race day; clashes marked', () => {
@@ -108,7 +148,7 @@ describe('strength made for a run or bike plan', () => {
     expect(build.length % 3).toBe(0)
     const fridays = out.filter((s) => (parseISO(s.date).getDay() + 6) % 7 === 4)
     expect(fridays.length).toBeGreaterThan(0)
-    for (const f of fridays) expect(f.clash ?? (f.name.includes('upper') ? 'upper' : undefined)).toBeTruthy()
+    for (const f of fridays) expect(f.clash ?? (f.type.startsWith('legs') ? undefined : 'not legs')).toBeTruthy()
     for (const s of out) expect(on.get(s.date)?.kind).not.toBe('race')
     // Peak and taper weeks use fewer of their days.
     const peakWeeks = new Set(out.filter((s) => s.phase === 'peak').map((s) => s.weekIndex))

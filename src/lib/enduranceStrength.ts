@@ -82,34 +82,103 @@ const PICK: Record<string, string[]> = {
   jump: ['x-box-jump', 'x-jump-squat'],
   coreA: ['Pallof_Press', 'Dead_Bug'],
   coreB: ['Side_Bridge', 'x-copenhagen-plank', 'Plank'],
-  pull: ['Seated_Cable_Rows', 'One-Arm_Dumbbell_Row', 'Inverted_Row'],
-  push: ['Pushups', 'Dumbbell_Bench_Press'],
-  press: ['Dumbbell_Shoulder_Press', 'Standing_Military_Press', 'Kettlebell_Arnold_Press', 'Pushups'],
-  pullDown: ['Pullups', 'Wide-Grip_Lat_Pulldown', 'Chin-Up', 'Inverted_Row'],
-  bench: ['Dumbbell_Bench_Press', 'Barbell_Bench_Press_-_Medium_Grip', 'Pushups'],
   coreC: ['Hanging_Leg_Raise', 'Ab_Roller', 'Dead_Bug'],
+  hollow: ['x-hollow-hold', 'Plank'],
+  birdDog: ['x-bird-dog'],
+  copenhagen: ['x-copenhagen-plank', 'Side_Bridge'],
+  balance: ['x-single-leg-balance'],
+  balanceHinge: ['Kettlebell_One-Legged_Deadlift', 'Single_Leg_Glute_Bridge'],
+  stepUp: ['Dumbbell_Step_Ups', 'Step-up_with_Knee_Raise', 'Barbell_Step_Ups'],
+  pull: ['Seated_Cable_Rows', 'One-Arm_Dumbbell_Row', 'Inverted_Row'],
+  pullDown: ['Pullups', 'Wide-Grip_Lat_Pulldown', 'Chin-Up', 'Inverted_Row'],
+  row2: ['One-Arm_Dumbbell_Row', 'Seated_Cable_Rows', 'Inverted_Row'],
+  rearDelt: ['Face_Pull', 'Reverse_Flyes', 'x-prone-ytw'],
+  ytw: ['x-prone-ytw', 'x-wall-angel'],
+  backExt: ['Hyperextensions_Back_Extensions', 'Hyperextensions_With_No_Hyperextension_Bench', 'x-bird-dog'],
+  push: ['Pushups', 'Dumbbell_Bench_Press'],
+  bench: ['Dumbbell_Bench_Press', 'Barbell_Bench_Press_-_Medium_Grip', 'Pushups'],
+  incline: ['Incline_Dumbbell_Press', 'Pushups'],
+  fly: ['Dumbbell_Flyes', 'Cable_Crossover'],
+  press: ['Dumbbell_Shoulder_Press', 'Standing_Military_Press', 'Kettlebell_Arnold_Press', 'Pushups'],
+  lateral: ['Side_Lateral_Raise'],
+  curl: ['Dumbbell_Bicep_Curl', 'Hammer_Curls', 'Barbell_Curl'],
+  triceps: ['Triceps_Pushdown_-_Rope_Attachment', 'Triceps_Pushdown', 'Tricep_Dumbbell_Kickback', 'Bench_Dips'],
+  hipThrust: ['Barbell_Hip_Thrust', 'Butt_Lift_Bridge'],
+  kickback: ['One-Legged_Cable_Kickback', 'Glute_Kickback'],
+  hip9090: ['x-hip-90-90'],
+  pigeon: ['x-pigeon-stretch'],
+  couch: ['x-couch-stretch'],
+  openBook: ['x-open-book'],
+  worlds: ['Worlds_Greatest_Stretch'],
+  catCow: ['Cat_Stretch'],
+  calfStretch: ['x-calf-stretch'],
+  hamStretch: ['x-hamstring-stretch'],
+  wallAngel: ['x-wall-angel'],
 }
 const pick = (slot: string) => PICK[slot].map((id) => BUILTIN_BY_ID.get(id)).find((e) => e && !e.retired && hasGear(e))
 
 /**
- * The sessions, most important first; time decides how far down the list goes. A: squat day, B: hinge day. C, for a
- * third or fourth session a week: upper body and core, which strengthen without tiring the legs for the next run.
+ * The kinds of session, each different, so no day repeats another in the same week. Two at most are leg days (heavy
+ * legs more often than that costs running); the rest strengthen without tiring the legs for the next run.
  */
-const UPPER = ['pullDown', 'bench', 'pull', 'press', 'coreC', 'coreB', 'coreA']
-const SESSIONS: Record<Sport, [string[], string[], string[]]> = {
-  run: [
-    ['plyoA', 'squat', 'single', 'calfBent', 'coreA', 'hamstring', 'pull'],
-    ['plyoB', 'hinge', 'singleHinge', 'calfStraight', 'coreB', 'single', 'push'],
-    UPPER,
-  ],
-  // Cyclists: heavy legs for pedalling economy, no impact work; back and core for the position on the bike.
-  bike: [
-    ['squat', 'single', 'hamstring', 'coreA', 'pull', 'calfBent', 'jump'],
-    ['hinge', 'singleHinge', 'single', 'coreB', 'pull', 'push', 'calfStraight'],
-    UPPER,
-  ],
+export type SessionType = 'legsA' | 'legsB' | 'pull' | 'push' | 'core' | 'mobility'
+export const SESSION_NAMES: Record<SessionType, string> = {
+  legsA: 'Legs A · squat', legsB: 'Legs B · hinge', pull: 'Upper · pull & posture', push: 'Upper · push', core: 'Core & balance', mobility: 'Mobility',
 }
-const NAMES = ['Strength A · squat', 'Strength B · hinge', 'Strength C · upper body & core']
+
+/** Slots for each session, most important first; time decides how far down the list goes. */
+const SLOTS: Record<Sport, Record<SessionType, string[]>> = {
+  run: {
+    legsA: ['plyoA', 'squat', 'single', 'calfBent', 'coreA', 'hamstring', 'pull'],
+    legsB: ['plyoB', 'hinge', 'singleHinge', 'calfStraight', 'coreB', 'single', 'push'],
+    pull: ['pullDown', 'pull', 'rearDelt', 'backExt', 'coreC', 'coreB'],
+    push: ['bench', 'press', 'incline', 'lateral', 'coreA', 'hollow'],
+    core: ['birdDog', 'coreA', 'balance', 'copenhagen', 'hollow', 'coreB', 'coreC'],
+    mobility: ['hip9090', 'couch', 'pigeon', 'calfStretch', 'hamStretch', 'openBook', 'worlds', 'catCow'],
+  },
+  // Cyclists: heavy legs for pedalling economy, no impact work; back and core for the position on the bike.
+  bike: {
+    legsA: ['squat', 'single', 'hamstring', 'coreA', 'pull', 'calfBent', 'jump'],
+    legsB: ['hinge', 'singleHinge', 'single', 'coreB', 'pull', 'push', 'calfStraight'],
+    pull: ['pullDown', 'pull', 'rearDelt', 'backExt', 'coreC', 'coreB'],
+    push: ['bench', 'press', 'incline', 'lateral', 'coreA', 'hollow'],
+    core: ['birdDog', 'coreA', 'balance', 'copenhagen', 'hollow', 'coreB', 'coreC'],
+    mobility: ['hip9090', 'couch', 'openBook', 'pigeon', 'hamStretch', 'worlds', 'catCow', 'calfStretch'],
+  },
+}
+
+/** Things they can ask for more of: what each adds to which sessions, and the session it brings forward. */
+export type Focus = 'posture' | 'balance' | 'core' | 'mobility' | 'chest' | 'back' | 'shoulders' | 'arms' | 'glutes'
+export const FOCUS: { id: Focus; label: string }[] = [
+  { id: 'posture', label: 'Posture' }, { id: 'balance', label: 'Balance' }, { id: 'core', label: 'Core' }, { id: 'mobility', label: 'Mobility' },
+  { id: 'chest', label: 'Chest' }, { id: 'back', label: 'Back' }, { id: 'shoulders', label: 'Shoulders' }, { id: 'arms', label: 'Arms' }, { id: 'glutes', label: 'Glutes' },
+]
+const FOCUS_ADDS: Record<Focus, { session?: Exclude<SessionType, 'legsA' | 'legsB'>; adds: Partial<Record<SessionType, string[]>> }> = {
+  posture: { session: 'pull', adds: { pull: ['ytw'], push: ['rearDelt'], legsB: ['backExt'], core: ['birdDog'], mobility: ['openBook', 'wallAngel'] } },
+  balance: { session: 'core', adds: { legsA: ['balance'], legsB: ['balanceHinge'], core: ['balance', 'stepUp'] } },
+  core: { session: 'core', adds: { legsA: ['hollow'], legsB: ['coreC'], pull: ['coreA'], push: ['coreC'] } },
+  mobility: { session: 'mobility', adds: { legsA: ['hip9090'], legsB: ['hamStretch'], pull: ['openBook'], push: ['worlds'] } },
+  chest: { session: 'push', adds: { push: ['fly', 'push'], pull: ['push'] } },
+  back: { session: 'pull', adds: { pull: ['row2'], push: ['pull'] } },
+  shoulders: { session: 'push', adds: { push: ['lateral', 'rearDelt'], pull: ['press'] } },
+  arms: { session: 'pull', adds: { pull: ['curl', 'triceps'], push: ['triceps', 'curl'] } },
+  glutes: { adds: { legsA: ['hipThrust'], legsB: ['kickback'], core: ['hipThrust'] } },
+}
+
+/** Days past the two leg days, in order: what they asked to focus on first, then the rest. */
+export function extraOrder(focus: Focus[]): Exclude<SessionType, 'legsA' | 'legsB'>[] {
+  const base = ['pull', 'push', 'core', 'mobility'] as const
+  const first = focus.map((f) => FOCUS_ADDS[f].session).filter((x): x is (typeof base)[number] => !!x)
+  return [...new Set([...first, ...base])]
+}
+
+/** A session's slots with the focus slots added, after the main lift(s) so a short session keeps them. */
+function slotsFor(sport: Sport, type: SessionType, focus: Focus[]): string[] {
+  const base = SLOTS[sport][type]
+  const adds = focus.flatMap((f) => FOCUS_ADDS[f].adds[type] ?? [])
+  const at = type === 'legsA' || type === 'legsB' ? (sport === 'run' ? 3 : 2) : type === 'mobility' || type === 'core' ? 0 : 2
+  return [...new Set([...base.slice(0, at), ...adds, ...base.slice(at)])]
+}
 
 type Dose = { main: [number, number]; other: [number, number]; plyo: [number, number]; core: number; drop?: boolean }
 /**
@@ -126,27 +195,30 @@ function dose(phase: WeekPhase, week: number, beginner: boolean): Dose {
   return { main: [2, 5], other: [2, 8], plyo: [2, 6], core: 30, drop: true } // cutback, taper
 }
 
-/** Items a session of `minutes` has room for, about 7 minutes each (heavy sets rest longer; core and hops are quick). */
-const roomFor = (minutes: number) => Math.max(3, Math.min(7, Math.round(minutes / 7.5)))
+/** Items a session of `minutes` has room for: about 7 minutes a lift, 4 a stretch or core hold. */
+const roomFor = (minutes: number, type: SessionType) =>
+  type === 'mobility' || type === 'core' ? Math.max(4, Math.min(9, Math.round(minutes / 5))) : Math.max(3, Math.min(8, Math.round(minutes / 7.5)))
 
-function session(sport: Sport, which: 0 | 1 | 2, phase: WeekPhase, week: number, minutes: number, beginner: boolean): PlannedExercise[] {
+function session(sport: Sport, type: SessionType, phase: WeekPhase, week: number, minutes: number, beginner: boolean, focus: Focus[]): PlannedExercise[] {
   const d = dose(phase, week, beginner)
-  const slots = SESSIONS[sport][which].filter((s) => !(s.startsWith('plyo') || s === 'jump') || d.plyo[0] > 0)
+  const slots = slotsFor(sport, type, focus).filter((s) => !(s.startsWith('plyo') || s === 'jump') || d.plyo[0] > 0)
   const out: PlannedExercise[] = []
   const used = new Set<string>()
   for (const slot of slots) {
-    if (out.length >= roomFor(minutes) - (d.drop ? 1 : 0)) break
+    if (out.length >= roomFor(minutes, type) - (d.drop ? 1 : 0)) break
     const e = pick(beginner && slot === 'hamstring' ? 'hamstringEasy' : slot)
     if (!e || used.has(e.id)) continue
     used.add(e.id)
     const main = slot === 'squat' || slot === 'hinge'
     const plyo = slot.startsWith('plyo') || slot === 'jump'
+    const stretch = e.group === 'Mobility'
     const [sets, reps] = plyo ? d.plyo : main ? d.main : d.other
-    const item: PlannedExercise = { exerciseId: e.id, sets, rest: plyo ? 60 : main ? 150 : 90 }
-    if (e.mode === 'time') { item.seconds = d.core; item.rest = 45 }
-    else item.reps = slot.startsWith('core') ? 10 : slot === 'hamstring' && e.mode === 'reps' ? Math.min(reps, 6) : reps
+    const item: PlannedExercise = { exerciseId: e.id, sets: stretch ? 2 : sets, rest: plyo ? 60 : main ? 150 : 90 }
+    if (stretch) { item.seconds = 45; item.rest = 15 }
+    else if (e.mode === 'time') { item.seconds = d.core; item.rest = 45 }
+    else item.reps = e.group === 'Core' || e.tags?.includes('posture') ? 10 : slot === 'hamstring' && e.mode === 'reps' ? Math.min(reps, 6) : reps
     if (main && d.main[1] <= 5) item.warmupSets = 2 // ramp up to the heavy sets
-    if (d.drop && e.kind === 'strength' && !plyo) item.deload = true
+    if (d.drop && e.kind === 'strength' && !plyo && !stretch) item.deload = true
     out.push(item)
   }
   return out
@@ -156,6 +228,7 @@ export interface StrengthDay {
   date: string
   weekIndex: number
   phase: WeekPhase
+  type: SessionType
   name: string
   after?: PlanSession['kind'] | 'rest'
   /** A day they picked that the plan would avoid: on the long run or race, or the day before a long run or hard session. */
@@ -164,13 +237,16 @@ export interface StrengthDay {
 }
 
 /**
- * Strength days for a run/bike plan, from `from` on, alternating squat and hinge sessions. Each week gets its phase's
- * number of sessions (see sessionsFor). By default on the best days (see `score`), at least two days apart; or on the
- * weekdays they pick (0 = Monday), which are kept even where the plan would avoid them (marked `clash`), the best of
- * them used in lighter weeks.
+ * Strength days for a run/bike plan, from `from` on. Each week gets its phase's number of sessions (see sessionsFor),
+ * every one different: the squat and hinge leg days, then upper pull, upper push, core and balance, mobility (what
+ * they focus on first), the same pattern week to week so the lifts can progress. Leg days go on the best days (see
+ * `score`), at least two days apart; or on the weekdays they pick (0 = Monday), which are kept even where the plan
+ * would avoid them (marked `clash`), the best of them used in lighter weeks.
  */
-export function strengthForPlan(input: { sessions: PlanSession[]; sport: Sport; from: string; perWeek: number; minutes: number; days?: number[] }): StrengthDay[] {
+export function strengthForPlan(input: { sessions: PlanSession[]; sport: Sport; from: string; perWeek: number; minutes: number; days?: number[]; focus?: Focus[] }): StrengthDay[] {
   const { sessions, sport, from, minutes } = input
+  const focus = input.focus ?? []
+  const extras = extraOrder(focus)
   const fixed = input.days?.length ? new Set(input.days) : null
   const perWeek = fixed ? fixed.size : input.perWeek
   const on = new Map(sessions.map((s) => [s.date, s]))
@@ -211,19 +287,27 @@ export function strengthForPlan(input: { sessions: PlanSession[]; sport: Sport; 
     // Leg sessions (two at most): on the best days. Days they picked are theirs, even where the plan would avoid them
     // (never race day), the best of them used first.
     const rank = (d: string) => (fixed ? (score(d) === -Infinity ? (on.get(d)?.kind === 'race' ? -Infinity : -10) : score(d)) : score(d))
-    const legs = choose(Math.min(want, 2), rank, !fixed)
-    // More than two: upper body and core, on another day (a rest day best), not the long run or race.
-    const upperRate = (d: string) => {
+    // Two days apart where the days allow it (even among picked days: back-to-back leg days only if nothing else fits).
+    let legs = choose(Math.min(want, 2), rank, true)
+    if (fixed && legs.length < Math.min(want, 2)) legs = choose(Math.min(want, 2), rank, false)
+    // More than two: sessions that don't tire the legs, each a different one, on other days (rest days best), not the
+    // long run or race unless they picked it.
+    const otherRate = (d: string) => {
       const k = on.get(d)?.kind
       if (legs.includes(d) || k === 'race' || (k === 'long' && !fixed)) return -Infinity
       return (k === 'long' ? 0 : k === 'hard' ? 1 : k ? 2 : 3) - (legs.some((l) => gap(l, d) <= 1) ? 0.5 : 0)
     }
-    const upper = choose(want - legs.length, upperRate, !fixed)
-    for (const d of [...legs, ...upper].sort()) {
-      const which = upper.includes(d) ? 2 : ((turn++ % 2) as 0 | 1)
-      const items = session(sport, which, phase, w, phase === 'taper' ? Math.min(minutes, 30) : minutes, beginner)
-      const c = which < 2 ? clash(d) : undefined
-      out.push({ date: d, weekIndex: w, phase, name: NAMES[which], after: on.get(d)?.kind ?? 'rest', ...(c ? { clash: c } : {}), items })
+    const others = choose(want - legs.length, otherRate, false).sort()
+    const typeOf = new Map<string, SessionType>([
+      // Both leg days: squat then hinge. One: they take turns week to week.
+      ...legs.sort().map((d, i): [string, SessionType] => [d, legs.length === 2 ? (i === 0 ? 'legsA' : 'legsB') : turn++ % 2 === 0 ? 'legsA' : 'legsB']),
+      ...others.map((d, i): [string, SessionType] => [d, extras[i % extras.length]]),
+    ])
+    for (const d of [...legs, ...others].sort()) {
+      const type = typeOf.get(d)!
+      const items = session(sport, type, phase, w, phase === 'taper' ? Math.min(minutes, 30) : minutes, beginner, focus)
+      const c = type === 'legsA' || type === 'legsB' ? clash(d) : undefined
+      out.push({ date: d, weekIndex: w, phase, type, name: SESSION_NAMES[type], after: on.get(d)?.kind ?? 'rest', ...(c ? { clash: c } : {}), items })
     }
   })
   return out

@@ -220,7 +220,7 @@ test('strength made for a run plan: offered with the run plan, previewed week by
   await page.getByRole('button', { name: '2', exact: true }).click()
   await page.getByRole('button', { name: '30 min' }).click()
   const weeks = page.getByRole('list', { name: 'Strength weeks' })
-  await expect(weeks.getByText(/Strength [AB] ·/).first()).toBeVisible()
+  await expect(weeks.getByText(/Legs [AB] ·/).first()).toBeVisible()
   const add = page.getByRole('button', { name: 'Add strength plan' })
   await expect(add).toBeDisabled() // lift or run first, asked first
   await page.getByRole('button', { name: 'Run first' }).click()
@@ -262,7 +262,7 @@ test('a run plan already on the calendar gets strength from My plans', async ({ 
   await expect(page.getByRole('heading', { name: 'Strength for Build mileage plan' })).toBeVisible()
   // Up to four a week; past two they're upper body and core.
   await page.getByRole('button', { name: '4', exact: true }).click()
-  await expect(page.getByText(/Sessions past two are upper body and core/)).toBeVisible()
+  await expect(page.getByText(/Two leg days at most; the others are each different \(upper · pull & posture, upper · push\)/)).toBeVisible()
   // Or their own days: Mon, Wed, Fri, Sat (Saturday is the long run, Friday the day before): kept, and flagged.
   const days = page.getByRole('group', { name: 'Strength days' })
   for (const d of ['Mon', 'Wed', 'Fri', 'Sat']) await days.getByRole('button', { name: d }).click()
@@ -275,4 +275,42 @@ test('a run plan already on the calendar gets strength from My plans', async ({ 
   expect(s.programs.map((p: { title: string }) => p.title)).toEqual(['Build mileage plan', 'Strength for Build mileage plan'])
   const weekdays = new Set(s.programs[1].entries.map((e: { date: string }) => (new Date(`${e.date}T12:00:00`).getDay() + 6) % 7))
   expect([...weekdays].sort()).toEqual([0, 2, 4, 5])
+})
+
+test('4 runs and 5 strength days a week: five different sessions, with the focus they pick', async ({ page }) => {
+  await seed(page, { trainingPrefs: { styles: [], cardio: ['running'], cardioSplit: false } })
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: '+ Add', exact: true }).click()
+  await page.getByRole('button', { name: /Run or ride plan/ }).click()
+  await page.getByRole('button', { name: 'Build mileage' }).click()
+  await page.getByRole('button', { name: '4 days' }).click()
+  await page.getByRole('button', { name: 'Build my plan' }).click()
+  await page.getByRole('button', { name: 'Add to my plan' }).click()
+  await page.getByRole('button', { name: '+ Strength made for it' }).click()
+  const days = page.getByRole('group', { name: 'Strength days' })
+  for (const d of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']) await days.getByRole('button', { name: d }).click()
+  const focus = page.getByRole('group', { name: 'Extra focus' })
+  await focus.getByRole('button', { name: 'Posture' }).click()
+  await focus.getByRole('button', { name: 'Mobility' }).click()
+  await expect(page.getByText(/the others are each different \(upper · pull & posture, mobility, upper · push\)/)).toBeVisible()
+  await page.getByRole('button', { name: 'Lift first' }).click()
+  await page.getByRole('button', { name: 'Add strength plan' }).click()
+
+  const s = await state(page)
+  const lift = s.programs.find((p: { kind: string }) => p.kind === 'program')
+  const byWeek = new Map<string, string[][]>()
+  for (const e of lift.entries as { date: string; exerciseIds: string[] }[]) {
+    const monday = new Date(Date.parse(e.date) - ((new Date(`${e.date}T12:00:00`).getDay() + 6) % 7) * 86400000).toISOString().slice(0, 10)
+    byWeek.set(monday, [...(byWeek.get(monday) ?? []), e.exerciseIds])
+  }
+  const full = [...byWeek.values()].filter((w) => w.length === 5)
+  expect(full.length).toBeGreaterThan(3)
+  for (const week of full) {
+    // No two days in the week the same workout.
+    expect(new Set(week.map((ids) => ids.join())).size).toBe(5)
+    // Posture work and a mobility day.
+    expect(week.flat()).toContain('x-prone-ytw')
+    expect(week.some((ids) => ids.every((id) => id.startsWith('x-') || /Stretch|Circles|Inchworm/.test(id)))).toBe(true)
+  }
 })
