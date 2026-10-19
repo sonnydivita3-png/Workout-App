@@ -20,7 +20,7 @@ import { setCustomExercises } from './lib/randomUtil'
 import { placeWarmups } from './lib/warmups'
 import { workSets } from './lib/progression'
 import { setCardioPrefs } from './lib/cardioPrefs'
-import { activePrograms, addSession, clearRange, layerDays, removeProgramDays } from './lib/programs'
+import { activePrograms, addSession, clearRange, layerDays, orderDay, orderDays, removeProgramDays, type StackOrder } from './lib/programs'
 import { customFields, newCustomId, sameName, usageOf, type CustomExerciseInput } from './lib/customExercises'
 import type {
   AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Benchmark, AboutMe, Sport, TimedLog, StrengthSet, Units, WeekPlan,
@@ -40,6 +40,8 @@ export interface TrainingPrefs {
   goal?: ProgramGoal | null
   /** Their own weekly hard-set target per big muscle, instead of the goal's. */
   setTarget?: number | null
+  /** On days with both a run/bike plan session and lifting: which comes first (asked when two plans share days). */
+  stackOrder?: StackOrder
   /** Their own weekly cardio minutes, instead of the goal's. */
   cardioMinutes?: number | null
   /** Weekly cardio distance to aim for, in miles (optional; no distance target when unset). */
@@ -178,6 +180,8 @@ interface State extends Data {
    * replaces it instead of piling on top.
    */
   startCardioProgram: (p: { sessions: CardioDay[]; sport: Sport; title: string; goalId?: string; replace: boolean; stopSame: boolean; today: string }) => void
+  /** Lift or run first on days with both: saved, and every upcoming day with both put in that order. */
+  setStackOrder: (order: StackOrder, today: string) => void
   /** Remove a program's upcoming days (today on). Logged days stay. Returns how many days changed. */
   stopProgram: (id: string, today: string) => number
   /** Clear planned days in a range back to the weekly plan, keeping logged days. Returns how many days changed. */
@@ -541,8 +545,11 @@ export const useStore = create<State>()(
             id: programId(), kind: 'program', title, createdAt: new Date().toISOString(),
             entries: Object.entries(days).map(([date, items]) => ({ date, exerciseIds: [...new Set(items.map((x) => x.exerciseId))] })),
           }
-          // A run plan underneath stays: its runs are kept on the new plan's days, rest days included.
-          return { overrides: layerDays(days, overrides, programs, program), programs: [...programs, program] }
+          // A run plan underneath stays: its runs are kept on the new plan's days, rest days included, in the order picked.
+          const all = [...programs, program]
+          const layered = layerDays(days, overrides, programs, program)
+          for (const date of Object.keys(days)) layered[date] = orderDay(layered[date], date, all, s.trainingPrefs.stackOrder ?? 'lift')
+          return { overrides: layered, programs: all }
         }),
       startCardioProgram: ({ sessions, sport, title, goalId, replace, stopSame, today }) =>
         set((s) => {
@@ -560,10 +567,13 @@ export const useStore = create<State>()(
           const isCardio = (id: string) => findExercise(s.custom, id)?.kind === 'cardio'
           for (const d of sessions) {
             const item = { ...toPlanned(d, sport)!, plan: program.id }
-            overrides = { ...overrides, [d.date]: replace ? [item] : addSession(dayPlanOf(s.plan, overrides, d.date), item, programs, isCardio) }
+            const day = replace ? [item] : addSession(dayPlanOf(s.plan, overrides, d.date), item, programs, isCardio)
+            overrides = { ...overrides, [d.date]: orderDay(day, d.date, [...programs, program], s.trainingPrefs.stackOrder ?? 'lift') }
           }
           return { overrides, programs: [...programs, program] }
         }),
+      setStackOrder: (order, today) =>
+        set((s) => ({ trainingPrefs: { ...s.trainingPrefs, stackOrder: order }, overrides: orderDays(s.overrides, activePrograms(s.programs, today), order, today) })),
       stopProgram: (id, today) => {
         const s = get()
         const p = s.programs.find((x) => x.id === id)
