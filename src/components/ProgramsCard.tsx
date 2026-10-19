@@ -14,7 +14,7 @@ const RANGES = [
 ] as const
 
 /** Running programs on the Workouts tab: stop or replace them, or clear a stretch of the calendar. */
-export function ProgramsCard({ onReplace }: { onReplace: (kind: Program['kind']) => void }) {
+export function ProgramsCard({ onReplace, onStrength }: { onReplace: (kind: Program['kind']) => void; onStrength?: (programId: string) => void }) {
   const { programs, overrides, logs, stopProgram, clearPlan, trainingPrefs, setStackOrder } = useStore()
   const today = useToday()
   const [stopping, setStopping] = useState<Program | null>(null)
@@ -46,6 +46,9 @@ export function ProgramsCard({ onReplace }: { onReplace: (kind: Program['kind'])
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium">{p.title}</span>
               <span className="block text-xs text-neutral-400">through {fmtShort(last(p))}</span>
+              {onStrength && p.kind === 'cardio' && !active.some((q) => q.supports === p.id) && (
+                <button onClick={() => onStrength(p.id)} className="mt-0.5 text-xs text-accent underline underline-offset-2">+ Strength made for it</button>
+              )}
             </span>
             <button onClick={() => onReplace(p.kind)} className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-600">Replace</button>
             <button onClick={() => setStopping(p)} className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-red-600">Stop</button>

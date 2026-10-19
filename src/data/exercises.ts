@@ -42,6 +42,12 @@ const EXTRAS: Extra[] = [
   ['x-toes-to-bar', 'Toes to Bar', 'Core', 'Bodyweight', 'reps', true, ['crossfit']],
   ['x-air-squat', 'Air Squat', 'Quads', 'Bodyweight', 'reps', true, ['hiit', 'crossfit']],
   ['x-goblet-squat', 'Goblet Squat', 'Quads', 'Kettlebell', 'weight', true, ['hiit']],
+  // Strength for runners (lib/enduranceStrength.ts): ankle and calf stiffness, single-leg strength, the inner thigh.
+  ['x-pogo-jumps', 'Pogo Jumps', 'Calves', 'Bodyweight', 'reps', false, ['plyo']],
+  ['x-single-leg-hops', 'Single-Leg Hops', 'Calves', 'Bodyweight', 'reps', false, ['plyo']],
+  ['x-single-leg-calf-raise', 'Single-Leg Calf Raise', 'Calves', 'Bodyweight', 'reps', true, []],
+  ['x-bulgarian-split-squat', 'Bulgarian Split Squat', 'Quads', 'Dumbbell', 'weight', true, []],
+  ['x-copenhagen-plank', 'Copenhagen Plank', 'Core', 'Bodyweight', 'time', false, []],
   // Dynamic warm-up moves (ids match free-exercise-db). Tag says which half they warm.
   ['Arm_Circles', 'Arm Circles', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'upper']],
   ['Shoulder_Circles', 'Shoulder Circles', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'upper']],
@@ -183,8 +189,9 @@ for (const e of EXERCISES) {
   taken.add(short.toLowerCase())
 }
 
-// The library is kept to 500 everyday exercises. The rest of the dataset (strongman events, sport drills, band-and-chain
-// variations, near-duplicates) is retired: never offered, but still known, so old workouts and plans keep their names.
+// The library keeps 500 everyday exercises from the dataset, plus the extras above. The rest of the dataset (strongman
+// events, sport drills, band-and-chain variations, near-duplicates) is retired: never offered, but still known, so old
+// workouts and plans keep their names.
 const RETIRED = new Set<string>(retired)
 for (const e of EXERCISES) if (RETIRED.has(e.id)) e.retired = true
 

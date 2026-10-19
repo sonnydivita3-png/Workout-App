@@ -1,4 +1,4 @@
-import type { PlannedExercise, Sport, Units } from '../types'
+import type { PlannedExercise, Sport, Units, WeekPhase } from '../types'
 import { BIKE_EVENTS, RUN_EVENTS, findEvent, type CardioEvent } from './cardioEvents'
 import { addDays, parseISO, toISO, weekdayIndex } from './dates'
 import { formatDuration, parseDuration, trainingPaces, type TrainingPaces } from './paces'
@@ -6,7 +6,7 @@ import { formatPace, showDistance } from './units'
 
 export type PlanLevel = 'beginner' | 'intermediate' | 'advanced'
 export type Role = 'long' | 'quality' | 'medium' | 'quality2' | 'easy'
-export type WeekPhase = 'base' | 'build' | 'peak' | 'cutback' | 'taper' | 'race'
+export type { WeekPhase }
 
 export interface CardioPlanInput {
   eventId: string

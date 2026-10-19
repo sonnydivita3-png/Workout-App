@@ -76,14 +76,14 @@ export function CardioGoalForm({ onDone }: { onDone: () => void }) {
       weeks: ev.weeks[Math.floor(ev.weeks.length / 2)], raceDate: date || undefined, units,
     })
     const sessions = plan.days.filter((d) => d.role)
-    return { error: sessions.length === 0 ? plan.warnings[0] ?? 'Couldn’t build a plan for that date.' : null, sessions, weeks: plan.weeks.length, start: sessions[0]?.date }
+    return { error: sessions.length === 0 ? plan.warnings[0] ?? 'Couldn’t build a plan for that date.' : null, sessions, weeks: plan.weeks.length, phases: plan.weeks.map((w) => w.phase), start: sessions[0]?.date }
   })()
   const runningPlan = activePrograms(programs, today).find((p) => p.kind === 'cardio' && p.sport === specific)
 
   const save = () => {
     const goalId = addGoal(goal!)
     if (planPreview && planPreview.sessions.length > 0) {
-      startCardioProgram({ sessions: planPreview.sessions, sport: specific, title: `${ev.label} plan`, goalId, replace: false, stopSame: true, today })
+      startCardioProgram({ sessions: planPreview.sessions, sport: specific, title: `${ev.label} plan`, goalId, replace: false, stopSame: true, today, phases: planPreview.phases })
     }
     onDone()
   }

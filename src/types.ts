@@ -194,6 +194,9 @@ export type Goal =
   | { id: string; type: 'cardio-pace'; sport: Sport; minDistance: number; target: number }
   | { id: string; type: 'race'; sport: Sport; label: string; distance: number; date?: string }
 
+/** Where a week sits in a run/bike plan. */
+export type WeekPhase = 'base' | 'build' | 'peak' | 'cutback' | 'taper' | 'race'
+
 /** A plan that was added to the calendar in one go, so it can be stopped or replaced as a unit. */
 export interface Program {
   id: string
@@ -206,9 +209,12 @@ export interface Program {
   /**
    * The dates it wrote and what it put on each, so stopping it removes only its own exercises and leaves another plan's
    * (a run plan under a lifting plan) in place. Cardio entries name their run/ride; week/month entries list their
-   * exercises ([] on a rest day). Entries from before that have neither and owned the whole day.
+   * exercises ([] on a rest day). Entries from before that have neither and owned the whole day. Run/bike plan entries
+   * also keep their week's phase (base, build, taper…), for a strength plan made to fit it.
    */
-  entries: { date: string; exerciseId?: string; exerciseIds?: string[] }[]
+  entries: { date: string; exerciseId?: string; exerciseIds?: string[]; phase?: WeekPhase }[]
+  /** A strength plan made for a run/bike plan: that plan's id. */
+  supports?: string
 }
 
 export type NewGoal = Goal extends infer G ? (G extends Goal ? Omit<G, 'id'> : never) : never

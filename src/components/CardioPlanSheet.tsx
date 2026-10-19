@@ -27,7 +27,8 @@ const h3 = 'mb-2 text-sm font-semibold text-neutral-700'
 
 interface Props {
   onClose: () => void
-  onApplied: (firstDate: string) => void
+  /** `strength`: the new plan's id, when they want a strength plan made for it next. */
+  onApplied: (firstDate: string, strength?: string) => void
 }
 
 export function CardioPlanSheet({ onClose, onApplied }: Props) {
@@ -50,6 +51,7 @@ export function CardioPlanSheet({ onClose, onApplied }: Props) {
   const [addRaceGoal, setAddRaceGoal] = useState(true)
   const [replace, setReplace] = useState(false)
   const [stopOld, setStopOld] = useState(true)
+  const [withStrength, setWithStrength] = useState(false)
   const [order, setOrder] = useState<StackOrder | undefined>(trainingPrefs.stackOrder)
   const [openWeek, setOpenWeek] = useState<number | null>(0)
   const [openDay, setOpenDay] = useState<string | null>(null)
@@ -236,8 +238,8 @@ export function CardioPlanSheet({ onClose, onApplied }: Props) {
     let goalId = goals.find((g) => g.type === 'race' && g.label === goalLabel && g.date === goalDate)?.id
     if (addRaceGoal && ev.miles && !goalExists) goalId = addGoal({ type: 'race', sport, label: goalLabel, distance: c25k ? 3.107 : ev.miles, ...(goalDate ? { date: goalDate } : {}) })
     if (shared > 0 && order) setTrainingPrefs({ stackOrder: order })
-    startCardioProgram({ sessions, sport, title: `${ev.label} plan`, goalId, replace, stopSame: stopOld && running.length > 0, today })
-    onApplied(sessions[0].date)
+    const id = startCardioProgram({ sessions, sport, title: `${ev.label} plan`, goalId, replace, stopSame: stopOld && running.length > 0, today, phases: result.weeks.map((w) => w.phase) })
+    onApplied(sessions[0].date, withStrength ? id : undefined)
     onClose()
   }
 
@@ -315,9 +317,16 @@ export function CardioPlanSheet({ onClose, onApplied }: Props) {
               Stop my current {running[0].title} and replace it
             </label>
           )}
-          <label className="mb-3 flex items-center gap-3 text-sm">
+          <label className="mb-2 flex items-center gap-3 text-sm">
             <input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} className="h-4 w-4" />
             Replace exercises already planned on these days
+          </label>
+          <label className="mb-3 flex items-start gap-3 text-sm">
+            <input type="checkbox" checked={withStrength} onChange={(e) => setWithStrength(e.target.checked)} className="mt-0.5 h-4 w-4" />
+            <span>
+              Then build strength training made for this plan
+              <span className="block text-xs text-neutral-400">Fewer sessions as the race gets close, never before your long {sport === 'run' ? 'run' : 'ride'} or a hard day. You’ll see it before it’s added.</span>
+            </span>
           </label>
           <p className="mb-4 text-xs text-neutral-400">
             Adds {sessions.length} {sport === 'run' ? 'runs' : 'rides'} to your calendar.

@@ -9,6 +9,7 @@ import { WodBuilderSheet } from './WodBuilderSheet'
 import { BenchmarkSheet } from './BenchmarkSheet'
 import { ProgramsCard } from './ProgramsCard'
 import { CardioPlanSheet } from './CardioPlanSheet'
+import { StrengthForPlanSheet } from './StrengthForPlanSheet'
 import { ProgramSheet } from './ProgramSheet'
 import { RandomizerSheet } from './RandomizerSheet'
 import type { GeneratorMode } from './ModeSwitch'
@@ -41,6 +42,8 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
   const [arranging, setArranging] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [generator, setGenerator] = useState<GeneratorMode | null>(null)
+  // A strength plan to build for this run/bike plan (by id): from My plans, or right after adding the run plan.
+  const [strengthFor, setStrengthFor] = useState<string | null>(null)
   // The optional rest countdown belongs to the day it started on.
   const [restTimer, setRestTimer] = useState<{ date: string; until: number } | null>(null)
   const s = useStore()
@@ -94,7 +97,7 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
         </div>
       </div>
 
-      <ProgramsCard onReplace={(kind) => setGenerator(kind === 'cardio' ? 'cardio' : 'program')} />
+      <ProgramsCard onReplace={(kind) => setGenerator(kind === 'cardio' ? 'cardio' : 'program')} onStrength={setStrengthFor} />
 
       <section data-tour="day" className="mt-3 space-y-3">
         {planned.length === 0 && rest && (
@@ -174,6 +177,13 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
       {generator === 'cardio' && (
         <CardioPlanSheet
           onClose={() => setGenerator(null)}
+          onApplied={(first, strength) => { setAnchor(parseISO(first)); setDay(weekdayIndex(parseISO(first))); if (strength) setStrengthFor(strength) }}
+        />
+      )}
+      {strengthFor && (
+        <StrengthForPlanSheet
+          programId={strengthFor}
+          onClose={() => setStrengthFor(null)}
           onApplied={(first) => { setAnchor(parseISO(first)); setDay(weekdayIndex(parseISO(first))) }}
         />
       )}

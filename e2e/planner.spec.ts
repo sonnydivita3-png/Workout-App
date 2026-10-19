@@ -200,3 +200,68 @@ test('a run plan added on top of a lifting month asks lift or run first too', as
   expect(both.length).toBeGreaterThan(3)
   expect(both.every((d) => d.at(-1)!.plan === run)).toBe(true)
 })
+
+test('strength made for a run plan: offered with the run plan, previewed week by week, placed around the runs', async ({ page }) => {
+  await seed(page, { trainingPrefs: { styles: [], cardio: ['running'], cardioSplit: false } })
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: '+ Add', exact: true }).click()
+  await page.getByRole('button', { name: /Run or ride plan/ }).click()
+  await page.getByRole('button', { name: 'Half marathon' }).click()
+  await page.getByRole('button', { name: 'Build my plan' }).click()
+  await page.getByText('Then build strength training made for this plan').click()
+  await page.getByRole('button', { name: 'Add to my plan' }).click()
+
+  // The strength sheet opens next, with what it does and a look at each week.
+  await expect(page.getByRole('heading', { name: 'Strength for Half marathon plan' })).toBeVisible()
+  await expect(page.getByText(/2 a week while you build, 1 a week near race time/)).toBeVisible()
+  await page.getByRole('button', { name: '1', exact: true }).click()
+  await expect(page.getByText(/1 a week while you build/)).toBeVisible()
+  await page.getByRole('button', { name: '2', exact: true }).click()
+  await page.getByRole('button', { name: '30 min' }).click()
+  const weeks = page.getByRole('list', { name: 'Strength weeks' })
+  await expect(weeks.getByText(/Strength [AB] ·/).first()).toBeVisible()
+  const add = page.getByRole('button', { name: 'Add strength plan' })
+  await expect(add).toBeDisabled() // lift or run first, asked first
+  await page.getByRole('button', { name: 'Run first' }).click()
+  await add.click()
+
+  const s = await state(page)
+  const run = s.programs.find((p: { kind: string }) => p.kind === 'cardio')
+  const lift = s.programs.find((p: { kind: string }) => p.kind === 'program')
+  expect(lift.title).toBe('Strength for Half marathon plan')
+  expect(lift.supports).toBe(run.id)
+  expect(run.entries.every((e: { phase?: string }) => e.phase)).toBe(true)
+  const longRuns = new Set(Object.entries(s.overrides as Record<string, { plan?: string; note?: string }[]>)
+    .filter(([, d]) => d.some((x) => x.plan === run.id && /^Long run/.test(x.note ?? ''))).map(([date]) => date))
+  const liftDates = lift.entries.map((e: { date: string }) => e.date)
+  expect(liftDates.length).toBeGreaterThan(10)
+  for (const d of liftDates) {
+    expect(longRuns.has(d)).toBe(false)
+    const next = new Date(Date.parse(d) + 86400000).toISOString().slice(0, 10)
+    expect(longRuns.has(next)).toBe(false)
+    const day = s.overrides[d] as { plan?: string }[]
+    if (day.some((x) => x.plan === run.id)) expect(day[0].plan).toBe(run.id) // run first
+  }
+  // My plans: both, and no second offer of strength for this run plan.
+  await expect(page.getByRole('heading', { name: 'My plans' })).toBeVisible()
+  await expect(page.getByText('Strength for Half marathon plan')).toBeVisible()
+  await expect(page.getByRole('button', { name: '+ Strength made for it' })).toHaveCount(0)
+})
+
+test('a run plan already on the calendar gets strength from My plans', async ({ page }) => {
+  await seed(page, { trainingPrefs: { styles: [], cardio: ['running'], cardioSplit: false } })
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: '+ Add', exact: true }).click()
+  await page.getByRole('button', { name: /Run or ride plan/ }).click()
+  await page.getByRole('button', { name: 'Build mileage' }).click()
+  await page.getByRole('button', { name: 'Build my plan' }).click()
+  await page.getByRole('button', { name: 'Add to my plan' }).click()
+  await page.getByRole('button', { name: '+ Strength made for it' }).click()
+  await expect(page.getByRole('heading', { name: 'Strength for Build mileage plan' })).toBeVisible()
+  await page.getByRole('button', { name: 'Lift first' }).click()
+  await page.getByRole('button', { name: 'Add strength plan' }).click()
+  const s = await state(page)
+  expect(s.programs.map((p: { title: string }) => p.title)).toEqual(['Build mileage plan', 'Strength for Build mileage plan'])
+})

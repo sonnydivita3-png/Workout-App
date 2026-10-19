@@ -23,7 +23,7 @@ import { setCardioPrefs } from './lib/cardioPrefs'
 import { activePrograms, addSession, clearRange, layerDays, orderDay, orderDays, removeProgramDays, type StackOrder } from './lib/programs'
 import { customFields, newCustomId, sameName, usageOf, type CustomExerciseInput } from './lib/customExercises'
 import type {
-  AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Benchmark, AboutMe, Sport, TimedLog, StrengthSet, Units, WeekPlan,
+  AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Benchmark, AboutMe, Sport, TimedLog, StrengthSet, Units, WeekPlan, WeekPhase,
 } from './types'
 
 export interface TrainingPrefs {
@@ -174,12 +174,12 @@ interface State extends Data {
    * Add a random week/month program. Any earlier week/month program still running is stopped first; a run/bike plan
    * stays, its runs kept alongside the new plan's days.
    */
-  startProgram: (days: PlanOverrides, title: string, today: string) => void
+  startProgram: (days: PlanOverrides, title: string, today: string, supports?: string) => void
   /**
    * Add a run/bike training plan. `stopSame` first stops any plan still running for the same sport, so a new plan
    * replaces it instead of piling on top.
    */
-  startCardioProgram: (p: { sessions: CardioDay[]; sport: Sport; title: string; goalId?: string; replace: boolean; stopSame: boolean; today: string }) => void
+  startCardioProgram: (p: { sessions: CardioDay[]; sport: Sport; title: string; goalId?: string; replace: boolean; stopSame: boolean; today: string; phases?: WeekPhase[] }) => string
   /** Lift or run first on days with both: saved, and every upcoming day with both put in that order. */
   setStackOrder: (order: StackOrder, today: string) => void
   /** Remove a program's upcoming days (today on). Logged days stay. Returns how many days changed. */
@@ -533,7 +533,7 @@ export const useStore = create<State>()(
           }
           return { overrides: next }
         }),
-      startProgram: (days, title, today) =>
+      startProgram: (days, title, today, supports) =>
         set((s) => {
           let overrides = s.overrides
           let programs = s.programs
@@ -542,7 +542,7 @@ export const useStore = create<State>()(
             overrides = removeProgramDays(p, overrides, s.logs, today, programs).overrides
           }
           const program: Program = {
-            id: programId(), kind: 'program', title, createdAt: new Date().toISOString(),
+            id: programId(), kind: 'program', title, createdAt: new Date().toISOString(), ...(supports ? { supports } : {}),
             entries: Object.entries(days).map(([date, items]) => ({ date, exerciseIds: [...new Set(items.map((x) => x.exerciseId))] })),
           }
           // A run plan underneath stays: its runs are kept on the new plan's days, rest days included, in the order picked.
@@ -551,7 +551,8 @@ export const useStore = create<State>()(
           for (const date of Object.keys(days)) layered[date] = orderDay(layered[date], date, all, s.trainingPrefs.stackOrder ?? 'lift')
           return { overrides: layered, programs: all }
         }),
-      startCardioProgram: ({ sessions, sport, title, goalId, replace, stopSame, today }) =>
+      startCardioProgram: ({ sessions, sport, title, goalId, replace, stopSame, today, phases }) => {
+        const id = programId()
         set((s) => {
           let overrides = s.overrides
           const stopped = new Set<string>()
@@ -562,7 +563,10 @@ export const useStore = create<State>()(
             }
           }
           const exerciseId = sport === 'run' ? 'running' : 'cycling'
-          const program: Program = { id: programId(), kind: 'cardio', title, sport, goalId, createdAt: new Date().toISOString(), entries: sessions.map((d) => ({ date: d.date, exerciseId })) }
+          const program: Program = {
+            id, kind: 'cardio', title, sport, goalId, createdAt: new Date().toISOString(),
+            entries: sessions.map((d) => ({ date: d.date, exerciseId, ...(phases?.[d.weekIndex] ? { phase: phases[d.weekIndex] } : {}) })),
+          }
           const programs = s.programs.filter((p) => !stopped.has(p.id))
           const isCardio = (id: string) => findExercise(s.custom, id)?.kind === 'cardio'
           for (const d of sessions) {
@@ -571,7 +575,9 @@ export const useStore = create<State>()(
             overrides = { ...overrides, [d.date]: orderDay(day, d.date, [...programs, program], s.trainingPrefs.stackOrder ?? 'lift') }
           }
           return { overrides, programs: [...programs, program] }
-        }),
+        })
+        return id
+      },
       setStackOrder: (order, today) =>
         set((s) => ({ trainingPrefs: { ...s.trainingPrefs, stackOrder: order }, overrides: orderDays(s.overrides, activePrograms(s.programs, today), order, today) })),
       stopProgram: (id, today) => {

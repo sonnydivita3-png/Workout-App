@@ -52,7 +52,8 @@ describe('the closest exercises, when nothing has every word', () => {
 
   it('get past extra words and other names', () => {
     expect(closest('seated cable row machine')[0]).toBe('Seated Cable Row')
-    expect(closest('bulgarian split squat')[0]).toBe('Dumbbell Split Squat')
+    expect(closest('split squats dumbbell bench')[0]).toBe('Dumbbell Split Squat')
+    expect(closest('stationary lunge dumbbells')[0]).toBe('Dumbbell Lunges')
     expect(closest('farmers walk')[0]).toBe('Farmer\'s Carry')
     expect(closest('chinups weighted')[0]).toBe('Chin-Up')
     expect(closest('bicep curl with dumbells')[0]).toBe('Dumbbell Curl')
