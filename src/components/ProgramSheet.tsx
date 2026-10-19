@@ -106,7 +106,9 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
   const perMuscle = perMuscleOf(trainingPrefs.perMuscle)
   // "Keep adding exercises" (Settings → Workouts) means no limit per muscle here too.
   const noLimit = extraTimeOf(trainingPrefs.extraTime) === 'more'
-  const dayOptions: DayOptions = { warmup: defaultWarmup(genPrefs.warmup, true, genPrefs.warmMinutes), rest: genPrefs.rest, dropSets: !!genPrefs.drops, reps, sets: setScheme, deload, perMuscle, capVolume: !noLimit }
+  // A run/bike plan they're on is their cardio: this plan goes on top of it with no cardio days or finishers of its own.
+  const underneath = onUse ? [] : activePrograms(programs, today).filter((p) => p.kind === 'cardio')
+  const dayOptions: DayOptions = { warmup: defaultWarmup(genPrefs.warmup, true, genPrefs.warmMinutes), rest: genPrefs.rest, dropSets: !!genPrefs.drops, reps, sets: setScheme, deload, perMuscle, capVolume: !noLimit, noCardio: underneath.length > 0 }
 
   const build = () => {
     setGenPrefs({ plan: { reps, sets: setScheme, deload, keepLifts } })
@@ -289,8 +291,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
 
   const runningProgram = activePrograms(programs, today).find((p) => p.kind === 'program')
   const workouts = result.filter((d) => !d.rest)
-  // A run/bike plan stays underneath: its sessions are kept on these days, and only the rest of a day is replaced.
-  const underneath = activePrograms(programs, today).filter((p) => p.kind === 'cardio')
+  // The run/bike plan stays underneath: its sessions are kept on these days, and only the rest of a day is replaced.
   const kept = (date: string) => keptItems(overrides, underneath, date).length
   const existing = result.filter((d) => dayPlanOf(plan, overrides, d.date).length > kept(d.date)).length
   const keptDays = result.filter((d) => kept(d.date) > 0).length
@@ -415,9 +416,11 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
           This replaces the plan on {existing} day{existing === 1 ? '' : 's'} that already have exercises. Your logged workouts are not affected.
         </p>
       )}
-      {!onUse && keptDays > 0 && (
+      {!onUse && underneath.length > 0 && (
         <p className="mt-2 text-xs text-neutral-500">
-          {underneath.map((p) => `“${p.title}”`).join(' and ')} stay{underneath.length === 1 ? 's' : ''} on your calendar: its sessions on {keptDays} day{keptDays === 1 ? '' : 's'} are kept alongside this plan.
+          {underneath.map((p) => `“${p.title}”`).join(' and ')} stay{underneath.length === 1 ? 's' : ''} on your calendar
+          {keptDays > 0 && `, with its sessions on ${keptDays} day${keptDays === 1 ? '' : 's'} kept alongside this plan`}.
+          {' '}It’s your cardio, so this plan adds no cardio days or finishers of its own.
         </p>
       )}
       {!onUse && runningProgram && <p className="mt-2 text-xs text-neutral-500">Your current lifting program “{runningProgram.title}” will be stopped and replaced.</p>}

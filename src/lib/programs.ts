@@ -1,4 +1,4 @@
-import type { ExerciseLog, PlanOverrides, Program } from '../types'
+import type { ExerciseLog, PlanOverrides, PlannedExercise, Program } from '../types'
 import { hasData } from './stats'
 
 /** A program is active while any of its days is today or later. */
@@ -19,7 +19,7 @@ export function stoppableEntries(p: Program, logs: ExerciseLog[], from: string) 
   return p.entries.filter((e) => e.date >= from && !logged(logs, e.date, ownIds(e)))
 }
 
-/** What other plans put on a date (a run plan's run), by exercise id, or null if no other plan has that date. */
+/** What other plans put on a date by exercise id (older plans, before items were tagged), or null if no other plan has that date. */
 function othersOn(programs: Program[], date: string, not?: Program): Set<string> | null {
   let ids: Set<string> | null = null
   for (const q of programs) {
@@ -29,6 +29,10 @@ function othersOn(programs: Program[], date: string, not?: Program): Set<string>
   }
   return ids
 }
+
+/** Whether another of `programs` put this item on `date`: by its tag, or for an untagged (older) item, by exercise id. */
+const fromOther = (x: PlannedExercise, programs: Program[], others: Set<string> | null, self?: Program) =>
+  x.plan ? x.plan !== self?.id && programs.some((q) => q.id === x.plan) : !!others?.has(x.exerciseId)
 
 /**
  * Remove a program's upcoming days from the calendar: only what it put there, so anything else planned that day (a run
@@ -43,8 +47,10 @@ export function removeProgramDays(p: Program, overrides: PlanOverrides, logs: Ex
     if (!day) continue
     const own = ownIds(e)
     const others = othersOn(programs, e.date, p)
-    // An older whole-day entry keeps only what another plan put there.
-    const rest = day.filter((x) => (own ? !own.includes(x.exerciseId) : others?.has(x.exerciseId)))
+    // Tagged items go by their tag. An untagged one is this plan's if it's one of the exercises it put there (an older
+    // whole-day entry: anything) and no other plan claims that exercise on that day.
+    const mine = (x: PlannedExercise) => (x.plan ? x.plan === p.id : (!own || own.includes(x.exerciseId)) && !others?.has(x.exerciseId))
+    const rest = day.filter((x) => !mine(x))
     if (rest.length === day.length && (rest.length > 0 || others)) continue
     if (rest.length === 0 && !others) delete next[e.date]
     else next[e.date] = rest
@@ -56,20 +62,29 @@ export function removeProgramDays(p: Program, overrides: PlanOverrides, logs: Ex
 /** What another plan (a run plan's run) has on a date, which a new week/month plan keeps there. */
 export const keptItems = (overrides: PlanOverrides, programs: Program[], date: string, self?: Program) => {
   const others = othersOn(programs, date, self)
-  return (overrides[date] ?? []).filter((x) => others?.has(x.exerciseId))
+  return (overrides[date] ?? []).filter((x) => fromOther(x, programs, others, self))
 }
 
 /**
- * Put a week/month plan's days on the calendar on top of the other plans: each date gets the new plan's exercises,
- * then keeps what another plan (a run plan) put there. A rest day in the new plan keeps those too.
+ * Put a week/month plan's days on the calendar on top of the other plans: each date gets the new plan's exercises
+ * (tagged with its id), then keeps everything another plan (a run plan) put there. A rest day keeps those too.
  */
 export function layerDays(days: PlanOverrides, overrides: PlanOverrides, programs: Program[], self: Program): PlanOverrides {
   const next = { ...overrides }
-  for (const [date, items] of Object.entries(days)) {
-    const mine = new Set(items.map((x) => x.exerciseId))
-    next[date] = [...items, ...keptItems(overrides, programs, date, self).filter((x) => !mine.has(x.exerciseId))]
-  }
+  for (const [date, items] of Object.entries(days)) next[date] = [...items.map((x) => ({ ...x, plan: self.id })), ...keptItems(overrides, programs, date, self)]
   return next
+}
+
+/**
+ * A run or ride from a run/bike plan going on a day: it replaces any run or ride already planned there (a run you added
+ * by hand) and a lifting plan's own cardio (its finisher or cardio-day session: the run plan is the cardio now), and
+ * keeps everything else. `isCardio` says whether an exercise is cardio.
+ */
+export function addSession(day: PlannedExercise[], item: PlannedExercise, programs: Program[], isCardio: (id: string) => boolean): PlannedExercise[] {
+  const lifting = new Set(programs.filter((q) => q.kind === 'program').map((q) => q.id))
+  const replaced = (x: PlannedExercise) =>
+    x.plan && lifting.has(x.plan) ? !x.warmup && !x.block && isCardio(x.exerciseId) : x.exerciseId === item.exerciseId
+  return [...day.filter((x) => !replaced(x)), item]
 }
 
 /** Clear planned days in a date range back to the weekly plan, keeping any day with something logged. */

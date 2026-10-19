@@ -20,7 +20,7 @@ import { setCustomExercises } from './lib/randomUtil'
 import { placeWarmups } from './lib/warmups'
 import { workSets } from './lib/progression'
 import { setCardioPrefs } from './lib/cardioPrefs'
-import { activePrograms, clearRange, layerDays, removeProgramDays } from './lib/programs'
+import { activePrograms, addSession, clearRange, layerDays, removeProgramDays } from './lib/programs'
 import { customFields, newCustomId, sameName, usageOf, type CustomExerciseInput } from './lib/customExercises'
 import type {
   AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Benchmark, AboutMe, Sport, TimedLog, StrengthSet, Units, WeekPlan,
@@ -554,14 +554,15 @@ export const useStore = create<State>()(
               overrides = removeProgramDays(p, overrides, s.logs, today, s.programs.filter((x) => !stopped.has(x.id))).overrides
             }
           }
-          const items = Object.fromEntries(sessions.map((d) => [d.date, toPlanned(d, sport)!]))
-          for (const [date, item] of Object.entries(items)) {
-            const existing = dayPlanOf(s.plan, overrides, date)
-            overrides = { ...overrides, [date]: replace ? [item] : [...existing.filter((p) => p.exerciseId !== item.exerciseId), item] }
-          }
           const exerciseId = sport === 'run' ? 'running' : 'cycling'
           const program: Program = { id: programId(), kind: 'cardio', title, sport, goalId, createdAt: new Date().toISOString(), entries: sessions.map((d) => ({ date: d.date, exerciseId })) }
-          return { overrides, programs: [...s.programs.filter((p) => !stopped.has(p.id)), program] }
+          const programs = s.programs.filter((p) => !stopped.has(p.id))
+          const isCardio = (id: string) => findExercise(s.custom, id)?.kind === 'cardio'
+          for (const d of sessions) {
+            const item = { ...toPlanned(d, sport)!, plan: program.id }
+            overrides = { ...overrides, [d.date]: replace ? [item] : addSession(dayPlanOf(s.plan, overrides, d.date), item, programs, isCardio) }
+          }
+          return { overrides, programs: [...programs, program] }
         }),
       stopProgram: (id, today) => {
         const s = get()
