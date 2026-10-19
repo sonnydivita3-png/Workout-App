@@ -48,6 +48,19 @@ const EXTRAS: Extra[] = [
   ['x-single-leg-calf-raise', 'Single-Leg Calf Raise', 'Calves', 'Bodyweight', 'reps', true, []],
   ['x-bulgarian-split-squat', 'Bulgarian Split Squat', 'Quads', 'Dumbbell', 'weight', true, []],
   ['x-copenhagen-plank', 'Copenhagen Plank', 'Core', 'Bodyweight', 'time', false, []],
+  // Posture, balance, core and mobility work for the strength plans' focus options. Stretches are tagged 'stretch', not
+  // 'mobility', so they never turn up in a dynamic warm-up.
+  ['x-bird-dog', 'Bird Dog', 'Core', 'Bodyweight', 'reps', false, ['balance']],
+  ['x-hollow-hold', 'Hollow Hold', 'Core', 'Bodyweight', 'time', false, []],
+  ['x-single-leg-balance', 'Single-Leg Balance', 'Core', 'Bodyweight', 'time', false, ['balance']],
+  ['x-prone-ytw', 'Prone Y-T-W Raise', 'Shoulders', 'Bodyweight', 'reps', false, ['posture']],
+  ['x-wall-angel', 'Wall Angel', 'Shoulders', 'Bodyweight', 'reps', false, ['posture']],
+  ['x-hip-90-90', 'Hip 90/90 Switch', 'Mobility', 'Bodyweight', 'time', false, ['stretch']],
+  ['x-pigeon-stretch', 'Pigeon Stretch', 'Mobility', 'Bodyweight', 'time', false, ['stretch']],
+  ['x-couch-stretch', 'Couch Stretch (hip flexors)', 'Mobility', 'Bodyweight', 'time', false, ['stretch']],
+  ['x-open-book', 'Open Book (upper back rotation)', 'Mobility', 'Bodyweight', 'time', false, ['stretch']],
+  ['x-calf-stretch', 'Calf Stretch', 'Mobility', 'Bodyweight', 'time', false, ['stretch']],
+  ['x-hamstring-stretch', 'Hamstring Stretch', 'Mobility', 'Bodyweight', 'time', false, ['stretch']],
   // Dynamic warm-up moves (ids match free-exercise-db). Tag says which half they warm.
   ['Arm_Circles', 'Arm Circles', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'upper']],
   ['Shoulder_Circles', 'Shoulder Circles', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'upper']],
