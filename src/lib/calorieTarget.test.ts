@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { cardioMet, effortLabel, fitCardio, setCardioPace, metForRate, perMinute, planForCalories, planWithin, recentSpeed, setCardioEffort, STYLE_MET, styleFor, WARMUP_MET, workoutCalories } from './calorieTarget'
+import { cardioMet, effortLabel, fitCardio, liftMet, setCardioPace, metForRate, perMinute, planForCalories, planWithin, recentSpeed, setCardioEffort, STYLE_MET, styleFor, WARMUP_MET, workoutCalories } from './calorieTarget'
 import { speedForMet } from './calories'
 import type { PlannedExercise } from '../types'
+import { BY_ID } from './randomUtil'
 
 const LB = 80 / 0.45359237 // 80 kg
 const rate = (met: number) => perMinute(met, LB, '2026-10-23')
@@ -9,7 +10,7 @@ const rate = (met: number) => perMinute(met, LB, '2026-10-23')
 describe('a workout for a calorie target', () => {
   it('net calories a minute: (MET − 1) × kg / 60 without personal details', () => {
     expect(rate(8)).toBeCloseTo((7 * 80) / 60, 5) // running at a usual pace: about 9.3 a minute
-    expect(rate(STYLE_MET.standard)).toBeCloseTo((2.5 * 80) / 60, 5) // lifting: about 3.3 a minute
+    expect(rate(3.5)).toBeCloseTo((2.5 * 80) / 60, 5) // light lifting (8-15 reps, multiple exercises): about 3.3 a minute
   })
 
   it('lifting keeps its minutes and the cardio makes up the rest', () => {
@@ -17,9 +18,9 @@ describe('a workout for a calorie target', () => {
     const plan = planForCalories(1000, [{ key: 'warmup', met: WARMUP_MET, minutes: 5 }, { key: 'standard', met: STYLE_MET.standard, minutes: 45 }, { key: 'cardio', met: run, minutes: 15 }], rate, 'cardio')
     expect(plan.minutes.warmup).toBe(5)
     expect(plan.minutes.standard).toBe(45)
-    // 5 min warm-up ≈ 15, 45 min lifting ≈ 150, so about 835 from running at ≈ 9.3 a minute: ≈ 90 minutes.
-    expect(plan.minutes.cardio).toBe(90)
-    expect(plan.totalMinutes).toBe(140)
+    // 5 min warm-up ≈ 15, 45 min lifting (MET 4.5) ≈ 210, so about 775 from running at ≈ 9.3 a minute: ≈ 85 minutes.
+    expect(plan.minutes.cardio).toBe(85)
+    expect(plan.totalMinutes).toBe(135)
     expect(Math.abs(plan.totalKcal - 1000)).toBeLessThan(50)
   })
 
@@ -73,7 +74,7 @@ describe('a workout for a calorie target', () => {
       expect(plan.totalMinutes).toBe(90)
       expect(Math.abs(plan.totalKcal - 1000)).toBeLessThan(5)
       const mph = speedForMet('running', plan.needMet!)!
-      expect(mph).toBeGreaterThan(10) // under 6:00 a mile for 45 minutes: not realistic for most
+      expect(mph).toBeGreaterThan(9.5) // about 6:00 a mile for 45 minutes: not realistic for most
       const harder = planWithin(1000, 90, parts(STYLE_MET.supersets), rate, metOf, 'cardio')
       expect(speedForMet('running', harder.needMet!)!).toBeLessThan(mph)
       // At an easy usual pace (MET 8), what it really takes: much longer.
@@ -82,8 +83,8 @@ describe('a workout for a calorie target', () => {
 
     it('lifting only: the style it takes, or none when no lifting burns that much', () => {
       const lift = (target: number, limit: number) => planWithin(target, limit, [{ key: 'warmup', met: WARMUP_MET, minutes: 5 }, { key: 'standard', met: STYLE_MET.standard, minutes: 40 }], rate, metOf)
-      expect(styleFor(lift(180, 60).needMet!)).toBe('standard')
-      expect(styleFor(lift(250, 60).needMet!)).toBe('supersets')
+      expect(styleFor(lift(250, 60).needMet!)).toBe('standard')
+      expect(styleFor(lift(330, 60).needMet!)).toBe('supersets')
       expect(styleFor(lift(500, 60).needMet!)).toBe('circuit')
       expect(styleFor(lift(1000, 60).needMet!)).toBeNull()
       expect(lift(500, 60).minutes.standard).toBe(55)
@@ -125,5 +126,34 @@ describe('a workout for a calorie target', () => {
     // The pace survives the time being fitted: still 8 mph.
     expect(fast[0].distance! / (fast[0].minutes! / 60)).toBeCloseTo(8, 0)
     expect(Math.abs(workoutCalories(fast, rate, mets) - 600)).toBeLessThan(60)
+  })
+
+  describe('lifting by exercise (Compendium METs)', () => {
+    const met = (id: string, p: Partial<PlannedExercise> = {}) => liftMet(BY_ID.get(id), { exerciseId: id, sets: 3, reps: 10, ...p })
+    it('heavy free-weight legs burn the most, machines and isolation the least', () => {
+      expect(met('Barbell_Full_Squat', { reps: 5 })).toBe(6)
+      expect(met('Barbell_Full_Squat', { reps: 10 })).toBe(5)
+      expect(met('Romanian_Deadlift', { reps: 6 })).toBe(6)
+      expect(met('Dumbbell_Bench_Press', { reps: 6 })).toBe(5)
+      expect(met('Dumbbell_Bench_Press')).toBe(4.5)
+      expect(met('Leg_Press')).toBe(4)
+      expect(met('Lever_Chest_Press')).toBe(3.5)
+      expect(met('Dumbbell_Bicep_Curl')).toBe(3)
+      expect(met('Standing_Calf_Raises')).toBe(3)
+      expect(met('Plank', { reps: undefined, seconds: 45 })).toBe(3)
+      expect(met('Pushups')).toBe(3.8)
+      // Supersets: less rest, about a quarter more a minute.
+      expect(met('Dumbbell_Bench_Press', { block: 'ss1' })).toBeCloseTo(4.5 * 1.25, 6)
+    })
+    it('an hour of heavy squats and presses burns more than an hour of machines and curls', () => {
+      const mets = { lift: 3.5, cond: STYLE_MET.circuit, cardioFactor: 1 }
+      const hour = (ids: string[], reps: number) => ids.map((id): PlannedExercise => ({ exerciseId: id, sets: 4, reps, est: 60 / ids.length }))
+      const heavy = workoutCalories(hour(['Barbell_Full_Squat', 'Romanian_Deadlift', 'Barbell_Bench_Press_-_Medium_Grip', 'Bent_Over_Barbell_Row'], 5), rate, mets)
+      const light = workoutCalories(hour(['Lever_Chest_Press', 'Leg_Extensions', 'Dumbbell_Bicep_Curl', 'Seated_Cable_Rows'], 12), rate, mets)
+      expect(heavy).toBeGreaterThan(light * 1.4)
+      // 80 kg, averaging MET 5.5: about 360 active (≈ 440 total) for the heavy hour.
+      expect(heavy).toBeGreaterThan(340)
+      expect(heavy).toBeLessThan(380)
+    })
   })
 })

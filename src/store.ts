@@ -42,6 +42,11 @@ export interface TrainingPrefs {
   setTarget?: number | null
   /** On days with both a run/bike plan session and lifting: which comes first (asked when two plans share days). */
   stackOrder?: StackOrder
+  /**
+   * Calorie targets and estimates for workouts they make: active (on top of what they'd burn anyway, like a watch's
+   * active calories) or total (resting included, like most gym machines). Active unless set.
+   */
+  calorieCount?: 'active' | 'total'
   /** Their own weekly cardio minutes, instead of the goal's. */
   cardioMinutes?: number | null
   /** Weekly cardio distance to aim for, in miles (optional; no distance target when unset). */

@@ -1,8 +1,8 @@
-import type { AboutMe, ExerciseLog, PlannedExercise } from '../types'
+import type { AboutMe, Exercise, ExerciseLog, PlannedExercise } from '../types'
 import { metFor, restingPerHour, speedForMet } from './calories'
 import type { CardioSessionKind } from './cardioSession'
 import type { WorkoutStyle } from './randomizer'
-import { BY_ID } from './randomUtil'
+import { BY_ID, isIsolation } from './randomUtil'
 import { liftMinutes } from './timing'
 
 // ---------------------------------------------------------------------------------------------
@@ -11,12 +11,16 @@ import { liftMinutes } from './timing'
 // training with the usual rests is light work (about 3.5), circuits with little rest are vigorous (about 8).
 // ---------------------------------------------------------------------------------------------
 
-/** MET for each workout style, rests included. */
+/**
+ * MET for each workout style, rests included, for planning before the workout is made (the workout as made is
+ * estimated exercise by exercise, see liftMet). Lifting styles: the average of liftMet over the workouts the app
+ * makes (full body to one-muscle days).
+ */
 export const STYLE_MET: Record<WorkoutStyle, number> = {
-  standard: 3.5, // resistance training, multiple exercises, 8-15 reps
-  strength: 3.5, // heavy sets, long rests
-  bodyweight: 3.8, // calisthenics, moderate effort
-  supersets: 5.0, // less rest between sets
+  standard: 4.5,
+  strength: 5.0, // heavy compound lifts
+  bodyweight: 3.7,
+  supersets: 5.5, // less rest between sets
   pha: 6.0,
   emom: 7.0,
   circuit: 8.0, // circuit training, vigorous, minimal rest
@@ -189,15 +193,38 @@ export function setCardioPace(items: PlannedExercise[], pace: { exerciseId?: str
 const minutesOf = (p: PlannedExercise) => p.est ?? (BY_ID.get(p.exerciseId) ? liftMinutes(p, BY_ID.get(p.exerciseId)) : 0)
 /** A main cardio piece: a cardio exercise with planned minutes, not the warm-up or a station in a timed block. */
 const isCardioPiece = (p: PlannedExercise) => !p.warmup && !p.block && !!p.minutes && BY_ID.get(p.exerciseId)?.kind === 'cardio'
+const LOWER = ['Quads', 'Hamstrings', 'Glutes']
+const FREE = ['Barbell', 'Dumbbell', 'Kettlebell', 'EZ bar', 'Sandbag']
+/**
+ * MET for one lifting exercise, its rests included, from the Compendium of Physical Activities: resistance training
+ * with multiple exercises at 8-15 reps is 3.5, squats 5.0, vigorous powerlifting or bodybuilding 6.0. Heavy (8 reps or
+ * fewer) free-weight lower-body lifts (squats, deadlifts, lunges) burn the most, free-weight upper-body ones (bench,
+ * rows, presses) next, machines and cables less, isolation and core least. Supersets cut the rest: about a quarter
+ * more a minute.
+ */
+export function liftMet(e: Exercise | undefined, p: PlannedExercise, fallback = 3.5): number {
+  if (!e || e.kind !== 'strength') return fallback
+  const ss = p.block?.includes('ss') ? 1.25 : 1
+  if (e.group === 'Mobility') return 2.3
+  const heavy = p.reps != null && p.reps <= 8
+  const lower = LOWER.includes(e.group)
+  const met = e.group === 'Core' || e.group === 'Calves' || isIsolation(e) ? 3.0
+    : FREE.includes(e.equipment ?? '') ? (lower ? (heavy ? 6.0 : 5.0) : heavy ? 5.0 : 4.5)
+      : e.equipment === 'Bodyweight' ? (lower ? 4.0 : 3.8)
+        : lower ? 4.0 : 3.5 // machines and cables
+  return met * ss
+}
+
 const pieceMet = (p: PlannedExercise, factor: number) =>
   metFor(p.exerciseId, { distance: p.distance ?? null, minutes: p.minutes ?? null }) * factor * (p.distance ? 1 : p.intensity ?? 1)
 
+/** lift: for a lifting exercise the app doesn't know (see liftMet); cond: timed and circuit blocks. */
 export interface WorkoutMets { lift: number; cond: number; cardioFactor: number }
 
-/** Estimated net calories for a workout: warm-up, lifting (their style's MET), timed blocks, and each cardio piece. */
+/** Estimated net calories for a workout: warm-up, each lift (see liftMet), timed blocks, and each cardio piece. */
 export function workoutCalories(items: PlannedExercise[], rate: (met: number) => number, mets: WorkoutMets): number {
   return Math.round(items.reduce((a, p) => {
-    const met = isCardioPiece(p) ? pieceMet(p, mets.cardioFactor) : p.warmup ? WARMUP_MET : p.block && !p.block.includes('ss') ? mets.cond : mets.lift
+    const met = isCardioPiece(p) ? pieceMet(p, mets.cardioFactor) : p.warmup ? WARMUP_MET : p.block && !p.block.includes('ss') ? mets.cond : liftMet(BY_ID.get(p.exerciseId), p, mets.lift)
     return a + minutesOf(p) * rate(met)
   }, 0))
 }

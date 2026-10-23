@@ -26,7 +26,7 @@ import { CARDIO_SESSIONS, type CardioSessionKind } from '../lib/cardioSession'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import { BY_ID } from '../lib/randomUtil'
 import { cardioMet, EFFORTS, effortLabel, fitCardio, setCardioPace, type Effort, metForRate, perMinute, planForCalories, planWithin, recentSpeed, SESSION_FACTOR, setCardioEffort, STYLE_MET, styleFor, WARMUP_MET, workoutCalories } from '../lib/calorieTarget'
-import { bodyweightOn, metFor, speedForMet, topSpeed } from '../lib/calories'
+import { bodyweightOn, metFor, restingPerHour, speedForMet, topSpeed } from '../lib/calories'
 import { distanceFactor, formatMinutes, formatPace, showSpeed, showWeight, speedUnit, storeWeight } from '../lib/units'
 import { useToday } from '../lib/useToday'
 import { NumberInput } from './NumberInput'
@@ -201,10 +201,15 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const calParts = cardioOnly
     ? [{ key: 'cardio', met: paceMet, minutes }]
     : parts.map((k) => ({ key: k, met: k === 'warmup' ? WARMUP_MET : k === 'cardio' ? paceMet : STYLE_MET[k as WorkoutStyle], minutes: partMin(k) }))
-  const rate = (met: number) => perMinute(met, lb ?? 0, today, aboutMe)
+  // Active calories (on top of resting, like a watch's active number) or total (resting included, like a gym machine).
+  const countTotal = trainingPrefs.calorieCount === 'total'
+  const restPerMin = lb ? restingPerHour(lb, today, aboutMe) / 60 : 0
+  const rate = (met: number) => perMinute(met, lb ?? 0, today, aboutMe) + (countTotal ? restPerMin : 0)
+  const metOf = (r: number) => metForRate(r - (countTotal ? restPerMin : 0), lb ?? 0, today, aboutMe)
+  const countWord = countTotal ? 'total' : 'active'
   const flexible = hasKind('cardio') ? 'cardio' : undefined
   const untimed = goal === 'calories' && lb && kcal ? planForCalories(kcal, calParts, rate, flexible) : null
-  const timed = goal === 'calories' && lb && kcal && timeLimit ? planWithin(kcal, timeLimit, calParts, rate, (r) => metForRate(r, lb, today, aboutMe), flexible) : null
+  const timed = goal === 'calories' && lb && kcal && timeLimit ? planWithin(kcal, timeLimit, calParts, rate, metOf, flexible) : null
   const cal = timed ?? untimed
   // Within a time limit: how hard it has to be. Runs, walks and rides get a speed (compared with their recent ones);
   // other cardio an effort; lifting on its own, the style that burns enough.
@@ -370,6 +375,13 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
                 <NumberInput label="Your weight" value={weightIn} placeholder={units.weight} onChange={setWeightIn} />
               </div>
             )}
+            <p className="mb-1 mt-3 text-xs font-medium text-neutral-600">Count</p>
+            <div role="group" aria-label="Count calories as" className="flex flex-wrap gap-2">
+              {(['active', 'total'] as const).map((c) => (
+                <button key={c} onClick={() => setTrainingPrefs({ calorieCount: c })} aria-pressed={(trainingPrefs.calorieCount ?? 'active') === c} className={chip((trainingPrefs.calorieCount ?? 'active') === c)}>{c === 'active' ? 'Active' : 'Total'}</button>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-neutral-400">{countTotal ? 'Including what you’d burn anyway, like most gym machines and some watches.' : 'On top of what you’d burn anyway, like a watch’s active calories.'}</p>
             <p className="mb-1 mt-3 text-xs font-medium text-neutral-600">In how long?</p>
             <div role="group" aria-label="Time limit" className="flex flex-wrap gap-2">
               <button onClick={() => setTimeLimit(null)} aria-pressed={timeLimit == null} className={chip(timeLimit == null)}>Work it out</button>
@@ -396,7 +408,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
             )}
             {(hasKind('lift') || hasKind('cond')) && (
               <p className="mt-2 text-xs text-neutral-400">
-                Lifting intensity is the style: {styles.map((st) => `${styleInfo(st).label} ≈ ${Math.round(perMinute(STYLE_MET[st], lb ?? 180, today, aboutMe))} cal/min`).join(', ')}{lb ? '' : ' (at 180 lb)'}. Supersets and HIIT burn more a minute.
+                Lifting intensity is the style and the exercises: {styles.map((st) => `${styleInfo(st).label} ≈ ${Math.round(lb ? rate(STYLE_MET[st]) : perMinute(STYLE_MET[st], 180, today, aboutMe))} ${countWord} cal/min`).join(', ')}{lb ? '' : ' (at 180 lb)'} on average. Heavy squats and deadlifts burn more, machines and isolation less; supersets and HIIT more a minute.
               </p>
             )}
           </div>
@@ -441,7 +453,8 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
               <p className="text-neutral-500">Pick how many calories.</p>
             ) : (
               <>
-                <p className="font-medium">About {cal.totalKcal.toLocaleString()} cal in {formatMinutes(cal.totalMinutes)}</p>
+                <p className="font-medium">About {cal.totalKcal.toLocaleString()} {countWord} cal in {formatMinutes(cal.totalMinutes)}</p>
+                <p className="text-xs text-neutral-500">That’s about {Math.round(cal.totalKcal + (countTotal ? -1 : 1) * restPerMin * cal.totalMinutes).toLocaleString()} {countTotal ? 'active' : 'total, counting what you’d burn anyway'}.</p>
                 {!showSplit && <p className="text-xs text-neutral-500">{cardioOnly ? cardioName : styleLabel}: {formatMinutes(cal.totalMinutes)}</p>}
                 {!timed && hasKind('cardio') && cal.minutes.cardio != null && (
                   <p className="mt-1 text-xs text-neutral-600">
@@ -480,7 +493,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
                   <p className="mt-1 text-xs text-amber-700">That’s a long session. {hasKind('cardio') ? 'Harder cardio (intervals, tempo, hills) or a lower target gets there sooner.' : 'Adding cardio gets there in much less time.'}</p>
                 )}
                 <p className="mt-1 text-xs text-neutral-400">
-                  Estimated from your weight{knownLb ? ` (${showWeight(knownLb, units)} ${units.weight})` : ''} and how hard each part is, like a fitness watch: it can be off by 20% or more. Lifting burns less than it feels like, about 3–4 calories a minute for most people.
+                  Estimated from your weight{knownLb ? ` (${showWeight(knownLb, units)} ${units.weight})` : ''} and how hard each part is, like a fitness watch: it can be off by 20% or more. Lifting counts each exercise: heavy squats, deadlifts and lunges burn the most, machines and isolation the least.
                 </p>
               </>
             )}
@@ -516,7 +529,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
         </button>
       </div>
       <p className="mb-3 text-sm text-neutral-400">
-        {styleLabel} · {focusLabel}{hasCardio ? ' + Cardio' : ''} · about {Math.round(total)} min{cal ? ` · ≈ ${workoutCalories(items, rate, mets).toLocaleString()} cal` : ''}
+        {styleLabel} · {focusLabel}{hasCardio ? ' + Cardio' : ''} · about {Math.round(total)} min{cal ? ` · ≈ ${workoutCalories(items, rate, mets).toLocaleString()} ${countWord} cal` : ''}
       </p>
       {volume && (
         <VolumeCheck
