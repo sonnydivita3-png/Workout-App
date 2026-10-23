@@ -161,7 +161,8 @@ export interface Measurement {
 
 /** Optional details that make calorie estimates personal (resting burn). Height in inches. */
 export interface AboutMe {
-  sex: 'male' | 'female' | null
+  /** 'unspecified': they'd rather not say (resting burn uses the midpoint). Null: not answered yet. */
+  sex: 'male' | 'female' | 'unspecified' | null
   birthYear: number | null
   heightIn: number | null
 }

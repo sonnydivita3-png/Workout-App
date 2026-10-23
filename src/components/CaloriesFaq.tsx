@@ -6,7 +6,7 @@ const QA: [string, string][] = [
   ],
   [
     'What information does it need?',
-    'Your bodyweight (log it in Progress → Body) and the workout’s minutes. That’s all that’s required. Sex, age and height are optional (Settings → Profile): with them, your resting burn is worked out for you (the Mifflin-St Jeor equation) instead of a standard average.',
+    'Your bodyweight (log it in Progress → Body), your sex, age and height (Settings → Profile; the app asks for them when you start), and the workout’s minutes. Sex, age and height work out your resting burn (the Mifflin-St Jeor equation), the part subtracted so you see what the workout added; “prefer not to say” uses the midpoint between men and women.',
   ],
   [
     'Why don’t sex and age change it more?',

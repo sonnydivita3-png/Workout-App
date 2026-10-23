@@ -20,7 +20,7 @@ import { isIos, isStandalone, useInstallPrompt } from '../lib/install'
 import { APP_VERSION, feedbackLink } from '../lib/feedback'
 import { CaloriesFaq } from './CaloriesFaq'
 import { VersionRow } from './VersionRow'
-import { NumberInput } from './NumberInput'
+import { AboutYouForm } from './AboutYouForm'
 
 const ACCENTS: [Accent, string][] = [['lime', '#c8ff3e'], ['pink', '#ff5cae'], ['violet', '#a78bfa'], ['orange', '#ff9f45'], ['blue', '#5eb1ff']]
 
@@ -76,7 +76,7 @@ const REST_LABEL = (r: number) => (r === -1 ? 'as planned' : r ? `${r} s` : 'off
 
 /** Settings, grouped into a few short pages instead of one long list. */
 export function SettingsView({ initialPage, onBack }: { initialPage?: string; onBack?: () => void }) {
-  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, name, setName, importData, setTourDone, trackRpe, restSeconds, setPrefs, theme, setTheme, accent, setAccent, cloud, socialChoice, equipment, aboutMe, setAboutMe, trainingPrefs, setTrainingPrefs, custom } = useStore()
+  const { resetAll, notifPrefs, setNotifPrefs, units, setUnits, name, setName, importData, setTourDone, trackRpe, restSeconds, setPrefs, theme, setTheme, accent, setAccent, cloud, socialChoice, equipment, trainingPrefs, setTrainingPrefs, custom } = useStore()
   const ownExercises = custom.filter((e) => !e.retired).length
   const [page, setPage] = useState<Page | null>(PAGES.some((p) => p.id === initialPage) ? (initialPage as Page) : null)
   const [advanced, setAdvanced] = useState(false)
@@ -186,31 +186,12 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
       <Row title="Distance">
         <Segmented value={units.distance} options={['mi', 'km']} onChange={(distance) => setUnits({ distance })} />
       </Row>
-      <h2 className="pt-4 text-sm font-semibold text-neutral-700">About you <span className="font-normal text-neutral-400">(optional)</span></h2>
+      <h2 className="pt-4 text-sm font-semibold text-neutral-700">About you</h2>
       <p className="text-sm text-neutral-500">
-        Makes calorie estimates closer to you. Only your bodyweight (Progress → Body) is required for estimates.{' '}
+        Calorie estimates use these: what you burn at rest from sex, age and height, and each workout’s burn from your weight.{' '}
         <button onClick={() => setPage('help')} className="underline underline-offset-2">How calories are estimated</button>
       </p>
-      <Row title="Sex">
-        <Segmented
-          value={aboutMe.sex === 'male' ? 'Male' : aboutMe.sex === 'female' ? 'Female' : 'Not set'}
-          options={['Male', 'Female', 'Not set']}
-          onChange={(v) => setAboutMe({ sex: v === 'Male' ? 'male' : v === 'Female' ? 'female' : null })}
-        />
-      </Row>
-      <Row title="Birth year">
-        <div className="w-28"><NumberInput label="Birth year" value={aboutMe.birthYear} placeholder="e.g. 1988" onChange={(v) => setAboutMe({ birthYear: v && v > 0 ? Math.round(v) : null })} /></div>
-      </Row>
-      <Row title={`Height (${units.weight === 'kg' ? 'cm' : 'inches'})`}>
-        <div className="w-28">
-          <NumberInput
-            label="Height"
-            value={aboutMe.heightIn == null ? null : units.weight === 'kg' ? Math.round(aboutMe.heightIn * 2.54) : aboutMe.heightIn}
-            placeholder={units.weight === 'kg' ? 'e.g. 178' : 'e.g. 70'}
-            onChange={(v) => setAboutMe({ heightIn: v && v > 0 ? (units.weight === 'kg' ? Math.round((v / 2.54) * 10) / 10 : v) : null })}
-          />
-        </div>
-      </Row>
+      <AboutYouForm />
       <h2 className="pt-4 text-sm font-semibold text-neutral-700">Your equipment</h2>
       <p className="text-sm text-neutral-500">Generated workouts and plans only use what you have. You can still add any exercise yourself.</p>
       <EquipmentPicker />

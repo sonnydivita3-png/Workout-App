@@ -1,11 +1,25 @@
 import { expect, test } from './fixtures'
 import { iso, openSettings, seed, state } from './helpers'
 
+/** The required About you step: sex, birth year, height and weight (cm and kg, or feet, inches and lb). */
+async function fillAboutYou(page: import('@playwright/test').Page, metric = false) {
+  await expect(page.getByRole('heading', { name: 'About you' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Continue' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Skip' })).toHaveCount(0)
+  await page.getByRole('group', { name: 'Sex' }).getByRole('button', { name: 'Female' }).click()
+  await page.getByLabel('Birth year').fill('1991')
+  if (metric) await page.getByLabel('Height (cm)').fill('168')
+  else { await page.getByLabel('Height (feet)').fill('5'); await page.getByLabel('Height (inches)').fill('6') }
+  await page.getByLabel(/^Weight/).fill(metric ? '62' : '140')
+  await page.getByRole('button', { name: 'Continue' }).click()
+}
+
 test('first run: name, goal and schedule build a first month, then Home shows today', async ({ page }) => {
   await page.goto('/')
   await page.getByLabel('What should we call you?').fill('Jay')
   await page.getByRole('button', { name: 'Kilograms (kg)' }).click()
   await page.getByRole('button', { name: 'Continue' }).click()
+  await fillAboutYou(page, true)
   await page.getByRole('button', { name: /Build muscle/ }).click()
   await page.getByRole('button', { name: 'Continue' }).click()
   // Where they train, what they like, and their cardio.
@@ -44,11 +58,15 @@ test('first run: name, goal and schedule build a first month, then Home shows to
   expect(s.onboarded).toBe(true)
   expect(s.equipment).toEqual(['Barbell', 'Dumbbell', 'Kettlebell', 'Machine', 'Other'])
   expect(s.trainingPrefs).toEqual({ styles: ['crossfit', 'strength'], cardio: ['row', 'airbike'], cardioSplit: true, moves: { free: 1, machine: -1 }, goals: ['muscle'], goal: null })
+  expect(s.aboutMe).toEqual({ sex: 'female', birthYear: 1991, heightIn: 66.1 })
+  expect(s.bodyweight).toHaveLength(1)
+  expect(s.bodyweight[0].lb).toBeCloseTo(136.7, 1)
 })
 
 test('first run with no plan still asks where you train and what you like', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Continue' }).click()
+  await fillAboutYou(page)
   await page.getByRole('button', { name: /Just log my workouts/ }).click()
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('radio', { name: 'Bodyweight only' }).click()
@@ -65,13 +83,43 @@ test('first run with no plan still asks where you train and what you like', asyn
   expect(s.equipment).toEqual([])
   expect(s.trainingPrefs.cardio).toEqual(['run'])
   expect(s.programs ?? []).toHaveLength(0)
+  expect(s.aboutMe).toEqual({ sex: 'female', birthYear: 1991, heightIn: 66 })
+  expect(s.bodyweight[0].lb).toBe(140)
 })
 
-test('first run can be skipped straight to Home', async ({ page }) => {
+test('first run can be skipped to Home, except About you', async ({ page }) => {
   await page.goto('/')
+  await page.getByRole('button', { name: 'Skip' }).click()
+  // Skipping still asks About you (calorie estimates need it); everything after it can be skipped.
+  await fillAboutYou(page)
   await page.getByRole('button', { name: 'Skip' }).click()
   await expect(page.getByText('Nothing planned today')).toBeVisible()
   await expect(page.getByRole('dialog', { name: 'App tour' })).toHaveCount(0)
+})
+
+test('someone set up before the app asked for it fills in About you once, then carries on', async ({ page }) => {
+  await seed(page, { aboutMe: { sex: null, birthYear: null, heightIn: null }, bodyweight: [] })
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Finish your profile' })).toBeVisible()
+  const done = page.getByRole('button', { name: 'Done' })
+  await expect(done).toBeDisabled()
+  await page.getByRole('group', { name: 'Sex' }).getByRole('button', { name: 'Prefer not to say' }).click()
+  await page.getByLabel('Birth year').fill('1985')
+  await page.getByLabel('Height (feet)').fill('6')
+  await page.getByLabel('Height (inches)').fill('0')
+  await expect(done).toBeDisabled()
+  await page.getByLabel(/^Weight/).fill('200')
+  await done.click()
+  await expect(page.getByRole('region', { name: 'Today' })).toBeVisible()
+  const s = await state(page)
+  expect(s.aboutMe).toEqual({ sex: 'unspecified', birthYear: 1985, heightIn: 72 })
+  expect(s.bodyweight.at(-1).lb).toBe(200)
+  // Settings has the same fields; clearing one there doesn't throw them out mid-edit.
+  await openSettings(page, 'Profile, units & equipment')
+  await page.getByLabel('Birth year').fill('')
+  await page.getByLabel('Birth year').fill('1986')
+  await expect(page.getByRole('heading', { name: 'Finish your profile' })).toHaveCount(0)
+  expect((await state(page)).aboutMe.birthYear).toBe(1986)
 })
 
 test('Home with nothing planned: repeat the last workout in one tap', async ({ page }) => {
@@ -138,7 +186,8 @@ test('randomizer builds a timed workout with a clock', async ({ page }) => {
 test('damaged saved data does not crash the app', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('workout-app-v1', JSON.stringify({ state: { plan: 'bad', logs: [null, { exerciseId: 1 }], tourDone: true, tourVersion: 1000, socialChoice: 'declined', overrides: 5 }, version: 1 })))
   await page.goto('/')
-  await expect(page.getByText('Goals')).toBeVisible()
+  // No profile in it: asked for first, then the app works.
+  await expect(page.getByRole('heading', { name: 'Finish your profile' })).toBeVisible()
 })
 
 test('randomizer: style groups with variations, and several styles with their own minutes', async ({ page }) => {
