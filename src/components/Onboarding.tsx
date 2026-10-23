@@ -4,11 +4,13 @@ import { defaultWeekdays, generateProgram, goalsLabel, PROGRAM_GOALS, type Progr
 import { defaultWarmup } from '../lib/randomizer'
 import { useToday } from '../lib/useToday'
 import { useStore } from '../store'
+import { profileComplete } from '../lib/calories'
+import { AboutYouForm } from './AboutYouForm'
 import { EquipmentPicker } from './EquipmentPicker'
 import { LikedCardioPicker, LikedStylesPicker, MovePrefsPicker } from './TrainingPrefsPicker'
 
-type Step = 'welcome' | 'goal' | 'where' | 'likes' | 'moves' | 'cardio' | 'schedule' | 'plan'
-const STEPS: Step[] = ['welcome', 'goal', 'where', 'likes', 'moves', 'cardio', 'schedule', 'plan']
+type Step = 'welcome' | 'about' | 'goal' | 'where' | 'likes' | 'moves' | 'cardio' | 'schedule' | 'plan'
+const STEPS: Step[] = ['welcome', 'about', 'goal', 'where', 'likes', 'moves', 'cardio', 'schedule', 'plan']
 const DAY = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const primary = 'w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-on-accent disabled:opacity-30'
 const choice = (on: boolean) => `w-full rounded-2xl px-4 py-3.5 text-left ring-1 ${on ? 'bg-accent/15 ring-accent' : 'bg-surface ring-neutral-200'}`
@@ -16,8 +18,9 @@ const chip = (on: boolean) => `h-12 flex-1 rounded-2xl text-base font-medium ${o
 
 /**
  * First run: a few one-tap questions (goal, where you train, what you like, cardio, days and time) and a first month
- * planned from the answers, so the app is useful straight away. Every answer can be changed later in Settings, the
- * whole thing can be skipped, and social features are offered later.
+ * planned from the answers, so the app is useful straight away. Every answer can be changed later in Settings and the
+ * questions can be skipped, except About you (sex, age, height, weight: calorie estimates need them). Social features
+ * are offered later.
  */
 export function Onboarding() {
   const s = useStore()
@@ -34,10 +37,17 @@ export function Onboarding() {
   const [minutes, setMinutes] = useState(45)
   const [week, setWeek] = useState<ProgramDay[] | null>(null)
   const [exact, setExact] = useState(false)
-  const steps = goal === 'none' ? STEPS.slice(0, 6) : STEPS
+  const steps = goal === 'none' ? STEPS.slice(0, 7) : STEPS
+  // Required: everything else can be skipped, not this (calorie estimates use it).
+  const aboutDone = profileComplete(s.aboutMe, s.bodyweight)
 
   // Finishing set-up starts the app tour on Home; skipping set-up skips the tour too.
-  const finish = (tour = true) => { if (name.trim()) s.setName(name.trim()); if (!tour) s.setTourDone(true); s.setOnboarded(true) }
+  const finish = (tour = true) => {
+    if (!aboutDone) { setStep('about'); return }
+    if (name.trim()) s.setName(name.trim())
+    if (!tour) s.setTourDone(true)
+    s.setOnboarded(true)
+  }
   const build = () => {
     const result = generateProgram({
       anchorMonday: toISO(mondayOf(parseISO(today))), fromDate: today, weeks: 4,
@@ -61,7 +71,7 @@ export function Onboarding() {
           <div className="flex gap-1.5" aria-label={`Step ${steps.indexOf(step) + 1} of ${steps.length}`}>
             {steps.map((x) => <span key={x} className={`h-1.5 rounded-full ${x === step ? 'w-6 bg-accent' : 'w-1.5 bg-neutral-300'}`} />)}
           </div>
-          <button onClick={() => finish(false)} className="text-sm text-neutral-500">Skip</button>
+          {step !== 'about' && <button onClick={() => finish(false)} className="text-sm text-neutral-500">Skip</button>}
         </div>
 
         {step === 'welcome' && (
@@ -76,7 +86,19 @@ export function Onboarding() {
             <div className="mb-8 flex gap-2">
               {(['lb', 'kg'] as const).map((u) => <button key={u} onClick={() => s.setUnits({ weight: u, distance: u === 'kg' ? 'km' : 'mi' })} className={chip(s.units.weight === u)}>{u === 'lb' ? 'Pounds (lb)' : 'Kilograms (kg)'}</button>)}
             </div>
-            <div className="mt-auto"><button onClick={() => setStep('goal')} className={primary}>Continue</button></div>
+            <div className="mt-auto"><button onClick={() => setStep('about')} className={primary}>Continue</button></div>
+          </>
+        )}
+
+        {step === 'about' && (
+          <>
+            <h1 className="mb-2 text-2xl font-semibold tracking-tight">About you</h1>
+            <p className="mb-5 text-neutral-600">For calorie estimates that fit you: what you burn at rest depends on sex, age and height, and every workout’s burn on your weight. It stays in the app (and your backup, if you turn one on).</p>
+            <AboutYouForm />
+            <div className="mt-auto space-y-2 pt-6">
+              <button disabled={!aboutDone} onClick={() => setStep('goal')} className={primary}>Continue</button>
+              <button onClick={() => setStep('welcome')} className="w-full py-2 text-sm text-neutral-500">Back</button>
+            </div>
           </>
         )}
 
@@ -96,7 +118,10 @@ export function Onboarding() {
                 <span className="block text-sm text-neutral-500">No plan for now. I’ll add workouts myself.</span>
               </button>
             </div>
-            <div className="mt-auto"><button disabled={goal !== 'none' && goals.length === 0} onClick={() => setStep('where')} className={primary}>Continue</button></div>
+            <div className="mt-auto space-y-2">
+              <button disabled={goal !== 'none' && goals.length === 0} onClick={() => setStep('where')} className={primary}>Continue</button>
+              <button onClick={() => setStep('about')} className="w-full py-2 text-sm text-neutral-500">Back</button>
+            </div>
           </>
         )}
 

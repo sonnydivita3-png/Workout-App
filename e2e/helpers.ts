@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 
-/** Start from a known saved state (skips the first-run pages unless told otherwise). */
+/** Start from a known saved state (skips the first-run pages unless told otherwise; a complete profile). */
 export async function seed(page: Page, state: Record<string, unknown> = {}) {
   await page.addInitScript((extra) => {
     if (localStorage.getItem('workout-app-v1')) return
@@ -8,7 +8,9 @@ export async function seed(page: Page, state: Record<string, unknown> = {}) {
       state: {
         socialChoice: 'declined', tourDone: true, tourVersion: 1000, plan: Array.from({ length: 7 }, () => []), overrides: {}, logs: [], custom: [],
         units: { weight: 'lb', distance: 'mi' }, name: 'Test', notifPrefs: { system: false, goals: false, pbs: false, daily: false, reminderTime: '23:59' },
-        nudgeSnooze: { install: 9e15, backup: 9e15 }, tipsSeen: ['plan', 'workout', 'progress'], onboarded: true, restSeconds: 0, ...extra,
+        nudgeSnooze: { install: 9e15, backup: 9e15 }, tipsSeen: ['plan', 'workout', 'progress'], onboarded: true, restSeconds: 0,
+        // Everyone has these (the app asks before it can be used).
+        aboutMe: { sex: 'male', birthYear: 1990, heightIn: 70 }, bodyweight: [{ date: '2026-01-01', lb: 180 }], ...extra,
       },
       version: 3,
     }))

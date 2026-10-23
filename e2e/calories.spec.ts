@@ -16,9 +16,8 @@ test('Make me a workout for a calorie target: lifting keeps its time, the cardio
   await sheet.getByRole('group', { name: 'Plan by' }).getByRole('button', { name: 'Calories' }).click()
   await sheet.getByRole('button', { name: '1,000 cal' }).click()
   const status = sheet.getByRole('status')
-  await expect(status).toContainText('Add your weight')
-  await expect(sheet.getByRole('button', { name: /^Generate/ })).toBeDisabled()
-  await sheet.getByLabel('Your weight').fill('180')
+  // Their weight and details come from their profile.
+  await expect(status).toContainText('(180 lb)')
   // About 1,000 (minutes round to 5): roughly 2 hours for a 180 lb runner with 30 minutes of lifting.
   await expect(status).toContainText(/About (9[5-9]\d|1,0[0-4]\d) cal in (1h 5\d|2h)/)
   // The cardio row is worked out; lifting keeps its own +/−.

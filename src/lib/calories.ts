@@ -92,8 +92,15 @@ export const hasPersonalDetails = (me?: AboutMe | null) =>
   !!me?.birthYear && me.birthYear > 1900 && me.birthYear <= new Date().getFullYear() - 10 && !!me.heightIn && me.heightIn >= 36 && me.heightIn <= 96
 
 /**
+ * Everything calorie estimates use, which the app asks for before it can be used: sex (or "prefer not to say"), a
+ * believable birth year and height, and a weigh-in.
+ */
+export const profileComplete = (me: AboutMe | null | undefined, bodyweight: BodyweightEntry[]) =>
+  !!me?.sex && hasPersonalDetails(me) && bodyweight.length > 0
+
+/**
  * Resting burn in kcal per hour. Mifflin-St Jeor with age and height (sex adds +5 for men, −161 for women, halfway
- * between if not set); without them, 1 MET.
+ * between when they'd rather not say); without them, 1 MET.
  */
 export function restingPerHour(lb: number, date: string, me?: AboutMe | null): number {
   const kg = lb * KG_PER_LB

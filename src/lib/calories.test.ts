@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ExerciseLog } from '../types'
-import { bodyweightOn, caloriesOf, estimateCalories, hasPersonalDetails, metFor, restingPerHour } from './calories'
+import { bodyweightOn, caloriesOf, estimateCalories, hasPersonalDetails, metFor, profileComplete, restingPerHour } from './calories'
 
 describe('MET by activity and speed', () => {
   it('uses speed for runs, walks and rides when distance is logged', () => {
@@ -65,5 +65,23 @@ describe('estimates', () => {
     expect(caloriesOf(l, [{ date: '2026-09-01', lb: 185 }])).toEqual({ kcal: 350, estimated: false })
     expect(caloriesOf({ ...l, cardio: { ...l.cardio!, calories: null } }, [{ date: '2026-09-01', lb: 185 }])).toEqual({ kcal: 369, estimated: true })
     expect(caloriesOf({ ...l, cardio: { ...l.cardio!, calories: null } }, [])).toBeNull()
+  })
+})
+
+describe('profileComplete: what the app asks for before it can be used', () => {
+  const me = { sex: 'male' as const, birthYear: 1990, heightIn: 70 }
+  const weighed = [{ date: '2026-01-01', lb: 180 }]
+  it('needs sex (or prefer not to say), a believable birth year and height, and a weigh-in', () => {
+    expect(profileComplete(me, weighed)).toBe(true)
+    expect(profileComplete({ ...me, sex: 'unspecified' }, weighed)).toBe(true)
+    expect(profileComplete({ ...me, sex: null }, weighed)).toBe(false)
+    expect(profileComplete({ ...me, birthYear: 19 }, weighed)).toBe(false)
+    expect(profileComplete({ ...me, heightIn: 7 }, weighed)).toBe(false)
+    expect(profileComplete(me, [])).toBe(false)
+    expect(profileComplete(null, weighed)).toBe(false)
+  })
+  it('prefer not to say: resting burn halfway between men and women', () => {
+    const r = (sex: 'male' | 'female' | 'unspecified') => restingPerHour(180, '2026-10-23', { ...me, sex })
+    expect(r('unspecified')).toBeCloseTo((r('male') + r('female')) / 2, 6)
   })
 })

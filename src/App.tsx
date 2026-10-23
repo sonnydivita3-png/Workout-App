@@ -7,6 +7,8 @@ import { SettingsView } from './components/SettingsView'
 import { Tour } from './components/Tour'
 import { Toasts } from './components/Toasts'
 import { Onboarding } from './components/Onboarding'
+import { ProfileSetup } from './components/ProfileSetup'
+import { profileComplete } from './lib/calories'
 import { SocialView } from './components/social/SocialView'
 import { InviteBanner } from './components/social/InviteBanner'
 import { clearInviteParam, readInvite } from './lib/invite'
@@ -40,6 +42,12 @@ export default function App() {
   }, [])
   // New installs get the goal-based setup first; people who used the app before it existed never see it.
   const needsSetup = useStore((s) => !s.onboarded && !s.tourDone)
+  // Set up before the app asked for sex, age, height and weight (or one was cleared): they fill it in first. Decided
+  // when the app opens, so retyping a field in Settings doesn't throw them out of it.
+  const [needsProfile, setNeedsProfile] = useState(() => {
+    const s = useStore.getState()
+    return (s.onboarded || s.tourDone) && !profileComplete(s.aboutMe, s.bodyweight)
+  })
   const showTour = useStore((s) => !s.tourDone || s.tourVersion < TOUR_VERSION)
   // Opened from an invite link: remember who invited them until they add that person or say not now.
   useEffect(() => {
@@ -55,6 +63,7 @@ export default function App() {
   useCloudSync()
   if (page) return <LegalPage doc={page} />
   if (needsSetup) return <Onboarding />
+  if (needsProfile) return <ProfileSetup onDone={() => setNeedsProfile(false)} />
   return (
     <>
       <main className="mx-auto min-h-screen max-w-md px-4 pb-40 pt-[max(1.5rem,env(safe-area-inset-top))]">

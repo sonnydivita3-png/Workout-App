@@ -68,40 +68,31 @@ test('Hyrox: log a finish time, compare with last time, and see run pace and car
   // The bike ride counts as cardio; the Hyrox run counts as conditioning, not both.
   await expect(page.getByText(/^(30 of 150 min|0 of 150 min)/)).toBeVisible()
   await expect(page.getByText(/^(30 of 150 min|.*last week 30 min)/).first()).toBeVisible()
-  // The Hyrox run still counts toward calories (there's no bodyweight here, so it asks for one).
-  await expect(page.getByText(/sessions? ha(s|ve) no calories: estimates need your bodyweight/)).toBeVisible()
+  // The Hyrox run counts toward calories too (estimated from their profile).
+  await expect(page.getByText(/Estimates use your bodyweight/)).toBeVisible()
   const track = page.getByRole('button', { name: /Hyrox · 2 × \(500 m run \+ station\)/ })
   await expect(track).toContainText('Best 15:20')
   await track.click()
   await expect(page.getByText('Lower is better (finish time).')).toBeVisible()
 })
 
-test('cardio calories: asks for bodyweight, then shows an estimate labelled as one, and takes a watch number', async ({ page }) => {
-  await seed(page, { overrides: { [iso(0)]: [{ exerciseId: 'running', sets: 1, minutes: 30 }] } })
+test('cardio calories: an estimate from their profile, labelled as one, and a watch number replaces it', async ({ page }) => {
+  await seed(page, { overrides: { [iso(0)]: [{ exerciseId: 'running', sets: 1, minutes: 30 }] }, bodyweight: [{ date: '2026-01-01', lb: 185 }] })
   await page.goto('/')
   await page.locator('nav').getByText('Workouts').click()
   await page.getByLabel('Running minutes').fill('30')
   await page.getByLabel('Running distance').fill('3')
-  await expect(page.getByText(/Estimated calories need your bodyweight/)).toBeVisible()
-
-  // Add a bodyweight and the estimate appears, marked as estimated.
-  await page.evaluate(() => {
-    const raw = JSON.parse(localStorage.getItem('workout-app-v1')!)
-    raw.state.bodyweight = [{ date: '2026-01-01', lb: 185 }]
-    localStorage.setItem('workout-app-v1', JSON.stringify(raw))
-  })
-  await page.reload()
-  await page.locator('nav').getByText('Workouts').click()
-  await expect(page.getByText('≈369 cal, estimated')).toBeVisible()
-  await expect(page.getByText(/from your bodyweight \(185 lb\), the activity and its time and pace/)).toBeVisible()
+  // 3 miles in 30 minutes (6 mph, MET 9.8) at 185 lb, less a 36-year-old 5'10" man's resting burn: about 374.
+  await expect(page.getByText('≈374 cal, estimated')).toBeVisible()
+  await expect(page.getByText(/from your bodyweight \(185 lb\), sex, age, height, the activity and its time and pace/)).toBeVisible()
   await page.locator('nav').getByText('Progress').click()
-  await expect(page.getByText('≈369 cal')).toBeVisible()
+  await expect(page.getByText('≈374 cal')).toBeVisible()
   await expect(page.getByText(/\(estimated\)/)).toBeVisible()
   await expect(page.getByText(/Estimates use your bodyweight/)).toBeVisible()
   // …and on Home, next to workouts this week.
   await page.locator('nav').getByText('Home').click()
   const week = page.getByRole('region', { name: 'This week' })
-  await expect(week).toContainText('≈369cal burned in cardioestimated from bodyweight')
+  await expect(week).toContainText('≈374cal burned in cardioestimated from bodyweight')
 
   // Their watch's number replaces the estimate.
   await page.locator('nav').getByText('Workouts').click()
@@ -115,23 +106,23 @@ test('cardio calories: asks for bodyweight, then shows an estimate labelled as o
   await expect(page.getByRole('region', { name: 'This week' })).toContainText('380cal burned in cardio')
 })
 
-test('sex, age and height make the estimate personal, and Help explains how calories are worked out', async ({ page }) => {
+test('sex, age and height set the resting burn, change in Settings, and Help explains how calories are worked out', async ({ page }) => {
   await seed(page, { overrides: { [iso(0)]: [{ exerciseId: 'running', sets: 1 }] }, bodyweight: [{ date: '2026-01-01', lb: 185 }], logs: [{ date: iso(0), exerciseId: 'running', cardio: { distance: 3, minutes: 30 } }] })
   await page.goto('/')
   await page.locator('nav').getByText('Workouts').click()
-  await expect(page.getByText(/Add sex, age and height in Settings → Profile/)).toBeVisible()
+  await expect(page.getByText('≈374 cal, estimated')).toBeVisible()
   await openSettings(page, 'Profile, units & equipment')
-  await page.getByRole('button', { name: 'Female' }).click()
-  await page.getByLabel('Birth year').fill('1990')
-  await page.getByLabel('Height').fill('66')
-  expect((await state(page)).aboutMe).toEqual({ sex: 'female', birthYear: 1990, heightIn: 66 })
+  // A woman of the same age and size burns less at rest, so a little more of the run is on top of it.
+  await page.getByRole('group', { name: 'Sex' }).getByRole('button', { name: 'Female' }).click()
+  await page.getByLabel('Birth year').fill('1980')
+  expect((await state(page)).aboutMe).toEqual({ sex: 'female', birthYear: 1980, heightIn: 70 })
   await page.getByRole('button', { name: 'How calories are estimated' }).click()
   await page.getByText('What information does it need?').click()
   await expect(page.getByText(/Your bodyweight \(log it in Progress → Body\)/)).toBeVisible()
   await page.locator('nav').getByText('Workouts').click()
-  await expect(page.getByText(/from your bodyweight \(185 lb\), sex, age, height, the activity/)).toBeVisible()
-  await expect(page.getByText(/Add sex, age and height/)).toHaveCount(0)
+  await expect(page.getByText(/≈3(7[5-9]|8\d) cal, estimated/)).toBeVisible()
 })
+
 
 test('rowing in meters with minutes and seconds, pace per 500 m', async ({ page }) => {
   await seed(page, {
