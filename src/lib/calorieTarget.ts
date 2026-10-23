@@ -1,5 +1,5 @@
 import type { AboutMe, Exercise, ExerciseLog, PlannedExercise } from '../types'
-import { metFor, restingPerHour, speedForMet } from './calories'
+import { inclinable, metFor, restingPerHour, speedForMet } from './calories'
 import type { CardioSessionKind } from './cardioSession'
 import type { WorkoutStyle } from './randomizer'
 import { BY_ID, isIsolation } from './randomUtil'
@@ -40,8 +40,8 @@ export const SESSION_FACTOR: Record<CardioSessionKind, number> = { steady: 1, in
  * MET for the cardio part: its activity at a usual pace (the average when several are possible), adjusted for the
  * session. With nothing to go on, a typical mix of runs, rides and machines (about 7).
  */
-export function cardioMet(ids: string[], kind: CardioSessionKind): number {
-  const base = ids.length ? ids.reduce((a, id) => a + metFor(id, { distance: null, minutes: null }), 0) / ids.length : 7
+export function cardioMet(ids: string[], kind: CardioSessionKind, incline = 0): number {
+  const base = ids.length ? ids.reduce((a, id) => a + metFor(id, { distance: null, minutes: null, incline }), 0) / ids.length : 7
   return base * SESSION_FACTOR[kind]
 }
 
@@ -166,9 +166,19 @@ export function recentSpeed(logs: ExerciseLog[], ids: string[]): number | null {
 export function setCardioEffort(items: PlannedExercise[], met: number, cardioFactor: number): PlannedExercise[] {
   return items.map((p) => {
     if (!isCardioPiece(p)) return p
-    const mph = speedForMet(p.exerciseId, met / cardioFactor)
+    const mph = speedForMet(p.exerciseId, met / cardioFactor, p.incline)
     if (mph) return { ...p, distance: Math.round(mph * (p.minutes! / 60) * 10) / 10, intensity: undefined }
     return { ...p, intensity: Math.round((met / (metFor(p.exerciseId, { distance: null, minutes: null }) * cardioFactor)) * 100) / 100 }
+  })
+}
+
+/** Treadmill pieces (not the warm-up) at an incline (percent grade); 0 takes it off. */
+export function setIncline(items: PlannedExercise[], incline: number): PlannedExercise[] {
+  return items.map((p) => {
+    if (!isCardioPiece(p) || !inclinable(p.exerciseId)) return p
+    const { incline: _i, ...rest } = p
+    void _i
+    return incline > 0 ? { ...rest, incline } : rest
   })
 }
 
@@ -216,7 +226,7 @@ export function liftMet(e: Exercise | undefined, p: PlannedExercise, fallback = 
 }
 
 const pieceMet = (p: PlannedExercise, factor: number) =>
-  metFor(p.exerciseId, { distance: p.distance ?? null, minutes: p.minutes ?? null }) * factor * (p.distance ? 1 : p.intensity ?? 1)
+  metFor(p.exerciseId, { distance: p.distance ?? null, minutes: p.minutes ?? null, incline: p.incline }) * factor * (p.distance ? 1 : p.intensity ?? 1)
 
 /** lift: for a lifting exercise the app doesn't know (see liftMet); cond: timed and circuit blocks. */
 export interface WorkoutMets { lift: number; cond: number; cardioFactor: number }

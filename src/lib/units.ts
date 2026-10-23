@@ -105,5 +105,5 @@ export function formatCardioTime(minutes: number | null): string | null {
 }
 
 /** One line for a cardio log: "2,000 m · 7:32 · 1:53 /500m". */
-export const cardioLine = (c: { distance: number | null; minutes: number | null }, exerciseId: string | undefined, u: Units): string =>
-  [formatDistanceFor(c.distance, exerciseId, u), formatCardioTime(c.minutes), formatPaceFor(c.distance, c.minutes, exerciseId, u)].filter(Boolean).join(' · ') || '–'
+export const cardioLine = (c: { distance: number | null; minutes: number | null; incline?: number | null }, exerciseId: string | undefined, u: Units): string =>
+  [formatDistanceFor(c.distance, exerciseId, u), formatCardioTime(c.minutes), formatPaceFor(c.distance, c.minutes, exerciseId, u), c.incline ? `${c.incline}% incline` : ''].filter(Boolean).join(' · ') || '–'

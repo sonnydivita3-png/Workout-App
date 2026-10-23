@@ -205,3 +205,30 @@ test('count calories as active or total: total includes resting, so the same tar
   await sheet.getByRole('button', { name: /^Generate/ }).click()
   await expect(sheet.getByText(/≈ \d{3} total cal/)).toBeVisible()
 })
+
+test('Treadmill incline: pick one, the walk counts the climb, and the workout shows it', async ({ page }) => {
+  await seed(page, { trainingPrefs: { styles: [], cardio: ['treadwalk'], cardioSplit: false }, bodyweight: [{ date: '2026-01-01', lb: 180 }] })
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: '+ Add', exact: true }).click()
+  await page.locator('.fixed').getByText('Make me a workout').click()
+  const sheet = page.locator('.fixed')
+  await sheet.getByRole('button', { name: 'Cardio', exact: true }).click()
+  await sheet.getByRole('group', { name: 'Plan by' }).getByRole('button', { name: 'Calories' }).click()
+  await sheet.getByRole('button', { name: '300 cal' }).click()
+  const status = sheet.getByRole('status')
+  const minutes = async () => {
+    const m = (await status.locator('p').first().textContent())!.match(/in (?:(\d)h ?)?(\d+)/)!
+    return Number(m[1] ?? 0) * 60 + Number(m[2])
+  }
+  const flat = await minutes()
+  const incline = sheet.getByRole('radiogroup', { name: 'Treadmill incline' })
+  await expect(incline.getByRole('radio', { name: 'Flat' })).toBeChecked()
+  await incline.getByRole('radio', { name: '10%' }).click()
+  await expect(sheet.getByText(/At 10%, a 3 mph walk burns about 2\.2× what it does flat/)).toBeVisible()
+  await expect(status).toContainText('at 10% incline')
+  // The climb about doubles a walk's burn: much less time for the same calories.
+  await expect.poll(minutes).toBeLessThan(flat * 0.6)
+  await sheet.getByRole('button', { name: /^Generate/ }).click()
+  await expect(sheet.getByText(/10% incline/).first()).toBeVisible()
+})

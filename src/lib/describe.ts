@@ -10,6 +10,7 @@ export function describeItem(p: PlannedExercise, ex: Exercise, units: Units = { 
   if (ex.kind === 'cardio') {
     if (p.distance) parts.push(formatDistanceFor(p.distance, ex.id, units)!)
     if (p.minutes) parts.push(formatCardioTime(p.minutes)!)
+    if (p.incline) parts.push(`${p.incline}% incline`)
   } else if (p.warmup) {
     if (p.seconds) parts.push(`${p.seconds}s`)
     else if (p.reps) parts.push(`${p.reps} reps`)

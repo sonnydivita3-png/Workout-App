@@ -158,6 +158,7 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
                   last={last}
                   targetMinutes={p.minutes}
                   targetDistance={p.distance}
+                  targetIncline={p.incline}
                   note={p.note}
                   onChange={(c) => s.saveCardio(date, ex.id, c)}
                   date={date}

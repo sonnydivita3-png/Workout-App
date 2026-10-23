@@ -21,12 +21,12 @@ import { withGearFor } from '../lib/equipment'
 import { withCardioFor } from '../lib/cardioPrefs'
 import { CardioChoice, type CardioPick } from './CardioChoice'
 import { CardioActivityPicker } from './CardioActivityPicker'
-import { cardioIds, exerciseFor, setupFromIds, type CardioSetup } from '../lib/cardioSetup'
+import { cardioIds, exerciseFor, inclineOf, INCLINES, setupFromIds, type CardioSetup } from '../lib/cardioSetup'
 import { CARDIO_SESSIONS, type CardioSessionKind } from '../lib/cardioSession'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import { BY_ID } from '../lib/randomUtil'
-import { cardioMet, EFFORTS, effortLabel, fitCardio, setCardioPace, type Effort, metForRate, perMinute, planForCalories, planWithin, recentSpeed, SESSION_FACTOR, setCardioEffort, STYLE_MET, styleFor, WARMUP_MET, workoutCalories } from '../lib/calorieTarget'
-import { bodyweightOn, metFor, restingPerHour, speedForMet, topSpeed } from '../lib/calories'
+import { cardioMet, EFFORTS, effortLabel, fitCardio, setCardioPace, type Effort, metForRate, perMinute, planForCalories, planWithin, recentSpeed, SESSION_FACTOR, setCardioEffort, setIncline, STYLE_MET, styleFor, WARMUP_MET, workoutCalories } from '../lib/calorieTarget'
+import { bodyweightOn, inclinable, metFor, restingPerHour, speedForMet, topSpeed } from '../lib/calories'
 import { distanceFactor, formatMinutes, formatPace, showSpeed, showWeight, speedUnit, storeWeight } from '../lib/units'
 import { useToday } from '../lib/useToday'
 import { NumberInput } from './NumberInput'
@@ -193,11 +193,13 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   // "Any" cardio: what they usually do (their profile), the activities the workout will likely use. Cardio type ids
   // ('treadmill') become exercise ids ('Running_Treadmill') for the calorie numbers.
   const exerciseIds = (types: string[]) => types.map(exerciseFor).filter((id): id is string => !!id)
-  const cardioMetHere = cardioMet(exerciseIds(cardioIdsPicked.length ? cardioIdsPicked : trainingPrefs.cardio), sessionKind)
+  // On a treadmill, its incline: the climb burns more at the same speed.
+  const incline = inclineOf(cardio)
+  const cardioMetHere = cardioMet(exerciseIds(cardioIdsPicked.length ? cardioIdsPicked : trainingPrefs.cardio), sessionKind, incline)
   const withSpeed = !!one && topSpeed(one) != null
   const recentHere = one ? recentSpeed(logs, [one]) : null
   const paceMph = withSpeed ? (paceIn != null ? paceIn / distanceFactor(units) : recentHere) : null
-  const paceMet = withSpeed && paceMph ? metFor(one!, { distance: paceMph, minutes: 60 }) * SESSION_FACTOR[sessionKind] : cardioMetHere * EFFORTS[effortPick]
+  const paceMet = withSpeed && paceMph ? metFor(one!, { distance: paceMph, minutes: 60, incline }) * SESSION_FACTOR[sessionKind] : cardioMetHere * EFFORTS[effortPick]
   const calParts = cardioOnly
     ? [{ key: 'cardio', met: paceMet, minutes }]
     : parts.map((k) => ({ key: k, met: k === 'warmup' ? WARMUP_MET : k === 'cardio' ? paceMet : STYLE_MET[k as WorkoutStyle], minutes: partMin(k) }))
@@ -214,7 +216,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   // Within a time limit: how hard it has to be. Runs, walks and rides get a speed (compared with their recent ones);
   // other cardio an effort; lifting on its own, the style that burns enough.
   const needMet = timed?.needMet ?? null
-  const speed = needMet && one && hasKind('cardio') ? speedForMet(one, needMet / SESSION_FACTOR[sessionKind]) : null
+  const speed = needMet && one && hasKind('cardio') ? speedForMet(one, needMet / SESSION_FACTOR[sessionKind], incline) : null
   const recent = recentHere
   const effort = needMet && hasKind('cardio') ? effortLabel(needMet / cardioMetHere) : null
   const liftNeed = needMet && !hasKind('cardio') ? styleFor(needMet) : null
@@ -222,6 +224,10 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const tooHard = !!timed && (needMet == null || (hasKind('cardio')
     ? speed ? speed >= (topSpeed(one!) ?? Infinity) - 0.01 || speed > (recent ? recent * 1.15 : FAST[one!] ?? Infinity) : effort === 'too hard' || effort === 'very hard'
     : !liftNeed))
+  // On a treadmill, the incline that brings the speed it takes back within reach.
+  const steeper = tooHard && speed && needMet && inclinable(one)
+    ? INCLINES.find((g) => g > incline && speedForMet(one!, needMet / SESSION_FACTOR[sessionKind], g)! <= (recent ? recent * 1.15 : FAST[one!] ?? Infinity) && speedForMet(one!, needMet / SESSION_FACTOR[sessionKind], g)! < (topSpeed(one!) ?? Infinity) - 0.01)
+    : undefined
   // A harder style: lifting styles stay lifting; HIIT ones (PHA, circuits) make it a conditioning workout instead.
   const switchStyle = (st: WorkoutStyle) => {
     setPickedKind(true)
@@ -254,7 +260,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
       ...(showSplit ? { minutesByStyle: Object.fromEntries(styles.map((st) => [st, minFor(st)])), ...(hasCardio ? { cardioMinutes: minFor('cardio') } : {}) } : {}),
       avoid: new Set(avoid?.map((p) => p.exerciseId)),
     }
-    const made = withChoices(() => generateWorkout(genFocus, totalMin, opts))
+    const made = setIncline(withChoices(() => generateWorkout(genFocus, totalMin, opts)), hasKind('cardio') ? incline : 0)
     // A time limit: the cardio goes as hard as it has to; otherwise its time stretches to land on the target.
     // Otherwise it goes at their pace, and its time stretches to land on the target.
     check(
@@ -459,15 +465,15 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
                 {!timed && hasKind('cardio') && cal.minutes.cardio != null && (
                   <p className="mt-1 text-xs text-neutral-600">
                     {cardioName}: {formatMinutes(cal.minutes.cardio)} at {withSpeed && paceMph
-                      ? <b>{showSpeed(paceMph, units)} {speedUnit(units)}{FAST[one!] && FAST[one!] < 10 ? ` (${formatPace(paceMph, 60, units)})` : ''}</b>
-                      : <>a <b>{withSpeed ? 'usual easy' : effortPick}</b> {withSpeed ? 'pace' : 'effort'}</>}.
+                      ? <><b>{showSpeed(paceMph, units)} {speedUnit(units)}{FAST[one!] && FAST[one!] < 10 ? ` (${formatPace(paceMph, 60, units)})` : ''}</b>{incline ? ` at ${incline}% incline` : ''}</>
+                      : <>a <b>{withSpeed ? 'usual easy' : effortPick}</b> {withSpeed ? 'pace' : 'effort'}{incline ? ` at ${incline}% incline` : ''}</>}.
                   </p>
                 )}
                 {timed && needMet == null && <p className="mt-1 text-xs text-amber-700">No time left for the {hasKind('cardio') ? 'cardio' : 'workout'}: less lifting or more time.</p>}
                 {timed && needMet != null && hasKind('cardio') && (
                   <p className="mt-1 text-xs text-neutral-600">
                     {speed
-                      ? <>{cardioName}: {formatMinutes(timed.minutes.cardio)} at about <b>{showSpeed(speed, units)} {speedUnit(units)}</b>{one && FAST[one] && FAST[one] < 10 ? ` (${formatPace(speed, 60, units)})` : ''}{recent ? `; your recent average is ${showSpeed(recent, units)} ${speedUnit(units)}` : ''}.</>
+                      ? <>{cardioName}: {formatMinutes(timed.minutes.cardio)} at about <b>{showSpeed(speed, units)} {speedUnit(units)}</b>{one && FAST[one] && FAST[one] < 10 ? ` (${formatPace(speed, 60, units)})` : ''}{incline ? ` at ${incline}% incline` : ''}{recent ? `; your recent average is ${showSpeed(recent, units)} ${speedUnit(units)}` : ''}.</>
                       : <>{cardioName}: {formatMinutes(timed.minutes.cardio)} at a <b>{effort}</b> effort{needMet / cardioMetHere > 1.1 ? ` (about ${Math.round((needMet / cardioMetHere - 1) * 100)}% harder than a usual pace)` : ''}.</>}
                   </p>
                 )}
@@ -484,6 +490,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
                   <div className="mt-2 flex flex-wrap gap-2">
                     {liftNeed && STYLE_MET[liftNeed] > STYLE_MET[ownStyle] + 0.1 && <button onClick={() => switchStyle(liftNeed)} className={chip(false)}>Use {styleInfo(liftNeed).label}</button>}
                     {tooHard && hasKind('cardio') && hasKind('lift') && STYLE_MET[liftStyle] < STYLE_MET.supersets && <button onClick={() => switchStyle('supersets')} className={chip(false)}>Harder lifting: Supersets</button>}
+                    {steeper != null && <button onClick={() => setCardio({ ...cardio, incline: steeper })} className={chip(false)}>Use a {steeper}% incline</button>}
                     {tooHard && !hasKind('cardio') && <button onClick={() => { setPickedKind(true); setKinds((k) => [...k, 'cardio']) }} className={chip(false)}>Add cardio</button>}
                     {tooHard && usualMinutes && usualMinutes > (timeLimit ?? 0) && <button onClick={() => setTimeLimit(LIMITS.includes(usualMinutes) ? usualMinutes : null)} className={chip(false)}>Allow {formatMinutes(usualMinutes)}</button>}
                   </div>

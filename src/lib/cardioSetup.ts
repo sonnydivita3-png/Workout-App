@@ -18,7 +18,21 @@ export const ACTIVITIES: { key: string; label: string; out: string; in?: string;
 ]
 
 export type Where = 'out' | 'in'
-export interface CardioSetup { activities: string[]; where: Where; session: CardioSessionKind; split: boolean }
+export interface CardioSetup {
+  activities: string[]
+  where: Where
+  session: CardioSessionKind
+  split: boolean
+  /** Treadmill incline, percent grade (0 or unset: flat). */
+  incline?: number
+}
+
+/** Incline choices for a treadmill (percent grade). */
+export const INCLINES = [0, 2, 4, 6, 8, 10, 12, 15]
+
+/** The treadmill incline for this cardio: only on a treadmill, and not for hills (they have their own climbs). */
+export const inclineOf = (c: CardioSetup) =>
+  c.where === 'in' && c.session !== 'hills' && c.activities.some((k) => k === 'running' || k === 'walking') ? c.incline ?? 0 : 0
 
 /** Cardio type ids (cardioPrefs) for the picked activities, inside or out. */
 export const cardioIds = (c: CardioSetup) =>
