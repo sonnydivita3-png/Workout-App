@@ -52,6 +52,29 @@ export function metFor(exerciseId: string, c: Pick<CardioEntry, 'distance' | 'mi
   return onCurve(CURVES[a.curve], mph)
 }
 
+/**
+ * The speed (mph) that gives a MET, for activities that have a speed curve (running, walking, cycling), else null.
+ * Clamped to the curve: slower than its slowest point gives that point, faster gives its fastest.
+ */
+export function speedForMet(exerciseId: string, met: number): number | null {
+  const a = ACTIVITY[exerciseId]
+  if (!a || typeof a === 'number') return null
+  const c = CURVES[a.curve]
+  if (met <= c[0][1]) return c[0][0]
+  for (let i = 1; i < c.length; i++) {
+    const [x1, y1] = c[i]
+    const [x0, y0] = c[i - 1]
+    if (met <= y1) return x0 + ((met - y0) / (y1 - y0)) * (x1 - x0)
+  }
+  return c[c.length - 1][0]
+}
+
+/** The fastest speed a curve covers (mph), for activities with one. */
+export const topSpeed = (exerciseId: string): number | null => {
+  const a = ACTIVITY[exerciseId]
+  return !a || typeof a === 'number' ? null : CURVES[a.curve].at(-1)![0]
+}
+
 /** Bodyweight (lb) on a date: the latest entry on or before it, else the earliest one after. */
 export function bodyweightOn(entries: BodyweightEntry[], date: string): number | null {
   const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date))
