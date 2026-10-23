@@ -1,12 +1,14 @@
+import { inclineMet } from '../lib/calories'
 import { CARDIO_SESSIONS, sessionsFor } from '../lib/cardioSession'
-import { ACTIVITIES, cardioIds, exerciseFor, type CardioSetup } from '../lib/cardioSetup'
+import { ACTIVITIES, cardioIds, exerciseFor, INCLINES, type CardioSetup } from '../lib/cardioSetup'
 import { useStore } from '../store'
 
 const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
 
 /**
  * Cardio for a workout, in the order people think about it: what (run, ride, row…), where (outside or on a
- * treadmill / indoor bike), then what kind of session (steady, intervals, tempo, hills, time trial).
+ * treadmill / indoor bike), then what kind of session (steady, intervals, tempo, hills, time trial), and on a treadmill,
+ * the incline.
  */
 export function CardioActivityPicker({ value, onChange, finisher }: { value: CardioSetup; onChange: (v: CardioSetup) => void; finisher: boolean }) {
   const prefs = useStore((s) => s.trainingPrefs)
@@ -55,6 +57,17 @@ export function CardioActivityPicker({ value, onChange, finisher }: { value: Car
           <p className="text-xs text-neutral-400">{CARDIO_SESSIONS.find((s) => s.id === session)!.blurb}</p>
         </>
       )}
+      {value.where === 'in' && session !== 'hills' && picked.some((k) => k === 'running' || k === 'walking') && (
+        <>
+          <p className="mb-1 mt-3 text-sm font-medium">Treadmill incline</p>
+          <div className="mb-1 flex flex-wrap gap-2" role="radiogroup" aria-label="Treadmill incline">
+            {INCLINES.map((g) => (
+              <button key={g} role="radio" aria-checked={(value.incline ?? 0) === g} onClick={() => onChange({ ...value, incline: g })} className={chip((value.incline ?? 0) === g)}>{g ? `${g}%` : 'Flat'}</button>
+            ))}
+          </div>
+          <p className="text-xs text-neutral-400">{incline(value.incline ?? 0)}</p>
+        </>
+      )}
       {!same && (
         <p className="mt-2 text-xs text-neutral-400">
           Just for this workout.{' '}
@@ -64,3 +77,9 @@ export function CardioActivityPicker({ value, onChange, finisher }: { value: Car
     </div>
   )
 }
+
+/** What an incline does: a 3 mph walk (3.5 METs flat) and a 6 mph run (9.8) at that grade (ACSM equations). */
+const x = (n: number) => `${Math.round(n * 10) / 10}×`
+const incline = (g: number) =>
+  !g ? 'Walking or running uphill burns more: pick an incline to count it.'
+    : `At ${g}%, a 3 mph walk burns about ${x((3.5 + inclineMet(3, g, true)) / 3.5)} what it does flat, a 6 mph run about ${x((9.8 + inclineMet(6, g, false)) / 9.8)}.`

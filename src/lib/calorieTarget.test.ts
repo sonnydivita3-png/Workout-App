@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { cardioMet, effortLabel, fitCardio, liftMet, setCardioPace, metForRate, perMinute, planForCalories, planWithin, recentSpeed, setCardioEffort, STYLE_MET, styleFor, WARMUP_MET, workoutCalories } from './calorieTarget'
-import { speedForMet } from './calories'
+import { cardioMet, effortLabel, fitCardio, liftMet, setCardioPace, setIncline, metForRate, perMinute, planForCalories, planWithin, recentSpeed, setCardioEffort, STYLE_MET, styleFor, WARMUP_MET, workoutCalories } from './calorieTarget'
+import { metFor, speedForMet } from './calories'
 import type { PlannedExercise } from '../types'
 import { BY_ID } from './randomUtil'
 
@@ -154,6 +154,46 @@ describe('a workout for a calorie target', () => {
       // 80 kg, averaging MET 5.5: about 360 active (≈ 440 total) for the heavy hour.
       expect(heavy).toBeGreaterThan(340)
       expect(heavy).toBeLessThan(380)
+    })
+  })
+
+  describe('treadmill incline (ACSM equations)', () => {
+    it('walking uphill: about double the burn at 10%; running gains less', () => {
+      const walk = (incline: number) => metFor('Walking_Treadmill', { distance: 3, minutes: 60, incline })
+      expect(walk(0)).toBeCloseTo(3.5, 5)
+      expect(walk(10)).toBeCloseTo(3.5 + (1.8 * 3 * 26.8224 * 0.1) / 3.5, 5) // ≈ 7.6
+      const run = (incline: number) => metFor('Running_Treadmill', { distance: 6, minutes: 60, incline })
+      expect(run(5)).toBeCloseTo(9.8 + (0.9 * 6 * 26.8224 * 0.05) / 3.5, 5) // ≈ 11.9
+      // No distance: the usual pace, still steeper is harder.
+      expect(metFor('Walking_Treadmill', { distance: null, minutes: 30, incline: 12 })).toBeGreaterThan(7.5)
+      // Only treadmills: an outdoor run's "incline" is ignored.
+      expect(metFor('running', { distance: 6, minutes: 60, incline: 10 })).toBeCloseTo(9.8, 5)
+    })
+
+    it('the speed for a MET is slower uphill, and gives that MET back', () => {
+      const flat = speedForMet('Running_Treadmill', 11)!
+      const up = speedForMet('Running_Treadmill', 11, 6)!
+      expect(up).toBeLessThan(flat)
+      expect(metFor('Running_Treadmill', { distance: up, minutes: 60, incline: 6 })).toBeCloseTo(11, 3)
+      expect(speedForMet('Running_Treadmill', 11, 0)).toBe(flat)
+    })
+
+    it('a workout on an incline burns more, and needs less treadmill time for the same target', () => {
+      const mets = { lift: STYLE_MET.standard, cond: STYLE_MET.circuit, cardioFactor: 1 }
+      const items: PlannedExercise[] = [
+        { exerciseId: 'Walking_Treadmill', sets: 1, minutes: 30, est: 30 },
+        { exerciseId: 'Walking_Treadmill', sets: 1, minutes: 5, est: 5, warmup: true },
+        { exerciseId: 'Rowing_Stationary', sets: 1, minutes: 10, est: 10 },
+      ]
+      const up = setIncline(items, 10)
+      expect(up[0].incline).toBe(10)
+      expect(up[1].incline).toBeUndefined() // not the warm-up
+      expect(up[2].incline).toBeUndefined() // not a rower
+      expect(setIncline(up, 0)[0].incline).toBeUndefined()
+      expect(workoutCalories(up, rate, mets)).toBeGreaterThan(workoutCalories(items, rate, mets) * 1.5)
+      expect(cardioMet(['Walking_Treadmill'], 'steady', 10)).toBeGreaterThan(cardioMet(['Walking_Treadmill'], 'steady') * 2)
+      const fitted = fitCardio(up, 400, rate, mets)
+      expect(fitted[0].minutes!).toBeLessThan(fitCardio(items, 400, rate, mets)[0].minutes!)
     })
   })
 })

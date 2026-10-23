@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { parseGpx } from '../lib/gpx'
-import { bodyweightOn, estimateCalories, hasPersonalDetails } from '../lib/calories'
+import { bodyweightOn, estimateCalories, hasPersonalDetails, inclinable } from '../lib/calories'
 import { cardioLine, distanceUnitFor, distanceUnitsFor, formatCardioTime, formatDistanceFor, formatPaceFor, showDistanceIn, showWeight, storeDistanceIn } from '../lib/units'
 import { useToday } from '../lib/useToday'
 import { useStore } from '../store'
@@ -15,6 +15,8 @@ interface Props {
   targetMinutes?: number
   /** Target distance in miles. */
   targetDistance?: number
+  /** Planned treadmill incline, percent grade. */
+  targetIncline?: number
   note?: string
   onChange: (c: CardioEntry) => void
   onRemove: () => void
@@ -26,13 +28,15 @@ interface Props {
   date?: string
 }
 
-export function CardioCard({ exercise, current, last, targetMinutes, targetDistance, note, onChange, onRemove, onSwap, readOnly, date }: Props) {
+export function CardioCard({ exercise, current, last, targetMinutes, targetDistance, targetIncline, note, onChange, onRemove, onSwap, readOnly, date }: Props) {
   const units = useStore((s) => s.units)
   const setDistanceUnit = useStore((s) => s.setDistanceUnit)
   const bodyweight = useStore((s) => s.bodyweight)
   const aboutMe = useStore((s) => s.aboutMe)
   const today = useToday()
   const c = current?.cardio ?? { distance: null, minutes: null }
+  // Logging a treadmill workout keeps the plan's incline unless they change it.
+  const save = (n: CardioEntry) => onChange(n.incline === undefined && inclinable(exercise.id) && targetIncline ? { ...n, incline: targetIncline } : n)
   const prev = last?.cardio
   // Rowers and swims default to meters, everything else to the miles/km setting; the chips above switch this card's own.
   const unit = distanceUnitFor(exercise.id, units)
@@ -41,7 +45,7 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
   const secs = c.minutes == null ? null : Math.round((c.minutes - (wholeMin ?? 0)) * 60)
   const setTime = (m: number | null, s: number | null) => {
     const sec = Math.min(59, Math.max(0, s ?? 0))
-    onChange({ ...c, minutes: m == null && !sec ? null : (m ?? 0) + sec / 60 })
+    save({ ...c, minutes: m == null && !sec ? null : (m ?? 0) + sec / 60 })
   }
   const file = useRef<HTMLInputElement>(null)
   const [gpxMsg, setGpxMsg] = useState<string | null>(null)
@@ -52,10 +56,13 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
     if (!f) return
     const g = parseGpx(await f.text())
     if (!g || !g.miles) { setGpxMsg('Couldn’t find a GPS track in that file.'); return }
-    onChange({ ...c, distance: g.miles, minutes: g.minutes || c.minutes })
+    save({ ...c, distance: g.miles, minutes: g.minutes || c.minutes })
     setGpxMsg(`Imported ${g.name ? `“${g.name}”: ` : ''}${formatDistanceFor(g.miles, exercise.id, units)} in ${g.minutes} min${g.date ? ` (${g.date})` : ''}`)
   }
-  const target = [targetDistance ? formatDistanceFor(targetDistance, exercise.id, units) : '', targetMinutes ? formatCardioTime(targetMinutes) : ''].filter(Boolean).join(' · ')
+  const target = [targetDistance ? formatDistanceFor(targetDistance, exercise.id, units) : '', targetMinutes ? formatCardioTime(targetMinutes) : '', targetIncline ? `${targetIncline}% incline` : ''].filter(Boolean).join(' · ')
+  // A treadmill's incline: what they set, else the plan's, for the estimate.
+  const treadmill = inclinable(exercise.id)
+  const incline = c.incline === undefined && treadmill ? targetIncline : c.incline
   return (
     <div className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
       <div className="mb-3 flex items-start justify-between">
@@ -88,13 +95,13 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
             step={unit === 'm' || unit === 'yd' ? (exercise.id === 'swimming' ? 25 : 100) : 0.1}
             // Empty boxes show a dash: the target is in the line above and last time below, never in the box.
             placeholder="–"
-            onChange={(v) => onChange({ ...c, distance: storeDistanceIn(v, unit) })}
+            onChange={(v) => save({ ...c, distance: storeDistanceIn(v, unit) })}
           />
         </label>
         <div className="text-xs font-medium text-neutral-500">
           Time <span className="font-normal text-neutral-400">min : sec</span>
           <div className="flex items-center gap-1">
-            <NumberInput label={`${exercise.name} minutes`} value={wholeMin} placeholder="–" onChange={(v) => (v != null && !Number.isInteger(v) ? onChange({ ...c, minutes: v }) : setTime(v, secs))} />
+            <NumberInput label={`${exercise.name} minutes`} value={wholeMin} placeholder="–" onChange={(v) => (v != null && !Number.isInteger(v) ? save({ ...c, minutes: v }) : setTime(v, secs))} />
             <span className="text-neutral-400">:</span>
             <NumberInput label={`${exercise.name} seconds`} value={secs || (wholeMin != null ? 0 : null)} placeholder="00" onChange={(v) => setTime(wholeMin, v)} />
           </div>
@@ -104,23 +111,30 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
           <div className="py-2 text-center text-sm normal-case tabular-nums text-neutral-900">{formatPaceFor(c.distance, c.minutes, exercise.id, units) ?? '–'}</div>
         </div>
       </div>
+      {treadmill && (
+        <div className="mt-2 flex items-center gap-2 text-xs font-medium text-neutral-500">
+          <span>Incline</span>
+          <div className="w-20"><NumberInput label={`${exercise.name} incline`} value={c.incline ?? null} step={0.5} placeholder={targetIncline ? String(targetIncline) : '0'} onChange={(v) => save({ ...c, incline: v == null ? null : Math.min(40, Math.max(0, v)) })} /></div>
+          <span className="font-normal text-neutral-400">%{c.incline === undefined && targetIncline ? ' (the plan’s, unless you change it)' : ''}</span>
+        </div>
+      )}
       </>)}
       {!readOnly && (() => {
         // Calories: theirs (e.g. from a watch) if typed in, else an estimate from bodyweight, activity, time and pace.
         const day = date ?? current?.date ?? today
         const lb = bodyweightOn(bodyweight, day)
-        const est = estimateCalories(exercise.id, c, lb, aboutMe, day)
+        const est = estimateCalories(exercise.id, { ...c, incline }, lb, aboutMe, day)
         const personal = hasPersonalDetails(aboutMe)
         const own = c.calories != null && c.calories > 0
         return (
           <div className="mt-3 flex items-start gap-3">
             <label className="w-24 shrink-0 text-xs font-medium text-neutral-500">
               Calories
-              <NumberInput label={`${exercise.name} calories`} value={c.calories ?? null} step={10} placeholder={est != null ? `≈${est}` : '–'} onChange={(v) => onChange({ ...c, calories: v })} />
+              <NumberInput label={`${exercise.name} calories`} value={c.calories ?? null} step={10} placeholder={est != null ? `≈${est}` : '–'} onChange={(v) => save({ ...c, calories: v })} />
             </label>
             <p className="pt-5 text-xs text-neutral-400">
               {own ? 'Your number (e.g. from your watch).'
-                : est != null ? <><b className="font-medium text-neutral-600">≈{est} cal, estimated</b> from your bodyweight ({showWeight(lb, units)} {units.weight}){personal ? ', sex, age, height' : ''}, the activity and its time{c.distance ? ' and pace' : ''}. {personal ? '' : 'Add sex, age and height in Settings → Profile for a closer estimate. '}Type your watch’s number to use that instead.</>
+                : est != null ? <><b className="font-medium text-neutral-600">≈{est} cal, estimated</b> from your bodyweight ({showWeight(lb, units)} {units.weight}){personal ? ', sex, age, height' : ''}, the activity and its time{c.distance ? ' and pace' : ''}{incline ? ' and incline' : ''}. {personal ? '' : 'Add sex, age and height in Settings → Profile for a closer estimate. '}Type your watch’s number to use that instead.</>
                 : !lb ? <>Estimated calories need your <b className="font-medium text-neutral-600">bodyweight</b> (add it in Progress → Body), plus this workout’s minutes. Or type your watch’s number.</>
                 : 'Log the minutes to see estimated calories, or type your watch’s number.'}
             </p>

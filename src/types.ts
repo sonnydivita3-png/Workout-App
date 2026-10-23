@@ -41,6 +41,8 @@ export interface CardioEntry {
   minutes: number | null
   /** Calories they entered (e.g. from a watch). Without it, the app shows an estimate. */
   calories?: number | null
+  /** Treadmill incline, percent grade. */
+  incline?: number | null
 }
 
 /** Time-based workout formats: as many rounds as possible, every minute on the minute, or a fixed amount of work against the clock. */
@@ -101,6 +103,8 @@ export interface PlannedExercise {
   distance?: number // target distance in miles (cardio)
   /** Cardio without a distance: how hard, relative to a usual pace for it (1.2 = about 20% harder). */
   intensity?: number
+  /** Treadmill incline, percent grade (cardio). */
+  incline?: number
   /** Set on every item of a timed block (AMRAP / EMOM / for time). `reps` or `seconds` is per round. */
   wod?: Wod
   /** Planned rest after each set, in seconds (used for time estimates and the rest timer). */

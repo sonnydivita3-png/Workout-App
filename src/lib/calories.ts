@@ -40,10 +40,31 @@ const ACTIVITY: Record<string, number | { curve: 'run' | 'walk' | 'cycle'; usual
 const GENERAL = 6.0
 const CURVES = { run: RUN, walk: WALK, cycle: CYCLE }
 
-/** MET for an activity, using its speed when distance and time are both logged. */
-export function metFor(exerciseId: string, c: Pick<CardioEntry, 'distance' | 'minutes'>): number {
+/** Treadmills: the cardio that can be set to an incline. */
+export const TREADMILLS = ['Running_Treadmill', 'Jogging_Treadmill', 'Walking_Treadmill']
+export const inclinable = (exerciseId: string | undefined) => !!exerciseId && TREADMILLS.includes(exerciseId)
+
+/**
+ * The MET a treadmill incline (percent grade) adds at a speed, from the ACSM metabolic equations: the climb costs
+ * 1.8 mL/kg/min per m/min of speed per unit of grade walking, 0.9 running (running uphill is more efficient), ÷ 3.5
+ * for METs. A 3 mph walk at 10% about doubles the burn; a 6 mph run at 5% adds about a fifth.
+ */
+export const inclineMet = (mph: number, grade: number, walk: boolean) => ((walk ? 1.8 : 0.9) * mph * 26.8224 * (grade / 100)) / 3.5
+
+/** MET for an activity, using its speed when distance and time are both logged, and a treadmill's incline. */
+export function metFor(exerciseId: string, c: Pick<CardioEntry, 'distance' | 'minutes' | 'incline'>): number {
   const a = ACTIVITY[exerciseId] ?? GENERAL
   if (typeof a === 'number') return a
+  const grade = inclinable(exerciseId) ? Math.max(0, c.incline ?? 0) : 0
+  if (!grade) return flatMet(a, c)
+  const mph = c.distance && c.minutes ? c.distance / (c.minutes / 60) : flatSpeed(a)
+  // Walking speeds use the walking equation (a "run" under 4 mph is a walk; a walk over 4.5 mph is a run).
+  const walk = a.curve === 'walk' ? mph <= 4.5 : mph < 4
+  return flatMet(a, c) + inclineMet(mph, grade, walk)
+}
+
+type Curved = { curve: 'run' | 'walk' | 'cycle'; usual: number }
+function flatMet(a: Curved, c: Pick<CardioEntry, 'distance' | 'minutes'>): number {
   if (!c.distance || !c.minutes) return a.usual
   const mph = c.distance / (c.minutes / 60)
   // A "run" at walking speed is a walk, and a fast walk is a run.
@@ -51,15 +72,10 @@ export function metFor(exerciseId: string, c: Pick<CardioEntry, 'distance' | 'mi
   if (a.curve === 'walk' && mph > 4.5) return onCurve(RUN, mph)
   return onCurve(CURVES[a.curve], mph)
 }
+/** The speed a usual effort is on the flat (for an incline without a logged distance). */
+const flatSpeed = (a: Curved) => speedOn(CURVES[a.curve], a.usual)
 
-/**
- * The speed (mph) that gives a MET, for activities that have a speed curve (running, walking, cycling), else null.
- * Clamped to the curve: slower than its slowest point gives that point, faster gives its fastest.
- */
-export function speedForMet(exerciseId: string, met: number): number | null {
-  const a = ACTIVITY[exerciseId]
-  if (!a || typeof a === 'number') return null
-  const c = CURVES[a.curve]
+function speedOn(c: Curve, met: number): number {
   if (met <= c[0][1]) return c[0][0]
   for (let i = 1; i < c.length; i++) {
     const [x1, y1] = c[i]
@@ -67,6 +83,30 @@ export function speedForMet(exerciseId: string, met: number): number | null {
     if (met <= y1) return x0 + ((met - y0) / (y1 - y0)) * (x1 - x0)
   }
   return c[c.length - 1][0]
+}
+
+/**
+ * The speed (mph) that gives a MET, for activities that have a speed curve (running, walking, cycling), else null.
+ * Clamped to the curve: slower than its slowest point gives that point, faster gives its fastest. On an incline,
+ * slower: the climb does part of the work.
+ */
+export function speedForMet(exerciseId: string, met: number, incline = 0): number | null {
+  const a = ACTIVITY[exerciseId]
+  if (!a || typeof a === 'number') return null
+  const c = CURVES[a.curve]
+  if (!incline || !inclinable(exerciseId)) return speedOn(c, met)
+  // MET rises with speed, so halve the range until it's close.
+  let lo = c[0][0]
+  let hi = c[c.length - 1][0]
+  const at = (mph: number) => metFor(exerciseId, { distance: mph, minutes: 60, incline })
+  if (met <= at(lo)) return lo
+  if (met >= at(hi)) return hi
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2
+    if (at(mid) < met) lo = mid
+    else hi = mid
+  }
+  return (lo + hi) / 2
 }
 
 /** The fastest speed a curve covers (mph), for activities with one. */
@@ -110,7 +150,7 @@ export function restingPerHour(lb: number, date: string, me?: AboutMe | null): n
 }
 
 /** Estimated (net) calories for a cardio log, or null without minutes or a bodyweight. */
-export function estimateCalories(exerciseId: string, c: Pick<CardioEntry, 'distance' | 'minutes'>, lb: number | null, me?: AboutMe | null, date = new Date().toISOString().slice(0, 10)): number | null {
+export function estimateCalories(exerciseId: string, c: Pick<CardioEntry, 'distance' | 'minutes' | 'incline'>, lb: number | null, me?: AboutMe | null, date = new Date().toISOString().slice(0, 10)): number | null {
   if (!lb || !c.minutes || c.minutes <= 0) return null
   const hours = c.minutes / 60
   const gross = metFor(exerciseId, c) * lb * KG_PER_LB * hours
