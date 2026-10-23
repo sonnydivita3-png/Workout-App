@@ -99,6 +99,8 @@ export interface PlannedExercise {
   note?: string // extra instruction, e.g. "50 m" or "40s on / 20s off"
   est?: number // estimated minutes for this item, when the standard sets formula doesn't apply
   distance?: number // target distance in miles (cardio)
+  /** Cardio without a distance: how hard, relative to a usual pace for it (1.2 = about 20% harder). */
+  intensity?: number
   /** Set on every item of a timed block (AMRAP / EMOM / for time). `reps` or `seconds` is per round. */
   wod?: Wod
   /** Planned rest after each set, in seconds (used for time estimates and the rest timer). */
