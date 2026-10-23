@@ -25,9 +25,15 @@ import { cardioIds, exerciseFor, setupFromIds, type CardioSetup } from '../lib/c
 import { CARDIO_SESSIONS, type CardioSessionKind } from '../lib/cardioSession'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import { BY_ID } from '../lib/randomUtil'
+import { cardioMet, fitCardio, perMinute, planForCalories, SESSION_FACTOR, STYLE_MET, WARMUP_MET, workoutCalories } from '../lib/calorieTarget'
+import { bodyweightOn } from '../lib/calories'
+import { formatMinutes, showWeight, storeWeight } from '../lib/units'
+import { useToday } from '../lib/useToday'
+import { NumberInput } from './NumberInput'
 
 const MAX_HISTORY = 50
 const DURATIONS = [20, 30, 45, 60, 75, 90]
+const CALORIES = [300, 500, 750, 1000]
 // Styles that use cardio machines as stations.
 // Styles that choose their own lifts, so exercise-type preferences apply (timed formats use a set list of movements).
 const PICKS_LIFTS: WorkoutStyle[] = ['standard', 'strength', 'supersets', 'bodyweight', 'circuit', 'pha']
@@ -54,7 +60,12 @@ interface Props {
 interface Volume { over: Overload[]; options: ExtraTimeOption[]; base: PlannedExercise[]; opts: GenerateOptions; chosen: ExtraTime | 'more' | null; auto: boolean }
 
 export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
-  const { addPlanned, saveRoutine, genPrefs, setGenPrefs, equipment, trainingPrefs, setTrainingPrefs } = useStore()
+  const { addPlanned, saveRoutine, genPrefs, setGenPrefs, equipment, trainingPrefs, setTrainingPrefs, bodyweight, aboutMe, units, logBodyweight } = useStore()
+  const today = useToday()
+  // Time, or a calorie target the time is worked out for.
+  const [goal, setGoal] = useState<'time' | 'calories'>('time')
+  const [kcal, setKcal] = useState<number | null>(500)
+  const [weightIn, setWeightIn] = useState<number | null>(null)
   const perMuscle = perMuscleOf(trainingPrefs.perMuscle)
   const extraTime = extraTimeOf(trainingPrefs.extraTime)
   const [volume, setVolume] = useState<Volume | null>(null)
@@ -166,29 +177,47 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
     }
     setSplit((cur) => ({ ...cur, [k]: Math.min(120, Math.max(k === 'warmup' ? 2 : 5, (cur[k] ?? partMin(k)) + d)) }))
   }
+  // A calorie target: lifting and conditioning keep the minutes they set, the cardio makes up the rest (without cardio,
+  // the parts grow together). Needs their weight; the estimate is the same net one as for logged cardio.
+  const knownLb = bodyweightOn(bodyweight, today)
+  const lb = knownLb ?? storeWeight(weightIn, units)
+  // "Any" cardio: what they usually do (their profile), the activities the workout will likely use.
+  const cardioMetHere = cardioMet(cardioIdsPicked.length ? cardioIdsPicked : trainingPrefs.cardio, sessionKind)
+  const calParts = cardioOnly
+    ? [{ key: 'cardio', met: cardioMetHere, minutes }]
+    : parts.map((k) => ({ key: k, met: k === 'warmup' ? WARMUP_MET : k === 'cardio' ? cardioMetHere : STYLE_MET[k as WorkoutStyle], minutes: partMin(k) }))
+  const rate = (met: number) => perMinute(met, lb ?? 0, today, aboutMe)
+  const cal = goal === 'calories' && lb && kcal ? planForCalories(kcal, calParts, rate, hasKind('cardio') ? 'cardio' : undefined) : null
+  // The workout as made: its own cardio activities, and its cardio fitted to the target.
+  const mets = { lift: STYLE_MET[liftStyle], cond: STYLE_MET[condStyle], cardioFactor: SESSION_FACTOR[sessionKind] }
+  const minFor = (k: string) => cal?.minutes[k] ?? partMin(k)
+  const totalMin = cal ? cal.totalMinutes : total0
+  const computed = (k: string) => !!cal && k !== 'warmup' && (k === 'cardio' || !hasKind('cardio'))
   const partLabel = (k: string) => (k === 'cardio' ? 'Cardio' : k === 'warmup' ? 'Warm-up' : styleInfo(k as WorkoutStyle).label)
   const warmWhat = [warm.includes('cardio') && 'easy cardio', warm.includes('mobility') && 'mobility'].filter(Boolean).join(' + ')
-  const defaultName = `${styleLabel} · ${focusLabel} · ${total0} min`
+  const defaultName = `${styleLabel} · ${focusLabel} · ${totalMin} min`
 
   const generate = (avoid?: PlannedExercise[]) => {
     if (!avoid) setGenPrefs({ focus: genFocus, styles: [liftStyle, condStyle], kinds, minutes, cardioSetup: cardio })
+    if (cal && !knownLb && lb) logBodyweight(today, lb)
     const cardioSpec = hasKind('cardio') ? { exerciseId: one, kind: sessionKind } : undefined
     // Cardio on its own: its session has its own warm-up and cool-down, so no warm-up cardio or mobility before it.
     const warmup = cardioOnly ? {} : { ...warmSplit(), sets: warm.includes('sets') && lifting }
     const opts: GenerateOptions = {
       style: styles[0], styles, rest, warmup, cardio: cardioSpec,
       dropSets: !!genPrefs.drops && lifting,
-      ...(showSplit ? { minutesByStyle: Object.fromEntries(styles.map((st) => [st, partMin(st)])), ...(hasCardio ? { cardioMinutes: partMin('cardio') } : {}) } : {}),
+      ...(showSplit ? { minutesByStyle: Object.fromEntries(styles.map((st) => [st, minFor(st)])), ...(hasCardio ? { cardioMinutes: minFor('cardio') } : {}) } : {}),
       avoid: new Set(avoid?.map((p) => p.exerciseId)),
     }
-    check(withChoices(() => generateWorkout(genFocus, total0, opts)), opts, perMuscle)
+    const made = withChoices(() => generateWorkout(genFocus, totalMin, opts))
+    check(cal && kcal ? fitCardio(made, kcal, rate, mets) : made, opts, perMuscle)
   }
   // Filling the time gave one muscle more than their limit (or past about 15 hard sets): offer other ways to use it,
   // or do what they chose before.
   const check = (base: PlannedExercise[], opts: GenerateOptions, limit: number) => {
     const over = extraTime === 'more' ? [] : overloaded(base, (id) => BY_ID.get(id), limit)
     if (over.length === 0) { setVolume(null); commit(base); return }
-    const options = withChoices(() => extraTimeOptions(genFocus, total0, opts, limit, over.map((o) => o.part)))
+    const options = withChoices(() => extraTimeOptions(genFocus, totalMin, opts, limit, over.map((o) => o.part)))
     const auto = extraTime !== 'ask' ? options.find((o) => o.id === extraTime) : undefined
     setVolume({ over, options, base, opts, chosen: auto?.id ?? null, auto: !!auto })
     commit(auto?.items ?? base)
@@ -274,35 +303,82 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
 
         {!cardioOnly && <WarmupRestControls lifting={lifting} ownWarmupNote={styles.some(bringsOwnWarmup)} onWarmupChange={() => setSplit(({ warmup: _w, ...r }) => (void _w, r))} />}
 
-        {!showSplit && <h3 className="mb-2 text-sm font-medium">How long?</h3>}
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h3 className="text-sm font-medium">{showSplit ? 'Time for each part' : goal === 'calories' ? 'How many calories?' : 'How long?'}</h3>
+          <div role="group" aria-label="Plan by" className="flex shrink-0 rounded-full bg-neutral-100 p-0.5 text-xs">
+            {(['time', 'calories'] as const).map((g) => (
+              <button key={g} onClick={() => setGoal(g)} aria-pressed={goal === g} className={`rounded-full px-3 py-1 ${goal === g ? 'bg-surface font-medium shadow-sm' : 'text-neutral-500'}`}>{g === 'time' ? 'Time' : 'Calories'}</button>
+            ))}
+          </div>
+        </div>
+        {goal === 'calories' && (
+          <div className="mb-3">
+            <div className="mb-2 flex flex-wrap gap-2">
+              {CALORIES.map((c) => <button key={c} onClick={() => setKcal(c)} className={chip(kcal === c)}>{c.toLocaleString()} cal</button>)}
+            </div>
+            <NumberInput label="Calories to burn" value={kcal} placeholder="Calories" onChange={(v) => setKcal(v == null ? null : Math.round(v))} />
+            {!knownLb && (
+              <div className="mt-2">
+                <p className="mb-1 text-xs text-neutral-500">Your weight, to estimate the burn ({units.weight}):</p>
+                <NumberInput label="Your weight" value={weightIn} placeholder={units.weight} onChange={setWeightIn} />
+              </div>
+            )}
+          </div>
+        )}
         {showSplit && (
           <>
-            <h3 className="mb-2 text-sm font-medium">Time for each part</h3>
             <ul className="mb-2 divide-y divide-neutral-100 rounded-2xl bg-neutral-50 px-3">
               {parts.map((k) => (
                 <li key={k} className="flex items-center justify-between py-2">
                   <span className="text-sm">
                     <span>{partLabel(k)}</span>
                     {k === 'warmup' && <span className="block text-xs text-neutral-400">{warmWhat} · − to remove</span>}
+                    {cal && <span className="block text-xs text-neutral-400">≈ {cal.kcal[k]} cal{computed(k) ? ' · worked out for your target' : ''}</span>}
                   </span>
-                  <span className="flex items-center gap-2">
-                    <button onClick={() => bump(k, -5)} aria-label={`Less ${partLabel(k)} time`} className="h-8 w-8 rounded-full bg-neutral-100 text-lg">−</button>
-                    <span className="w-16 text-center text-sm tabular-nums">{partMin(k)} min</span>
-                    <button onClick={() => bump(k, 5)} aria-label={`More ${partLabel(k)} time`} className="h-8 w-8 rounded-full bg-neutral-100 text-lg">+</button>
-                  </span>
+                  {computed(k) ? (
+                    <span className="w-16 text-center text-sm font-medium tabular-nums">{minFor(k)} min</span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <button onClick={() => bump(k, -5)} aria-label={`Less ${partLabel(k)} time`} className="h-8 w-8 rounded-full bg-neutral-100 text-lg">−</button>
+                      <span className="w-16 text-center text-sm tabular-nums">{minFor(k)} min</span>
+                      <button onClick={() => bump(k, 5)} aria-label={`More ${partLabel(k)} time`} className="h-8 w-8 rounded-full bg-neutral-100 text-lg">+</button>
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
-            <p className="mb-2 text-xs text-neutral-400">Total {total0} min. Or pick a total to split evenly:</p>
+            {goal === 'time' && <p className="mb-2 text-xs text-neutral-400">Total {total0} min. Or pick a total to split evenly:</p>}
           </>
         )}
-        <div className="mb-5 flex flex-wrap gap-2">
-          {DURATIONS.map((m) => (
-            <button key={m} onClick={() => { setMinutes(m); setSplit({}) }} className={chip(m === minutes && Object.keys(split).length === 0)}>{m} min</button>
-          ))}
-        </div>
+        {goal === 'time' && (
+          <div className="mb-5 flex flex-wrap gap-2">
+            {DURATIONS.map((m) => (
+              <button key={m} onClick={() => { setMinutes(m); setSplit({}) }} className={chip(m === minutes && Object.keys(split).length === 0)}>{m} min</button>
+            ))}
+          </div>
+        )}
+        {goal === 'calories' && (
+          <div role="status" className="mb-5 rounded-2xl bg-neutral-50 px-3 py-2 text-sm">
+            {!lb ? (
+              <p className="text-neutral-500">Add your weight to work out the time.</p>
+            ) : !cal ? (
+              <p className="text-neutral-500">Pick how many calories.</p>
+            ) : (
+              <>
+                <p className="font-medium">About {cal.totalKcal.toLocaleString()} cal in {formatMinutes(cal.totalMinutes)}</p>
+                {!showSplit && <p className="text-xs text-neutral-500">{cardioOnly ? cardioName : styleLabel}: {formatMinutes(cal.totalMinutes)}</p>}
+                {cal.totalMinutes > 120 && (
+                  <p className="mt-1 text-xs text-amber-700">That’s a long session. {hasKind('cardio') ? 'Harder cardio (intervals, tempo, hills) or a lower target gets there sooner.' : 'Adding cardio gets there in much less time.'}</p>
+                )}
+                <p className="mt-1 text-xs text-neutral-400">
+                  Estimated from your weight{knownLb ? ` (${showWeight(knownLb, units)} ${units.weight})` : ''} and how hard each part is, like a fitness watch: it can be off by 20% or more. Lifting burns less than it feels like, about 3–4 calories a minute for most people.
+                </p>
+              </>
+            )}
+          </div>
+        )}
 
-        <button disabled={!canGenerate} onClick={() => generate()} className={primaryBtn}>Generate workout</button>
+        <button disabled={!canGenerate || (goal === 'calories' && !cal)} onClick={() => generate()} className={primaryBtn}>Generate workout</button>
       </Sheet>
     )
   }
@@ -331,7 +407,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
         </button>
       </div>
       <p className="mb-3 text-sm text-neutral-400">
-        {styleLabel} · {focusLabel}{hasCardio ? ' + Cardio' : ''} · about {Math.round(total)} min
+        {styleLabel} · {focusLabel}{hasCardio ? ' + Cardio' : ''} · about {Math.round(total)} min{cal ? ` · ≈ ${workoutCalories(items, rate, mets).toLocaleString()} cal` : ''}
       </p>
       {volume && (
         <VolumeCheck
