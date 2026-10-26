@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import type { PlannedExercise } from '../types'
 import { defaultWarmup, generateWorkout, liftsMinutes, minutesFor, plannedFor, STYLES, swapExercise, type WorkoutStyle } from './randomizer'
-import { mulberry32 } from './randomUtil'
+import { familyOf, mulberry32 } from './randomUtil'
 import { withGearFor } from './equipment'
 import { withCardioFor } from './cardioPrefs'
 
@@ -173,14 +173,49 @@ describe('HIIT circuit', () => {
 })
 
 describe('PHA', () => {
-  const upper = new Set(['Chest', 'Back', 'Shoulders', 'Arms'])
-  it('strictly alternates upper and lower body, with roughly equal halves', () => {
-    for (let seed = 1; seed <= 40; seed++) {
-      const w = gen('pha', ['Chest', 'Back', 'Legs', 'Glutes'], 45, seed)
-      expect(w.every((p) => p.block === 'pha' && p.note === 'no rest')).toBe(true)
-      expect(w[0].blockLabel).toMatch(/^PHA circuit · \d rounds/)
-      const seq = w.map((p) => (upper.has(ex(p).group) ? 'U' : 'L'))
-      for (let i = 1; i < seq.length; i++) expect(seq[i], `seed ${seed}: ${seq.join('')}`).not.toBe(seq[i - 1])
+  const UPPER = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps']
+  const LOWER = ['Quads', 'Hamstrings', 'Glutes', 'Calves']
+  const FULL = ['x-thruster', 'Kettlebell_Thruster', 'x-kb-swing', 'x-db-snatch', 'x-wall-balls', 'x-burpee', 'Mountain_Climbers']
+  const shape = (w: PlannedExercise[]) => w.map((p, i) => (i === 4 ? (FULL.includes(p.exerciseId) ? 'F' : '?') : ex(p).group === 'Core' ? 'C' : UPPER.includes(ex(p).group) ? 'U' : LOWER.includes(ex(p).group) ? 'L' : '?')).join('')
+  it('six stations: upper, lower, upper, lower, full body, core; the two uppers and two lowers hit different muscles', () => {
+    for (const focus of [[], ['Chest', 'Back', 'Quads', 'Glutes'], ['Chest', 'Triceps'], ['Quads']]) {
+      for (let seed = 1; seed <= 40; seed++) {
+        const w = gen('pha', focus, 45, seed)
+        const where = `${focus.join('+') || 'full body'} seed ${seed}: ${w.map((p) => ex(p).name).join(', ')}`
+        expect(w.every((p) => p.block === 'pha' && p.note === 'no rest')).toBe(true)
+        expect(w[0].blockLabel).toMatch(/^PHA circuit · \d+ rounds/)
+        expect(shape(w), where).toBe('ULULFC')
+        expect(ex(w[0]).group, where).not.toBe(ex(w[2]).group)
+        expect(ex(w[1]).group, where).not.toBe(ex(w[3]).group)
+        expect(new Set(w.map((p) => p.exerciseId)).size, where).toBe(6)
+      }
+    }
+  })
+  it('the parts they pick steer it: a push and a pull up top, a knee and a hip move below', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const w = gen('pha', ['Chest', 'Back', 'Quads', 'Hamstrings'], 45, seed)
+      expect([ex(w[0]).group, ex(w[2]).group].sort()).toEqual(['Back', 'Chest'])
+      expect([ex(w[1]).group, ex(w[3]).group].sort()).toEqual(['Hamstrings', 'Quads'])
+      // Full body: the big groups, never arms or calves.
+      const all = gen('pha', [], 45, seed)
+      for (const i of [0, 1, 2, 3]) expect(['Biceps', 'Triceps', 'Calves']).not.toContain(ex(all[i]).group)
+      // A push and a pull, a knee and a hip move (a face pull is filed under shoulders but isn't a push).
+      const fam = (i: number) => familyOf(ex(all[i])) ?? ''
+      const where = all.map((p) => `${ex(p).name} (${familyOf(ex(p))})`).join(', ')
+      const PUSH = ['bench', 'incline', 'overhead', 'pushup', 'decline pushup', 'close pushup', 'dip']
+      const PULL = ['row', 'vertical pull', 'pullover']
+      expect([fam(0), fam(2)].filter((f) => PUSH.includes(f)), where).toHaveLength(1)
+      expect([fam(0), fam(2)].filter((f) => PULL.includes(f)), where).toHaveLength(1)
+      expect([fam(1), fam(3)].filter((f) => ['squat', 'lunge', 'leg press', 'jump'].includes(f)), where).toHaveLength(1)
+      expect([fam(1), fam(3)].filter((f) => ['hinge', 'bridge', 'leg curl', 'glute kickback', 'back extension'].includes(f)), where).toHaveLength(1)
+    }
+  })
+  it('a second PHA in the week uses different exercises', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const first = gen('pha', [], 45, seed)
+      const second = main(generateWorkout([], 45, { style: 'pha', rng: mulberry32(seed + 100), avoid: new Set(first.map((p) => p.exerciseId)) }))
+      const same = second.filter((p) => first.some((q) => q.exerciseId === p.exerciseId))
+      expect(same.length, `seed ${seed}: ${same.map((p) => ex(p).name)}`).toBe(0)
     }
   })
   it('uses most of the time available', () => {

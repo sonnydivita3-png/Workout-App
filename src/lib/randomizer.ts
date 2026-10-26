@@ -32,7 +32,7 @@ export const STYLES: StyleInfo[] = [
   { id: 'strength', label: 'Strength', blurb: 'Heavy compound lifts: 4–5 sets of low reps with longer rests.', focus: 'required' },
   { id: 'supersets', label: 'Supersets', blurb: 'Exercises paired back to back with little rest, so you fit more work into the time.', focus: 'required' },
   { id: 'circuit', label: 'HIIT circuit', blurb: 'Rounds of timed work and short rests. Leave body parts empty for full body.', focus: 'optional' },
-  { id: 'pha', label: 'PHA', blurb: 'Peripheral heart action: alternate upper- and lower-body moves with almost no rest.', focus: 'optional' },
+  { id: 'pha', label: 'PHA', blurb: 'Peripheral heart action: six stations (upper, lower, upper, lower, full body, core) with almost no rest. Body parts pick which muscles.', focus: 'optional' },
   { id: 'hyrox', label: 'Hyrox-style', blurb: 'Run plus a station, repeated: SkiErg, sleds, carries, wall balls. Always full body.', focus: 'ignored' },
   { id: 'crossfit', label: 'CrossFit-style', blurb: 'Optional strength primer, then a timed WOD: AMRAP, EMOM, or rounds for time. Full body.', focus: 'ignored' },
   { id: 'amrap', label: 'AMRAP', blurb: 'As many rounds as possible in a set time. Leave body parts empty for full body.', focus: 'optional' },
@@ -872,8 +872,6 @@ function makeSupersets(items: PlannedExercise[], extras: Exercise[] = [], extra:
 // Circuit-style: HIIT and peripheral heart action.
 // ---------------------------------------------------------------------------------------------
 
-const UPPER = new Set(UPPER_PARTS)
-
 /**
  * Up to `count` exercises taking turns between the groups. Circuits stay in one area of the gym: portable gear and
  * floor moves, plus at most `maxFixed` fixed stations (a bench, the cable stack…), unless that leaves the circuit short.
@@ -954,41 +952,70 @@ function generateCircuit(groups: string[], minutes: number, rng: Rng, avoid: Set
   }))
 }
 
+/** Upper body: pushing (chest, shoulders, triceps) and pulling (back, biceps); the big groups when nothing narrows it. */
+const PHA_UPPER = { a: ['Chest', 'Shoulders', 'Triceps'], b: ['Back', 'Biceps'], bigA: ['Chest', 'Shoulders'], bigB: ['Back'], kinds: ['push', 'pull'] }
+/** Lower body: knee-dominant (quads, calves) and hip-dominant (hamstrings, glutes). */
+const PHA_LOWER = { a: ['Quads', 'Calves'], b: ['Hamstrings', 'Glutes'], bigA: ['Quads'], bigB: ['Hamstrings', 'Glutes'], kinds: ['knee', 'hip'] }
+/** The movements that make each kind (a face pull is filed under shoulders but it's a pull; a step-up under glutes, but it's a knee move). */
+const PHA_MOVES: Record<string, string[]> = {
+  push: ['bench', 'incline', 'overhead', 'pushup', 'decline pushup', 'close pushup', 'dip', 'pushdown', 'overhead triceps', 'lying triceps'],
+  pull: ['row', 'vertical pull', 'pullover', 'curl', 'hammer curl', 'reverse curl'],
+  knee: ['squat', 'lunge', 'leg press', 'jump', 'leg extension', 'calf', 'seated calf'],
+  hip: ['hinge', 'bridge', 'leg curl', 'glute kickback', 'back extension'],
+}
+/** Whole-body moves for the fifth station, most equipment first; burpees need none. */
+const PHA_FULL_BODY = ['x-thruster', 'Kettlebell_Thruster', 'x-kb-swing', 'x-db-snatch', 'x-wall-balls', 'x-burpee', 'Mountain_Climbers']
+
+/**
+ * Two different groups for one half of the body: one of each kind (a push and a pull, a knee and a hip move), from the
+ * parts they picked when they narrowed it, else the big groups. One kind picked (say chest and triceps): two of it,
+ * or the other kind's big group when there's only one.
+ */
+function phaPair(picked: string[], side: typeof PHA_UPPER, rng: Rng): [Slot, Slot] {
+  const mine = picked.filter((g) => side.a.includes(g) || side.b.includes(g))
+  const narrowed = mine.length > 0 && mine.length < side.a.length + side.b.length
+  const a = narrowed ? mine.filter((g) => side.a.includes(g)) : side.bigA
+  const b = narrowed ? mine.filter((g) => side.b.includes(g)) : side.bigB
+  const slot = (group: string): Slot => ({ group, kind: side.a.includes(group) ? side.kinds[0] : side.kinds[1] })
+  if (a.length && b.length) return (rng() < 0.5 ? [pick(a, rng), pick(b, rng)] : [pick(b, rng), pick(a, rng)]).map(slot) as [Slot, Slot]
+  const [g1, g2] = shuffle(a.length ? a : b, rng)
+  return [slot(g1), slot(g2 ?? pick(a.length ? side.bigB : side.bigA, rng))]
+}
+type Slot = { group: string; kind?: string }
+
+/**
+ * Peripheral heart action: six stations, upper, lower, upper, lower, full body, core, done back to back. Moving the
+ * work between distant muscles keeps the blood moving instead of pooling, so there's almost no rest. The two upper
+ * stations hit different muscles (a push and a pull), as do the two lower ones (a knee and a hip move). Anything in
+ * `avoid` (e.g. this week's other PHA workouts) is used only if nothing else fits.
+ */
 function generatePha(groups: string[], minutes: number, rng: Rng, avoid: Set<string>): PlannedExercise[] {
   const ROUND_REST = 1.5
   const roundMin = (k: number) => k * 1 + ROUND_REST
-  let n = minutes <= 25 ? 4 : minutes <= 40 ? 5 : minutes <= 55 ? 6 : 7
-  while (n > 4 && roundMin(n) * 2 > minutes) n--
   // Quick, low-skill stations: not barbell lifts, and compound moves where the group has any.
   const poolFor = (g: string) => {
+    if (g === 'Full body') return PHA_FULL_BODY.map((id) => BY_ID.get(id)).filter((e): e is Exercise => !!e && hasGear(e))
     const base = [...POOL, ...customPool()].filter((e) => e.kind === 'strength' && e.group === g && equipmentRank(e) >= 1 && !tooAdvanced(e) && !isTechnical(e) && !isQuirky(e) && hasGear(e))
     // (Three different movements: hip thrusts and glute bridges are one.)
     const compound = base.filter((e) => !isIsolation(e))
     return new Set(compound.map(familyOf)).size >= 3 ? compound : base
   }
-
-  // Half the stations upper body, half lower; Core counts as lower. Falls back to whatever was chosen.
-  const upperGroups = groups.filter((g) => UPPER.has(g))
-  const lowerGroups = groups.filter((g) => !UPPER.has(g))
-  let picked: Exercise[]
-  if (upperGroups.length && lowerGroups.length) {
-    const up = roundRobinPick(upperGroups, Math.ceil(n / 2), poolFor, avoid, rng)
-    const low = roundRobinPick(lowerGroups, Math.floor(n / 2), poolFor, avoid, rng, 1, up)
-    // With an odd count the longer half goes first, or the circuit would end with two of a kind back to back.
-    const first = up.length !== low.length ? (up.length > low.length ? up : low) : rng() < 0.5 ? up : low
-    const second = first === up ? low : up
-    picked = []
-    for (let i = 0; picked.length < up.length + low.length; i++) {
-      if (first[i]) picked.push(first[i])
-      if (second[i]) picked.push(second[i])
-    }
-  } else {
-    picked = spreadGroups(roundRobinPick(groups, n, poolFor, avoid, rng))
+  const [u1, u2] = phaPair(groups, PHA_UPPER, rng)
+  const [l1, l2] = phaPair(groups, PHA_LOWER, rng)
+  const picked: Exercise[] = []
+  // Each station's movement kind where the group has one (else anything in it), and six different exercises (a
+  // kettlebell swing is a glute move and a full-body one, but only once).
+  const station = ({ group, kind }: Slot) => () => {
+    const pool = poolFor(group).filter((e) => !picked.some((x) => x.id === e.id))
+    // (Their own exercises the app can't place in a movement still count for their body part.)
+    const fit = kind ? pool.filter((e) => PHA_MOVES[kind].includes(familyOf(e) ?? '') || (e.custom && !familyOf(e))) : pool
+    return fit.length ? fit : pool
   }
+  for (const slot of [u1, l1, u2, l2, { group: 'Full body' }, { group: 'Core' }]) picked.push(...roundRobinPick([slot.group], 1, station(slot), avoid, rng, 1, picked))
   if (picked.length === 0) return []
 
   const k = picked.length
-  const rounds = Math.max(2, Math.min(minutes >= 75 ? 10 : 6, Math.floor(minutes / roundMin(k))))
+  const rounds = Math.max(2, Math.min(10, Math.floor(minutes / roundMin(k))))
   const blockLabel = `PHA circuit · ${rounds} rounds · station to station with no rest, ${ROUND_REST * 60}s between rounds`
   return picked.map((e) => ({
     exerciseId: e.id, sets: rounds, ...(e.mode === 'time' ? { seconds: 40 } : { reps: pick([12, 15], rng) }),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ExerciseLog, PlanOverrides, WeekPlan } from '../types'
-import { dayLabel, workoutTitle, dayPlanOf, isRestDay, lastWorkout, repeatPlan } from './plan'
+import { dayLabel, workoutTitle, dayPlanOf, isRestDay, lastWorkout, repeatPlan, phaThisWeek } from './plan'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import { weekStats } from './stats'
 
@@ -121,5 +121,19 @@ describe('workoutTitle', () => {
     expect(t('Barbell_Squat', 'Lying_Leg_Curls', 'running')).toBe('Legs + cardio')
     expect(t('running')).toBe('Run')
     expect(t('Elliptical_Trainer')).toBe('Cardio')
+  })
+})
+
+describe('phaThisWeek', () => {
+  it("lists the PHA stations on the week's other days (Monday to Sunday), not the day itself or other weeks", () => {
+    const pha = (id: string, block = 'pha') => ({ exerciseId: id, sets: 4, reps: 12, block })
+    const empty = [[], [], [], [], [], [], []]
+    const overrides = {
+      '2026-10-26': [pha('A')], // Monday
+      '2026-10-28': [pha('B', 'pha-pha'), { exerciseId: 'Squat', sets: 3, reps: 5 }], // in a mixed workout
+      '2026-10-30': [pha('C')], // the day being made
+      '2026-11-02': [pha('D')], // next week
+    }
+    expect(phaThisWeek(empty, overrides, '2026-10-30').sort()).toEqual(['A', 'B'])
   })
 })
