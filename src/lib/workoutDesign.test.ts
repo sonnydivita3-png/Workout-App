@@ -51,7 +51,8 @@ describe('one of each movement (programs are built from distinct movement patter
 
   it('deadlifts stay off chest-and-back, upper-body and push days', () => {
     for (const focus of [['Chest', 'Back'], UPPER, ['Chest', 'Shoulders', 'Triceps']]) {
-      for (const style of ['standard', 'strength', 'supersets', 'bodyweight', 'circuit', 'pha'] as WorkoutStyle[]) {
+      // (Not PHA: it always alternates upper and lower body, so it has its own lower-body moves.)
+      for (const style of ['standard', 'strength', 'supersets', 'bodyweight', 'circuit'] as WorkoutStyle[]) {
         for (let seed = 1; seed <= 15; seed++) {
           const w = gen(focus, 60, style, seed)
           expect(count(families(w), 'hinge'), `${style} ${focus.join('+')} seed ${seed}: ${names(w)}`).toBe(0)

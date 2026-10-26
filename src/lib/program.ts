@@ -78,7 +78,6 @@ function goalDayTypes(goal: ProgramGoal, daysPerWeek: number): DayType[] {
         { name: 'Upper-body circuit', groups: [...UPPER_BODY, 'Core'], style: 'circuit', weight: 1 },
         { name: 'Lower-body circuit', groups: LOWER_BODY, style: 'circuit', weight: 1 },
         { name: 'PHA full body', groups: FULL, style: 'pha', weight: fw(0.9), generic: true },
-        { name: 'Upper-body PHA', groups: [...UPPER_BODY, 'Core'], style: 'pha', weight: 0.7 },
         { name: 'Full-body supersets', groups: FULL, style: 'supersets', weight: fw(0.8) },
         { name: 'Upper body', groups: UPPER_BODY, style: 'standard', weight: 0.6 },
         { name: 'Lower body', groups: LOWER_BODY, style: 'standard', weight: 0.6 },

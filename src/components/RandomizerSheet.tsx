@@ -20,6 +20,7 @@ import { MoveChoice } from './TrainingPrefsPicker'
 import { withGearFor } from '../lib/equipment'
 import { withCardioFor } from '../lib/cardioPrefs'
 import { CardioChoice, type CardioPick } from './CardioChoice'
+import { phaThisWeek } from '../lib/plan'
 import { CardioActivityPicker } from './CardioActivityPicker'
 import { cardioIds, exerciseFor, inclineOf, INCLINES, setupFromIds, type CardioSetup } from '../lib/cardioSetup'
 import { CARDIO_SESSIONS, type CardioSessionKind } from '../lib/cardioSession'
@@ -63,7 +64,7 @@ interface Props {
 interface Volume { over: Overload[]; options: ExtraTimeOption[]; base: PlannedExercise[]; opts: GenerateOptions; chosen: ExtraTime | 'more' | null; auto: boolean }
 
 export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
-  const { addPlanned, saveRoutine, genPrefs, setGenPrefs, equipment, trainingPrefs, setTrainingPrefs, bodyweight, aboutMe, units, logBodyweight, logs } = useStore()
+  const { plan, overrides, addPlanned, saveRoutine, genPrefs, setGenPrefs, equipment, trainingPrefs, setTrainingPrefs, bodyweight, aboutMe, units, logBodyweight, logs } = useStore()
   const today = useToday()
   // Time, or a calorie target the time is worked out for.
   const [goal, setGoal] = useState<'time' | 'calories'>('time')
@@ -258,7 +259,8 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
       style: styles[0], styles, rest, warmup, cardio: cardioSpec,
       dropSets: !!genPrefs.drops && lifting,
       ...(showSplit ? { minutesByStyle: Object.fromEntries(styles.map((st) => [st, minFor(st)])), ...(hasCardio ? { cardioMinutes: minFor('cardio') } : {}) } : {}),
-      avoid: new Set(avoid?.map((p) => p.exerciseId)),
+      // A reroll avoids what was just made; a PHA also avoids this week's other PHA stations, so they vary.
+      avoid: new Set([...(avoid?.map((p) => p.exerciseId) ?? []), ...(styles.includes('pha') ? phaThisWeek(plan, overrides, date) : [])]),
     }
     const made = setIncline(withChoices(() => generateWorkout(genFocus, totalMin, opts)), hasKind('cardio') ? incline : 0)
     // A time limit: the cardio goes as hard as it has to; otherwise its time stretches to land on the target.

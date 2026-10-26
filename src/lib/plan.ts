@@ -1,11 +1,20 @@
 import type { Exercise, ExerciseLog, PlanOverrides, PlannedExercise, WeekPlan } from '../types'
 import { areaOf } from './bodyParts'
-import { parseISO, weekdayIndex } from './dates'
+import { addDays, mondayOf, parseISO, toISO, weekdayIndex } from './dates'
 import { hasData } from './stats'
 
 /** The exercises planned for a date: a date-specific override if one exists, else the weekly template. */
 export function dayPlanOf(plan: WeekPlan, overrides: PlanOverrides | undefined, date: string): PlannedExercise[] {
   return overrides?.[date] ?? plan[weekdayIndex(parseISO(date))]
+}
+
+/** PHA stations planned on the other days of a date's week (Monday to Sunday), so another PHA that week can differ. */
+export function phaThisWeek(plan: WeekPlan, overrides: PlanOverrides | undefined, date: string): string[] {
+  const monday = mondayOf(parseISO(date))
+  return [0, 1, 2, 3, 4, 5, 6]
+    .map((i) => toISO(addDays(monday, i)))
+    .filter((d) => d !== date)
+    .flatMap((d) => dayPlanOf(plan, overrides, d).filter((p) => p.block === 'pha' || p.block?.endsWith('-pha')).map((p) => p.exerciseId))
 }
 
 /** The exercises that count as the workout itself (warm-up moves aren't tracked as things to do). */
