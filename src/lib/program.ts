@@ -89,6 +89,7 @@ function goalDayTypes(goal: ProgramGoal, daysPerWeek: number): DayType[] {
         { name: 'Upper body', groups: UPPER_BODY, style: 'standard', weight: 1 },
         { name: 'Lower body', groups: LOWER_BODY, style: 'standard', weight: 1 },
         { name: 'Full-body circuit', groups: FULL, style: 'circuit', weight: fw(0.7), generic: true },
+        { name: 'Functional', groups: FULL, style: 'functional', weight: fw(0.7), generic: true },
         { name: 'Bodyweight', groups: ['Chest', 'Back', 'Quads', 'Core'], style: 'bodyweight', weight: 0.7 },
         cardio(0.9),
       ]
@@ -99,6 +100,7 @@ function goalDayTypes(goal: ProgramGoal, daysPerWeek: number): DayType[] {
         { name: 'Lower strength', groups: ['Quads', 'Hamstrings', 'Glutes', 'Core'], style: 'strength', weight: 0.9 },
         { name: 'Upper strength', groups: ['Chest', 'Back', 'Shoulders'], style: 'strength', weight: 0.9 },
         { name: 'Full-body HIIT', groups: FULL, style: 'circuit', weight: fw(0.7), generic: true },
+        { name: 'Functional', groups: FULL, style: 'functional', weight: fw(1.0), generic: true },
         { name: 'Bodyweight', groups: ['Chest', 'Back', 'Quads', 'Core'], style: 'bodyweight', weight: 0.5 },
         { name: 'Run / cardio', groups: [], style: 'standard', weight: 0.8 },
       ]
@@ -510,6 +512,9 @@ const EXTRA_TYPES: Partial<Record<WorkoutStyle, DayType>> = {
   tabata: { name: 'Tabata', groups: FULL, style: 'tabata', weight: 0.7, generic: true },
   supersets: { name: 'Full-body supersets', groups: FULL, style: 'supersets', weight: 0.6 },
   bodyweight: { name: 'Bodyweight', groups: ['Chest', 'Back', 'Quads', 'Core'], style: 'bodyweight', weight: 0.6 },
+  functional: { name: 'Functional', groups: FULL, style: 'functional', weight: 0.9, generic: true },
+  // Light enough to go next to anything: it counts as core work, not a day for the big muscles.
+  posture: { name: 'Posture', groups: ['Core'], style: 'posture', weight: 0.6, generic: true },
 }
 
 /** Lean the week towards what someone likes, without dropping what their goal needs. */

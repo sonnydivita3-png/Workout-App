@@ -867,3 +867,35 @@ test('the app tour: a spotlight on the real screens, Back and Next only', async 
   expect(s.tipsSeen).toEqual(expect.arrayContaining(['plan', 'progress']))
   expect(s.logs).toEqual([])
 })
+
+test('Make me a workout: Functional pairs everyday movements, always full body', async ({ page }) => {
+  await seed(page)
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: 'Make me a workout' }).click()
+  const sheet = page.locator('.fixed')
+  const style = sheet.getByRole('group', { name: 'Lifting style' })
+  await style.getByRole('button', { name: 'Functional', exact: true }).click()
+  await expect(sheet.getByText(/squat, hinge, push, pull, lunge, carry and rotate/)).toBeVisible()
+  // Always full body: no body parts needed.
+  await expect(sheet.getByRole('button', { name: /^Generate/ })).toBeEnabled()
+  await sheet.getByRole('button', { name: '45 min', exact: true }).click()
+  await sheet.getByRole('button', { name: /^Generate/ }).click()
+  await expect(sheet.getByText(/Superset 1 · squat \+ pull/)).toBeVisible()
+  await sheet.getByRole('button', { name: /^Add to/ }).click()
+  const functional = Object.values((await state(page)).overrides).flat() as { exerciseId: string; blockLabel?: string }[]
+  expect(functional.length).toBeGreaterThanOrEqual(4)
+  expect(functional.some((p) => /hinge \+ push/.test(p.blockLabel ?? ''))).toBe(true)
+})
+
+test('Make me a workout: Posture opens up, works the upper back, and ends with a stretch', async ({ page }) => {
+  await seed(page)
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: 'Make me a workout' }).click()
+  const sheet = page.locator('.fixed')
+  await sheet.getByRole('group', { name: 'Lifting style' }).getByRole('button', { name: 'Posture', exact: true }).click()
+  await expect(sheet.getByText(/Undo the desk/)).toBeVisible()
+  await sheet.getByRole('button', { name: /^Generate/ }).click()
+  await expect(sheet.getByText(/Child’s Pose|Couch Stretch|Hamstring Stretch|Doorway Chest Stretch|Open Book/).last()).toBeVisible()
+})

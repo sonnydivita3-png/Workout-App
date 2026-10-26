@@ -22,7 +22,7 @@ describe('equipment', () => {
     expect(hasGear(ex('running'))).toBe(true)
   })
 
-  const styles: WorkoutStyle[] = ['standard', 'strength', 'supersets', 'bodyweight', 'circuit', 'pha', 'amrap', 'emom', 'tabata', 'fortime', 'crossfit', 'hyrox']
+  const styles: WorkoutStyle[] = ['standard', 'strength', 'supersets', 'bodyweight', 'circuit', 'pha', 'amrap', 'emom', 'tabata', 'fortime', 'crossfit', 'hyrox', 'functional', 'posture']
   const focuses = [['Chest'], ['Back'], ['Shoulders'], ['Arms'], ['Legs'], ['Chest', 'Back', 'Legs'], ['Core', 'Cardio']]
 
   for (const [label, gear] of [['bodyweight only', []], ['dumbbells only', ['Dumbbell']]] as const) {

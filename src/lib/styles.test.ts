@@ -176,8 +176,7 @@ describe('HIIT circuit', () => {
 describe('PHA', () => {
   const UPPER = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps']
   const LOWER = ['Quads', 'Hamstrings', 'Glutes', 'Calves']
-  const FULL = ['x-thruster', 'Kettlebell_Thruster', 'x-kb-swing', 'x-db-snatch', 'x-wall-balls', 'x-burpee', 'Mountain_Climbers']
-  const shape = (w: PlannedExercise[]) => w.map((p, i) => (i === 4 ? (FULL.includes(p.exerciseId) ? 'F' : '?') : ex(p).group === 'Core' ? 'C' : UPPER.includes(ex(p).group) ? 'U' : LOWER.includes(ex(p).group) ? 'L' : '?')).join('')
+  const shape = (w: PlannedExercise[]) => w.map((p, i) => (i === 4 ? (ex(p).tags?.includes('fullbody') ? 'F' : '?') : ex(p).group === 'Core' ? 'C' : UPPER.includes(ex(p).group) ? 'U' : LOWER.includes(ex(p).group) ? 'L' : '?')).join('')
   it('six stations: upper, lower, upper, lower, full body, core; the two uppers and two lowers hit different muscles', () => {
     for (const focus of [[], ['Chest', 'Back', 'Quads', 'Glutes'], ['Chest', 'Triceps'], ['Quads']]) {
       for (let seed = 1; seed <= 40; seed++) {
@@ -236,6 +235,55 @@ describe('PHA', () => {
   })
   it('uses most of the time available', () => {
     for (const minutes of [30, 45, 60]) expect(minutesFor(generateWorkout([], minutes, { style: 'pha', rng: mulberry32(5) }))).toBeGreaterThan(minutes * 0.8)
+  })
+})
+
+describe('Functional', () => {
+  const fam = (p: PlannedExercise) => (/crawl/i.test(ex(p).name) ? 'crawl' : familyOf(ex(p)) ?? '')
+  it('pairs of everyday movements: squat + pull, hinge + push, lunge + carry, rotation + crawl or plank', () => {
+    const PATTERNS = [[['squat'], ['row', 'vertical pull']], [['hinge'], ['pushup', 'overhead', 'bench', 'incline']], [['lunge'], ['carry']], [['rotation'], ['plank', 'crawl']]]
+    for (const minutes of [20, 45, 60]) {
+      for (let seed = 1; seed <= 25; seed++) {
+        const w = gen('functional', [], minutes, seed)
+        const where = `${minutes} min seed ${seed}: ${w.map((p) => `${ex(p).name} (${fam(p)})`).join(', ')}`
+        expect(w.length % 2, where).toBe(0)
+        expect(w.length, where).toBeGreaterThanOrEqual(4)
+        for (let i = 0; i < w.length; i += 2) {
+          expect(w[i].block, where).toBe(w[i + 1].block)
+          expect(PATTERNS[i / 2][0], where).toContain(fam(w[i]))
+          expect(PATTERNS[i / 2][1], where).toContain(fam(w[i + 1]))
+        }
+        // Free weights, bands and bodyweight: no machines or barbells.
+        for (const p of w) expect(['Machine', 'Barbell', 'EZ bar'], where).not.toContain(ex(p).equipment)
+        expect(new Set(w.map((p) => p.exerciseId)).size, where).toBe(w.length)
+        expect(minutesFor(w), where).toBeGreaterThan(minutes * 0.7)
+        expect(minutesFor(w), where).toBeLessThan(minutes * 1.1)
+      }
+    }
+  })
+  it('varies: the same pattern gets different moves from one workout to the next', () => {
+    const firsts = new Set(Array.from({ length: 30 }, (_, i) => gen('functional', [], 45, i + 1)[0].exerciseId))
+    expect(firsts.size).toBeGreaterThan(3)
+  })
+})
+
+describe('Posture', () => {
+  it('opens up, strengthens the upper back, glutes and trunk, then stretches; light kit only', () => {
+    for (const minutes of [20, 30, 45, 60]) {
+      for (let seed = 1; seed <= 25; seed++) {
+        const w = gen('posture', [], minutes, seed)
+        const where = `${minutes} min seed ${seed}: ${w.map((p) => ex(p).name).join(', ')}`
+        expect(ex(w[0]).group, where).toBe('Mobility')
+        expect(ex(w.at(-1)!).group, where).toBe('Mobility')
+        expect(w.some((p) => ['Back', 'Shoulders'].includes(ex(p).group)), where).toBe(true)
+        // (The trunk: core work, or a superman hold for the back of it.)
+        expect(w.some((p) => ex(p).group === 'Core' || p.exerciseId === 'x-superman-hold'), where).toBe(true)
+        for (const p of w) expect(['Machine', 'Barbell', 'EZ bar'], where).not.toContain(ex(p).equipment)
+        expect(new Set(w.map((p) => p.exerciseId)).size, where).toBe(w.length)
+        expect(minutesFor(w), where).toBeGreaterThan(minutes * 0.75)
+        expect(minutesFor(w), where).toBeLessThan(minutes * 1.15)
+      }
+    }
   })
 })
 
