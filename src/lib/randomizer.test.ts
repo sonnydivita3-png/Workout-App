@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
+import { withCardioFor } from './cardioPrefs'
 import { FOCUS_OPTIONS, generateWorkout, minutesFor, plannedFor, replaceExercise, swapExercise, targetsFor } from './randomizer'
 
 const groupsOf = (items: { exerciseId: string }[]) => new Set(items.map((p) => BUILTIN_BY_ID.get(p.exerciseId)!.group))
@@ -113,5 +114,30 @@ describe('replaceExercise', () => {
     expect(back.sets).toBeGreaterThanOrEqual(2)
     expect(back.reps).toBeGreaterThan(0)
     expect(back.minutes).toBeUndefined()
+  })
+})
+
+describe('a cardio finisher on the same machine as the warm-up', () => {
+  // A treadmill walker: their warm-up machine is the treadmill too.
+  const make = (opts: Parameters<typeof generateWorkout>[2]) =>
+    withCardioFor(['treadwalk'], false, () => generateWorkout(['Chest', 'Back', 'Quads', 'Cardio'], 60, { style: 'pha', styles: ['pha'], cardio: { exerciseId: 'Walking_Treadmill', kind: 'steady' }, ...opts }))
+  const check = (items: ReturnType<typeof generateWorkout>) => {
+    const fin = items.filter((p) => p.exerciseId === 'Walking_Treadmill')
+    expect(fin).toHaveLength(1)
+    expect(fin[0].warmup).toBeFalsy()
+    expect(items.at(-1)!.exerciseId).toBe('Walking_Treadmill')
+    // One warm-up only (theirs, or the HIIT's own), never both.
+    expect(items.filter((p) => p.warmup && BUILTIN_BY_ID.get(p.exerciseId)?.kind === 'cardio')).toHaveLength(1)
+    expect(new Set(items.map((p) => p.exerciseId)).size).toBe(items.length)
+  }
+  it('PHA with their warm-up and set minutes: the finisher stays, the warm-up uses another machine', () => {
+    for (let i = 0; i < 20; i++) check(make({ warmup: { cardio: 5, mobility: 5 }, minutesByStyle: { pha: 30 }, cardioMinutes: 20 }))
+  })
+  it('PHA bringing its own warm-up, with or without set minutes', () => {
+    for (let i = 0; i < 20; i++) {
+      check(make({}))
+      check(make({ minutesByStyle: { pha: 35 }, cardioMinutes: 20 }))
+      check(make({ warmup: { cardio: 5 } }))
+    }
   })
 })
