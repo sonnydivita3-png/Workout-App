@@ -17,7 +17,7 @@ import { BY_ID, customPool, familyOf, FULL_BODY_GROUPS, isAdvanced, isIsolation,
 export const FOCUS_OPTIONS = [...BODY_PARTS, 'Cardio'] as const
 export const LIFT_GROUPS: string[] = [...BODY_PARTS]
 
-export type WorkoutStyle = 'standard' | 'strength' | 'supersets' | 'circuit' | 'pha' | 'hyrox' | 'crossfit' | 'amrap' | 'emom' | 'fortime' | 'tabata' | 'bodyweight'
+export type WorkoutStyle = 'standard' | 'strength' | 'supersets' | 'circuit' | 'pha' | 'hyrox' | 'crossfit' | 'amrap' | 'emom' | 'fortime' | 'tabata' | 'bodyweight' | 'functional' | 'posture'
 
 export interface StyleInfo {
   id: WorkoutStyle
@@ -40,6 +40,8 @@ export const STYLES: StyleInfo[] = [
   { id: 'fortime', label: 'For time', blurb: 'A set number of rounds against the clock, with a time cap.', focus: 'optional' },
   { id: 'tabata', label: 'Tabata', blurb: '20 seconds all-out, 10 rest, 8 times per movement, then a minute\'s break. Leave body parts empty for full body.', focus: 'optional' },
   { id: 'bodyweight', label: 'Bodyweight', blurb: 'No equipment needed.', focus: 'required' },
+  { id: 'functional', label: 'Functional', blurb: 'Everyday movements in pairs: squat, hinge, push, pull, lunge, carry and rotate, mostly with kettlebells, dumbbells and bodyweight. Always full body.', focus: 'ignored' },
+  { id: 'posture', label: 'Posture', blurb: 'Undo the desk: open up the chest and upper back, strengthen the upper back and glutes, brace the trunk, then stretch. Light and slow. Always full body.', focus: 'ignored' },
 ]
 /** How styles are shown: a few top-level choices, some with variations underneath. */
 export const STYLE_GROUPS: { label: string; styles: WorkoutStyle[] }[] = [
@@ -47,6 +49,8 @@ export const STYLE_GROUPS: { label: string; styles: WorkoutStyle[] }[] = [
   { label: 'Strength', styles: ['strength'] },
   { label: 'Supersets', styles: ['supersets'] },
   { label: 'Bodyweight', styles: ['bodyweight'] },
+  { label: 'Functional', styles: ['functional'] },
+  { label: 'Posture', styles: ['posture'] },
   { label: 'HIIT', styles: ['circuit', 'pha'] },
   { label: 'Timed', styles: ['amrap', 'emom', 'tabata', 'fortime'] },
   { label: 'Hyrox / CrossFit', styles: ['hyrox', 'crossfit'] },
@@ -963,12 +967,6 @@ const PHA_MOVES: Record<string, string[]> = {
   knee: ['squat', 'lunge', 'leg press', 'jump', 'leg extension', 'calf', 'seated calf'],
   hip: ['hinge', 'bridge', 'leg curl', 'glute kickback', 'back extension'],
 }
-/** Whole-body moves for the fifth station, most equipment first; burpees need none. */
-const PHA_FULL_BODY: Record<PhaKit, string[]> = {
-  Dumbbell: ['x-thruster', 'x-db-snatch', 'x-burpee', 'Mountain_Climbers'],
-  Kettlebell: ['Kettlebell_Thruster', 'x-kb-swing', 'x-burpee', 'Mountain_Climbers'],
-  Bodyweight: ['x-burpee', 'Mountain_Climbers'],
-}
 /**
  * PHA goes station to station with no rest, so the whole circuit uses one kit in one spot: a pair of dumbbells, one
  * kettlebell, or nothing (plus floor moves). No walking to the cables or a machine, and no changing weights.
@@ -1021,7 +1019,8 @@ function generatePha(groups: string[], minutes: number, rng: Rng, avoid: Set<str
   const inKit = (e: Exercise) => (gearOf(e) === kit || gearOf(e) === 'Bodyweight') && isPortable(stationOf(e)) && !/nordic|decline.*(crunch|sit)/i.test(e.name)
   // Quick, low-skill stations: not barbell lifts, and compound moves where the group has any.
   const poolFor = (g: string) => {
-    if (g === 'Full body') return PHA_FULL_BODY[kit].map((id) => BY_ID.get(id)).filter((e): e is Exercise => !!e && hasGear(e))
+    // Whole-body moves (thrusters, swings, burpees, bear crawls…) with the kit or no equipment.
+    if (g === 'Full body') return EXERCISES.filter((e) => e.tags?.includes('fullbody') && (gearOf(e) === kit || gearOf(e) === 'Bodyweight') && hasGear(e))
     const all = [...POOL, ...customPool()].filter((e) => e.kind === 'strength' && e.group === g && equipmentRank(e) >= 1 && !tooAdvanced(e) && !isTechnical(e) && !isQuirky(e) && hasGear(e))
     const base = [all.filter(inKit), all.filter((e) => isPortable(stationOf(e)))].find((l) => l.length > 0) ?? all
     // (Three different movements: hip thrusts and glute bridges are one.)
@@ -1053,6 +1052,111 @@ function generatePha(groups: string[], minutes: number, rng: Rng, avoid: Set<str
     exerciseId: e.id, sets: rounds, ...(e.mode === 'time' ? { seconds: 40 } : { reps: pick([12, 15], rng) }),
     note: 'no rest', est: (rounds * roundMin(k)) / k, block: 'pha', blockLabel,
   }))
+}
+
+/**
+ * Functional training: the movements of everyday life and sport rather than muscles one at a time. Squat, hinge, push,
+ * pull, lunge, carry and rotate, mostly with kettlebells, dumbbells, bands and bodyweight, often one side at a time.
+ * Done as pairs that work different patterns (a squat with a pull, a hinge with a push), so one rests while the other
+ * works.
+ */
+const FUNCTIONAL_PAIRS: { label: string; a: string[]; b: string[] }[] = [
+  { label: 'squat + pull', a: ['squat'], b: ['row', 'vertical pull'] },
+  { label: 'hinge + push', a: ['hinge'], b: ['pushup', 'overhead', 'bench', 'incline'] },
+  { label: 'lunge + carry', a: ['lunge'], b: ['carry'] },
+  { label: 'rotation + crawl or plank', a: ['rotation'], b: ['plank', 'crawl'] },
+]
+/** Free weights, bands and bodyweight (a cable for chops and Pallof presses); no machines or barbells. */
+const FUNCTIONAL_GEAR = ['Kettlebell', 'Dumbbell', 'Bodyweight', 'Bands', 'Other', 'Cable']
+const familyOrCrawl = (e: Exercise) => (/crawl/i.test(e.name) ? 'crawl' : familyOf(e))
+
+function generateFunctional(minutes: number, rng: Rng, avoid: Set<string>, opts: LiftOptions = {}): PlannedExercise[] {
+  const pref = opts.rest ?? 'normal'
+  const all = [...EXERCISES, ...customPool()].filter((e) =>
+    e.kind === 'strength' && !e.retired && (e.suggest || e.custom || e.tags?.includes('functional')) && hasGear(e)
+    && FUNCTIONAL_GEAR.includes(gearOf(e)) && (gearOf(e) !== 'Cable' || familyOf(e) === 'rotation')
+    && !tooAdvanced(e) && !isTechnical(e) && !isQuirky(e) && !(e.group === 'Mobility'))
+  const used = new Set<string>()
+  // A move for a pattern: half the time one made for functional work (carries, single-leg, kettlebell basics),
+  // otherwise anything in the pattern, so the same few don't come up every time.
+  const choose = (fams: string[]): Exercise | undefined => {
+    const fresh = all.filter((e) => fams.includes(familyOrCrawl(e) ?? '') && !used.has(e.id))
+    const tagged = fresh.filter((e) => e.tags?.includes('functional'))
+    const e = softShuffle(tagged.length && rng() < 0.5 ? tagged : fresh, avoid, rng)[0]
+    if (e) used.add(e.id)
+    return e
+  }
+  const item = (e: Exercise, n: number, label: string): PlannedExercise => {
+    const reps = e.mode === 'time' ? { seconds: familyOf(e) === 'carry' ? 40 : 30 } : { reps: pick([8, 10, 12], rng) }
+    return { exerciseId: e.id, sets: 3, ...reps, rest: 60, block: `ss${n}`, blockLabel: `Superset ${n} · ${label} · alternate the two, rest about 60s after each pair` }
+  }
+  const pairs: PlannedExercise[][] = []
+  for (const { label, a, b } of FUNCTIONAL_PAIRS) {
+    const x = choose(a)
+    const y = choose(b)
+    if (x && y) pairs.push([item(x, pairs.length + 1, label), item(y, pairs.length + 1, label)])
+  }
+  // As many pairs, and rounds of each, as fit the time.
+  let best: PlannedExercise[] = pairs[0] ?? []
+  let bestScore = Infinity
+  for (let k = 1; k <= pairs.length; k++) {
+    for (const rounds of [2, 3, 4]) {
+      const trial = pairs.slice(0, k).flat().map((p) => ({ ...p, sets: rounds }))
+      const t = liftsMinutes(trial, pref)
+      const score = t > minutes * 1.08 ? Infinity : Math.abs(t - minutes)
+      if (score < bestScore) { best = trial; bestScore = score }
+    }
+  }
+  // Each pair's time spread over its two exercises, for the per-item estimate.
+  const est = (i: number) => Math.round((liftsMinutes(best.slice(i - (i % 2), i - (i % 2) + 2), pref) / 2) * 10) / 10
+  return best.map((p, i) => ({ ...p, est: est(i) }))
+}
+
+/**
+ * Posture: what long days sitting at a desk or looking at a phone do (rounded shoulders, a forward head, tight chest
+ * and hip flexors, sleepy glutes), worked the other way. Open up the chest and upper back, strengthen the upper back
+ * and the back of the shoulders, wake up the glutes, brace the trunk, then stretch. Light weights, slow reps, holds.
+ */
+const POSTURE: { key: string; ids: string[]; families?: string[]; hold?: boolean }[] = [
+  { key: 'open', ids: ['x-thoracic-extension', 'x-open-book', 'Cat_Stretch', 'x-chin-tuck', 'x-doorway-chest-stretch'], hold: true },
+  { key: 'back', ids: ['Band_Pull_Apart', 'x-band-face-pull', 'Face_Pull', 'x-prone-ytw', 'x-wall-angel', 'x-reverse-snow-angel', 'x-scap-pushup', 'x-kb-bottoms-up-press'], families: ['rear delt'] },
+  { key: 'glutes', ids: ['x-glute-bridge-march', 'Butt_Lift_Bridge', 'x-clamshell', 'x-single-leg-rdl', 'x-bird-dog'] },
+  { key: 'core', ids: ['Dead_Bug', 'x-bird-dog', 'x-band-pallof', 'Pallof_Press', 'x-superman-hold', 'Plank', 'Side_Bridge', 'x-hollow-hold'] },
+  { key: 'stretch', ids: ['x-doorway-chest-stretch', 'x-couch-stretch', 'x-childs-pose', 'x-hamstring-stretch', 'x-open-book'], hold: true },
+]
+/** What gets another exercise first as the time grows: the upper back most, then the trunk and glutes. */
+const POSTURE_ORDER = ['back', 'core', 'glutes', 'open', 'stretch', 'back', 'core', 'open', 'glutes', 'back', 'stretch', 'core']
+
+function generatePosture(minutes: number, rng: Rng, avoid: Set<string>): PlannedExercise[] {
+  const used = new Set<string>()
+  const chosen: { key: string; p: PlannedExercise }[] = []
+  const next = (key: string): PlannedExercise | undefined => {
+    const part = POSTURE.find((x) => x.key === key)!
+    // (Light kit only: a rear-delt move with dumbbells, a band or a cable, not a barbell.)
+    const fromFamily = part.families ? POOL.filter((e) => part.families!.includes(familyOf(e) ?? '') && ['Dumbbell', 'Bands', 'Cable', 'Bodyweight'].includes(gearOf(e))) : []
+    const pool = [...part.ids.map((id) => BY_ID.get(id)).filter((e): e is Exercise => !!e), ...fromFamily]
+      .filter((e) => hasGear(e) && !used.has(e.id) && !e.retired)
+    const e = softShuffle(pool, avoid, rng)[0]
+    if (!e) return undefined
+    used.add(e.id)
+    // Stretches and openers: two 45-second holds. Strength: 2-3 slow sets of 12-15 (holds: 30 seconds).
+    if (part.hold) return { exerciseId: e.id, sets: 2, seconds: 45, rest: 15 }
+    return { exerciseId: e.id, sets: minutes >= 40 ? 3 : 2, ...(e.mode === 'time' ? { seconds: 30 } : { reps: pick([12, 15], rng) }), rest: 45 }
+  }
+  // Round the parts until the time is used (or every part has run out of moves).
+  for (let i = 0, misses = 0; misses < POSTURE_ORDER.length; i++) {
+    const key = POSTURE_ORDER[i % POSTURE_ORDER.length]
+    const p = next(key)
+    if (!p) { misses++; continue }
+    misses = 0
+    if (chosen.length >= 4 && liftsMinutes([...chosen.map((c) => c.p), p]) > minutes * 1.05) break
+    chosen.push({ key, p })
+  }
+  // In order: open up, strengthen, then stretch.
+  const order = POSTURE.map((x) => x.key)
+  return chosen
+    .sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key))
+    .map(({ p }) => ({ ...p, est: liftMinutes(p, BY_ID.get(p.exerciseId)) }))
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1096,7 +1200,7 @@ export interface GenerateOptions {
  * Hyrox- and CrossFit-style workouts are full-body formats and ignore the body-part focus.
  */
 /** Heavy lifting first, then conditioning, then whole-workout formats. */
-const STYLE_ORDER: WorkoutStyle[] = ['strength', 'standard', 'bodyweight', 'supersets', 'pha', 'circuit', 'amrap', 'emom', 'tabata', 'fortime', 'crossfit', 'hyrox']
+const STYLE_ORDER: WorkoutStyle[] = ['strength', 'standard', 'bodyweight', 'supersets', 'functional', 'pha', 'circuit', 'amrap', 'emom', 'tabata', 'fortime', 'crossfit', 'hyrox', 'posture']
 
 /** Several styles back to back, splitting the time between them, with any cardio at the end. */
 function generateMixed(focus: string[], minutes: number, styles: WorkoutStyle[], rng: Rng, avoid: Set<string>, byStyle: Partial<Record<WorkoutStyle, number>> = {}, cardioMinutes?: number, lift: LiftOptions = {}): PlannedExercise[] {
@@ -1181,6 +1285,12 @@ export function generateWorkout(focusIn: string[], minutes: number, opts: Genera
     // Never the same exercise twice in a day: if the warm-up picked the WOD's machine, it warms up without it.
     const warm = generateWarmup(body.length ? body : FULL_BODY_GROUPS, own, rng, new Set([...ids, ...avoid])).filter((p) => !ids.has(p.exerciseId))
     return [...warm, ...main]
+  }
+  // Functional and posture sessions choose their own movements for the whole body (then any cardio).
+  if (style === 'functional' || style === 'posture') {
+    const cardioMin = focus.includes('Cardio') ? Math.min(30, Math.max(10, roundTo5(minutes * 0.25))) : 0
+    const main = style === 'functional' ? generateFunctional(minutes - cardioMin, rng, avoid, lift) : generatePosture(minutes - cardioMin, rng, avoid)
+    return cardioMin ? [...main, ...pickCardio(cardioMin, rng, avoid, opts.cardio)] : main
   }
   if (style === 'hyrox' || style === 'crossfit') return style === 'hyrox' ? generateHyrox(minutes, rng) : generateCrossfit(minutes, rng, avoid)
   if (style === 'amrap' || style === 'emom' || style === 'fortime' || style === 'tabata') return generateTimed(style, focus.filter((g) => g !== 'Cardio'), minutes, rng, avoid, focus.includes('Cardio'))

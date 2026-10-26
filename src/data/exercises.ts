@@ -61,6 +61,48 @@ const EXTRAS: Extra[] = [
   ['x-open-book', 'Open Book (upper back rotation)', 'Mobility', 'Bodyweight', 'time', false, ['stretch']],
   ['x-calf-stretch', 'Calf Stretch', 'Mobility', 'Bodyweight', 'time', false, ['stretch']],
   ['x-hamstring-stretch', 'Hamstring Stretch', 'Mobility', 'Bodyweight', 'time', false, ['stretch']],
+  // Whole-body moves (tagged 'fullbody'): PHA's full-body station, HIIT circuits, functional workouts.
+  ['x-man-maker', 'Dumbbell Man Maker', 'Conditioning', 'Dumbbell', 'weight', false, ['hiit', 'crossfit', 'fullbody']],
+  ['x-devil-press', 'Devil Press', 'Conditioning', 'Dumbbell', 'weight', false, ['hiit', 'crossfit', 'fullbody']],
+  ['x-lunge-press', 'Reverse Lunge to Press', 'Conditioning', 'Dumbbell', 'weight', false, ['hiit', 'fullbody', 'functional']],
+  ['x-squat-thrust', 'Squat Thrust', 'Conditioning', 'Bodyweight', 'reps', false, ['hiit', 'fullbody']],
+  ['x-sprawl', 'Sprawl', 'Conditioning', 'Bodyweight', 'reps', false, ['hiit', 'fullbody']],
+  ['x-bear-crawl', 'Bear Crawl', 'Conditioning', 'Bodyweight', 'time', false, ['hiit', 'fullbody', 'functional']],
+  ['x-inchworm-pushup', 'Inchworm Push-Up', 'Conditioning', 'Bodyweight', 'reps', false, ['hiit', 'fullbody']],
+  ['x-sandbag-shoulder', 'Sandbag to Shoulder', 'Conditioning', 'Sandbag', 'reps', false, ['crossfit', 'fullbody', 'functional']],
+  // Kettlebell basics: deadlifts, lunges, rows, presses, carries and twists, so a kettlebell is enough for a whole workout.
+  ['x-kb-deadlift', 'Kettlebell Deadlift', 'Hamstrings', 'Kettlebell', 'weight', true, ['functional']],
+  ['x-kb-sumo-deadlift', 'Kettlebell Sumo Deadlift', 'Glutes', 'Kettlebell', 'weight', true, ['functional']],
+  ['x-kb-reverse-lunge', 'Kettlebell Goblet Reverse Lunge', 'Quads', 'Kettlebell', 'weight', true, ['functional']],
+  ['x-kb-lateral-lunge', 'Kettlebell Lateral Lunge', 'Quads', 'Kettlebell', 'weight', true, ['functional']],
+  ['x-kb-split-squat', 'Kettlebell Split Squat', 'Quads', 'Kettlebell', 'weight', true, ['functional']],
+  ['x-kb-step-up', 'Kettlebell Step-Up', 'Glutes', 'Kettlebell', 'weight', true, ['functional']],
+  ['x-kb-gorilla-row', 'Kettlebell Gorilla Row', 'Back', 'Kettlebell', 'weight', true, ['functional']],
+  ['x-kb-high-pull', 'Kettlebell High Pull', 'Back', 'Kettlebell', 'weight', false, ['hiit']],
+  ['x-kb-bottoms-up-press', 'Kettlebell Bottoms-Up Press', 'Shoulders', 'Kettlebell', 'weight', true, ['functional', 'posture']],
+  ['x-kb-russian-twist', 'Kettlebell Russian Twist', 'Core', 'Kettlebell', 'weight', true, ['functional']],
+  ['x-kb-suitcase-carry', 'Kettlebell Suitcase Carry', 'Core', 'Kettlebell', 'time', false, ['functional']],
+  ['x-kb-rack-carry', 'Kettlebell Front Rack Carry', 'Core', 'Kettlebell', 'time', false, ['functional']],
+  ['x-kb-overhead-carry', 'Kettlebell Overhead Carry', 'Shoulders', 'Kettlebell', 'time', false, ['functional', 'posture']],
+  // Functional: single-leg, side-to-side, rotation and anti-rotation, carrying.
+  ['x-single-leg-rdl', 'Single-Leg Romanian Deadlift', 'Hamstrings', 'Bodyweight', 'reps', true, ['functional', 'balance']],
+  ['x-db-lateral-lunge', 'Dumbbell Lateral Lunge', 'Quads', 'Dumbbell', 'weight', true, ['functional']],
+  ['x-db-renegade-row', 'Dumbbell Renegade Row', 'Back', 'Dumbbell', 'weight', true, ['functional']],
+  ['x-db-woodchop', 'Dumbbell Woodchop', 'Core', 'Dumbbell', 'weight', true, ['functional']],
+  ['x-band-pallof', 'Band Pallof Press', 'Core', 'Bands', 'reps', true, ['functional', 'posture']],
+  ['x-db-suitcase-carry', 'Dumbbell Suitcase Carry', 'Core', 'Dumbbell', 'time', false, ['functional']],
+  // Posture: the upper back and the back of the shoulders, chin and neck position, glutes, and stretches for what
+  // sitting tightens (chest, hip flexors, upper back).
+  ['x-band-face-pull', 'Band Face Pull', 'Shoulders', 'Bands', 'reps', true, ['posture']],
+  ['x-reverse-snow-angel', 'Prone Reverse Snow Angel', 'Back', 'Bodyweight', 'reps', false, ['posture']],
+  ['x-superman-hold', 'Superman Hold', 'Back', 'Bodyweight', 'time', false, ['posture']],
+  ['x-scap-pushup', 'Scapular Push-Up', 'Shoulders', 'Bodyweight', 'reps', false, ['posture']],
+  ['x-chin-tuck', 'Chin Tuck', 'Mobility', 'Bodyweight', 'time', false, ['posture']],
+  ['x-clamshell', 'Clamshell', 'Glutes', 'Bodyweight', 'reps', false, ['posture']],
+  ['x-glute-bridge-march', 'Glute Bridge March', 'Glutes', 'Bodyweight', 'reps', false, ['posture', 'balance']],
+  ['x-thoracic-extension', 'Foam Roller Thoracic Extension', 'Mobility', 'Other', 'time', false, ['posture', 'stretch']],
+  ['x-doorway-chest-stretch', 'Doorway Chest Stretch', 'Mobility', 'Bodyweight', 'time', false, ['posture', 'stretch']],
+  ['x-childs-pose', 'Child’s Pose', 'Mobility', 'Bodyweight', 'time', false, ['stretch']],
   // Dynamic warm-up moves (ids match free-exercise-db). Tag says which half they warm.
   ['Arm_Circles', 'Arm Circles', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'upper']],
   ['Shoulder_Circles', 'Shoulder Circles', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'upper']],
@@ -111,6 +153,17 @@ const NO_GEAR = new Set([
   'Single Leg Push-off', 'Stride Jump Crossover', 'Prone Manual Hamstring', 'London Bridges',
 ])
 for (const e of EXERCISES) if (e.equipment === 'Other' && NO_GEAR.has(e.name)) e.equipment = 'Bodyweight'
+// Tags for moves already in the library: what's whole-body, functional or good for posture (see the extras above).
+const MORE_TAGS: Record<string, string[]> = {
+  'x-burpee': ['fullbody'], 'x-thruster': ['fullbody'], 'x-db-snatch': ['fullbody'], 'x-wall-balls': ['fullbody'], Kettlebell_Thruster: ['fullbody'],
+  Mountain_Climbers: ['fullbody'], Battling_Ropes: ['hiit', 'fullbody'], 'x-kb-swing': ['functional'], 'x-farmers-carry': ['functional'],
+  'x-goblet-squat': ['functional'], Alternating_Renegade_Row: ['functional'], Front_Squats_With_Two_Kettlebells: ['functional'],
+  Pushups: ['functional'], 'Two-Arm_Kettlebell_Military_Press': ['functional'], 'One-Arm_Kettlebell_Row': ['functional'], Dumbbell_Step_Ups: ['functional'], 'Kettlebell_One-Legged_Deadlift': ['functional', 'balance'],
+  Band_Pull_Apart: ['posture'], Face_Pull: ['posture'], Dead_Bug: ['posture'], 'x-bird-dog': ['posture'], 'x-prone-ytw': ['posture'],
+  'x-wall-angel': ['posture'], 'x-couch-stretch': ['posture'], 'x-open-book': ['posture'], Cat_Stretch: ['posture'],
+  Pallof_Press: ['functional', 'posture'], Standing_Cable_Wood_Chop: ['functional'],
+}
+for (const e of EXERCISES) if (MORE_TAGS[e.id]) e.tags = [...new Set([...(e.tags ?? []), ...MORE_TAGS[e.id]])]
 // Equipment audit. "Bodyweight" means no gear beyond a bar or bench to hang from, push off or lie on (pull-ups were
 // already filed that way, so dips and hanging/bar moves are too); "Other" is specialist kit (rings, TRX, ab wheel,
 // plates, ropes, balls). The rest are filed under the kit they actually need.
@@ -129,7 +182,7 @@ const GROUP_FIX: Record<string, string> = { Mountain_Climbers: 'Core', Flutter_K
 const SUGGEST_FIX = new Set([
   'Barbell_Shrug', 'Dumbbell_Shrug', 'Good_Morning', 'Trap_Bar_Deadlift', 'Push_Press', 'Hyperextensions_Back_Extensions',
   'Dips_-_Chest_Version', 'Decline_Push-Up', 'Inverted_Row', 'Bodyweight_Walking_Lunge',
-  'Hanging_Leg_Raise', 'Knee_Hip_Raise_On_Parallel_Bars', 'Mountain_Climbers', 'Ab_Roller',
+  'Hanging_Leg_Raise', 'Knee_Hip_Raise_On_Parallel_Bars', 'Mountain_Climbers', 'Ab_Roller', 'Band_Pull_Apart',
 ])
 for (const e of EXERCISES) {
   if (EQUIPMENT_FIX[e.id]) e.equipment = EQUIPMENT_FIX[e.id]

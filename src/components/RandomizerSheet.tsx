@@ -40,11 +40,11 @@ const LIMITS = [45, 60, 75, 90, 120]
 const FAST: Record<string, number> = { running: 9, Running_Treadmill: 9, cycling: 18, Bicycling: 18, walking: 4.5, Walking_Treadmill: 4.5 }
 // Styles that use cardio machines as stations.
 // Styles that choose their own lifts, so exercise-type preferences apply (timed formats use a set list of movements).
-const PICKS_LIFTS: WorkoutStyle[] = ['standard', 'strength', 'supersets', 'bodyweight', 'circuit', 'pha']
+const PICKS_LIFTS: WorkoutStyle[] = ['standard', 'strength', 'supersets', 'bodyweight', 'circuit', 'pha', 'functional', 'posture']
 const CONDITIONING: WorkoutStyle[] = ['crossfit', 'amrap', 'emom', 'fortime', 'tabata', 'circuit']
 type Kind = 'lift' | 'cond' | 'cardio'
 const KINDS: { id: Kind; label: string }[] = [{ id: 'lift', label: 'Lifting' }, { id: 'cond', label: 'Conditioning' }, { id: 'cardio', label: 'Cardio' }]
-const LIFT_STYLES: WorkoutStyle[] = ['standard', 'strength', 'supersets', 'bodyweight']
+const LIFT_STYLES: WorkoutStyle[] = ['standard', 'strength', 'supersets', 'bodyweight', 'functional', 'posture']
 /** HIIT, Timed, Hyrox / CrossFit, each with its variations. */
 const COND_GROUPS = STYLE_GROUPS.filter((g) => g.styles.every((st) => !LIFT_STYLES.includes(st)))
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']

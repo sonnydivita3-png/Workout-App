@@ -101,11 +101,13 @@ export const isStaple = perExercise((e) => STAPLES.test(`${e.name} ${e.fullName 
 // Cond Res). First match wins, so specific patterns come before general ones (seated calf raise before calf raise).
 const FAMILIES: [string, RegExp][] = [
   // Legs and hips
+  // (Burpee-like floor moves first: a squat thrust isn't a squat.)
+  ['burpee', /squat thrust|sprawl/i],
   ['seated calf', /seated.*calf|calf.*seated/i], ['calf', /calf|calves/i],
   ['leg curl', /leg curl|hamstring curl|nordic|glute[- ]ham/i], ['leg extension', /leg extension|sissy squat/i], ['leg press', /leg press/i],
   ['hinge', /deadlift|\brdl\b|good ?morning|pull[- ]?through|(kettlebell|dumbbell)s? swings?|rack pull|stiff[- ]legs?\b/i],
   ['lunge', /lunge|split squat|step[- ]?ups?\b/i], ['jump', /jump|bound\b|\bhops?\b|skater/i], ['squat', /squat|thruster/i],
-  ['bridge', /hip thrust|glute bridge|hip bridge|butt lift|hip lift|leg bridge/i], ['abduction', /abduct|monster walk/i], ['adduction', /adduct/i],
+  ['bridge', /hip thrust|glute bridge|hip bridge|butt lift|hip lift|leg bridge/i], ['abduction', /abduct|monster walk|clamshell/i], ['adduction', /adduct/i],
   ['glute kickback', /glute kickback|hip extension|legged cable kickback|^leg lift\b/i], ['back extension', /back extension|hyperextension|superman/i],
   // Pushing
   ['incline', /incline.*press/i], ['overhead', /overhead press|shoulder press|military|arnold|push press|pike push|handstand push|see-saw press/i],

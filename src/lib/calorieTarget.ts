@@ -29,6 +29,10 @@ export const STYLE_MET: Record<WorkoutStyle, number> = {
   tabata: 8.0,
   crossfit: 8.0,
   hyrox: 8.0,
+  // Kettlebell and dumbbell work in pairs, carries (Compendium: circuit training, moderate, about 5).
+  functional: 5.0,
+  // Light resistance, holds and stretching (stretching 2.3, light resistance work 3.5).
+  posture: 2.8,
 }
 /** Warm-up: easy cardio, then mobility (stretching, about 2.3). */
 export const WARMUP_MET = 3.2
