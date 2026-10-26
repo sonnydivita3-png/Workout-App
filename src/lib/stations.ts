@@ -36,6 +36,8 @@ export const stationOf = (e: Exercise): Station => {
   if (/pull-?ups?\b|chin-?ups?\b|hanging|toes[- ]to[- ]bar|muscle-up/i.test(t) && g !== 'Machine' && g !== 'Cable') return 'pullup'
   if (/\bdips?\b/i.test(t) && g !== 'Machine' && !/bench dip/i.test(t)) return 'dip'
   if (/sled|prowler/i.test(t)) return 'turf'
+  // Inverted rows hang under a bar set low in a rack or Smith machine.
+  if (/inverted row/i.test(t)) return 'rack'
   if (e.equipment === 'Box') return 'box'
   switch (g) {
     case 'Dumbbell': return 'dumbbells'
