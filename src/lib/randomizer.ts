@@ -230,6 +230,8 @@ export interface LiftOptions {
   noRepeats?: boolean
   /** Add ramp-up warm-up sets before the heavy lifts. */
   warmupSets?: boolean
+  /** The workout already has a warm-up: conditioning parts don't bring their own. */
+  warmed?: boolean
   /** Lifts the person has been logging: picked first so their numbers carry over and keep progressing. */
   familiar?: Set<string>
   /**
@@ -1047,16 +1049,22 @@ function generateMixed(focus: string[], minutes: number, styles: WorkoutStyle[],
   const share = open ? Math.max(10, roundTo5((minutes - cardioMin - fixed) / open)) : 0
   const used = new Set<string>()
   const out: PlannedExercise[] = []
+  // The cardio they picked to finish with: a part's own warm-up uses another machine.
+  const finisher = cardio && lift.cardio?.exerciseId ? [lift.cardio.exerciseId] : []
   for (const style of styles) {
-    // Warm-up sets only before the first lifting part; later parts are already warm.
-    const part = generateWorkout(body, byStyle[style] ?? share, { style, rng, avoid: new Set([...avoid, ...used]), rest: lift.rest, warmup: { sets: !!lift.warmupSets && out.length === 0 }, familiar: lift.familiar, warmed: out.length > 0 })
+    // Warm-up sets only before the first lifting part; later parts (and a workout with its own warm-up) are already warm.
+    const part = generateWorkout(body, byStyle[style] ?? share, { style, rng, avoid: new Set([...avoid, ...used, ...finisher]), rest: lift.rest, warmup: { sets: !!lift.warmupSets && out.length === 0 }, familiar: lift.familiar, warmed: !!lift.warmed || out.length > 0 })
     for (const p of part) {
       if (used.has(p.exerciseId)) continue // one entry per exercise across the whole workout
       used.add(p.exerciseId)
       out.push(p.block ? { ...p, block: `${style}-${p.block}` } : p)
     }
   }
-  return cardio ? [...out, ...pickCardio(cardioMin, rng, new Set([...avoid, ...used]), lift.cardio).filter((p) => !used.has(p.exerciseId))] : out
+  if (!cardio) return out
+  // One entry per exercise a day: the cardio wins over a warm-up on the same machine, not the other way round.
+  const fin = pickCardio(cardioMin, rng, new Set([...avoid, ...used]), lift.cardio)
+  const kept = out.filter((p) => !(p.warmup && fin.some((f) => f.exerciseId === p.exerciseId)))
+  return [...kept, ...fin.filter((f) => !kept.some((p) => p.exerciseId === f.exerciseId))]
 }
 
 /**
@@ -1086,10 +1094,11 @@ export function generateWorkout(focusIn: string[], minutes: number, opts: Genera
     const rng = opts.rng ?? Math.random
     const main = generateWorkout(focus, Math.max(5, minutes - warmMin), { ...opts, rng, warmup: { sets: w.sets }, warmed: true })
     const warm = generateWarmup(focus, w, rng, new Set(main.map((p) => p.exerciseId)))
-    return [...warm, ...main.filter((p) => !warm.some((x) => x.exerciseId === p.exerciseId))]
+    // The workout keeps its exercises; a warm-up that could only pick one of them goes without it.
+    return [...warm.filter((x) => !main.some((p) => p.exerciseId === x.exerciseId)), ...main]
   }
   const { style = 'standard', rng = Math.random, avoid = new Set<string>() } = opts
-  const lift: LiftOptions = { rest: opts.rest, warmupSets: w.sets, familiar: opts.familiar, cardio: opts.cardio, setCap: opts.setCap, repRange: opts.repRange, maxPerPart: opts.maxPerPart, setsPerExercise: opts.setsPerExercise }
+  const lift: LiftOptions = { rest: opts.rest, warmupSets: w.sets, warmed: opts.warmed, familiar: opts.familiar, cardio: opts.cardio, setCap: opts.setCap, repRange: opts.repRange, maxPerPart: opts.maxPerPart, setsPerExercise: opts.setsPerExercise }
   const custom = opts.cardioMinutes != null || (opts.minutesByStyle && Object.keys(opts.minutesByStyle).length > 0)
   if (opts.styles && (new Set(opts.styles).size > 1 || custom)) {
     const list = [...new Set(opts.styles)].sort((a, b) => STYLE_ORDER.indexOf(a) - STYLE_ORDER.indexOf(b))
@@ -1111,7 +1120,7 @@ export function generateWorkout(focusIn: string[], minutes: number, opts: Genera
     const ids = new Set(main.map((p) => p.exerciseId))
     const body = focus.filter((g) => g !== 'Cardio')
     // Never the same exercise twice in a day: if the warm-up picked the WOD's machine, it warms up without it.
-    const warm = generateWarmup(body.length ? body : FULL_BODY_GROUPS, own, rng, ids).filter((p) => !ids.has(p.exerciseId))
+    const warm = generateWarmup(body.length ? body : FULL_BODY_GROUPS, own, rng, new Set([...ids, ...avoid])).filter((p) => !ids.has(p.exerciseId))
     return [...warm, ...main]
   }
   if (style === 'hyrox' || style === 'crossfit') return style === 'hyrox' ? generateHyrox(minutes, rng) : generateCrossfit(minutes, rng, avoid)
