@@ -1,5 +1,5 @@
 import { EXERCISES } from '../data/exercises'
-import { hasGear } from './equipment'
+import { gearOf, hasGear } from './equipment'
 import { modeOf } from './exerciseModes'
 import { sessionSets } from './muscles'
 import type { Exercise, PlannedExercise } from '../types'
@@ -11,7 +11,7 @@ import { cardioSplit, likedCardio, wodAmount, wodCardio } from './cardioPrefs'
 import { expandParts, FULL_BODY_ORDER, isFullBody, LOWER_PARTS, UPPER_PARTS, BODY_PARTS } from './bodyParts'
 import { byPreference, liked, preferenceBonus, tooAdvanced, unwanted } from './movePrefs'
 import { favoriteIds, isFavorite } from './favorites'
-import { stationOf, staysPut, walkCost } from './stations'
+import { isPortable, stationOf, staysPut, walkCost } from './stations'
 import { BY_ID, customPool, familyOf, FULL_BODY_GROUPS, isAdvanced, isIsolation, isMainLift, isQuirky, isStaple, isTechnical, ONE_ONLY, POOL, pick, roundTo5, shuffle, softShuffle, type Rng } from './randomUtil'
 
 export const FOCUS_OPTIONS = [...BODY_PARTS, 'Cardio'] as const
@@ -964,24 +964,47 @@ const PHA_MOVES: Record<string, string[]> = {
   hip: ['hinge', 'bridge', 'leg curl', 'glute kickback', 'back extension'],
 }
 /** Whole-body moves for the fifth station, most equipment first; burpees need none. */
-const PHA_FULL_BODY = ['x-thruster', 'Kettlebell_Thruster', 'x-kb-swing', 'x-db-snatch', 'x-wall-balls', 'x-burpee', 'Mountain_Climbers']
+const PHA_FULL_BODY: Record<PhaKit, string[]> = {
+  Dumbbell: ['x-thruster', 'x-db-snatch', 'x-burpee', 'Mountain_Climbers'],
+  Kettlebell: ['Kettlebell_Thruster', 'x-kb-swing', 'x-burpee', 'Mountain_Climbers'],
+  Bodyweight: ['x-burpee', 'Mountain_Climbers'],
+}
+/**
+ * PHA goes station to station with no rest, so the whole circuit uses one kit in one spot: a pair of dumbbells, one
+ * kettlebell, or nothing (plus floor moves). No walking to the cables or a machine, and no changing weights.
+ */
+type PhaKit = 'Dumbbell' | 'Kettlebell' | 'Bodyweight'
+const PHA_KIT_LABEL: Record<PhaKit, string> = {
+  Dumbbell: 'one pair of dumbbells throughout (a weight you can press 12–15 times)',
+  Kettlebell: 'one kettlebell throughout (a weight you can press 12–15 times)',
+  Bodyweight: 'no equipment',
+}
+function phaKit(rng: Rng): PhaKit {
+  const has = (id: string) => hasGear(BY_ID.get(id)!)
+  const kits = (['Dumbbell', 'Kettlebell'] as const).filter((k) => has(k === 'Dumbbell' ? 'x-thruster' : 'x-kb-swing'))
+  // Dumbbells most often: more moves for every station.
+  return kits.length === 0 ? 'Bodyweight' : kits.length === 1 || rng() < 0.7 ? kits[0] : kits[1]
+}
 
 /**
- * Two different groups for one half of the body: one of each kind (a push and a pull, a knee and a hip move), from the
- * parts they picked when they narrowed it, else the big groups. One kind picked (say chest and triceps): two of it,
- * or the other kind's big group when there's only one.
+ * The two stations for one half of the body: one of each kind (a push and a pull, a knee and a hip move), from the
+ * parts they picked when they narrowed it, else the big groups (any of them: a hip move is hamstrings or glutes). One
+ * kind picked (say chest and triceps): two different groups of it, or the other kind's big groups when there's one.
  */
 function phaPair(picked: string[], side: typeof PHA_UPPER, rng: Rng): [Slot, Slot] {
   const mine = picked.filter((g) => side.a.includes(g) || side.b.includes(g))
   const narrowed = mine.length > 0 && mine.length < side.a.length + side.b.length
   const a = narrowed ? mine.filter((g) => side.a.includes(g)) : side.bigA
   const b = narrowed ? mine.filter((g) => side.b.includes(g)) : side.bigB
-  const slot = (group: string): Slot => ({ group, kind: side.a.includes(group) ? side.kinds[0] : side.kinds[1] })
-  if (a.length && b.length) return (rng() < 0.5 ? [pick(a, rng), pick(b, rng)] : [pick(b, rng), pick(a, rng)]).map(slot) as [Slot, Slot]
+  if (a.length && b.length) {
+    const pair: [Slot, Slot] = [{ groups: a, kind: side.kinds[0] }, { groups: b, kind: side.kinds[1] }]
+    return rng() < 0.5 ? pair : [pair[1], pair[0]]
+  }
   const [g1, g2] = shuffle(a.length ? a : b, rng)
-  return [slot(g1), slot(g2 ?? pick(a.length ? side.bigB : side.bigA, rng))]
+  const kind = a.length ? side.kinds[0] : side.kinds[1]
+  return [{ groups: [g1], kind }, g2 ? { groups: [g2], kind } : { groups: a.length ? side.bigB : side.bigA, kind: a.length ? side.kinds[1] : side.kinds[0] }]
 }
-type Slot = { group: string; kind?: string }
+type Slot = { groups: string[]; kind?: string }
 
 /**
  * Peripheral heart action: six stations, upper, lower, upper, lower, full body, core, done back to back. Moving the
@@ -992,10 +1015,15 @@ type Slot = { group: string; kind?: string }
 function generatePha(groups: string[], minutes: number, rng: Rng, avoid: Set<string>): PlannedExercise[] {
   const ROUND_REST = 1.5
   const roundMin = (k: number) => k * 1 + ROUND_REST
+  const kit = phaKit(rng)
+  // The kit, or no equipment on the floor next to it. Failing that (no bodyweight pull, say), anything portable.
+  // (Nordic curls need your feet anchored and decline crunches a decline bench: not just floor moves.)
+  const inKit = (e: Exercise) => (gearOf(e) === kit || gearOf(e) === 'Bodyweight') && isPortable(stationOf(e)) && !/nordic|decline.*(crunch|sit)/i.test(e.name)
   // Quick, low-skill stations: not barbell lifts, and compound moves where the group has any.
   const poolFor = (g: string) => {
-    if (g === 'Full body') return PHA_FULL_BODY.map((id) => BY_ID.get(id)).filter((e): e is Exercise => !!e && hasGear(e))
-    const base = [...POOL, ...customPool()].filter((e) => e.kind === 'strength' && e.group === g && equipmentRank(e) >= 1 && !tooAdvanced(e) && !isTechnical(e) && !isQuirky(e) && hasGear(e))
+    if (g === 'Full body') return PHA_FULL_BODY[kit].map((id) => BY_ID.get(id)).filter((e): e is Exercise => !!e && hasGear(e))
+    const all = [...POOL, ...customPool()].filter((e) => e.kind === 'strength' && e.group === g && equipmentRank(e) >= 1 && !tooAdvanced(e) && !isTechnical(e) && !isQuirky(e) && hasGear(e))
+    const base = [all.filter(inKit), all.filter((e) => isPortable(stationOf(e)))].find((l) => l.length > 0) ?? all
     // (Three different movements: hip thrusts and glute bridges are one.)
     const compound = base.filter((e) => !isIsolation(e))
     return new Set(compound.map(familyOf)).size >= 3 ? compound : base
@@ -1005,18 +1033,22 @@ function generatePha(groups: string[], minutes: number, rng: Rng, avoid: Set<str
   const picked: Exercise[] = []
   // Each station's movement kind where the group has one (else anything in it), and six different exercises (a
   // kettlebell swing is a glute move and a full-body one, but only once).
-  const station = ({ group, kind }: Slot) => () => {
-    const pool = poolFor(group).filter((e) => !picked.some((x) => x.id === e.id))
+  const station = ({ groups: gs, kind }: Slot) => () => {
+    const pool = gs.flatMap(poolFor).filter((e) => !picked.some((x) => x.id === e.id))
     // (Their own exercises the app can't place in a movement still count for their body part.)
     const fit = kind ? pool.filter((e) => PHA_MOVES[kind].includes(familyOf(e) ?? '') || (e.custom && !familyOf(e))) : pool
-    return fit.length ? fit : pool
+    // The kit beats the movement: a move in the kit rather than one across the gym.
+    const kitFit = fit.filter(inKit)
+    return kitFit.length ? kitFit : fit.length ? fit : pool
   }
-  for (const slot of [u1, l1, u2, l2, { group: 'Full body' }, { group: 'Core' }]) picked.push(...roundRobinPick([slot.group], 1, station(slot), avoid, rng, 1, picked))
+  for (const slot of [u1, l1, u2, l2, { groups: ['Full body'] }, { groups: ['Core'] }]) picked.push(...roundRobinPick(['station'], 1, station(slot), avoid, rng, 1, picked))
   if (picked.length === 0) return []
 
   const k = picked.length
   const rounds = Math.max(2, Math.min(10, Math.floor(minutes / roundMin(k))))
-  const blockLabel = `PHA circuit · ${rounds} rounds · station to station with no rest, ${ROUND_REST * 60}s between rounds`
+  // What to bring: the kit if a station uses it (an all-bodyweight circuit needs nothing).
+  const used = picked.some((e) => gearOf(e) === kit) ? kit : 'Bodyweight'
+  const blockLabel = `PHA circuit · ${rounds} rounds · station to station with no rest, ${ROUND_REST * 60}s between rounds · ${PHA_KIT_LABEL[used]}`
   return picked.map((e) => ({
     exerciseId: e.id, sets: rounds, ...(e.mode === 'time' ? { seconds: 40 } : { reps: pick([12, 15], rng) }),
     note: 'no rest', est: (rounds * roundMin(k)) / k, block: 'pha', blockLabel,

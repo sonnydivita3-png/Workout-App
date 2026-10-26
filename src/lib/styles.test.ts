@@ -5,6 +5,7 @@ import { defaultWarmup, generateWorkout, liftsMinutes, minutesFor, plannedFor, S
 import { familyOf, mulberry32 } from './randomUtil'
 import { withGearFor } from './equipment'
 import { withCardioFor } from './cardioPrefs'
+import { isPortable, stationOf } from './stations'
 
 const ex = (p: PlannedExercise) => BUILTIN_BY_ID.get(p.exerciseId)!
 // The workout itself. Conditioning formats start with a short warm-up of their own; Hyrox and CrossFit tests check theirs.
@@ -216,6 +217,21 @@ describe('PHA', () => {
       const second = main(generateWorkout([], 45, { style: 'pha', rng: mulberry32(seed + 100), avoid: new Set(first.map((p) => p.exerciseId)) }))
       const same = second.filter((p) => first.some((q) => q.exerciseId === p.exerciseId))
       expect(same.length, `seed ${seed}: ${same.map((p) => ex(p).name)}`).toBe(0)
+    }
+  })
+  it('one spot and one weight: one kit (dumbbells, a kettlebell or none) plus floor moves, never a machine or the cables', () => {
+    for (const gear of [null, ['Dumbbell'], ['Kettlebell'], []] as const) {
+      withGearFor(gear as string[] | null, () => {
+        for (let seed = 1; seed <= 40; seed++) {
+          const w = gen('pha', seed % 2 ? [] : ['Chest', 'Back', 'Quads', 'Glutes'], 45, seed)
+          const where = `${gear} seed ${seed}: ${w.map((p) => `${ex(p).name} (${ex(p).equipment})`).join(', ')}`
+          expect(w.every((p) => isPortable(stationOf(ex(p)))), where).toBe(true)
+          const kits = new Set(w.map((p) => ex(p).equipment).filter((k) => k === 'Dumbbell' || k === 'Kettlebell'))
+          expect(kits.size, where).toBeLessThanOrEqual(1)
+          const kit = [...kits][0]
+          expect(w[0].blockLabel, where).toContain(kit === 'Dumbbell' ? 'one pair of dumbbells' : kit === 'Kettlebell' ? 'one kettlebell' : 'no equipment')
+        }
+      })
     }
   })
   it('uses most of the time available', () => {
