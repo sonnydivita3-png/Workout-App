@@ -17,9 +17,9 @@ test('any lift can be done for time: curls for 30 seconds keep their weight, wit
   await expect(curl.getByRole('spinbutton', { name: 'Set 1 lb' })).toHaveAttribute('placeholder', '–')
   await expect(curl.getByRole('spinbutton', { name: 'Set 1 seconds' })).toBeVisible()
   await expect(curl.getByRole('button', { name: 'Time set 1' })).toBeVisible()
-  // Last time's weight, for 30 seconds; last time's reps still read as reps.
-  await expect(curl.getByTitle('Target for set 1')).toContainText('20×30s')
-  await expect(curl.getByText('Last time: 20×10 · 20×10')).toBeVisible()
+  // Last time's reps still read as reps; ✓ repeats its weight for 30 seconds.
+  await expect(curl.getByTitle('Last time, set 1')).toContainText('20×10')
+  await expect(curl.getByText(/Last time \(.+\): 20×10 · 20×10/)).toBeVisible()
   await curl.getByRole('button', { name: 'Set 1 done' }).click()
   await expect.poll(async () => (await state(page)).logs.find((l: { date: string }) => l.date === iso(0))?.sets[0]).toMatchObject({ weight: 20, seconds: 30, done: true })
   await expect(curl.getByRole('spinbutton', { name: 'Set 1 seconds' })).toHaveValue('30')

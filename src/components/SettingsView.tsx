@@ -218,7 +218,7 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
           {[0, -1, 60, 90, 120, 180].map((r) => <option key={r} value={r}>{r === -1 ? 'As planned' : r ? `${r} s` : 'Off'}</option>)}
         </select>
       </Row>
-      <p className="px-1 text-sm text-neutral-500">Off unless you turn it on: ticking ✓ on a set then counts down your rest and buzzes when it’s over. “As planned” uses each exercise’s planned rest (longer for heavy sets). Timed workouts (AMRAP, EMOM, circuits) always have their own clock. RPE is how hard a set felt (10 = nothing left); sets at 10 won’t trigger an “add weight” suggestion.</p>
+      <p className="px-1 text-sm text-neutral-500">Off unless you turn it on: ticking ✓ on a set then counts down your rest and buzzes when it’s over. “As planned” uses each exercise’s planned rest (longer for heavy sets). Timed workouts (AMRAP, EMOM, circuits) always have their own clock. RPE is how hard a set felt (10 = nothing left), so you can see next time how close to your limit you were.</p>
       <h2 className="pt-4 text-sm font-semibold text-neutral-700">Exercises per muscle</h2>
       <Row title="Most for one muscle in a workout">
         <PerMuscleStepper value={perMuscleOf(trainingPrefs.perMuscle)} onChange={(n) => setTrainingPrefs({ perMuscle: n })} />

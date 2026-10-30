@@ -250,28 +250,28 @@ test('plan edits change one date; Repeat every weekday makes it the usual week',
   await expect(page.getByRole('button', { name: /^Stop repeating every/ })).toBeVisible()
 })
 
-test('a set is one tap: ✓ logs the target, and typed numbers win', async ({ page }) => {
+test('a set is one tap: ✓ logs last time\'s weight for the planned reps, and typed numbers win', async ({ page }) => {
   await seed(page, {
     overrides: { [iso(0)]: [{ exerciseId: 'Barbell_Squat', sets: 2, reps: 5 }] },
     logs: [{ date: iso(-4), exerciseId: 'Barbell_Squat', sets: [{ weight: 185, reps: 5 }, { weight: 185, reps: 5 }] }],
   })
   await page.goto('/')
   await page.getByRole('button', { name: 'Start workout' }).click()
-  await expect(page.getByText(/Last time: 185×5 · 185×5/)).toBeVisible()
+  await expect(page.getByText(/Last time \(.+\): 185×5 · 185×5/)).toBeVisible()
   await page.getByRole('button', { name: 'Set 1 done' }).click()
-  // 2 × 5 last time, the target once: a rep more first (weight goes up once it holds).
+  // Last time's weight, today's planned reps: never a heavier suggestion.
   await expect(page.getByRole('spinbutton', { name: 'Set 1 lb' })).toHaveValue('185')
-  await expect(page.getByRole('spinbutton', { name: 'Set 1 reps' })).toHaveValue('6')
+  await expect(page.getByRole('spinbutton', { name: 'Set 1 reps' })).toHaveValue('5')
   await page.getByRole('spinbutton', { name: 'Set 2 lb' }).fill('190')
   await page.getByRole('button', { name: 'Set 2 done' }).click()
   // Every set ticked: the card folds to one line with what was done; tap to open it again.
-  await expect(page.getByRole('button', { name: /2 of 2 sets · 185×6 · 190×6/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /2 of 2 sets · 185×5 · 190×5/ })).toBeVisible()
   await expect(page.getByRole('spinbutton', { name: 'Set 2 lb' })).toHaveCount(0)
   await page.getByRole('button', { name: /2 of 2 sets/ }).click()
   await expect(page.getByRole('spinbutton', { name: 'Set 2 lb' })).toHaveValue('190')
   await expect.poll(async () => (await state(page)).logs.find((l: { date: string }) => l.date === iso(0))?.sets).toEqual([
-    { weight: 185, reps: 6, seconds: null, done: true, auto: true },
-    { weight: 190, reps: 6, seconds: null, done: true, auto: false },
+    { weight: 185, reps: 5, seconds: null, done: true, auto: true },
+    { weight: 190, reps: 5, seconds: null, done: true, auto: false },
   ])
 
   // A tap by mistake comes off again: an auto-filled set empties, a typed one keeps its numbers.
@@ -604,7 +604,7 @@ test('drop sets: add them to a planned exercise or let Make me a workout add the
   await expect(page.getByText(/\+2 drop/)).toBeVisible()
   await page.getByRole('spinbutton', { name: 'Set 2 lb', exact: true }).fill('40')
   await page.getByRole('button', { name: 'Set 2 done', exact: true }).click()
-  // Each drop is about 20% lighter: 40 → 30 → 25 (rounded to the 5 lb dumbbell step).
+  // Each drop is about 20% lighter than what they lifted: 40 → 30 → 25 (rounded to the 5 lb dumbbell step).
   await page.getByRole('button', { name: 'Drop set 1 done' }).click()
   await page.getByRole('button', { name: 'Drop set 2 done' }).click()
   await expect(page.getByRole('spinbutton', { name: 'Drop set 1 lb' })).toHaveValue('30')
@@ -777,18 +777,19 @@ test('plan warm-up: pick easy cardio and set how long it lasts', async ({ page }
   expect(warm.every((p) => p.minutes === 8)).toBe(true)
 })
 
-test('a lift you have never done gets a starting weight from a similar one', async ({ page }) => {
+test('a lift you have never done: how to pick a weight, never a number from a similar lift', async ({ page }) => {
   await seed(page, {
     overrides: { [iso(0)]: [{ exerciseId: 'Dumbbell_Bench_Press', sets: 3, reps: 10 }] },
     logs: [{ date: iso(-3), exerciseId: 'Barbell_Bench_Press_-_Medium_Grip', sets: [{ weight: 185, reps: 5 }, { weight: 185, reps: 5 }] }],
   })
   await page.goto('/')
   await page.locator('nav').getByText('Workouts').click()
-  await expect(page.getByText('🎯 Try 55 lb × 10')).toBeVisible()
-  await expect(page.getByText(/estimated from your Bench Press \(185×5\)/)).toBeVisible()
+  await expect(page.getByText('First time: pick a weight you could lift a couple more times than the reps planned, and log it.')).toBeVisible()
+  await expect(page.getByText(/🎯|Try \d|estimated from/)).toHaveCount(0)
+  await expect(page.getByTitle('Last time, set 1')).toHaveText(/–/)
+  // ✓ with nothing typed logs the planned reps only, no weight they didn't pick.
   await page.getByRole('button', { name: 'Set 1 done' }).click()
-  const s = await state(page)
-  expect(s.logs.find((l: { date: string }) => l.date === iso(0)).sets[0]).toMatchObject({ weight: 55, reps: 10 })
+  await expect.poll(async () => (await state(page)).logs.find((l: { date: string }) => l.date === iso(0))?.sets[0]).toMatchObject({ weight: null, reps: 10 })
 })
 
 test('exercise types you prefer: less machines and cables, and supersets that stay in one spot', async ({ page }) => {

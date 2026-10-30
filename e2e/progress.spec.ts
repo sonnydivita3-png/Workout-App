@@ -10,16 +10,19 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
-test('suggests the next step and marks sets that beat last time', async ({ page }) => {
+test('shows last time (never a suggested weight) and marks sets that beat it', async ({ page }) => {
   await page.goto('/')
   await page.locator('nav').getByText('Workouts').click()
-  // 3 × 8 once: a rep more on two sets, the third repeats.
-  await expect(page.getByText('🎯 Try 135 lb × 9 on 2 sets')).toBeVisible()
-  // Each set's target beside its boxes (the boxes show a dash until you type, or ✓ fills the target in).
-  await expect(page.getByTitle('Target for set 1')).toContainText('135×9')
-  await expect(page.getByTitle('Target for set 3')).toContainText('135×8')
+  await expect(page.getByText(/Last time \(.+\): 135×8 · 135×8 · 135×8/)).toBeVisible()
+  await expect(page.getByText(/🎯|Try \d/)).toHaveCount(0)
+  // Each set's last time beside its boxes (the boxes show a dash until you type, or ✓ repeats last time's weight).
+  await expect(page.getByTitle('Last time, set 1')).toContainText('135×8')
+  await expect(page.getByTitle('Last time, set 3')).toContainText('135×8')
   await expect(page.getByRole('spinbutton', { name: 'Set 3 reps' })).toHaveAttribute('placeholder', '–')
   await expect(page.getByText('Last note: “felt easy”')).toBeVisible()
+  // A rep more on the first two (typed), the third as last time.
+  await page.getByRole('spinbutton', { name: 'Set 1 reps' }).fill('9')
+  await page.getByRole('spinbutton', { name: 'Set 2 reps' }).fill('9')
   for (let i = 1; i <= 3; i++) await page.getByRole('button', { name: `Set ${i} done` }).click()
   // Done: the card folds up (with the result); open it again to keep editing.
   await expect(page.getByText(/3 of 3 sets .*▲ 2 beat last time/)).toBeVisible()
@@ -45,6 +48,7 @@ test('✓ sets, the optional rest timer, and a beat-last-time summary', async ({
   await page.getByRole('combobox', { name: 'Rest timer after each set' }).selectOption('60')
   await page.locator('nav').getByText('Home').click()
   await page.getByRole('button', { name: 'Start workout' }).click()
+  await page.getByRole('spinbutton', { name: 'Set 1 reps' }).fill('9')
   for (let i = 1; i <= 3; i++) await page.getByRole('button', { name: `Set ${i} done` }).click()
   await expect(page.getByRole('timer')).toContainText('Rest')
   await page.getByRole('button', { name: 'Skip' }).click()
@@ -54,4 +58,16 @@ test('✓ sets, the optional rest timer, and a beat-last-time summary', async ({
   await expect(page.getByText('PR', { exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Done', exact: true }).click()
   expect((await state(page)).finishedDays).toEqual([iso(0)])
+})
+
+test('warm-ups ramp up to their own working weight (last time\'s, or what they type today)', async ({ page }) => {
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: 'Set 1 options' }).click()
+  await page.getByRole('button', { name: /Make it a warm-up/ }).click()
+  // 135 last time: one warm-up at 60%, rounded to 5 lb.
+  await expect(page.getByTitle('Warm-up from your working weight, warm-up set 1')).toContainText('80×5')
+  // Heavier today: the warm-up follows what they typed.
+  await page.getByRole('spinbutton', { name: 'Set 1 lb', exact: true }).fill('155')
+  await expect(page.getByTitle('Warm-up from your working weight, warm-up set 1')).toContainText('95×5')
 })

@@ -5,7 +5,6 @@ import { iso, openSettings, seed, state } from './helpers'
 const BENCH = 'Barbell_Bench_Press_-_Medium_Grip'
 const plannedBench = {
   overrides: { [iso(0)]: [{ exerciseId: BENCH, sets: 2, reps: 8 }] },
-  // Two over the target on every set last time: the suggestion adds weight.
   logs: [{ date: iso(-3), exerciseId: BENCH, sets: [{ weight: 135, reps: 10 }, { weight: 135, reps: 10 }] }],
 }
 
@@ -24,7 +23,9 @@ test('notifications show on top of the workout', async ({ page }) => {
   await seed(page, { ...plannedBench, notifPrefs: { system: false, goals: false, pbs: true, daily: false, reminderTime: '23:59' } })
   await page.goto('/')
   await page.getByRole('button', { name: 'Start workout' }).click()
-  // ✓ logs the suggested target (heavier than ever): no cheer mid-workout, it comes with Finish workout.
+  // Heavier than ever: no cheer mid-workout, it comes with Finish workout.
+  await page.getByRole('spinbutton', { name: 'Set 1 lb' }).fill('140')
+  await page.getByRole('spinbutton', { name: 'Set 2 lb' }).fill('140')
   await page.getByRole('button', { name: 'Set 1 done' }).click()
   await page.getByRole('button', { name: 'Set 2 done' }).click()
   await page.waitForTimeout(1500)
@@ -85,12 +86,18 @@ test('the hold timer opens from the workout', async ({ page }) => {
   await expect(page.getByText('Target 0:30')).toBeVisible()
 })
 
-test('a plateau suggests a deload', async ({ page }) => {
+test('a lift shows what was done last time, never a suggested weight', async ({ page }) => {
   const B = 'Barbell_Bench_Press_-_Medium_Grip'
   const at = (d: number) => ({ date: iso(d), exerciseId: B, sets: [{ weight: 185, reps: 8 }, { weight: 185, reps: 6 }] })
   await seed(page, { overrides: { [iso(0)]: [{ exerciseId: B, sets: 2, reps: 8 }] }, logs: [at(-3), at(-6), at(-9)] })
   await page.goto('/')
   await page.locator('nav').getByText('Workouts').click()
-  await expect(page.getByText('🎯 Try 165 lb × 8')).toBeVisible()
-  await expect(page.getByText(/No progress in your last 3 sessions/)).toBeVisible()
+  await expect(page.getByText(/Last time \(.+\): 185×8 · 185×6/)).toBeVisible()
+  await expect(page.getByTitle('Last time, set 1')).toContainText('185×8')
+  await expect(page.getByTitle('Last time, set 2')).toContainText('185×6')
+  await expect(page.getByText(/🎯|Try \d/)).toHaveCount(0)
+  // ✓ repeats last time's weight with today's planned reps.
+  await page.getByRole('button', { name: 'Set 2 done' }).click()
+  await expect(page.getByRole('spinbutton', { name: 'Set 2 lb' })).toHaveValue('185')
+  await expect(page.getByRole('spinbutton', { name: 'Set 2 reps' })).toHaveValue('8')
 })

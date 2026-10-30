@@ -49,7 +49,7 @@ export function WarmupRestControls({ lifting, onWarmupChange, lengthControl, own
         {ownWarmupNote && !timed && 'HIIT and timed sessions start with a short warm-up of their own (about 5 minutes). '}
         {parts.length === 0
           ? lifting
-            ? 'None picked. Warm-up sets are light ramp-up sets before your first two lifts, with weights suggested from your working weight. Easy cardio and mobility come first, with their own time.'
+            ? 'None picked. Warm-up sets are light ramp-up sets before your first two lifts: start light and build up towards your working weight. Easy cardio and mobility come first, with their own time.'
             : 'None picked. Easy cardio and mobility come first, with their own time.'
           : `${parts.join(', ').replace(/^./, (c) => c.toUpperCase())}. Included in the total time.`}
       </p>
