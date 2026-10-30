@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { PlannedExercise } from '../types'
 import { addDays, fmtShort, mondayOf, parseISO, toISO, weekdayIndex } from '../lib/dates'
-import { dayPlanOf } from '../lib/plan'
+import { dayPlanOf, liftAndCardio, placeCardio } from '../lib/plan'
 import {
   bestSplit, defaultWeekdays, familiarLifts, generateProgram, goalInfo, goalsLabel, liftsToRotate, majorGroupsLogged, PROGRAM_GOALS, REP_SCHEMES,
   rerollSlot, savedGoals, SET_SCHEMES, splitInfo, SPLITS, splitWeek, type DayOptions, type ProgramDay, type ProgramGoal, type RepScheme, type SetScheme, type SplitId,
@@ -303,6 +303,10 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
   const keptDays = result.filter((d) => kept(d.date) > 0).length
   // Days with a run and a workout: they pick which comes first before the plan goes on.
   const shared = onUse ? 0 : sharedDays(underneath, today, { kind: 'program', dates: workouts.map((d) => d.date) }).length
+  // Lifting days with cardio of their own (a finisher): cardio first or last, their usual order until they pick.
+  const withCardio = result.filter((d) => liftAndCardio(d.items)).length
+  const cardioOrder = order ?? 'lift'
+  const ordered = (items: PlannedExercise[]) => (withCardio ? placeCardio(items, cardioOrder === 'cardio') : items)
   const byWeek = [...new Set(result.map((d) => d.weekIndex))].map((w) => result.filter((d) => d.weekIndex === w))
   // Lifts in the plan they've never logged: the month's new moves (shown once they have some history to compare with).
   const logged = new Set(logs.map((l) => l.exerciseId))
@@ -328,12 +332,12 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
   const apply = () => {
     if (onUse) {
       const t0 = parseISO(anchorMonday).getTime()
-      onUse(result.map((d) => ({ offset: Math.round((parseISO(d.date).getTime() - t0) / 86400000), items: d.items })), weeks)
+      onUse(result.map((d) => ({ offset: Math.round((parseISO(d.date).getTime() - t0) / 86400000), items: ordered(d.items) })), weeks)
       return
     }
     // The plan's goal becomes their goal (it sets the weekly targets on Progress).
-    setTrainingPrefs({ goals: goal, goal: null, ...(shared > 0 && order ? { stackOrder: order } : {}) })
-    startProgram(Object.fromEntries(result.map((d) => [d.date, d.items])), `${split === 'auto' ? 'Random' : splitInfo(split).label} ${weeks === 4 ? 'month' : 'week'} plan`, today)
+    setTrainingPrefs({ goals: goal, goal: null, ...((shared > 0 || withCardio > 0) && order ? { stackOrder: order } : {}) })
+    startProgram(Object.fromEntries(result.map((d) => [d.date, ordered(d.items)])), `${split === 'auto' ? 'Random' : splitInfo(split).label} ${weeks === 4 ? 'month' : 'week'} plan`, today)
     onApplied(result[0].date)
     onClose()
   }
@@ -407,7 +411,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
                     </button>
                     {isOpen && (
                       <div className="mt-2">
-                        <WorkoutList items={d.items} />
+                        <WorkoutList items={ordered(d.items)} />
                         <button onClick={() => reroll(d.date)} className="mt-2 rounded-full bg-surface px-3 py-1 text-sm shadow-sm ring-1 ring-neutral-200">Reroll this day</button>
                       </div>
                     )}
@@ -438,6 +442,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
         <button onClick={() => { setResult(null); setStep('goal') }} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium">Change settings</button>
       </div>
       {shared > 0 && <div className="mt-3"><StackOrderPicker value={order} onChange={setOrder} sport={underneath[0].sport ?? 'run'} days={shared} /></div>}
+      {shared === 0 && withCardio > 0 && <div className="mt-3"><StackOrderPicker value={cardioOrder} onChange={setOrder} sport="cardio" days={withCardio} /></div>}
       <button onClick={apply} disabled={shared > 0 && !order} className={`${primaryBtn} mt-2`}>{onUse ? 'Use this plan' : 'Apply to my plan'}</button>
     </Sheet>
   )

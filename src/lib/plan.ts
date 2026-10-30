@@ -20,6 +20,26 @@ export function phaThisWeek(plan: WeekPlan, overrides: PlanOverrides | undefined
 /** The exercises that count as the workout itself (warm-up moves aren't tracked as things to do). */
 export const workItems = (items: PlannedExercise[]) => items.filter((p) => !p.warmup)
 
+/** A session's own cardio: a run, ride or row with planned minutes (not the warm-up, not a station in a timed block). */
+const mainCardio = (p: PlannedExercise) => !p.warmup && !p.block && !p.wod && p.minutes != null
+/** Lifting or conditioning: anything else past the warm-up. */
+const training = (p: PlannedExercise) => !p.warmup && !mainCardio(p)
+
+/** Whether a day has both lifting (or conditioning) and cardio of its own: the days "cardio first or last" is about. */
+export const liftAndCardio = (items: PlannedExercise[]) => items.some(mainCardio) && items.some(training)
+
+/** Whether the day's cardio comes before its lifting. */
+export const cardioFirst = (items: PlannedExercise[]) => items.findIndex(mainCardio) < items.findIndex(training)
+
+/** The day with its cardio moved to the start (just after the warm-up) or the end; everything else keeps its order. */
+export function placeCardio(items: PlannedExercise[], first: boolean): PlannedExercise[] {
+  if (!liftAndCardio(items)) return items
+  const warm = items.filter((p) => p.warmup)
+  const cardio = items.filter(mainCardio)
+  const rest = items.filter(training)
+  return first ? [...warm, ...cardio, ...rest] : [...warm, ...rest, ...cardio]
+}
+
 /** A day explicitly marked as rest (an empty date override), as opposed to a day that just has nothing planned. */
 export const isRestDay = (overrides: PlanOverrides | undefined, date: string) => overrides?.[date]?.length === 0
 

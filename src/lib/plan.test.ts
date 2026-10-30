@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ExerciseLog, PlanOverrides, WeekPlan } from '../types'
-import { dayLabel, workoutTitle, dayPlanOf, isRestDay, lastWorkout, repeatPlan, phaThisWeek } from './plan'
+import { dayLabel, workoutTitle, dayPlanOf, isRestDay, lastWorkout, repeatPlan, phaThisWeek, placeCardio, liftAndCardio, cardioFirst } from './plan'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import { weekStats } from './stats'
 
@@ -135,5 +135,26 @@ describe('phaThisWeek', () => {
       '2026-11-02': [pha('D')], // next week
     }
     expect(phaThisWeek(empty, overrides, '2026-10-30').sort()).toEqual(['A', 'B'])
+  })
+})
+
+describe('cardio first or last', () => {
+  const warm = { exerciseId: 'Bicycling_Stationary', sets: 1, minutes: 5, warmup: true, block: 'warmup' }
+  const squat = { exerciseId: 'Barbell_Squat', sets: 3, reps: 5 }
+  const press = { exerciseId: 'Standing_Military_Press', sets: 3, reps: 8 }
+  const run = { exerciseId: 'running', sets: 1, minutes: 20 }
+  const station = { exerciseId: 'x-row-erg', sets: 3, minutes: 1, block: 'circuit' }
+  it('moves the cardio after the warm-up or to the end; the lifting keeps its order', () => {
+    const day = [warm, squat, press, run]
+    expect(liftAndCardio(day)).toBe(true)
+    expect(cardioFirst(day)).toBe(false)
+    expect(placeCardio(day, true)).toEqual([warm, run, squat, press])
+    expect(cardioFirst(placeCardio(day, true))).toBe(true)
+    expect(placeCardio(placeCardio(day, true), false)).toEqual(day)
+  })
+  it("leaves alone a day without both, and a circuit's machine stations", () => {
+    expect(liftAndCardio([warm, run])).toBe(false)
+    expect(liftAndCardio([squat, station])).toBe(false)
+    expect(placeCardio([squat, station], true)).toEqual([squat, station])
   })
 })
