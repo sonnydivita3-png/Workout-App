@@ -7,7 +7,7 @@ import { generateCrossfit, generateHyrox, generateTimed } from './functionalStyl
 import { liftMinutes, REST_SCALE, restFor, transitionMin, WARMUP_SET_MIN, workSeconds, type RestPref } from './timing'
 import { addDropSets, dropGroups, dropSafety, placeWarmups } from './warmups'
 import { buildCircuitItems, circuitLabel, type CircuitTiming } from './wod'
-import { cardioSession, sessionsFor, type CardioSessionKind } from './cardioSession'
+import { cardioSession, sessionsFor, type CardioSessionKind, type TabataFormat } from './cardioSession'
 import { cardioSplit, likedCardio, wodAmount, wodCardio } from './cardioPrefs'
 import { expandParts, FULL_BODY_ORDER, isFullBody, LOWER_PARTS, UPPER_PARTS, BODY_PARTS } from './bodyParts'
 import { byPreference, liked, preferenceBonus, tooAdvanced, unwanted } from './movePrefs'
@@ -191,7 +191,7 @@ function pickCardio(minutes: number, rng: Rng, avoid: Set<string> = new Set(), s
   if (spec?.exerciseId || (spec?.kind && spec.kind !== 'steady')) {
     // Any activity: one that suits the session (Tabata on a bike or rower, not a walk).
     const id = spec.exerciseId ?? (pool.find((e) => !spec.kind || sessionsFor(e.id).includes(spec.kind)) ?? pool[0])?.id
-    return id ? [cardioSession(id, spec.kind ?? 'steady', roundTo5(minutes))] : []
+    return id ? [cardioSession(id, spec.kind ?? 'steady', roundTo5(minutes), { tabata: spec.tabata, sprints: spec.sprints })] : []
   }
   if (pool.length === 0) return []
   // Split: every liked kind gets a share, at least 5 minutes each.
@@ -226,6 +226,9 @@ interface LiftConfig {
 export interface CardioSpec {
   exerciseId?: string
   kind?: CardioSessionKind
+  /** Tabata: which format, and how many 30 s sprints. */
+  tabata?: TabataFormat
+  sprints?: number
 }
 
 export interface LiftOptions {

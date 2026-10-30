@@ -1,5 +1,5 @@
 import { inclineMet } from '../lib/calories'
-import { CARDIO_SESSIONS, sessionsFor } from '../lib/cardioSession'
+import { CARDIO_SESSIONS, SPRINT_ROUNDS, sessionsFor, TABATA_FORMATS, tabataMinutes } from '../lib/cardioSession'
 import { ACTIVITIES, cardioIds, exerciseFor, INCLINES, type CardioSetup } from '../lib/cardioSetup'
 import { useStore } from '../store'
 
@@ -63,6 +63,23 @@ export function CardioActivityPicker({ value, onChange, finisher }: { value: Car
             ))}
           </div>
           <p className="text-xs text-neutral-400">{CARDIO_SESSIONS.find((s) => s.id === session)!.blurb}</p>
+          {session === 'tabata' && (() => {
+            const format = value.tabata ?? '8'
+            const sprints = value.sprints ?? SPRINT_ROUNDS[0]
+            return (
+              <>
+                <div className="mb-1 mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Tabata format">
+                  {TABATA_FORMATS.map((t) => <button key={t.id} role="radio" aria-checked={format === t.id} onClick={() => onChange({ ...value, tabata: t.id })} className={chip(format === t.id)}>{t.label}</button>)}
+                </div>
+                {format === 'sprint' && (
+                  <div className="mb-1 flex flex-wrap gap-2" role="radiogroup" aria-label="How many sprints">
+                    {SPRINT_ROUNDS.map((n) => <button key={n} role="radio" aria-checked={sprints === n} onClick={() => onChange({ ...value, sprints: n })} className={chip(sprints === n)}>{n} sprints</button>)}
+                  </div>
+                )}
+                <p className="text-xs text-neutral-400">{TABATA_FORMATS.find((t) => t.id === format)!.blurb} About {Math.round(tabataMinutes(format, sprints))} min with 5 min easy before and after.</p>
+              </>
+            )
+          })()}
         </>
       )}
       {value.where === 'in' && session !== 'hills' && picked.some((k) => k === 'running' || k === 'walking') && (

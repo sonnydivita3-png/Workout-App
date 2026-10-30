@@ -23,7 +23,7 @@ import { CardioChoice, type CardioPick } from './CardioChoice'
 import { lastDropGroups, phaThisWeek, placeCardio } from '../lib/plan'
 import { CardioActivityPicker } from './CardioActivityPicker'
 import { cardioIds, exerciseFor, inclineOf, INCLINES, setupFromIds, type CardioSetup } from '../lib/cardioSetup'
-import { CARDIO_SESSIONS, type CardioSessionKind } from '../lib/cardioSession'
+import { CARDIO_SESSIONS, tabataMinutes, type CardioSessionKind } from '../lib/cardioSession'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import { BY_ID } from '../lib/randomUtil'
 import { cardioMet, EFFORTS, effortLabel, fitCardio, setCardioPace, type Effort, metForRate, perMinute, planForCalories, planWithin, recentSpeed, SESSION_FACTOR, setCardioEffort, setIncline, STYLE_MET, styleFor, WARMUP_MET, workoutCalories } from '../lib/calorieTarget'
@@ -67,7 +67,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const { plan, overrides, addPlanned, saveRoutine, genPrefs, setGenPrefs, equipment, trainingPrefs, setTrainingPrefs, bodyweight, aboutMe, units, logBodyweight, logs, custom } = useStore()
   const today = useToday()
   // Time, or a calorie target the time is worked out for.
-  const [goal, setGoal] = useState<'time' | 'calories'>('time')
+  const [goalPicked, setGoal] = useState<'time' | 'calories'>('time')
   const [kcal, setKcal] = useState<number | null>(500)
   const [weightIn, setWeightIn] = useState<number | null>(null)
   // With a calorie target: a time limit (then the app works out how hard), or null to work out the time.
@@ -131,6 +131,10 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const one = cardioIdsPicked.length === 1 ? exerciseFor(cardioIdsPicked[0]) : undefined
   const sessionKind: CardioSessionKind = cardioIdsPicked.length > 1 ? 'steady' : cardio.session
   const sessionLabel = CARDIO_SESSIONS.find((x) => x.id === sessionKind)!.label
+  // Tabata is a set amount of work with its warm-up and cool-down on top: its own length, not the time picked (and no
+  // calorie target, which would mean stretching it).
+  const fixedCardio = hasKind('cardio') && sessionKind === 'tabata' ? Math.round(tabataMinutes(cardio.tabata, cardio.sprints)) : null
+  const goal = fixedCardio ? 'time' : goalPicked
   const cardioName = one ? (BUILTIN_BY_ID.get(one)?.name ?? 'Cardio') : 'Cardio'
   const styleLabel = cardioOnly ? `${cardioName} · ${sessionLabel}` : infos.map((i) => i.label).join(' + ')
 
@@ -174,14 +178,14 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const showSplit = parts.length > 1 && !cardioOnly
   const workParts = parts.length - (warmDefault ? 1 : 0)
   const evenShare = Math.max(5, Math.round((minutes - warmDefault) / Math.max(1, workParts) / 5) * 5)
-  const partMin = (k: string) => split[k] ?? (k === 'warmup' ? warmDefault : evenShare)
+  const partMin = (k: string) => (k === 'cardio' && fixedCardio ? fixedCardio : split[k] ?? (k === 'warmup' ? warmDefault : evenShare))
   const warmSplit = () => {
     const w = warmDefault ? partMin('warmup') : 0
     if (warm.includes('cardio') && warm.includes('mobility')) { const c = Math.round(w * 0.55); return { cardio: c, mobility: w - c } }
     return warm.includes('cardio') ? { cardio: w } : warm.includes('mobility') ? { mobility: w } : {}
   }
   const lifting = styles.some((st) => ['standard', 'strength', 'bodyweight', 'supersets'].includes(st))
-  const total0 = showSplit ? parts.reduce((a, k) => a + partMin(k), 0) : minutes
+  const total0 = showSplit ? parts.reduce((a, k) => a + partMin(k), 0) : fixedCardio ?? minutes
   const bump = (k: string, d: number) => {
     // Taking the warm-up below 2 min drops the easy cardio and mobility (warm-up sets stay with the lifting).
     if (k === 'warmup' && partMin(k) + d < 2) {
@@ -248,7 +252,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const mets = { lift: STYLE_MET[liftStyle], cond: STYLE_MET[condStyle], cardioFactor: SESSION_FACTOR[sessionKind] }
   const minFor = (k: string) => cal?.minutes[k] ?? partMin(k)
   const totalMin = cal ? cal.totalMinutes : total0
-  const computed = (k: string) => !!cal && k !== 'warmup' && (k === 'cardio' || !hasKind('cardio'))
+  const computed = (k: string) => (k === 'cardio' && !!fixedCardio) || (!!cal && k !== 'warmup' && (k === 'cardio' || !hasKind('cardio')))
   const partLabel = (k: string) => (k === 'cardio' ? 'Cardio' : k === 'warmup' ? 'Warm-up' : styleInfo(k as WorkoutStyle).label)
   const warmWhat = [warm.includes('cardio') && 'easy cardio', warm.includes('mobility') && 'mobility'].filter(Boolean).join(' + ')
   const defaultName = `${styleLabel} · ${focusLabel} · ${totalMin} min`
@@ -256,7 +260,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const generate = (avoid?: PlannedExercise[]) => {
     if (!avoid) setGenPrefs({ focus: genFocus, styles: [liftStyle, condStyle], kinds, minutes, cardioSetup: cardio })
     if (cal && !knownLb && lb) logBodyweight(today, lb)
-    const cardioSpec = hasKind('cardio') ? { exerciseId: one, kind: sessionKind } : undefined
+    const cardioSpec = hasKind('cardio') ? { exerciseId: one, kind: sessionKind, tabata: cardio.tabata, sprints: cardio.sprints } : undefined
     // Cardio on its own: its session has its own warm-up and cool-down, so no warm-up cardio or mobility before it.
     const warmup = cardioOnly ? {} : { ...warmSplit(), sets: warm.includes('sets') && lifting }
     const opts: GenerateOptions = {
@@ -371,11 +375,11 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
 
         <div className="mb-2 flex items-center justify-between gap-2">
           <h3 className="text-sm font-medium">{showSplit ? 'Time for each part' : goal === 'calories' ? 'How many calories?' : 'How long?'}</h3>
-          <div role="group" aria-label="Plan by" className="flex shrink-0 rounded-full bg-neutral-100 p-0.5 text-xs">
+          {!fixedCardio && <div role="group" aria-label="Plan by" className="flex shrink-0 rounded-full bg-neutral-100 p-0.5 text-xs">
             {(['time', 'calories'] as const).map((g) => (
               <button key={g} onClick={() => setGoal(g)} aria-pressed={goal === g} className={`rounded-full px-3 py-1 ${goal === g ? 'bg-surface font-medium shadow-sm' : 'text-neutral-500'}`}>{g === 'time' ? 'Time' : 'Calories'}</button>
             ))}
-          </div>
+          </div>}
         </div>
         {goal === 'calories' && (
           <div className="mb-3">
@@ -435,6 +439,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
                   <span className="text-sm">
                     <span>{partLabel(k)}</span>
                     {k === 'warmup' && <span className="block text-xs text-neutral-400">{warmWhat} · − to remove</span>}
+                    {k === 'cardio' && fixedCardio && <span className="block text-xs text-neutral-400">Tabata’s own length, with 5 min easy before and after</span>}
                     {cal && <span className="block text-xs text-neutral-400">≈ {cal.kcal[k]} cal{computed(k) ? ' · worked out for your target' : ''}</span>}
                   </span>
                   {computed(k) ? (
@@ -452,7 +457,10 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
             {goal === 'time' && <p className="mb-2 text-xs text-neutral-400">Total {total0} min. Or pick a total to split evenly:</p>}
           </>
         )}
-        {goal === 'time' && (
+        {goal === 'time' && cardioOnly && fixedCardio && (
+          <p role="status" className="mb-5 rounded-2xl bg-neutral-50 px-3 py-2 text-sm">About {fixedCardio} min: 5 min easy, the {cardio.tabata === 'sprint' ? 'sprints' : 'Tabata'}, then 5 min easy. Pick the format above.</p>
+        )}
+        {goal === 'time' && !(cardioOnly && fixedCardio) && (
           <div className="mb-5 flex flex-wrap gap-2">
             {DURATIONS.map((m) => (
               <button key={m} onClick={() => { setMinutes(m); setSplit({}) }} className={chip(m === minutes && Object.keys(split).length === 0)}>{m} min</button>

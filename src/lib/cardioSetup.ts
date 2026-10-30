@@ -1,4 +1,4 @@
-import type { CardioSessionKind } from './cardioSession'
+import type { CardioSessionKind, TabataFormat } from './cardioSession'
 import { CARDIO_TYPES } from './cardioPrefs'
 
 /** Activities, with the ones done inside or out sharing a chip ("Running" = outside or on a treadmill). */
@@ -27,6 +27,9 @@ export interface CardioSetup {
   incline?: number
   /** With lifting: do the cardio first (unset: their usual order, else last). */
   first?: boolean
+  /** Tabata: 8 or 4 rounds of 20/10, or 30 s sprints with 2 min easy (and how many). */
+  tabata?: TabataFormat
+  sprints?: number
 }
 
 /** Incline choices for a treadmill (percent grade). */
