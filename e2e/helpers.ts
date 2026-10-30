@@ -9,6 +9,7 @@ export async function seed(page: Page, state: Record<string, unknown> = {}) {
         socialChoice: 'declined', tourDone: true, tourVersion: 1000, plan: Array.from({ length: 7 }, () => []), overrides: {}, logs: [], custom: [],
         units: { weight: 'lb', distance: 'mi' }, name: 'Test', notifPrefs: { system: false, goals: false, pbs: false, daily: false, reminderTime: '23:59' },
         nudgeSnooze: { install: 9e15, backup: 9e15 }, tipsSeen: ['plan', 'workout', 'progress'], onboarded: true, restSeconds: 0,
+        legalAccepted: { version: 1000, at: '2026-01-01T12:00:00.000Z' },
         // Everyone has these (the app asks before it can be used).
         aboutMe: { sex: 'male', birthYear: 1990, heightIn: 70 }, bodyweight: [{ date: '2026-01-01', lb: 180 }], ...extra,
       },
@@ -16,6 +17,14 @@ export async function seed(page: Page, state: Record<string, unknown> = {}) {
     }))
   }, state)
   page.on('dialog', (d) => d.accept())
+}
+
+/** A new install: tick the three boxes on the agreement screen and continue. */
+export async function agreeToTerms(page: Page) {
+  await page.getByText(/None of these apply to me/).click()
+  await page.getByText(/I accept those risks/).click()
+  await page.getByText(/I’m 18 or older/).click()
+  await page.getByRole('button', { name: 'Agree and continue' }).click()
 }
 
 export const iso = (days = 0) => {

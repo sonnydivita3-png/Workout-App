@@ -360,6 +360,7 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
           {LEGAL_TITLES[d]}
         </button>
       ))}
+      <AgreedOn />
       {legal && <LegalSheet doc={legal} onClose={() => setLegal(null)} />}
       <button onClick={() => setTourDone(false)} className="w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70">App guide</button>
       <InviteButton handle={myHandle} className="w-full rounded-2xl bg-surface px-4 py-3 text-left text-sm shadow-sm ring-1 ring-neutral-200/70">
@@ -391,4 +392,11 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
       </>)}
     </section>
   )
+}
+
+/** When this person agreed to the terms (shown under them, for their own records). */
+function AgreedOn() {
+  const at = useStore((s) => s.legalAccepted?.at)
+  if (!at) return null
+  return <p className="px-1 text-xs text-neutral-400">You agreed to these on {new Date(at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}.</p>
 }

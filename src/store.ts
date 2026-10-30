@@ -8,6 +8,7 @@ import { parseISO, weekdayIndex } from './lib/dates'
 import { toPlanned, type CardioDay } from './lib/cardioPlan'
 import { dayPlanOf } from './lib/plan'
 import { repairState, SCHEMA_VERSION } from './lib/migrate'
+import { TERMS_VERSION, type LegalAcceptance } from './lib/legal'
 import { SYNC_KEYS } from './lib/sync'
 import type { RestPref } from './lib/timing'
 import type { WorkoutStyle } from './lib/randomizer'
@@ -96,6 +97,9 @@ interface State extends Data {
   seenChallenges: Record<string, string>
   markChallengesSeen: (seen: Record<string, string>) => void
   setPendingInvite: (h: string | null) => void
+  /** Which version of the terms, health notice and privacy policy the person agreed to, and when (null = not yet). */
+  legalAccepted: LegalAcceptance | null
+  acceptLegal: () => void
   /** First-run setup (goal, days, first plan) finished or skipped. */
   onboarded: boolean
   setOnboarded: (v: boolean) => void
@@ -317,6 +321,7 @@ const defaults = () => ({
   socialChoice: 'unset' as SocialChoice,
   pendingInvite: null as string | null,
   seenChallenges: {} as Record<string, string>,
+  legalAccepted: null as LegalAcceptance | null,
   onboarded: false,
   tipsSeen: [] as string[],
   pickerEquipment: 'Any',
@@ -346,6 +351,8 @@ export const useStore = create<State>()(
           ...defaults(),
           theme: s.theme,
           accent: s.accent,
+          // They agreed to the terms whatever data they erase.
+          legalAccepted: s.legalAccepted,
           // Erasing turns cloud backup off, so the cloud copy stays as a safety net rather than being wiped too.
           ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone, tourVersion: s.tourVersion, onboarded: s.onboarded, tipsSeen: s.tipsSeen, equipment: s.equipment, trainingPrefs: s.trainingPrefs, aboutMe: s.aboutMe, exerciseModes: s.exerciseModes, favorites: s.favorites } : {}),
         })),
@@ -482,6 +489,7 @@ export const useStore = create<State>()(
       setPendingInvite: (pendingInvite) => set({ pendingInvite }),
       markChallengesSeen: (seen) => set((s) => ({ seenChallenges: { ...s.seenChallenges, ...seen } })),
       setOnboarded: (onboarded) => set({ onboarded }),
+      acceptLegal: () => set({ legalAccepted: { version: TERMS_VERSION, at: new Date().toISOString() } }),
       setPickerEquipment: (pickerEquipment) => set({ pickerEquipment }),
       // Once someone says what they have, the exercise picker starts on "My equipment" too.
       setAboutMe: (p) => set((s) => ({ aboutMe: { ...s.aboutMe, ...p } })),
