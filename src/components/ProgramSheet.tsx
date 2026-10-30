@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { PlannedExercise } from '../types'
 import { addDays, fmtShort, mondayOf, parseISO, toISO, weekdayIndex } from '../lib/dates'
-import { dayPlanOf, liftAndCardio, placeCardio } from '../lib/plan'
+import { dayPlanOf, lastDropGroups, liftAndCardio, placeCardio } from '../lib/plan'
 import {
   bestSplit, defaultWeekdays, familiarLifts, generateProgram, goalInfo, goalsLabel, liftsToRotate, majorGroupsLogged, PROGRAM_GOALS, REP_SCHEMES,
   rerollSlot, savedGoals, SET_SCHEMES, splitInfo, SPLITS, splitWeek, type DayOptions, type ProgramDay, type ProgramGoal, type RepScheme, type SetScheme, type SplitId,
@@ -125,6 +125,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
       generateProgram({
         anchorMonday, weeks, fromDate, trainWeekdays: days, goal, minutes, split, likedStyles: trainingPrefs.styles, setTarget: trainingPrefs.setTarget,
         prevDayGroups: majorGroupsLogged(logs, prev, lookup),
+        prevDropGroups: lastDropGroups(plan, overrides, logs, fromDate, lookup),
         // Keep: the lifts they've been doing stay (numbers carry on). Fresh: new exercises wherever there's a choice.
         ...(keepLifts ? { familiar, rotate } : { rotate: new Set([...rotate, ...familiar]) }),
         ...dayOptions,

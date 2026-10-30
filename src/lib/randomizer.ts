@@ -1230,6 +1230,8 @@ export interface GenerateOptions {
   warmup?: WarmupOptions
   /** Drop sets on two lifts for different big muscles, the safest the day has (their time is part of `minutes`). */
   dropSets?: boolean
+  /** Where the last workout's drop sets went: other groups get them this time when the day has them. */
+  avoidDropGroups?: string[]
   /** Lifts the person has been logging, picked first so progress carries over. */
   familiar?: Set<string>
   /** The cardio activity and session type (steady, intervals, tempo, hills, time trial). */
@@ -1312,7 +1314,7 @@ const DROP_STAPLES: Record<string, string[]> = {
  * cable, swap one for a machine or cable version (bench press → chest press, barbell row → lat pulldown) when the
  * person has the gear. The day's first lift (its main lift) stays as it is.
  */
-function machinesForDrops(items: PlannedExercise[], rng: Rng, avoid?: Set<string>): PlannedExercise[] {
+export function machinesForDrops(items: PlannedExercise[], rng: Rng, avoid?: Set<string>, recent: readonly string[] = []): PlannedExercise[] {
   const lift = (p: PlannedExercise) => !p.warmup && !p.wod && !p.block && BY_ID.get(p.exerciseId)?.kind === 'strength'
   const first = items.findIndex((p) => lift(p) && (modeOf(BY_ID.get(p.exerciseId)!) ?? 'weight') === 'weight')
   const out = [...items]
@@ -1330,14 +1332,14 @@ function machinesForDrops(items: PlannedExercise[], rng: Rng, avoid?: Set<string
     // No machines or cables: a dumbbell version (bench press → dumbbell press), unless the group already has one.
     const others = POOL.filter((e) => e.suggest && !isIsolation(e) && fits(e, staples.length || best ? 3 : 1))
     const next = at === undefined ? undefined : staples.length ? staples[Math.floor(rng() * Math.min(2, staples.length))] : others.length ? pick(others, rng) : undefined
-    if (next) return () => { out[at!] = { ...out[at!], exerciseId: next.id } }
+    if (next) return () => { const p = { ...out[at!], exerciseId: next.id }; out[at!] = p.est === undefined ? p : { ...p, est: Math.round(liftMinutes(p, next) * 10) / 10 } }
     return best >= 1 ? () => {} : null
   }
   // The biggest groups that can take drop sets, the second not overlapping the first if possible.
   let left = [...new Set(items.filter(lift).map((p) => BY_ID.get(p.exerciseId)!.group))]
   const chosen: string[] = []
   while (chosen.length < 2) {
-    const [g] = dropGroups(chosen.length ? [chosen[0], ...left] : left).filter((x) => !chosen.includes(x))
+    const [g] = dropGroups(chosen.length ? [chosen[0], ...left] : left, recent, chosen[0]).filter((x) => !chosen.includes(x))
     if (!g) break
     left = left.filter((x) => x !== g)
     const go = swap(g)
@@ -1353,7 +1355,8 @@ export function generateWorkout(focusIn: string[], minutes: number, opts: Genera
     // Two drops on two lifts take about 2.5 minutes; leave room for them in the time asked for.
     const lifting = (opts.styles ?? [opts.style ?? 'standard']).some((st) => ['standard', 'strength', 'supersets'].includes(st))
     const base = generateWorkout(focus, lifting ? minutes - 2.5 : minutes, { ...opts, dropSets: false })
-    return lifting ? addDropSets(machinesForDrops(base, opts.rng ?? Math.random, opts.avoid), (id) => BY_ID.get(id)) : base
+    const recent = opts.avoidDropGroups ?? []
+    return lifting ? addDropSets(machinesForDrops(base, opts.rng ?? Math.random, opts.avoid, recent), (id) => BY_ID.get(id), 2, recent) : base
   }
   const w = opts.warmup ?? {}
   const warmMin = (w.cardio ?? 0) + (w.mobility ?? 0)

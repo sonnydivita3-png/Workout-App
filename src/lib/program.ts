@@ -3,12 +3,13 @@ import { partFromName } from './bodyParts'
 import { PER_MUSCLE, sessionSets, weeklyTarget } from './muscles'
 import { addDays, parseISO, toISO, weekdayIndex } from './dates'
 import { CARDIO_SESSIONS, type CardioSessionKind } from './cardioSession'
-import { addFinisher, generateWorkout, minutesFor, styleInfo, type WarmupOptions, type WorkoutStyle } from './randomizer'
+import { addFinisher, generateWorkout, machinesForDrops, minutesFor, styleInfo, type WarmupOptions, type WorkoutStyle } from './randomizer'
 import { BY_ID, FULL_BODY_GROUPS, type Rng } from './randomUtil'
 import { liftMinutes, type RestPref } from './timing'
 import { hasData } from './stats'
 import { plateau, workSets } from './progression'
 import { isMainLift } from './randomUtil'
+import { addDropSets, dropGroupsOf } from './warmups'
 
 export type ProgramGoal = 'muscle' | 'strength' | 'fatloss' | 'fitness' | 'functional'
 
@@ -254,6 +255,8 @@ export interface ProgramInput {
   likedStyles?: WorkoutStyle[]
   /** Drop sets on lifting days (two lifts for different big muscles, machines and cables first). */
   dropSets?: boolean
+  /** Where the last workout before the plan had its drop sets: the plan's first ones go elsewhere. */
+  prevDropGroups?: string[]
   /** A named split run in order (push, pull, legs, push…). 'auto' (default) picks day types for the goal. */
   split?: SplitId
   /** Lifts they've been logging (see `familiarLifts`): new plans keep them so progress carries on. */
@@ -314,6 +317,8 @@ export interface DayOptions {
   perMuscle?: number
   /** A run or bike plan already covers their cardio: no cardio days and no cardio finishers. */
   noCardio?: boolean
+  /** Where the previous workout's drop sets went (they rotate to other muscles day to day). */
+  avoidDropGroups?: string[]
 }
 
 const LIFTING_STYLES: WorkoutStyle[] = ['standard', 'strength', 'supersets', 'bodyweight']
@@ -326,7 +331,7 @@ const capped = (focus: string[], opts: DayOptions) => opts.capVolume !== false &
 function makeDay(focus: string[], minutes: number, style: WorkoutStyle, rng: Rng, avoid: Set<string>, opts: DayOptions, cardioKind?: CardioSessionKind, finisher = true): PlannedExercise[] {
   const cardioDay = focus.length === 1 && focus[0] === 'Cardio'
   const items = generateWorkout(focus, minutes, {
-    style, rng, avoid, rest: opts.rest, warmup: cardioDay ? undefined : opts.warmup, dropSets: opts.dropSets, familiar: opts.familiar,
+    style, rng, avoid, rest: opts.rest, warmup: cardioDay ? undefined : opts.warmup, dropSets: opts.dropSets, avoidDropGroups: opts.avoidDropGroups, familiar: opts.familiar,
     ...(cardioKind ? { cardio: { kind: cardioKind } } : {}),
     ...(capped(focus, opts) ? { setCap: sessionSets, maxPerPart: opts.perMuscle ?? PER_MUSCLE } : {}),
     ...(opts.reps && opts.reps !== 'auto' ? { repRange: REP_RANGES[opts.reps] } : {}),
@@ -611,6 +616,8 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
   const firstOffset = daysBetween(anchorMonday, first)
   let prevMajors = new Set((input.prevDayGroups ?? []).filter((g) => MAJOR_GROUPS.includes(g)))
   for (const g of prevMajors) lastTrained.set(g, firstOffset - 1)
+  // Drop sets move to other muscles from one lifting day to the next.
+  let lastDrops = input.prevDropGroups ?? []
   const recentTypes: string[] = [] // names of the last few session types
   const recent: string[][] = []
   const out: ProgramDay[] = []
@@ -656,10 +663,14 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
     let base = slot ? templates.get(slot) : undefined
     if (!base) {
       // Lifting days get their finisher after the week's volume is evened out (below).
-      base = makeDay(focus, minutes, type.style, rng, avoid, input, cardioKind, !slot)
+      base = makeDay(focus, minutes, type.style, rng, avoid, { ...input, avoidDropGroups: lastDrops }, cardioKind, !slot)
+      // A day that repeats every week gets safe lifts for a second pair of muscles too, so its drop sets can alternate.
+      if (slot && input.dropSets) base = machinesForDrops(base, rng, avoid, dropGroupsOf(base, (id) => BY_ID.get(id)))
       if (slot) { templates.set(slot, base); slotDays.set(slot, { focus, style: type.style }) }
     }
     const items = applyProgression(base.map((p) => ({ ...p })), weekIndex, weeks, input)
+    const drops = dropGroupsOf(items, (id) => BY_ID.get(id))
+    if (drops.length) lastDrops = drops
     recent.push(items.map((p) => p.exerciseId))
     if (recent.length > 6) recent.shift()
 
@@ -691,7 +702,28 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
     }
     for (const d of out) if (d.slot) d.items = applyProgression(templates.get(d.slot)!.map((p) => ({ ...p })), d.weekIndex, weeks, input)
   }
+  if (input.dropSets) rotateDrops(out, input.prevDropGroups ?? [])
   return out
+}
+
+/**
+ * Each week repeats its lifting days (so the numbers can climb), which would repeat their drop sets too. Walk the plan
+ * in order and put each day's drop sets, among the lifts it already has, on other muscles than the lifting day before.
+ */
+function rotateDrops(days: ProgramDay[], prev: string[]) {
+  const lookup = (id: string) => BY_ID.get(id)
+  let last = prev
+  for (const d of days) {
+    const drops = d.items.filter((p) => p.dropSets)
+    if (!drops.length) continue
+    const n = drops[0].dropSets!
+    const moved = addDropSets(d.items.map(({ dropSets: _drop, ...p }) => (void _drop, p)), lookup, n, last)
+    if (dropGroupsOf(moved, lookup).length >= drops.length) {
+      // Each lift's time estimate follows its drop sets.
+      d.items = moved.map((p, i) => (p.est !== undefined && !!p.dropSets !== !!d.items[i].dropSets ? { ...p, est: Math.round(liftMinutes(p, lookup(p.exerciseId)) * 10) / 10 } : p))
+    }
+    last = dropGroupsOf(d.items, lookup)
+  }
 }
 
 /** Regenerate one day with the same session type (used by "reroll this day"). */
@@ -705,6 +737,9 @@ export function rerollDay(day: ProgramDay, minutes: number, weeks: number, avoid
 export function rerollSlot(days: ProgramDay[], date: string, minutes: number, weeks: number, avoidIds: Set<string>, rng: Rng = Math.random, opts: DayOptions = {}): ProgramDay[] {
   const day = days.find((d) => d.date === date)
   if (!day) return days
+  // Drop sets go somewhere other than the lifting day before's.
+  const before = [...days].filter((d) => d.date < date && !d.rest).pop()
+  if (opts.dropSets && before) opts = { ...opts, avoidDropGroups: dropGroupsOf(before.items, (id) => BY_ID.get(id)) }
   if (!day.slot) return days.map((d) => (d === day ? rerollDay(d, minutes, weeks, avoidIds, rng, opts) : d))
   const base = rerollDay({ ...day, weekIndex: 0 }, minutes, weeks, avoidIds, rng, opts).items
   return days.map((d) => (d.slot === day.slot ? { ...d, items: applyProgression(base.map((p) => ({ ...p })), d.weekIndex, weeks, opts) } : d))

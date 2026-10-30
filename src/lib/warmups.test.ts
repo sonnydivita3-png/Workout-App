@@ -95,4 +95,45 @@ describe('drop sets in generated workouts', () => {
       setOwnedGear(null)
     }
   })
+  it('move to other muscles than last time, legs and shoulders after chest and back', async () => {
+    const { dropGroups, addDropSets } = await import('./warmups')
+    const fullBody = ['Quads', 'Chest', 'Back', 'Hamstrings', 'Shoulders', 'Biceps', 'Triceps']
+    expect(dropGroups(fullBody)).toEqual(['Quads', 'Back'])
+    expect(dropGroups(fullBody, ['Chest', 'Back'])).toEqual(['Quads', 'Shoulders'])
+    expect(dropGroups(fullBody, ['Quads', 'Shoulders'])).toEqual(['Back', 'Hamstrings'])
+    // A leg day still does two leg muscles.
+    expect(dropGroups(['Quads', 'Hamstrings', 'Glutes', 'Calves'])).toEqual(['Quads', 'Hamstrings'])
+    // One fresh group rather than repeating last time's next to it.
+    expect(dropGroups(['Back', 'Calves'], ['Calves'])).toEqual(['Back'])
+    // A day with nothing new still gets its drop sets.
+    expect(dropGroups(['Chest', 'Back'], ['Chest', 'Back'])).toEqual(['Back', 'Chest'])
+    const day = ['Leg_Press', 'Wide-Grip_Lat_Pulldown', 'Leverage_Chest_Press', 'Leverage_Shoulder_Press'].map((exerciseId) => ({ exerciseId, sets: 3 }))
+    expect(dropped(addDropSets(day, look, 2, ['Quads', 'Back']))).toEqual(['Leverage_Chest_Press', 'Leverage_Shoulder_Press'])
+  })
+  it('a generated workout puts them elsewhere than the last workout', async () => {
+    const { generateWorkout } = await import('./randomizer')
+    const { mulberry32 } = await import('./randomUtil')
+    for (let seed = 1; seed <= 10; seed++) {
+      const w = generateWorkout(['Quads', 'Chest', 'Back', 'Hamstrings', 'Shoulders', 'Biceps', 'Triceps'], 60, { rng: mulberry32(seed), dropSets: true, avoidDropGroups: ['Chest', 'Back'] })
+      const groups = w.filter((p) => p.dropSets).map((p) => look(p.exerciseId)!.group)
+      expect(groups.length, `seed ${seed}`).toBe(2)
+      expect(groups.filter((g) => g === 'Chest' || g === 'Back'), `seed ${seed}: ${groups}`).toEqual([])
+    }
+  })
+  it('rotate through a plan, day to day and week to week', async () => {
+    const { generateProgram } = await import('./program')
+    const { mulberry32 } = await import('./randomUtil')
+    let repeats = 0
+    let pairs = 0
+    const setups: [string, number[]][] = [['muscle', [0, 2, 4]], ['strength', [0, 1, 3, 4]], ['muscle', [0, 1, 2, 3, 4]], ['general', [0, 2, 4]]]
+    for (const [goal, days] of setups) for (let seed = 1; seed <= 5; seed++) {
+      const plan = generateProgram({ anchorMonday: '2026-11-02', weeks: 4, trainWeekdays: days, goal: goal as never, minutes: 60, rng: mulberry32(seed), dropSets: true, prevDropGroups: ['Quads'] })
+      const g = plan.filter((d) => !d.rest).map((d) => d.items.filter((p) => p.dropSets).map((p) => look(p.exerciseId)!.group)).filter((x) => x.length)
+      expect(g[0], `${goal} seed ${seed}`).not.toContain('Quads')
+      for (let i = 1; i < g.length; i++) { pairs++; if (g[i].some((x) => g[i - 1].includes(x))) repeats++ }
+    }
+    // Only when a day has no other safe lift (e.g. a back day after a back day).
+    expect(repeats / pairs).toBeLessThan(0.02)
+  })
 })
+
