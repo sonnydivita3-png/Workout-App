@@ -252,7 +252,7 @@ export interface ProgramInput {
   rest?: RestPref
   /** Workout styles the person enjoys: those sessions come up more, and liked formats the goal lacks are added. */
   likedStyles?: WorkoutStyle[]
-  /** Drop sets on the last two lifts of lifting days. */
+  /** Drop sets on lifting days (two lifts for different big muscles, machines and cables first). */
   dropSets?: boolean
   /** A named split run in order (push, pull, legs, push…). 'auto' (default) picks day types for the goal. */
   split?: SplitId

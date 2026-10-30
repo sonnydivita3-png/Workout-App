@@ -68,7 +68,7 @@ export function WarmupRestControls({ lifting, onWarmupChange, lengthControl, own
           <div className="mb-1 flex gap-2">
             <button onClick={() => setGenPrefs({ drops: !drops })} aria-pressed={drops} className={chip(drops)}>Add drop sets</button>
           </div>
-          <p className="mb-5 text-xs text-neutral-400">{drops ? 'The last two weight lifts finish with 2 drop sets: about 20% lighter each time, to failure, no rest.' : 'Finish the last lifts by stripping weight and going again. You can also add them to any exercise from its ⋯ menu.'}</p>
+          <p className="mb-5 text-xs text-neutral-400">{drops ? 'Two lifts for your biggest muscles (never the same ones), on machines or cables when the workout has them, finish with 2 drop sets: about 20% lighter each time, to failure, no rest.' : 'Finish your biggest lifts by stripping weight and going again. You can also add them to any exercise from its ⋯ menu.'}</p>
         </>
       )}
     </>

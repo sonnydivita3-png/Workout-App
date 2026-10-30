@@ -5,7 +5,7 @@ import { sessionSets } from './muscles'
 import type { Exercise, PlannedExercise } from '../types'
 import { generateCrossfit, generateHyrox, generateTimed } from './functionalStyles'
 import { liftMinutes, REST_SCALE, restFor, transitionMin, WARMUP_SET_MIN, workSeconds, type RestPref } from './timing'
-import { addDropSets, placeWarmups } from './warmups'
+import { addDropSets, dropGroups, dropSafety, placeWarmups } from './warmups'
 import { buildCircuitItems, circuitLabel, type CircuitTiming } from './wod'
 import { cardioSession, sessionsFor, type CardioSessionKind } from './cardioSession'
 import { cardioSplit, likedCardio, wodAmount, wodCardio } from './cardioPrefs'
@@ -1228,7 +1228,7 @@ export interface GenerateOptions {
   rest?: RestPref
   /** Warm-up before the workout; its minutes are part of `minutes`. */
   warmup?: WarmupOptions
-  /** Finish the last two weight lifts with drop sets (their time is part of `minutes`). */
+  /** Drop sets on two lifts for different big muscles, the safest the day has (their time is part of `minutes`). */
   dropSets?: boolean
   /** Lifts the person has been logging, picked first so progress carries over. */
   familiar?: Set<string>
@@ -1294,6 +1294,58 @@ const OWN_WARMUP: Partial<Record<WorkoutStyle, { cardio: number; mobility: numbe
 /** Whether a style adds its own short warm-up when none is picked. */
 export const bringsOwnWarmup = (style: WorkoutStyle) => !!OWN_WARMUP[style]
 
+/** Machine and cable lifts that take drop sets well, by muscle group (the usual ones first). */
+const DROP_STAPLES: Record<string, string[]> = {
+  Quads: ['Leg_Press', 'Hack_Squat', 'Leg_Extensions'],
+  Glutes: ['Pull_Through', 'One-Legged_Cable_Kickback'],
+  Back: ['Wide-Grip_Lat_Pulldown', 'Seated_Cable_Rows', 'Leverage_Iso_Row', 'V-Bar_Pulldown', 'Leverage_High_Row'],
+  Hamstrings: ['Seated_Leg_Curl', 'Lying_Leg_Curls'],
+  Chest: ['Leverage_Chest_Press', 'Cable_Chest_Press', 'Leverage_Incline_Chest_Press'],
+  Shoulders: ['Leverage_Shoulder_Press', 'Seated_Cable_Shoulder_Press'],
+  Triceps: ['Triceps_Pushdown', 'Machine_Triceps_Extension'],
+  Biceps: ['Standing_Biceps_Cable_Curl', 'Machine_Bicep_Curl', 'Cable_Hammer_Curls_-_Rope_Attachment'],
+  Calves: ['Seated_Calf_Raise', 'Calf_Press_On_The_Leg_Press_Machine'],
+}
+
+/**
+ * Before drop sets go on: for the day's two biggest (non-overlapping) muscle groups, if neither lift is on a machine or
+ * cable, swap one for a machine or cable version (bench press → chest press, barbell row → lat pulldown) when the
+ * person has the gear. The day's first lift (its main lift) stays as it is.
+ */
+function machinesForDrops(items: PlannedExercise[], rng: Rng, avoid?: Set<string>): PlannedExercise[] {
+  const lift = (p: PlannedExercise) => !p.warmup && !p.wod && !p.block && BY_ID.get(p.exerciseId)?.kind === 'strength'
+  const first = items.findIndex((p) => lift(p) && (modeOf(BY_ID.get(p.exerciseId)!) ?? 'weight') === 'weight')
+  const out = [...items]
+  const groupAt = (i: number) => BY_ID.get(out[i].exerciseId)!.group
+  // A group is ready when it has a machine or cable lift already, or one we can swap for one (not the main lift, not
+  // the day's hinge: a deadlift stays a deadlift).
+  const swap = (g: string): (() => void) | null => {
+    const ofGroup = out.map((p, i) => (lift(p) && groupAt(i) === g ? i : -1)).filter((i) => i >= 0)
+    const best = Math.max(0, ...ofGroup.map((i) => dropSafety(BY_ID.get(out[i].exerciseId))))
+    if (best >= 3) return () => {}
+    const at = ofGroup.filter((i) => i !== first && familyOf(BY_ID.get(out[i].exerciseId)!) !== 'hinge').pop()
+    const there = new Set(out.map((p) => p.exerciseId))
+    const fits = (e: Exercise | undefined, min: number): e is Exercise => !!e && e.group === g && dropSafety(e) >= min && hasGear(e) && !unwanted(e) && !there.has(e.id) && !avoid?.has(e.id)
+    const staples = (DROP_STAPLES[g] ?? []).map((id) => BY_ID.get(id)).filter((e) => fits(e, 3))
+    // No machines or cables: a dumbbell version (bench press → dumbbell press), unless the group already has one.
+    const others = POOL.filter((e) => e.suggest && !isIsolation(e) && fits(e, staples.length || best ? 3 : 1))
+    const next = at === undefined ? undefined : staples.length ? staples[Math.floor(rng() * Math.min(2, staples.length))] : others.length ? pick(others, rng) : undefined
+    if (next) return () => { out[at!] = { ...out[at!], exerciseId: next.id } }
+    return best >= 1 ? () => {} : null
+  }
+  // The biggest groups that can take drop sets, the second not overlapping the first if possible.
+  let left = [...new Set(items.filter(lift).map((p) => BY_ID.get(p.exerciseId)!.group))]
+  const chosen: string[] = []
+  while (chosen.length < 2) {
+    const [g] = dropGroups(chosen.length ? [chosen[0], ...left] : left).filter((x) => !chosen.includes(x))
+    if (!g) break
+    left = left.filter((x) => x !== g)
+    const go = swap(g)
+    if (go) { go(); chosen.push(g) }
+  }
+  return out
+}
+
 export function generateWorkout(focusIn: string[], minutes: number, opts: GenerateOptions = {}): PlannedExercise[] {
   // Older saved choices (and some plans) say Legs or Arms: those mean every part of them.
   const focus = expandParts(focusIn)
@@ -1301,7 +1353,7 @@ export function generateWorkout(focusIn: string[], minutes: number, opts: Genera
     // Two drops on two lifts take about 2.5 minutes; leave room for them in the time asked for.
     const lifting = (opts.styles ?? [opts.style ?? 'standard']).some((st) => ['standard', 'strength', 'supersets'].includes(st))
     const base = generateWorkout(focus, lifting ? minutes - 2.5 : minutes, { ...opts, dropSets: false })
-    return lifting ? addDropSets(base, (id) => BY_ID.get(id)) : base
+    return lifting ? addDropSets(machinesForDrops(base, opts.rng ?? Math.random, opts.avoid), (id) => BY_ID.get(id)) : base
   }
   const w = opts.warmup ?? {}
   const warmMin = (w.cardio ?? 0) + (w.mobility ?? 0)
