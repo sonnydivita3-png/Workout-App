@@ -158,3 +158,17 @@ describe('cardio first or last', () => {
     expect(placeCardio([squat, station], true)).toEqual([squat, station])
   })
 })
+
+describe('where the last drop sets went', () => {
+  it('finds the most recent day with drop sets, planned or logged, within two weeks', async () => {
+    const { lastDropGroups } = await import('./plan')
+    const { BUILTIN_BY_ID } = await import('../data/exercises')
+    const look = (id: string) => BUILTIN_BY_ID.get(id)
+    const empty = Array.from({ length: 7 }, () => [])
+    const overrides = { '2026-11-02': [{ exerciseId: 'Leg_Press', sets: 3, dropSets: 2 }, { exerciseId: 'Leverage_Shoulder_Press', sets: 3, dropSets: 2 }] }
+    const logs = [{ id: 'a', date: '2026-11-04', exerciseId: 'Wide-Grip_Lat_Pulldown', sets: [{ weight: 100, reps: 10 }, { weight: 80, reps: 8, drop: true }] }]
+    expect(lastDropGroups(empty, overrides, [], '2026-11-04', look)).toEqual(['Quads', 'Shoulders'])
+    expect(lastDropGroups(empty, overrides, logs as never, '2026-11-05', look)).toEqual(['Back'])
+    expect(lastDropGroups(empty, overrides, [], '2026-11-30', look)).toEqual([])
+  })
+})

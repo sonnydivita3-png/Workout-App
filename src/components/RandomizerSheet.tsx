@@ -8,7 +8,7 @@ import { overloaded, type Overload } from '../lib/muscles'
 import { extraTimeOf, perMuscleOf } from '../lib/volumePrefs'
 import { VolumeCheck } from './VolumeCheck'
 import { expandParts, isFullBody, LOWER_PARTS, UPPER_PARTS } from '../lib/bodyParts'
-import { useStore } from '../store'
+import { findExercise, useStore } from '../store'
 import type { PlannedExercise } from '../types'
 import { ExercisePicker } from './ExercisePicker'
 import { ModeSwitch, type GeneratorMode } from './ModeSwitch'
@@ -20,7 +20,7 @@ import { MoveChoice } from './TrainingPrefsPicker'
 import { withGearFor } from '../lib/equipment'
 import { withCardioFor } from '../lib/cardioPrefs'
 import { CardioChoice, type CardioPick } from './CardioChoice'
-import { phaThisWeek, placeCardio } from '../lib/plan'
+import { lastDropGroups, phaThisWeek, placeCardio } from '../lib/plan'
 import { CardioActivityPicker } from './CardioActivityPicker'
 import { cardioIds, exerciseFor, inclineOf, INCLINES, setupFromIds, type CardioSetup } from '../lib/cardioSetup'
 import { CARDIO_SESSIONS, type CardioSessionKind } from '../lib/cardioSession'
@@ -64,7 +64,7 @@ interface Props {
 interface Volume { over: Overload[]; options: ExtraTimeOption[]; base: PlannedExercise[]; opts: GenerateOptions; chosen: ExtraTime | 'more' | null; auto: boolean }
 
 export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
-  const { plan, overrides, addPlanned, saveRoutine, genPrefs, setGenPrefs, equipment, trainingPrefs, setTrainingPrefs, bodyweight, aboutMe, units, logBodyweight, logs } = useStore()
+  const { plan, overrides, addPlanned, saveRoutine, genPrefs, setGenPrefs, equipment, trainingPrefs, setTrainingPrefs, bodyweight, aboutMe, units, logBodyweight, logs, custom } = useStore()
   const today = useToday()
   // Time, or a calorie target the time is worked out for.
   const [goal, setGoal] = useState<'time' | 'calories'>('time')
@@ -262,6 +262,8 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
     const opts: GenerateOptions = {
       style: styles[0], styles, rest, warmup, cardio: cardioSpec,
       dropSets: !!genPrefs.drops && lifting,
+      // Drop sets go on other muscles than last time's.
+      avoidDropGroups: genPrefs.drops && lifting ? lastDropGroups(plan, overrides, logs, date, (id) => findExercise(custom, id)) : undefined,
       ...(showSplit ? { minutesByStyle: Object.fromEntries(styles.map((st) => [st, minFor(st)])), ...(hasCardio ? { cardioMinutes: minFor('cardio') } : {}) } : {}),
       // A reroll avoids what was just made; a PHA also avoids this week's other PHA stations, so they vary.
       avoid: new Set([...(avoid?.map((p) => p.exerciseId) ?? []), ...(styles.includes('pha') ? phaThisWeek(plan, overrides, date) : [])]),

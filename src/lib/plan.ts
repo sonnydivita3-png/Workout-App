@@ -135,3 +135,20 @@ export function workoutTitle(exs: Exercise[]): string {
   }
   return cardio.length ? `${title} + cardio` : title
 }
+
+/**
+ * Where the most recent drop sets before `before` went (within two weeks), planned or logged: the next workout puts
+ * its drop sets on other muscles.
+ */
+export function lastDropGroups(plan: WeekPlan, overrides: PlanOverrides | undefined, logs: ExerciseLog[], before: string, lookup: (id: string) => Exercise | undefined): string[] {
+  for (let back = 1; back <= 14; back++) {
+    const date = toISO(addDays(parseISO(before), -back))
+    const ids = new Set([
+      ...dayPlanOf(plan, overrides, date).filter((p) => p.dropSets).map((p) => p.exerciseId),
+      ...logs.filter((l) => l.date === date && l.sets?.some((x) => x.drop && (x.weight || x.reps))).map((l) => l.exerciseId),
+    ])
+    const groups = [...new Set([...ids].map((id) => lookup(id)?.group).filter((g): g is string => !!g))]
+    if (groups.length) return groups
+  }
+  return []
+}
