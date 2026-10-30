@@ -13,12 +13,14 @@ export function CoreFinisherSheet({ date, dayName, onClose }: { date: string; da
   const s = useStore()
   const [minutes, setMinutes] = useState(10)
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1e9))
+  // A reroll steers away from the moves it just showed.
+  const [shown, setShown] = useState<string[]>([])
   const size = CORE_FINISHERS.find((c) => c.minutes === minutes)!
   const items = useMemo(() => {
     // Not what's already on the day (a plank in the workout isn't one in the finisher too).
     const there = new Set(dayPlanOf(s.plan, s.overrides, date).map((p) => p.exerciseId))
-    return withGearFor(s.equipment, () => generateCoreFinisher(minutes, mulberry32(seed), there))
-  }, [s.plan, s.overrides, s.equipment, date, minutes, seed])
+    return withGearFor(s.equipment, () => generateCoreFinisher(minutes, mulberry32(seed), there, new Set(shown)))
+  }, [s.plan, s.overrides, s.equipment, date, minutes, seed, shown])
   const add = () => {
     s.addPlanned(date, items)
     onClose()
@@ -46,7 +48,7 @@ export function CoreFinisherSheet({ date, dayName, onClose }: { date: string; da
           </li>
         ))}
       </ol>
-      <button onClick={() => setSeed((n) => n + 1)} className="mb-4 w-full rounded-2xl bg-neutral-100 py-2.5 text-sm text-neutral-600">↻ Different moves</button>
+      <button onClick={() => { setShown(items.map((p) => p.exerciseId)); setSeed((n) => n + 1) }} className="mb-4 w-full rounded-2xl bg-neutral-100 py-2.5 text-sm text-neutral-600">↻ Different moves</button>
       <button onClick={add} disabled={items.length === 0} className={primaryBtn}>Add to {dayName}</button>
     </Sheet>
   )

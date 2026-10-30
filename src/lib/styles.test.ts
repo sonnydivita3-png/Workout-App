@@ -316,6 +316,9 @@ describe('core finisher', () => {
       expect(new Set(kinds.slice(0, 5)).size, w.map((p) => ex(p).name).join(', ')).toBe(5)
       const again = generateCoreFinisher(10, mulberry32(seed), new Set(w.map((p) => p.exerciseId)))
       expect(again.filter((p) => w.some((q) => q.exerciseId === p.exerciseId))).toEqual([])
+      // A reroll (the shown moves to avoid, not excluded) is a whole new list.
+      const reroll = generateCoreFinisher(10, mulberry32(seed + 1), new Set(), new Set(w.map((p) => p.exerciseId)))
+      expect(reroll.filter((p) => w.some((q) => q.exerciseId === p.exerciseId))).toEqual([])
     }
   })
 })

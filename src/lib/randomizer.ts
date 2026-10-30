@@ -1178,13 +1178,14 @@ const CORE_EXTRAS = ['x-hollow-hold', 'x-bird-dog', 'x-superman-hold']
 
 /**
  * A core finisher: `moves` different core exercises done on the floor where they finished (no machines or cables),
- * a different kind of move each time until every kind is in, then more of them. Not what's already on the day.
+ * a different kind of move each time until every kind is in, then more of them. Never what's already on the day
+ * (`exclude`); what's in `avoid` (the list it just showed, on a reroll) only if nothing else fits.
  */
-export function generateCoreFinisher(minutes: number, rng: Rng = Math.random, avoid: Set<string> = new Set()): PlannedExercise[] {
+export function generateCoreFinisher(minutes: number, rng: Rng = Math.random, exclude: Set<string> = new Set(), avoid: Set<string> = new Set()): PlannedExercise[] {
   const size = CORE_FINISHERS.find((c) => c.minutes === minutes) ?? CORE_FINISHERS[1]
   const pool = [...POOL, ...customPool(), ...CORE_EXTRAS.map((id) => BY_ID.get(id)).filter((e): e is Exercise => !!e)]
     .filter((e, i, l) => l.findIndex((x) => x.id === e.id) === i)
-    .filter((e) => e.kind === 'strength' && (e.group === 'Core' || CORE_EXTRAS.includes(e.id)) && !avoid.has(e.id) && hasGear(e)
+    .filter((e) => e.kind === 'strength' && (e.group === 'Core' || CORE_EXTRAS.includes(e.id)) && !exclude.has(e.id) && hasGear(e)
       && isPortable(stationOf(e)) && !tooAdvanced(e) && !isQuirky(e) && !isTechnical(e)
       // (On the floor where they are: not a captain's chair, a bar to hang from or a decline bench.)
       && !/captain|hanging|parallel bars|decline|roman chair|glute-ham/i.test(e.name))
@@ -1198,8 +1199,11 @@ export function generateCoreFinisher(minutes: number, rng: Rng = Math.random, av
     if (i >= 0) picked.push(...left.splice(i, 1))
     return i >= 0
   }
-  // One of each kind (in a random order), then any (a second plank or crunch is fine by then).
-  for (const kind of shuffle(CORE_KINDS, rng)) if (picked.length < size.moves) take((e) => kindOf(e) === kind)
+  // One of each kind (in a random order), then any (a second plank or crunch is fine by then); new moves before the
+  // ones just shown, which come back only if nothing else is left.
+  const fresh = (e: Exercise) => !avoid.has(e.id)
+  for (const kind of shuffle(CORE_KINDS, rng)) if (picked.length < size.moves) take((e) => kindOf(e) === kind && fresh(e))
+  while (picked.length < size.moves && take(fresh));
   while (picked.length < size.moves && take(() => true));
   if (picked.length === 0) return []
   const items = buildCircuitItems({ ...size, moves: picked.map((e) => ({ exerciseId: e.id, timed: e.mode === 'time' })), block: 'core-finisher' })

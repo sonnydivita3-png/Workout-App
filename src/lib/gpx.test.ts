@@ -11,7 +11,8 @@ describe('parseGpx', () => {
     expect(g.miles).toBeCloseTo(1.38, 1)
     expect(g.minutes).toBe(12)
     expect(g.name).toBe('Morning Run')
-    expect(g.date).toMatch(/^2026-09-2[78]$/)
+    // The run's local date: noon UTC is still the 28th in the Americas and Europe, already the 29th in New Zealand.
+    expect(g.date).toMatch(/^2026-09-2[789]$/)
   })
   it('skips long pauses when standing still', () => {
     const g = parseGpx(track([[43.0, -88.0, '2026-09-28T12:00:00Z'], [43.01, -88.0, '2026-09-28T12:06:00Z'], [43.01, -88.0, '2026-09-28T12:20:00Z'], [43.02, -88.0, '2026-09-28T12:26:00Z']]))!

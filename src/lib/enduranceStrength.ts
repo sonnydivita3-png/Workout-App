@@ -275,7 +275,8 @@ export function strengthForPlan(input: { sessions: PlanSession[]; sport: Sport; 
       const s = on.get(d)?.kind, n = next(d)?.kind
       return s === 'long' || s === 'race' ? s : n === 'long' || n === 'race' ? `before-${n}` : n === 'hard' ? 'before-hard' : undefined
     }
-    const gap = (a: string, b: string) => Math.abs(parseISO(a).getTime() - parseISO(b).getTime()) / 86400000
+    // Whole days (rounded: a week with a clock change has a 23- or 25-hour day).
+    const gap = (a: string, b: string) => Math.round(Math.abs(parseISO(a).getTime() - parseISO(b).getTime()) / 86400000)
     const choose = (n: number, rate: (d: string) => number, spaced: boolean) => {
       const out: string[] = []
       for (const d of [...dates].sort((a, b) => rate(b) - rate(a) || a.localeCompare(b))) {
