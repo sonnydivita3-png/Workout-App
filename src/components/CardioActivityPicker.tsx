@@ -1,5 +1,5 @@
 import { inclineMet } from '../lib/calories'
-import { CARDIO_SESSIONS, sessionsFor } from '../lib/cardioSession'
+import { CARDIO_SESSIONS, sessionsFor, TABATA_FORMATS, TABATA_ROUNDS, tabataFormat, tabataMinutes, tabataRounds } from '../lib/cardioSession'
 import { ACTIVITIES, cardioIds, exerciseFor, INCLINES, type CardioSetup } from '../lib/cardioSetup'
 import { useStore } from '../store'
 
@@ -63,6 +63,26 @@ export function CardioActivityPicker({ value, onChange, finisher }: { value: Car
             ))}
           </div>
           <p className="text-xs text-neutral-400">{CARDIO_SESSIONS.find((s) => s.id === session)!.blurb}</p>
+          {session === 'tabata' && (() => {
+            const format = tabataFormat(value.tabata)
+            const rounds = tabataRounds(format, value.rounds)
+            const { min, max } = TABATA_ROUNDS[format]
+            const round = (n: number) => onChange({ ...value, tabata: format, rounds: Math.min(max, Math.max(min, n)) })
+            return (
+              <>
+                <div className="mb-2 mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Tabata format">
+                  {/* A new format starts at its usual rounds. */}
+                  {TABATA_FORMATS.map((t) => <button key={t.id} role="radio" aria-checked={format === t.id} onClick={() => onChange({ ...value, tabata: t.id, rounds: undefined })} className={chip(format === t.id)}>{t.label}</button>)}
+                </div>
+                <div className="mb-1 flex items-center gap-3" role="group" aria-label="Rounds">
+                  <button onClick={() => round(rounds - 1)} disabled={rounds <= min} aria-label="Fewer rounds" className="h-8 w-8 rounded-full bg-neutral-100 text-lg disabled:opacity-30">−</button>
+                  <span className="min-w-20 text-center text-sm font-medium tabular-nums">{rounds} rounds</span>
+                  <button onClick={() => round(rounds + 1)} disabled={rounds >= max} aria-label="More rounds" className="h-8 w-8 rounded-full bg-neutral-100 text-lg disabled:opacity-30">+</button>
+                </div>
+                <p className="text-xs text-neutral-400">{TABATA_FORMATS.find((t) => t.id === format)!.blurb} About {Math.round(tabataMinutes(format, rounds))} min with 5 min easy before and after.</p>
+              </>
+            )
+          })()}
         </>
       )}
       {value.where === 'in' && session !== 'hills' && picked.some((k) => k === 'running' || k === 'walking') && (

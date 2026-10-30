@@ -288,7 +288,7 @@ test('a core finisher on any day: the minutes set how many moves, with a circuit
   await expect(page.locator('.fixed').getByText('A few core moves to end with: pick 5 to 20 minutes')).toBeVisible()
 })
 
-test('Tabata as a cardio session: 20s all-out / 10s easy, offered where it works', async ({ page }) => {
+test('Tabata as a cardio session: 20/10 or 30 s / 2 min, rounds picked, with the warm-up and cool-down on top', async ({ page }) => {
   await seed(page)
   await page.goto('/')
   await page.locator('nav').getByText('Workouts').click()
@@ -298,15 +298,37 @@ test('Tabata as a cardio session: 20s all-out / 10s easy, offered where it works
   await sheet.getByRole('group', { name: 'Cardio' }).getByRole('button', { name: 'Running' }).click()
   const kinds = sheet.getByRole('radiogroup', { name: 'Kind of cardio session' })
   await kinds.getByRole('radio', { name: 'Tabata' }).click()
-  await expect(sheet.getByText(/20 seconds all-out, 10 seconds easy, 8 times/)).toBeVisible()
   // Not on a treadmill: the belt can't change speed that fast.
   await sheet.getByRole('radiogroup', { name: 'Where' }).getByRole('radio', { name: 'Treadmill' }).click()
   await expect(kinds.getByRole('radio', { name: 'Tabata' })).toHaveCount(0)
   await sheet.getByRole('radiogroup', { name: 'Where' }).getByRole('radio', { name: 'Outside' }).click()
   await kinds.getByRole('radio', { name: 'Tabata' }).click()
-  await sheet.getByRole('button', { name: '30 min', exact: true }).click()
+
+  // The classic by default: its own length, so no time or calorie choice.
+  const format = sheet.getByRole('radiogroup', { name: 'Tabata format' })
+  const rounds = sheet.getByRole('group', { name: 'Rounds' })
+  await expect(format.getByRole('radio', { name: '20 s / 10 s' })).toHaveAttribute('aria-checked', 'true')
+  await expect(rounds).toContainText('8 rounds')
+  await expect(rounds.getByRole('button', { name: 'More rounds' })).toBeDisabled()
+  await expect(sheet.getByRole('status').filter({ hasText: 'About 14 min: 5 min easy, the Tabata, then 5 min easy.' })).toBeVisible()
+  await expect(sheet.getByRole('button', { name: '30 min', exact: true })).toHaveCount(0)
+  await expect(sheet.getByRole('group', { name: 'Plan by' })).toHaveCount(0)
   await sheet.getByRole('button', { name: /^Generate/ }).click()
-  await expect(sheet.getByText(/Tabata · 6 min easy · 4 × \(8 × 20s all-out \/ 10s easy jog\)/)).toBeVisible()
+  await expect(sheet.getByText('Tabata · 5 min easy, building up · 8 × 20s all-out / 10s easy jog (4 min) · 5 min easy')).toBeVisible()
+
+  // Fewer rounds, or sprints of 30 s with 2 min easy (from their usual 4).
+  await sheet.getByRole('button', { name: 'Change style, focus or time' }).click()
+  for (let i = 0; i < 4; i++) await rounds.getByRole('button', { name: 'Fewer rounds' }).click()
+  await expect(rounds).toContainText('4 rounds')
+  await expect(sheet.getByRole('status').filter({ hasText: 'About 12 min' })).toBeVisible()
+  await format.getByRole('radio', { name: '30 s / 2 min' }).click()
+  await expect(rounds).toContainText('4 rounds')
+  await rounds.getByRole('button', { name: 'More rounds' }).click()
+  await rounds.getByRole('button', { name: 'More rounds' }).click()
+  await expect(sheet.getByRole('status').filter({ hasText: 'About 23 min: 5 min easy, the sprints, then 5 min easy' })).toBeVisible()
+  await expect(sheet.getByText('30 s all-out, then 2 minutes easy. About 23 min with 5 min easy before and after.')).toBeVisible()
+  await sheet.getByRole('button', { name: /^Generate/ }).click()
+  await expect(sheet.getByText('Sprint intervals · 5 min easy, building up · 6 × 30s all-out / 2 min easy jog · 5 min easy')).toBeVisible()
 })
 
 test('lifting with cardio: start or finish with it, in Make me a workout and on the day', async ({ page }) => {
@@ -352,4 +374,28 @@ test('a day with lifting and a run from a plan: the run can go first or last; wi
   await page.getByRole('button', { name: 'Running options' }).click()
   await page.locator('.fixed').getByRole('button', { name: 'Remove exercise' }).click()
   await expect(day).toHaveCount(0)
+})
+
+test('Tabata finishing a lifting workout keeps its own length in the time split', async ({ page }) => {
+  await seed(page, { trainingPrefs: { styles: [], cardio: ['running'], cardioSplit: false } })
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: 'Make me a workout' }).click()
+  const sheet = page.locator('.fixed')
+  await sheet.getByRole('button', { name: 'Lifting', exact: true }).click()
+  await sheet.getByRole('button', { name: 'Cardio', exact: true }).click()
+  await sheet.getByRole('button', { name: 'Full body', exact: true }).click()
+  await sheet.getByRole('group', { name: 'Cardio' }).getByRole('button', { name: 'Running' }).click()
+  await sheet.getByRole('radiogroup', { name: 'Where' }).getByRole('radio', { name: 'Outside' }).click()
+  await sheet.getByRole('radiogroup', { name: 'Kind of cardio session' }).getByRole('radio', { name: 'Tabata' }).click()
+  for (let i = 0; i < 4; i++) await sheet.getByRole('button', { name: 'Fewer rounds' }).click()
+  // The cardio row is Tabata's length (12 min), with no − or +; lifting keeps its own time.
+  await expect(sheet.getByText('Tabata’s own length, with 5 min easy before and after')).toBeVisible()
+  await expect(sheet.getByRole('button', { name: 'Less Cardio time' })).toHaveCount(0)
+  await expect(sheet.getByText('12 min', { exact: true })).toBeVisible()
+  await sheet.getByRole('button', { name: /^Generate/ }).click()
+  await sheet.getByRole('button', { name: /^Add to/ }).click()
+  const run = ((await state(page)).overrides[iso(0)] as { exerciseId: string; minutes?: number; note?: string }[]).find((p) => p.exerciseId === 'running')!
+  expect(run.minutes).toBe(12)
+  expect(run.note).toBe('Tabata · 5 min easy, building up · 4 × 20s all-out / 10s easy jog (2 min) · 5 min easy')
 })

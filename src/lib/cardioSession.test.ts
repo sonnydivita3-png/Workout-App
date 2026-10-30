@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cardioSession, sessionsFor } from './cardioSession'
+import { cardioSession, sessionsFor, tabataMinutes, tabataRounds } from './cardioSession'
 import { generateWorkout, type WorkoutStyle } from './randomizer'
 import { BY_ID, mulberry32 } from './randomUtil'
 
@@ -20,13 +20,31 @@ describe('cardio sessions', () => {
     expect(sessionsFor('x-row-erg')).not.toContain('hills')
     expect(cardioSession('x-row-erg', 'hills', 30).note).toMatch(/^Steady/)
   })
-  it('Tabata: sets of 8 × 20s all-out / 10s easy, a minute between, warm-up and cool-down filling the rest', () => {
-    const t = cardioSession('x-air-bike', 'tabata', 30)
-    expect(t.minutes).toBe(30)
-    // 30 min: 6 easy, 4 sets (16 min of Tabata + 3 between), the rest easy.
-    expect(t.note).toMatch(/^Tabata · 6 min easy · 4 × \(8 × 20s all-out \/ 10s easy spin\), 1 min easy between · 5 min easy$/)
-    expect(cardioSession('running', 'tabata', 20).note).toMatch(/× \(8 × 20s all-out \/ 10s easy jog\)/)
-    expect(cardioSession('x-row-erg', 'tabata', 12).note).toMatch(/· 1 × \(8 × 20s all-out \/ 10s light paddle\) · /)
+  it('Tabata: 20s / 10s or 30s / 2 min, as many rounds as picked; warm-up and cool-down on top of the work', () => {
+    // The classic by default: 8 rounds, 4 minutes of work, 5 easy before and after, whatever time was picked.
+    for (const picked of [10, 30, 60]) {
+      const t = cardioSession('x-air-bike', 'tabata', picked)
+      expect(t.note).toBe('Tabata · 5 min easy, building up · 8 × 20s all-out / 10s easy spin (4 min) · 5 min easy')
+      expect(t.minutes).toBe(14)
+      expect(t.est).toBe(14)
+    }
+    const four = cardioSession('running', 'tabata', 30, { tabata: 'tabata', rounds: 4 })
+    expect(four.note).toBe('Tabata · 5 min easy, building up · 4 × 20s all-out / 10s easy jog (2 min) · 5 min easy')
+    expect(four.minutes).toBe(12)
+    expect(cardioSession('running', 'tabata', 30, { rounds: 5 }).note).toContain('5 × 20s all-out / 10s easy jog (2:30)')
+    // Sprints: 30 s on, 2 min easy after each but the last (4 sprints, the usual: 2 + 6 = 8 minutes).
+    const sprint = cardioSession('x-row-erg', 'tabata', 30, { tabata: 'sprint' })
+    expect(sprint.note).toBe('Sprint intervals · 5 min easy, building up · 4 × 30s all-out / 2 min light paddle · 5 min easy')
+    expect(sprint.minutes).toBe(18)
+    expect(cardioSession('x-row-erg', 'tabata', 30, { tabata: 'sprint', rounds: 6 }).minutes).toBe(5 + 3 + 10 + 5)
+    expect(tabataMinutes('tabata', 8)).toBe(14)
+    expect(tabataMinutes('sprint', 5)).toBe(5 + 2.5 + 8 + 5)
+    // Out of range or unknown: the usual for the format.
+    expect(tabataRounds('tabata', 12)).toBe(8)
+    expect(tabataRounds('tabata', 1)).toBe(8)
+    expect(tabataRounds('sprint', 2.5)).toBe(4)
+    expect(tabataRounds('bogus', 3)).toBe(3)
+    expect(cardioSession('x-air-bike', 'tabata', 30, { tabata: 'bogus' as never, rounds: 99 }).minutes).toBe(14)
     // Not where it can't switch to all-out in a second: walks, swims and treadmills.
     for (const id of ['walking', 'swimming', 'Running_Treadmill']) {
       expect(sessionsFor(id), id).not.toContain('tabata')
