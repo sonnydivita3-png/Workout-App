@@ -38,7 +38,7 @@ export const STYLE_MET: Record<WorkoutStyle, number> = {
 export const WARMUP_MET = 3.2
 
 /** Harder cardio sessions burn more a minute than steady ones (recoveries included). */
-export const SESSION_FACTOR: Record<CardioSessionKind, number> = { steady: 1, intervals: 1.1, tempo: 1.15, hills: 1.15, trial: 1.25 }
+export const SESSION_FACTOR: Record<CardioSessionKind, number> = { steady: 1, intervals: 1.1, tempo: 1.15, hills: 1.15, tabata: 1.15, trial: 1.25 }
 
 /**
  * MET for the cardio part: its activity at a usual pace (the average when several are possible), adjusted for the

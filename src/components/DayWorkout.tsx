@@ -86,7 +86,7 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
               const c = parseCircuit(g.label, g.items.map((x) => x.item))
               if (!c) return null
               const names = g.items.map((x) => findExercise(s.custom, x.item.exerciseId)?.name ?? 'Exercise')
-              return <button onClick={() => setCircuitTimer({ title: 'HIIT circuit', segments: circuitSegments(names, c) })} className="mx-2 rounded-full bg-surface px-3 py-1 text-xs text-neutral-600 ring-1 ring-neutral-200/70">⏱ Start circuit timer</button>
+              return <button onClick={() => setCircuitTimer({ title: g.label?.split(' · ')[0] ?? 'HIIT circuit', segments: circuitSegments(names, c) })} className="mx-2 rounded-full bg-surface px-3 py-1 text-xs text-neutral-600 ring-1 ring-neutral-200/70">⏱ Start circuit timer</button>
             })()}
             {g.items.map(({ item: p, index }, mi) => {
               const ex = findExercise(s.custom, p.exerciseId)

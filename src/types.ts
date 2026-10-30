@@ -43,6 +43,8 @@ export interface CardioEntry {
   calories?: number | null
   /** Treadmill incline, percent grade. */
   incline?: number | null
+  /** Marked done: the card folds to one line. */
+  done?: boolean
 }
 
 /** Time-based workout formats: as many rounds as possible, every minute on the minute, or a fixed amount of work against the clock. */

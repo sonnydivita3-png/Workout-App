@@ -6,7 +6,8 @@ import type { Exercise, PlannedExercise } from '../types'
 import { generateCrossfit, generateHyrox, generateTimed } from './functionalStyles'
 import { liftMinutes, REST_SCALE, restFor, transitionMin, WARMUP_SET_MIN, workSeconds, type RestPref } from './timing'
 import { addDropSets, placeWarmups } from './warmups'
-import { cardioSession, type CardioSessionKind } from './cardioSession'
+import { buildCircuitItems, circuitLabel, type CircuitTiming } from './wod'
+import { cardioSession, sessionsFor, type CardioSessionKind } from './cardioSession'
 import { cardioSplit, likedCardio, wodAmount, wodCardio } from './cardioPrefs'
 import { expandParts, FULL_BODY_ORDER, isFullBody, LOWER_PARTS, UPPER_PARTS, BODY_PARTS } from './bodyParts'
 import { byPreference, liked, preferenceBonus, tooAdvanced, unwanted } from './movePrefs'
@@ -188,7 +189,8 @@ function pickCardio(minutes: number, rng: Rng, avoid: Set<string> = new Set(), s
   const pool = softShuffle(liked ?? POOL.filter((e) => e.kind === 'cardio' && hasGear(e)), avoid, rng)
   // A chosen activity or session type (intervals, tempo…): one session, written out for that activity.
   if (spec?.exerciseId || (spec?.kind && spec.kind !== 'steady')) {
-    const id = spec.exerciseId ?? pool[0]?.id
+    // Any activity: one that suits the session (Tabata on a bike or rower, not a walk).
+    const id = spec.exerciseId ?? (pool.find((e) => !spec.kind || sessionsFor(e.id).includes(spec.kind)) ?? pool[0])?.id
     return id ? [cardioSession(id, spec.kind ?? 'steady', roundTo5(minutes))] : []
   }
   if (pool.length === 0) return []
@@ -1157,6 +1159,52 @@ function generatePosture(minutes: number, rng: Rng, avoid: Set<string>): Planned
   return chosen
     .sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key))
     .map(({ p }) => ({ ...p, est: liftMinutes(p, BY_ID.get(p.exerciseId)) }))
+}
+
+/**
+ * Core finisher lengths: more time, more different moves (two rounds through the list), so the minutes they pick are
+ * how many core exercises they end the day with.
+ */
+export const CORE_FINISHERS: ({ minutes: number; moves: number } & CircuitTiming)[] = [
+  { minutes: 5, moves: 4, rounds: 2, work: 30, rest: 10, roundRest: 30 },
+  { minutes: 10, moves: 6, rounds: 2, work: 40, rest: 10, roundRest: 30 },
+  { minutes: 15, moves: 8, rounds: 2, work: 45, rest: 10, roundRest: 30 },
+  { minutes: 20, moves: 10, rounds: 2, work: 45, rest: 15, roundRest: 30 },
+]
+/** A move of each kind before any kind twice: front plank, lower abs, rotation, crunch, side plank, lower back. */
+const CORE_KINDS = ['plank', 'leg raise', 'rotation', 'crunch', 'side plank', 'back extension']
+/** Core moves in the library that aren't in random workouts but make good finishers. */
+const CORE_EXTRAS = ['x-hollow-hold', 'x-bird-dog', 'x-superman-hold']
+
+/**
+ * A core finisher: `moves` different core exercises done on the floor where they finished (no machines or cables),
+ * a different kind of move each time until every kind is in, then more of them. Not what's already on the day.
+ */
+export function generateCoreFinisher(minutes: number, rng: Rng = Math.random, avoid: Set<string> = new Set()): PlannedExercise[] {
+  const size = CORE_FINISHERS.find((c) => c.minutes === minutes) ?? CORE_FINISHERS[1]
+  const pool = [...POOL, ...customPool(), ...CORE_EXTRAS.map((id) => BY_ID.get(id)).filter((e): e is Exercise => !!e)]
+    .filter((e, i, l) => l.findIndex((x) => x.id === e.id) === i)
+    .filter((e) => e.kind === 'strength' && (e.group === 'Core' || CORE_EXTRAS.includes(e.id)) && !avoid.has(e.id) && hasGear(e)
+      && isPortable(stationOf(e)) && !tooAdvanced(e) && !isQuirky(e) && !isTechnical(e)
+      // (On the floor where they are: not a captain's chair, a bar to hang from or a decline bench.)
+      && !/captain|hanging|parallel bars|decline|roman chair|glute-ham/i.test(e.name))
+  const kindOf = (e: Exercise) => (familyOf(e) === 'back extension' || e.id === 'x-superman-hold' ? 'back extension' : familyOf(e) ?? '')
+  const left = softShuffle(pool, avoid, rng)
+  const picked: Exercise[] = []
+  // Not the same move with other kit (a Russian twist, then a kettlebell Russian twist).
+  const sameMove = (e: Exercise) => picked.some((x) => e.name.toLowerCase().includes(x.name.toLowerCase()) || x.name.toLowerCase().includes(e.name.toLowerCase()))
+  const take = (ok: (e: Exercise) => boolean) => {
+    const i = left.findIndex((e) => ok(e) && !sameMove(e))
+    if (i >= 0) picked.push(...left.splice(i, 1))
+    return i >= 0
+  }
+  // One of each kind (in a random order), then any (a second plank or crunch is fine by then).
+  for (const kind of shuffle(CORE_KINDS, rng)) if (picked.length < size.moves) take((e) => kindOf(e) === kind)
+  while (picked.length < size.moves && take(() => true));
+  if (picked.length === 0) return []
+  const items = buildCircuitItems({ ...size, moves: picked.map((e) => ({ exerciseId: e.id, timed: e.mode === 'time' })), block: 'core-finisher' })
+  const label = `Core finisher · ${circuitLabel({ ...size }).replace(/^HIIT circuit · /, '')}`
+  return items.map((p) => ({ ...p, blockLabel: label }))
 }
 
 // ---------------------------------------------------------------------------------------------
