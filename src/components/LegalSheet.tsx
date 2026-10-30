@@ -3,7 +3,7 @@ import { feedbackLink } from '../lib/feedback'
 
 import { LEGAL_TITLES, type LegalDoc } from '../lib/legal'
 
-const UPDATED = 'October 1, 2026'
+const UPDATED = 'October 30, 2026'
 const REPO = 'https://github.com/sonnydivita3-png/Workout-App'
 
 /** Plain-language privacy policy, terms of use and health notice, in a sheet inside the app. */
@@ -35,13 +35,13 @@ function LegalBody({ doc }: { doc: LegalDoc }) {
             <p className="text-xs text-neutral-400">Last updated {UPDATED}</p>
             <p>Durata is built to keep your data on your phone unless you choose otherwise.</p>
             <h3>What stays on your phone</h3>
-            <p>Your plans, workouts, goals, body weight, measurements and settings are stored in your browser on this device. Progress photos are stored only on this device and are never uploaded.</p>
+            <p>Your plans, workouts, goals, body weight, measurements and settings are stored in your browser on this device, along with the profile details used to estimate calories (sex, birth year and height). Progress photos are stored only on this device and are never uploaded.</p>
             <h3>What’s sent to our server, and only if you turn it on</h3>
             <ul className="list-disc space-y-1 pl-5">
-              <li><b>Cloud backup:</b> a copy of your workout data (not photos) linked to your account, so you can restore it.</li>
+              <li><b>Cloud backup:</b> a copy of your workout data and profile details (not photos) linked to your account, so you can restore it.</li>
               <li><b>Social features:</b> your handle, display name and avatar; friend connections and the permissions you choose; workouts, challenges, requests and emoji you send or receive; and, if you allow a friend to see it, a progress summary (recent exercises, weekly count, streak, recent personal bests). Body weight, measurements and goals are never shared.</li>
               <li><b>Email:</b> optional. Used only to sign you in with a code and to recover your account. It is never shown to other people.</li>
-              <li><b>Reports:</b> if you report someone, the reason and any note you add, so the app’s owner can review it. The person you report isn’t told who reported them.</li>
+              <li><b>Reports:</b> if you report someone, the reason and any note you add, so the app’s owner can review it. The person you report isn’t told who reported them. A report is kept for review even if the reported account is deleted (without a link to it); reports you made are deleted with your account.</li>
             </ul>
             <h3>Bug reports and feedback</h3>
             <p>The app keeps a short list of recent errors on your phone. It only leaves your phone if you choose to send a bug report, which opens your own email app (or a GitHub issue) so you can see exactly what’s sent.</p>
@@ -71,7 +71,7 @@ function LegalBody({ doc }: { doc: LegalDoc }) {
         )}
         {doc === 'health' && (
           <>
-            <p>Exercise carries risk. The workouts, training plans, paces and “try this next” suggestions in this app are general guidance based on common training principles. They don’t know your health, injuries or limits.</p>
+            <p>Exercise carries risk. The workouts, training plans, paces and calorie estimates in this app are general guidance based on common training principles. They don’t know your health, injuries or limits, and the app never picks your working weights: choose a weight you can lift with good form.</p>
             <p>Check with a doctor before starting a new program, especially if you have a medical condition, are pregnant, or haven’t exercised in a while. Stop if you feel pain, dizziness or shortness of breath beyond normal effort.</p>
             <p>Use good form, warm up, and adjust weights and distances to how you feel on the day.</p>
           </>
