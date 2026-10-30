@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { BUILTIN_BY_ID, EXERCISES } from '../data/exercises'
+import { withChosenMode } from '../lib/exerciseModes'
 import { hasGear } from '../lib/equipment'
 import { BODY_PARTS } from '../lib/bodyParts'
 import { isStaple, isTechnical } from '../lib/randomUtil'
@@ -99,7 +100,10 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
     () => [...new Set([...recent.keys(), ...favorites])].map((id) => BUILTIN_BY_ID.get(id)).filter((e): e is Exercise => !!e?.retired),
     [recent, favorites],
   )
-  const all = useMemo(() => [...custom.filter((e) => !e.retired), ...EXERCISES, ...yours], [custom, yours])
+  // As they track them: a bodyweight move they made weighted files under what adds the weight (Machine, Cable…).
+  const gearChoice = useStore((s) => s.exerciseGear)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the choices live outside React; this re-reads them
+  const all = useMemo(() => [...custom.filter((e) => !e.retired), ...EXERCISES, ...yours].map(withChosenMode), [custom, yours, gearChoice])
   // Favorites with something typed searches everything (favorites still first).
   const inPart = (e: Exercise) => group === 'All' || (group === 'Favorites' ? !!query || favorites.includes(e.id) : e.group === group)
   // Muscle group and search first, so each equipment chip can say how many it would leave.
