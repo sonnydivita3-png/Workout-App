@@ -52,7 +52,7 @@ jobs:
           # Optional: where "Send feedback" and bug reports go. Without it they open a GitHub issue instead.
           VITE_FEEDBACK_EMAIL: ${{ vars.FEEDBACK_EMAIL }}
           VITE_APP_VERSION: ${{ github.sha }}
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
