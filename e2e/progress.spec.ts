@@ -59,3 +59,15 @@ test('✓ sets, the optional rest timer, and a beat-last-time summary', async ({
   await page.getByRole('button', { name: 'Done', exact: true }).click()
   expect((await state(page)).finishedDays).toEqual([iso(0)])
 })
+
+test('warm-ups ramp up to their own working weight (last time\'s, or what they type today)', async ({ page }) => {
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: 'Set 1 options' }).click()
+  await page.getByRole('button', { name: /Make it a warm-up/ }).click()
+  // 135 last time: one warm-up at 60%, rounded to 5 lb.
+  await expect(page.getByTitle('Warm-up from your working weight, warm-up set 1')).toContainText('80×5')
+  // Heavier today: the warm-up follows what they typed.
+  await page.getByRole('spinbutton', { name: 'Set 1 lb', exact: true }).fill('155')
+  await expect(page.getByTitle('Warm-up from your working weight, warm-up set 1')).toContainText('95×5')
+})

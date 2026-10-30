@@ -1,8 +1,8 @@
 import { Fragment, useRef, useState } from 'react'
 import { fmtRest } from '../lib/describe'
 import { fmtShort } from '../lib/dates'
-import { compareSet, dropSetsOf, FIRST_TIME, formatSet, platesFor, workSets } from '../lib/progression'
-import { restFor } from '../lib/timing'
+import { compareSet, dropSetsOf, FIRST_TIME, formatSet, platesFor, weightStep, workSets } from '../lib/progression'
+import { restFor, warmupRamp } from '../lib/timing'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import { timedWithWeight } from '../lib/exerciseModes'
 import { hasNumbers, insertDropSet, isTicked, rowNumber, setRows, workingRows } from '../lib/setRows'
@@ -86,9 +86,9 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: pl
   const sets: StrengthSet[] = setRows({ sets: setCount, warmupSets, dropSets }, current?.sets)
   const workingCount = workingRows(sets).length
   const lastWork = workSets(last)
-  // No suggested weights (a guess can be too heavy and get someone hurt): each row shows the same row from last time
-  // (warm-ups with warm-ups, working sets with working sets, drop sets with drop sets), and ✓ repeats its weight with
-  // the reps or time planned for today.
+  // No suggested weights (a guess can be too heavy and get someone hurt): each working set shows the same set from last
+  // time, and ✓ repeats its weight with the reps or time planned for today. Warm-ups and drop sets are worked out from
+  // their own weight (always lighter): see rampFor and dropFor.
   const lastRows = { warmup: (last?.sets ?? []).filter((x) => x.warmup && hasNumbers(x)), work: lastWork, drop: dropSetsOf(last) }
   const kindOf = (x: StrengthSet) => (x.warmup ? 'warmup' : x.drop ? 'drop' : 'work') as keyof typeof lastRows
   const lastFor = (i: number): StrengthSet | undefined => {
@@ -103,9 +103,44 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: pl
   const update = (i: number, patch: Partial<StrengthSet>) =>
     onChange(sets.map((s, j) => (j === i ? { ...s, ...(typed(patch) ? { auto: false, done: s.done ?? false } : {}), ...patch } : s)))
   const filled = hasNumbers
-  /** What ✓ fills in where nothing's typed: last time's weight for this row, and today's planned reps or time. */
+  // Their working weight: today's first typed working set, else last time's heaviest.
+  const workingWeight = (): number | null =>
+    sets.find((x) => !x.warmup && !x.drop && x.weight)?.weight ?? (Math.max(0, ...lastWork.map((x) => x.weight ?? 0)) || null)
+  // Warm-up ramp up to that weight (rounded to what you can load), by each warm-up's place among the warm-ups,
+  // including sets you turned into warm-ups yourself.
+  const ramp = warmupRamp(sets.filter((x) => x.warmup).length)
+  const rampFor = (i: number): StrengthSet | null => {
+    const r = ramp[sets.slice(0, i).filter((x) => x.warmup).length]
+    const top = workingWeight()
+    if (!r || mode !== 'weight' || !top) return null
+    const step = weightStep(exercise, units)
+    const bar = exercise.equipment === 'Barbell' ? (units.weight === 'kg' ? 20 * 2.20462262 : 45) : 0
+    return { weight: Math.max(bar, Math.round((top * r.pct) / step) * step), reps: r.reps, warmup: true }
+  }
+  // Each drop about 20% lighter than the set right before it (a working set, or the drop before), rounded to what you
+  // can load.
+  const weightAt = (j: number): number | null => {
+    const r = sets[j]
+    if (!r || r.warmup) return null
+    return r.weight ?? (r.drop ? dropFor(j) : lastFor(j)?.weight ?? null)
+  }
+  const dropFor = (i: number): number | null => {
+    if (mode !== 'weight') return null
+    let j = i - 1
+    while (j >= 0 && sets[j].warmup) j--
+    const base = weightAt(j) ?? lastWork.at(-1)?.weight ?? null
+    if (!base) return null
+    const step = weightStep(exercise, units)
+    return Math.max(step, Math.round((base * 0.8) / step) * step)
+  }
+  /**
+   * What ✓ fills in where nothing's typed: a warm-up's ramp, a drop's lighter weight, else last time's weight for this
+   * set with today's planned reps or time.
+   */
   const targetFor = (i: number): Pick<StrengthSet, 'weight' | 'reps' | 'seconds'> => {
     const s = sets[i]
+    if (s.warmup) { const r = rampFor(i); if (r) return { weight: r.weight, reps: r.reps } }
+    if (s.drop && mode === 'weight') { const w = dropFor(i); if (w) return { weight: w, reps: targetReps ?? lastFor(i)?.reps ?? null } }
     const prev = lastFor(i)
     const planned = !s.warmup && !s.drop
     return {
@@ -114,9 +149,13 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: pl
       ...(mode === 'time' ? { seconds: (planned ? targetSeconds : undefined) ?? prev?.seconds ?? null } : {}),
     }
   }
-  /** Last time's row: "135×8", "12 reps", "30s", "20×30s", or "–" the first time. */
+  /**
+   * Beside each set: last time's (a working set), or the lighter weight worked out from theirs (a warm-up or drop):
+   * "135×8", "12 reps", "30s", "20×30s", or "–" the first time.
+   */
   const lastText = (i: number) => {
-    const t = lastFor(i)
+    const s = sets[i]
+    const t = (s.warmup && rampFor(i)) || (s.drop && dropFor(i) ? targetFor(i) : null) || lastFor(i)
     if (!t) return '–'
     const w = t.weight ? showWeight(t.weight, units) : null
     // As it was done (reps last time read as reps, even if it's timed today).
@@ -273,7 +312,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: pl
                 {mark && <span className={`ml-0.5 text-[10px] ${mark.c}`} aria-label={mark.l}>{mark.t}</span>}
               </button>
               {/* The target sits beside the boxes, not in them: a number in a box is always one you put there (or ✓ did). */}
-              <span title={`Last time, ${label.toLowerCase()}`} className="truncate text-center text-xs tabular-nums text-neutral-500">
+              <span title={s.warmup && rampFor(i) ? `Warm-up from your working weight, ${label.toLowerCase()}` : s.drop && dropFor(i) ? `About 20% lighter, ${label.toLowerCase()}` : `Last time, ${label.toLowerCase()}`} className="truncate text-center text-xs tabular-nums text-neutral-500">
                 <span className="sr-only">Last time: </span>{lastText(i)}
               </span>
               {withWeight && (

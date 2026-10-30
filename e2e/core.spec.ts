@@ -604,9 +604,7 @@ test('drop sets: add them to a planned exercise or let Make me a workout add the
   await expect(page.getByText(/\+2 drop/)).toBeVisible()
   await page.getByRole('spinbutton', { name: 'Set 2 lb', exact: true }).fill('40')
   await page.getByRole('button', { name: 'Set 2 done', exact: true }).click()
-  // Drop weights are theirs to pick (the app never suggests one).
-  await page.getByRole('spinbutton', { name: 'Drop set 1 lb' }).fill('30')
-  await page.getByRole('spinbutton', { name: 'Drop set 2 lb' }).fill('25')
+  // Each drop is about 20% lighter than what they lifted: 40 → 30 → 25 (rounded to the 5 lb dumbbell step).
   await page.getByRole('button', { name: 'Drop set 1 done' }).click()
   await page.getByRole('button', { name: 'Drop set 2 done' }).click()
   await expect(page.getByRole('spinbutton', { name: 'Drop set 1 lb' })).toHaveValue('30')

@@ -24,6 +24,15 @@ export function sessionBasis(l: ExerciseLog | undefined, mode: Exercise['mode'],
 export const dropSetsOf = (l?: ExerciseLog): StrengthSet[] => (l?.sets ?? []).filter((s) => s.drop && (s.weight || s.reps))
 
 
+const LOWER = ['Quads', 'Hamstrings', 'Glutes', 'Legs']
+
+/** The weight step for a lift, in pounds: bigger jumps for heavy lower-body barbell work, small ones for dumbbells. */
+export function weightStep(ex: Exercise, units: Units): number {
+  const kg = units.weight === 'kg'
+  const big = ex.equipment === 'Barbell' && LOWER.includes(ex.group)
+  return kg ? (big ? 5 : 2.5) * 2.20462262 : big ? 10 : 5
+}
+
 /**
  * What to do the first time, by how the exercise is logged. The app never suggests a weight (a guess can be too
  * heavy and get someone hurt): it shows what they did last time, and the first time, how to pick their own.
