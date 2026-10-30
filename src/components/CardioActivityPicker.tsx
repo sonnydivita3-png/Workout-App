@@ -1,5 +1,5 @@
 import { inclineMet } from '../lib/calories'
-import { CARDIO_SESSIONS, SPRINT_ROUNDS, sessionsFor, TABATA_FORMATS, tabataMinutes } from '../lib/cardioSession'
+import { CARDIO_SESSIONS, sessionsFor, TABATA_FORMATS, TABATA_ROUNDS, tabataFormat, tabataMinutes, tabataRounds } from '../lib/cardioSession'
 import { ACTIVITIES, cardioIds, exerciseFor, INCLINES, type CardioSetup } from '../lib/cardioSetup'
 import { useStore } from '../store'
 
@@ -64,19 +64,22 @@ export function CardioActivityPicker({ value, onChange, finisher }: { value: Car
           </div>
           <p className="text-xs text-neutral-400">{CARDIO_SESSIONS.find((s) => s.id === session)!.blurb}</p>
           {session === 'tabata' && (() => {
-            const format = value.tabata ?? '8'
-            const sprints = value.sprints ?? SPRINT_ROUNDS[0]
+            const format = tabataFormat(value.tabata)
+            const rounds = tabataRounds(format, value.rounds)
+            const { min, max } = TABATA_ROUNDS[format]
+            const round = (n: number) => onChange({ ...value, tabata: format, rounds: Math.min(max, Math.max(min, n)) })
             return (
               <>
-                <div className="mb-1 mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Tabata format">
-                  {TABATA_FORMATS.map((t) => <button key={t.id} role="radio" aria-checked={format === t.id} onClick={() => onChange({ ...value, tabata: t.id })} className={chip(format === t.id)}>{t.label}</button>)}
+                <div className="mb-2 mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Tabata format">
+                  {/* A new format starts at its usual rounds. */}
+                  {TABATA_FORMATS.map((t) => <button key={t.id} role="radio" aria-checked={format === t.id} onClick={() => onChange({ ...value, tabata: t.id, rounds: undefined })} className={chip(format === t.id)}>{t.label}</button>)}
                 </div>
-                {format === 'sprint' && (
-                  <div className="mb-1 flex flex-wrap gap-2" role="radiogroup" aria-label="How many sprints">
-                    {SPRINT_ROUNDS.map((n) => <button key={n} role="radio" aria-checked={sprints === n} onClick={() => onChange({ ...value, sprints: n })} className={chip(sprints === n)}>{n} sprints</button>)}
-                  </div>
-                )}
-                <p className="text-xs text-neutral-400">{TABATA_FORMATS.find((t) => t.id === format)!.blurb} About {Math.round(tabataMinutes(format, sprints))} min with 5 min easy before and after.</p>
+                <div className="mb-1 flex items-center gap-3" role="group" aria-label="Rounds">
+                  <button onClick={() => round(rounds - 1)} disabled={rounds <= min} aria-label="Fewer rounds" className="h-8 w-8 rounded-full bg-neutral-100 text-lg disabled:opacity-30">−</button>
+                  <span className="min-w-20 text-center text-sm font-medium tabular-nums">{rounds} rounds</span>
+                  <button onClick={() => round(rounds + 1)} disabled={rounds >= max} aria-label="More rounds" className="h-8 w-8 rounded-full bg-neutral-100 text-lg disabled:opacity-30">+</button>
+                </div>
+                <p className="text-xs text-neutral-400">{TABATA_FORMATS.find((t) => t.id === format)!.blurb} About {Math.round(tabataMinutes(format, rounds))} min with 5 min easy before and after.</p>
               </>
             )
           })()}

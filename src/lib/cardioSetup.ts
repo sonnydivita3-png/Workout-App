@@ -27,9 +27,9 @@ export interface CardioSetup {
   incline?: number
   /** With lifting: do the cardio first (unset: their usual order, else last). */
   first?: boolean
-  /** Tabata: 8 or 4 rounds of 20/10, or 30 s sprints with 2 min easy (and how many). */
+  /** Tabata: 20 s on / 10 s easy, or 30 s on / 2 min easy, and how many rounds. */
   tabata?: TabataFormat
-  sprints?: number
+  rounds?: number
 }
 
 /** Incline choices for a treadmill (percent grade). */

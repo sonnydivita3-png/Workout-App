@@ -16,30 +16,35 @@ export const CARDIO_SESSIONS: { id: CardioSessionKind; label: string; blurb: str
 ]
 
 /**
- * Tabata-style work: the classic 8 rounds of 20 s all-out / 10 s easy (4 minutes, Tabata 1996), a shorter 4 rounds
- * (2 minutes), or sprint intervals of 30 s all-out / 2 min easy. The work is the session; 5 minutes easy before and
- * after come on top of it, whatever time was picked.
+ * Tabata-style work: 20 s all-out / 10 s easy (8 rounds is the classic 4 minutes, Tabata 1996) or sprint intervals of
+ * 30 s all-out / 2 min easy, as many rounds as picked. The work is the session; 5 minutes easy before and after come on
+ * top of it, whatever time was picked.
  */
-export type TabataFormat = '8' | '4' | 'sprint'
+export type TabataFormat = 'tabata' | 'sprint'
 export const TABATA_FORMATS: { id: TabataFormat; label: string; blurb: string }[] = [
-  { id: '8', label: '8 rounds', blurb: '20 s all-out, 10 s easy, 8 times: 4 minutes. The classic.' },
-  { id: '4', label: '4 rounds', blurb: '20 s all-out, 10 s easy, 4 times: 2 minutes.' },
-  { id: 'sprint', label: '30 s / 2 min', blurb: '30 s all-out, 2 minutes easy, a few times.' },
+  { id: 'tabata', label: '20 s / 10 s', blurb: '20 s all-out, 10 s easy. 8 rounds is the classic (4 minutes).' },
+  { id: 'sprint', label: '30 s / 2 min', blurb: '30 s all-out, then 2 minutes easy.' },
 ]
-/** How many 30 s sprints can be picked (with 2 minutes easy after each but the last). */
-export const SPRINT_ROUNDS = [4, 5, 6] as const
+/** Rounds someone can pick, and the usual number, for each format. */
+export const TABATA_ROUNDS: Record<TabataFormat, { min: number; max: number; usual: number }> = {
+  tabata: { min: 2, max: 8, usual: 8 },
+  sprint: { min: 2, max: 8, usual: 4 },
+}
 const TABATA_WARM = 5
 const TABATA_COOL = 5
-const tabataFormat = (f?: string): TabataFormat => (f === '4' || f === 'sprint' ? f : '8')
-const sprintRounds = (n?: number) => (n && (SPRINT_ROUNDS as readonly number[]).includes(n) ? n : SPRINT_ROUNDS[0])
-/** Minutes of hard work and the easy breaks between it. */
-export const tabataWork = (format?: string, sprints?: number) => {
-  const f = tabataFormat(format)
-  if (f === 'sprint') { const n = sprintRounds(sprints); return n * 0.5 + (n - 1) * 2 }
-  return f === '4' ? 2 : 4
+export const tabataFormat = (f?: string): TabataFormat => (f === 'sprint' ? 'sprint' : 'tabata')
+/** The rounds to do: the number picked if it's in range, else the usual. */
+export const tabataRounds = (format?: string, rounds?: number) => {
+  const r = TABATA_ROUNDS[tabataFormat(format)]
+  return rounds != null && Number.isInteger(rounds) && rounds >= r.min && rounds <= r.max ? rounds : r.usual
+}
+/** Minutes of hard work and the easy breaks between it (none after the last sprint: the cool-down starts). */
+export const tabataWork = (format?: string, rounds?: number) => {
+  const n = tabataRounds(format, rounds)
+  return tabataFormat(format) === 'sprint' ? n * 0.5 + (n - 1) * 2 : n * 0.5
 }
 /** The whole session: warm-up, the work, cool-down. */
-export const tabataMinutes = (format?: string, sprints?: number) => TABATA_WARM + tabataWork(format, sprints) + TABATA_COOL
+export const tabataMinutes = (format?: string, rounds?: number) => TABATA_WARM + tabataWork(format, rounds) + TABATA_COOL
 
 type Family = 'run' | 'walk' | 'bike' | 'row' | 'ski' | 'swim' | 'machine'
 const FAMILY: Record<string, Family> = {
@@ -95,7 +100,7 @@ function trialTarget(f: Family, main: number): string {
  * One cardio session on `exerciseId` filling `minutes`: the plan goes in the note ("10 min easy · 6 × 2 min hard /
  * 2 min easy jog · 6 min easy"), with the total as the target minutes.
  */
-export function cardioSession(exerciseId: string, kind: CardioSessionKind, minutes: number, opts: { tabata?: TabataFormat; sprints?: number } = {}): PlannedExercise {
+export function cardioSession(exerciseId: string, kind: CardioSessionKind, minutes: number, opts: { tabata?: TabataFormat; rounds?: number } = {}): PlannedExercise {
   const total = Math.max(10, Math.round(minutes))
   const f = familyOf(exerciseId)
   const k = sessionsFor(exerciseId).includes(kind) ? kind : 'steady'
@@ -132,10 +137,11 @@ export function cardioSession(exerciseId: string, kind: CardioSessionKind, minut
       // A set amount of work, not the time picked: warm-up and cool-down come on top.
       const easy = f === 'run' ? 'easy jog' : f === 'bike' ? 'easy spin' : f === 'row' ? 'light paddle' : 'easy'
       const format = tabataFormat(opts.tabata)
-      const length = tabataMinutes(format, opts.sprints)
+      const n = tabataRounds(format, opts.rounds)
+      const length = tabataMinutes(format, n)
       const work = format === 'sprint'
-        ? `Sprint intervals · ${TABATA_WARM} min easy, building up · ${sprintRounds(opts.sprints)} × 30s all-out / 2 min ${easy}`
-        : `Tabata · ${TABATA_WARM} min easy, building up · ${format} × 20s all-out / 10s ${easy} (${tabataWork(format)} min)`
+        ? `Sprint intervals · ${TABATA_WARM} min easy, building up · ${n} × 30s all-out / 2 min ${easy}`
+        : `Tabata · ${TABATA_WARM} min easy, building up · ${n} × 20s all-out / 10s ${easy} (${fmt(tabataWork(format, n))})`
       return { exerciseId, sets: 1, minutes: length, note: `${work} · ${TABATA_COOL} min easy`, est: length }
     }
     case 'trial':

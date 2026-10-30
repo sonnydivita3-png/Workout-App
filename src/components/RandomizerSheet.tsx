@@ -133,7 +133,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const sessionLabel = CARDIO_SESSIONS.find((x) => x.id === sessionKind)!.label
   // Tabata is a set amount of work with its warm-up and cool-down on top: its own length, not the time picked (and no
   // calorie target, which would mean stretching it).
-  const fixedCardio = hasKind('cardio') && sessionKind === 'tabata' ? Math.round(tabataMinutes(cardio.tabata, cardio.sprints)) : null
+  const fixedCardio = hasKind('cardio') && sessionKind === 'tabata' ? Math.round(tabataMinutes(cardio.tabata, cardio.rounds)) : null
   const goal = fixedCardio ? 'time' : goalPicked
   const cardioName = one ? (BUILTIN_BY_ID.get(one)?.name ?? 'Cardio') : 'Cardio'
   const styleLabel = cardioOnly ? `${cardioName} · ${sessionLabel}` : infos.map((i) => i.label).join(' + ')
@@ -260,7 +260,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const generate = (avoid?: PlannedExercise[]) => {
     if (!avoid) setGenPrefs({ focus: genFocus, styles: [liftStyle, condStyle], kinds, minutes, cardioSetup: cardio })
     if (cal && !knownLb && lb) logBodyweight(today, lb)
-    const cardioSpec = hasKind('cardio') ? { exerciseId: one, kind: sessionKind, tabata: cardio.tabata, sprints: cardio.sprints } : undefined
+    const cardioSpec = hasKind('cardio') ? { exerciseId: one, kind: sessionKind, tabata: cardio.tabata, rounds: cardio.rounds } : undefined
     // Cardio on its own: its session has its own warm-up and cool-down, so no warm-up cardio or mobility before it.
     const warmup = cardioOnly ? {} : { ...warmSplit(), sets: warm.includes('sets') && lifting }
     const opts: GenerateOptions = {
@@ -458,7 +458,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
           </>
         )}
         {goal === 'time' && cardioOnly && fixedCardio && (
-          <p role="status" className="mb-5 rounded-2xl bg-neutral-50 px-3 py-2 text-sm">About {fixedCardio} min: 5 min easy, the {cardio.tabata === 'sprint' ? 'sprints' : 'Tabata'}, then 5 min easy. Pick the format above.</p>
+          <p role="status" className="mb-5 rounded-2xl bg-neutral-50 px-3 py-2 text-sm">About {fixedCardio} min: 5 min easy, the {cardio.tabata === 'sprint' ? 'sprints' : 'Tabata'}, then 5 min easy. Pick the rounds above.</p>
         )}
         {goal === 'time' && !(cardioOnly && fixedCardio) && (
           <div className="mb-5 flex flex-wrap gap-2">

@@ -191,7 +191,7 @@ function pickCardio(minutes: number, rng: Rng, avoid: Set<string> = new Set(), s
   if (spec?.exerciseId || (spec?.kind && spec.kind !== 'steady')) {
     // Any activity: one that suits the session (Tabata on a bike or rower, not a walk).
     const id = spec.exerciseId ?? (pool.find((e) => !spec.kind || sessionsFor(e.id).includes(spec.kind)) ?? pool[0])?.id
-    return id ? [cardioSession(id, spec.kind ?? 'steady', roundTo5(minutes), { tabata: spec.tabata, sprints: spec.sprints })] : []
+    return id ? [cardioSession(id, spec.kind ?? 'steady', roundTo5(minutes), { tabata: spec.tabata, rounds: spec.rounds })] : []
   }
   if (pool.length === 0) return []
   // Split: every liked kind gets a share, at least 5 minutes each.
@@ -226,9 +226,9 @@ interface LiftConfig {
 export interface CardioSpec {
   exerciseId?: string
   kind?: CardioSessionKind
-  /** Tabata: which format, and how many 30 s sprints. */
+  /** Tabata: which format, and how many rounds. */
   tabata?: TabataFormat
-  sprints?: number
+  rounds?: number
 }
 
 export interface LiftOptions {
