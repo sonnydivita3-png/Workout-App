@@ -228,7 +228,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
                 <h4 className={h3}>Your current lifts</h4>
                 <div className="mb-5 space-y-2">
                   <Option on={keepLifts} onClick={() => setKeepLifts(true)} title="Keep the lifts I’ve been doing" blurb="Your numbers carry on. Accessories you’ve done for a month, or stalled on, still get swapped for something new." />
-                  <Option on={!keepLifts} onClick={() => setKeepLifts(false)} title="Fresh exercises" blurb="New exercises wherever there’s a choice. New lifts get a starting weight from a similar one you’ve done." />
+                  <Option on={!keepLifts} onClick={() => setKeepLifts(false)} title="Fresh exercises" blurb="New exercises wherever there’s a choice. For a lift you haven’t done, pick a weight you could lift a couple more times than planned." />
                 </div>
               </>
             )}
@@ -351,7 +351,7 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
       {hasHistory && keepLifts && newLifts.length > 0 && (
         <p className="mb-3 rounded-xl bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
           <b className="font-medium text-neutral-700">New this time:</b> {newLifts.slice(0, 4).join(', ')}{newLifts.length > 4 ? ` and ${newLifts.length - 4} more` : ''}.
-          {' '}Accessories you’ve done for a month (or stalled on) get swapped; your main lifts stay so you keep progressing. New lifts get a starting weight from a similar one you’ve done.
+          {' '}Accessories you’ve done for a month (or stalled on) get swapped; your main lifts stay so you keep progressing. For a lift you haven’t done, pick a weight you could lift a couple more times than planned.
         </p>
       )}
 

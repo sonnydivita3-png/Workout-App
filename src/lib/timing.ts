@@ -51,10 +51,3 @@ export function liftMinutes(p: PlannedExercise, ex: Exercise | undefined, pref: 
 export const extraSetMinutes = (p: PlannedExercise, ex: Exercise | undefined, pref: RestPref = 'normal') =>
   (workSeconds(p) + (p.rest ?? restFor(ex, p.reps, p.seconds, pref))) / 60
 
-/** Warm-up ramp for a working weight: lighter sets with fewer reps as the weight goes up. */
-export function warmupRamp(count: number): { pct: number; reps: number }[] {
-  if (count <= 0) return []
-  if (count === 1) return [{ pct: 0.6, reps: 5 }]
-  if (count === 2) return [{ pct: 0.5, reps: 8 }, { pct: 0.75, reps: 3 }]
-  return [{ pct: 0.4, reps: 8 }, { pct: 0.6, reps: 5 }, { pct: 0.8, reps: 2 }].slice(0, count)
-}

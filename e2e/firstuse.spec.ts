@@ -34,8 +34,8 @@ test('bodyweight sets (0 lb or no weight) count as done and compare by reps', as
   })
   await page.goto('/')
   await page.locator('nav').getByText('Workouts').click()
-  // Dips: progression by reps, not "add 5 lb" to nothing.
-  await expect(page.getByText(/🎯 Try 11 reps/)).toBeVisible()
+  // Dips: last time read as reps, not "0×10".
+  await expect(page.getByText(/Last time \(.+\): 10 reps · 10 reps · 10 reps/)).toBeVisible()
   for (const n of [1, 2, 3]) {
     const dips = page.locator('div.rounded-2xl', { hasText: 'Chest Dip' }).first()
     await dips.getByLabel(`Set ${n} lb`).fill('0')
