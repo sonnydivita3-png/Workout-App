@@ -20,4 +20,9 @@ describe('agreeing to the terms', () => {
     expect(repairState({ legalAccepted: { version: 99, at: 'not a date' } }, defaults).legalAccepted).toBeNull()
     expect(repairState({}, defaults).legalAccepted).toBeNull()
   })
+  it('a restored backup keeps only real dates for warm-ups marked done', () => {
+    const defaults = { warmupsDone: [] as string[], logs: [] as unknown[] }
+    expect(repairState({ warmupsDone: ['2026-10-30', 'yesterday', 5, '2026-10-30', '2026-10-31'] }, defaults).warmupsDone).toEqual(['2026-10-30', '2026-10-31'])
+  })
 })
+

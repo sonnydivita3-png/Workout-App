@@ -68,7 +68,7 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
   return (
     <>
         {groups.map((g, gi) => g.items[0].item.warmup ? (
-          <WarmupCard key={`warmup-${gi}`} items={g.items.map((x) => x.item)} onRemove={() => g.items.forEach((x) => s.removeExercise(date, x.item.exerciseId))} />
+          <WarmupCard key={`warmup-${gi}`} date={date} items={g.items.map((x) => x.item)} onRemove={() => g.items.forEach((x) => s.removeExercise(date, x.item.exerciseId))} />
         ) : g.items[0].item.wod ? (
           <TimedBlockCard key={g.block ?? gi} items={g.items.map((x) => x.item)} date={date} onRemove={() => g.items.forEach((x) => s.removeExercise(date, x.item.exerciseId))} />
         ) : (

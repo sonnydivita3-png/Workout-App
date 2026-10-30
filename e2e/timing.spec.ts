@@ -77,3 +77,40 @@ test('a saved warm-up shows next to its choices, warm-up sets come first for lif
   await sheet.getByRole('button', { name: /^Generate/ }).click()
   await expect(sheet.getByText(/\+\d warm-up sets/).first()).toBeVisible()
 })
+
+test('warm-up moves show a demo on the card and in the timer, and the warm-up can be marked done', async ({ page }) => {
+  await page.clock.install()
+  const warm = (exerciseId: string) => ({ exerciseId, sets: 1, seconds: 30, warmup: true, block: 'warmup', blockLabel: 'Warm-up' })
+  await seed(page, { overrides: { [iso(0)]: [warm('Arm_Circles'), warm('Cat_Stretch'), { exerciseId: 'Barbell_Squat', sets: 3, reps: 5 }] } })
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+
+  // Each move has a demo that really loads (bundled with the app, allowed by the security policy).
+  const thumb = page.getByRole('img', { name: 'How to do Arm Circles' })
+  await expect(thumb).toBeVisible()
+  await expect.poll(() => thumb.locator('img').first().evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth)).toBeGreaterThan(0)
+  await page.getByRole('button', { name: 'Show how to do Cat Stretch (cat-cow)' }).click()
+  await expect(page.locator('.fixed').getByRole('img', { name: 'How to do Cat Stretch (cat-cow)' })).toBeVisible()
+  await page.locator('.fixed').getByRole('button', { name: 'Close', exact: true }).click()
+
+  // The timer shows the move being done, then the next one during the switch.
+  await page.getByRole('button', { name: '⏱ Start warm-up' }).click()
+  const timer = page.locator('.fixed')
+  await expect(timer.getByRole('img', { name: 'How to do Arm Circles' })).toBeVisible()
+  await timer.getByRole('button', { name: 'Start' }).click()
+  await page.clock.runFor(32_000)
+  await expect(timer.getByText('Next: Cat Stretch (cat-cow)')).toBeVisible()
+  await expect(timer.getByRole('img', { name: 'How to do Cat Stretch (cat-cow)' })).toBeVisible()
+  // At the end it offers to mark the warm-up done, which folds the card.
+  await page.clock.runFor(60_000)
+  await timer.getByRole('button', { name: '✓ Mark warm-up done' }).click()
+  await expect(page.getByText('✓ Warm-up')).toBeVisible()
+  await expect(page.getByRole('button', { name: '⏱ Start warm-up' })).toHaveCount(0)
+  expect((await state(page)).warmupsDone).toEqual([iso(0)])
+
+  // Opened again, it can be undone.
+  await page.getByRole('button', { name: 'Open warm-up' }).click()
+  await page.getByRole('button', { name: 'Done ✓ · tap to undo' }).click()
+  await expect(page.getByRole('button', { name: '✓ Warm-up done' })).toBeVisible()
+  expect((await state(page)).warmupsDone).toEqual([])
+})

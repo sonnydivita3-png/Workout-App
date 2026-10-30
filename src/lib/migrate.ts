@@ -83,6 +83,7 @@ export function repairState<T extends Obj>(saved: unknown, defaults: T): T {
     out.exerciseModes = modes
   }
   if ('legalAccepted' in defaults) out.legalAccepted = cleanAcceptance(saved.legalAccepted)
+  if ('warmupsDone' in defaults) out.warmupsDone = [...new Set(arr(saved.warmupsDone, (d): d is string => typeof d === 'string' && ISO.test(d)))]
   if ('favorites' in defaults) out.favorites = [...new Set(arr(saved.favorites, (f): f is string => typeof f === 'string'))]
   // Keep anything the app no longer knows about (e.g. from a newer version) so it isn't lost.
   for (const [k, v] of Object.entries(saved)) if (!UNSAFE.has(k) && !(k in out) && typeof v !== 'function') out[k] = v
