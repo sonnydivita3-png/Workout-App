@@ -25,6 +25,7 @@ beforeAll(async () => {
   await db.exec(readFileSync(new URL('../../supabase/migrations/20260930000000_social.sql', import.meta.url), 'utf8'))
   await db.exec(readFileSync(new URL('../../supabase/migrations/20261001000000_sync.sql', import.meta.url), 'utf8'))
   await db.exec(readFileSync(new URL('../../supabase/migrations/20261002000000_reports_ping.sql', import.meta.url), 'utf8'))
+  await db.exec(readFileSync(new URL('../../supabase/migrations/20261030000000_keep_reports.sql', import.meta.url), 'utf8'))
 }, 120000)
 afterAll(async () => { await db.close() })
 
@@ -487,6 +488,16 @@ describe('reports and keep-alive', () => {
     await expect(asAnon(`insert into public.reports (target_id, reason) values ('${b}', 'spam')`)).rejects.toThrow(/permission denied/)
     const [row] = await admin<{ from_id: string }>('select from_id from public.reports where target_id = $1', [b])
     expect(row.from_id).toBe(a)
+  })
+  it('a report outlives the reported account (no deleting your way out of one); your own reports go with yours', async () => {
+    const reporter = await user()
+    const harasser = await user()
+    await as(reporter, `insert into public.reports (target_id, reason, note) values ($1, 'harassment', 'kept sending rude names')`, [harasser])
+    await as(harasser, 'select public.delete_my_account()')
+    const kept = await admin<{ target_id: string | null; reason: string; note: string }>(`select target_id, reason, note from public.reports where from_id = $1`, [reporter])
+    expect(kept).toEqual([{ target_id: null, reason: 'harassment', note: 'kept sending rude names' }])
+    await as(reporter, 'select public.delete_my_account()')
+    expect(await admin('select * from public.reports where note = $1', ['kept sending rude names'])).toEqual([])
   })
   it('rate-limits reports', async () => {
     const a = await user()

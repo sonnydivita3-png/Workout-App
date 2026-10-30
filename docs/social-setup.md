@@ -12,6 +12,7 @@ Run each file in `supabase/migrations/` **once, in order**, in the **SQL Editor*
 1. `20260930000000_social.sql` (friends, sharing, challenges, emoji)
 2. `20261001000000_sync.sql` (cloud backup)
 3. `20261002000000_reports_ping.sql` (reporting people, and the keep-alive ping)
+4. `20261030000000_keep_reports.sql` (reports stay reviewable after the reported account is deleted)
 
 To copy a file: open it on GitHub, click **Raw**, select all, copy. Each should end with "Success. No rows returned". Running a file a second time fails with "already exists"; that's harmless if the first run succeeded.
 

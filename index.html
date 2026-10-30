@@ -29,16 +29,8 @@
     <link rel="apple-touch-startup-image" media="(device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./splash/1620x2160.jpg" />
     <link rel="apple-touch-startup-image" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./splash/1536x2048.jpg" />
     <link rel="apple-touch-startup-image" media="(device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./splash/1488x2266.jpg" />
-    <script>
-      // Set the look before first paint so there is no flash of the wrong theme.
-      try {
-        var st = (JSON.parse(localStorage.getItem('workout-app-v1')) || {}).state || {}
-        var t = st.theme || 'dark'
-        if (t === 'auto') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-        document.documentElement.dataset.theme = t
-        document.documentElement.dataset.accent = st.accent || 'lime'
-      } catch (e) { document.documentElement.dataset.theme = 'dark'; document.documentElement.dataset.accent = 'lime' }
-    </script>
+    <!-- Sets the look before first paint (a file, not inline, so the security policy can forbid inline scripts). -->
+    <script src="./theme.js"></script>
     <title>Durata</title>
   </head>
   <body>

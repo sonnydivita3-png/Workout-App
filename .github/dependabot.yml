@@ -1,0 +1,16 @@
+# Pull requests for dependency updates: npm packages weekly (grouped, so it's one PR, not a dozen), and the GitHub
+# Actions the workflows use monthly. CI runs on each PR before anything is merged.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      dependencies:
+        patterns: ['*']
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
