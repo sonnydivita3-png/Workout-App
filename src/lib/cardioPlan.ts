@@ -72,13 +72,18 @@ export interface CardioPlan {
 
 const MILE = 1609.344
 const roundHalf = (x: number) => Math.round(x * 2) / 2
+/** Down to the quarter mile: long runs, so rounding never adds to a step up. */
+const floorQuarter = (x: number) => Math.floor(x * 4 + 1e-9) / 4
 const round5 = (x: number) => Math.round(x / 5) * 5
 const daysBetween = (a: string, b: string) => Math.round((parseISO(b).getTime() - parseISO(a).getTime()) / 86400000)
 const lerp = (a: number, b: number, t: number) => a + (b - a) * Math.min(1, Math.max(0, t))
 
 // ---------------------------------------------------------------------------------------------
 // Progression: weekly volume and long run/ride build toward a peak, with a cutback week every 4th
-// week, then a taper. Growth is capped near the widely used ~10%/week guideline.
+// week, then a taper. Weekly volume grows at most 10% a week (the widely used guideline). A long run
+// is never more than 10% longer than the longest of the last month: in a 5,200-runner study, single
+// runs past that raised overuse-injury risk while week-to-week totals didn't predict it (Frandsen et
+// al., BJSM 2025).
 // ---------------------------------------------------------------------------------------------
 
 interface CurveOptions {
@@ -92,6 +97,10 @@ interface CurveOptions {
   volGrowth: number
   /** Largest week-to-week increase of the long run/ride (miles or minutes). */
   longStep: number
+  /** Largest increase of the long run/ride as a share of the longest before it (0.1 = 10%), if any. */
+  longGrowth?: number
+  /** How the long run is rounded for the day (down, so rounding never takes it past `longGrowth`). */
+  roundLong?: (x: number) => number
   taperVol: number[]
   taperLong: number[]
 }
@@ -119,7 +128,9 @@ export function buildCurve(o: CurveOptions): { meta: WeekMeta[]; peakVol: number
   progress.forEach((week, k) => {
     const frac = progress.length === 1 ? 1 : k / (progress.length - 1)
     const vol = k === 0 ? o.startVol : Math.min(lerp(o.startVol, o.peakVol, frac), prevVol * (1 + o.volGrowth))
-    const long = k === 0 ? o.startLong : Math.min(lerp(o.startLong, o.peakLong, frac), prevLong + o.longStep)
+    const raw = k === 0 ? o.startLong : Math.min(lerp(o.startLong, o.peakLong, frac), prevLong + o.longStep, prevLong * (1 + (o.longGrowth ?? Infinity)))
+    // Rounded as it will be run: the next week's limit comes from what was actually run.
+    const long = o.roundLong ? Math.max(o.roundLong(raw), k === 0 ? 0 : prevLong) : raw
     meta[week] = { index: week, phase: frac < 0.34 ? 'base' : frac < 0.75 ? 'build' : 'peak', vol, long, g: frac, cutback: false }
     prevVol = vol
     prevLong = long
@@ -228,7 +239,7 @@ interface RunCtx {
   goalPace?: string
 }
 
-const dist = (mi: number, units: Units) => `${showDistance(roundHalf(mi), units)} ${units.distance}`
+const dist = (mi: number, units: Units) => `${showDistance(Math.round(mi * 4) / 4, units)} ${units.distance}`
 
 function runNote(role: Role, miles: number, week: WeekMeta, c: RunCtx): { title: string; note: string } {
   const { units, paces } = c
@@ -244,9 +255,11 @@ function runNote(role: Role, miles: number, week: WeekMeta, c: RunCtx): { title:
     const race = c.key === 'marathon' ? paceText(paces?.marathon ?? 0, units) : paceText(paces?.threshold ?? 0, units)
     return {
       title: 'Long run',
-      note: finish
+      note: (finish
         ? `Easy for the first ${dist(miles - n, units)}, then the last ${dist(n, units)} at goal race pace (${race}). Slow down if it feels forced.`
-        : `Easy and steady: the run that builds endurance. Roughly 30–90 seconds per mile slower than goal race pace.${paces ? ` Around ${range(paces.easy[0], paces.marathon + 0.5, units)}.` : ''}`,
+        : `Easy and steady: the run that builds endurance. Roughly 30–90 seconds per mile slower than goal race pace.${paces ? ` Around ${range(paces.easy[0], paces.marathon + 0.5, units)}.` : ''}`)
+        // Many coaches cap long runs at about 3 hours: past that, injury risk climbs faster than fitness.
+        + (miles >= 16 ? ' If it would take you more than about 3 hours, stop at 3 hours.' : ''),
     }
   }
 
@@ -456,13 +469,17 @@ export function generateCardioPlan(input: CardioPlanInput): CardioPlan {
     const prof = RUN_PROFILES[runKey][level]
     const start = input.currentWeekly && input.currentWeekly > 0 ? input.currentWeekly : prof.start
     const peakWanted = event.miles ? Math.max(prof.peak, start * 1.15) : Math.max(input.targetWeekly ?? prof.peak, start * 1.1)
-    const startLong = Math.max(2, Math.min(prof.startLong * (start / prof.start), start * 0.45))
+    // A typical share of their week (about a third), so the first long run isn't a jump on what they run now.
+    const startLong = Math.max(2, Math.min(prof.startLong * (start / prof.start), start * 0.35))
     const peakLongWanted = event.miles ? prof.peakLong : Math.min(16, Math.max(startLong + 1, peakWanted * 0.35))
     const t = RUN_TAPER[event.taper] ?? { vol: [], long: [] }
     curve = buildCurve({
       weeks, taper: hasRace ? event.taper : 0, startVol: start, peakVol: peakWanted, startLong, peakLong: peakLongWanted,
-      volGrowth: 0.12, longStep: runKey === 'marathon' || runKey === 'half' ? 2.5 : 1.5, taperVol: t.vol, taperLong: t.long,
+      volGrowth: 0.1, longStep: runKey === 'marathon' || runKey === 'half' ? 2.5 : 1.5, longGrowth: 0.1, roundLong: floorQuarter, taperVol: t.vol, taperLong: t.long,
     })
+    if (curve.peakLong < peakLongWanted * 0.92) {
+      warnings.push(`Your longest run reaches about ${dist(curve.peakLong, input.units)} instead of the usual ${dist(peakLongWanted, input.units)}: each long run grows at most 10% over your longest recent one, because bigger jumps raise injury risk. More weeks would get you further.`)
+    }
     if (curve.peakVol < peakWanted * 0.92) {
       warnings.push(`Your timeline is short for this event, so weekly volume peaks at about ${dist(curve.peakVol, input.units)} instead of ${dist(peakWanted, input.units)}. More weeks would allow a safer build.`)
     }
@@ -513,7 +530,7 @@ export function generateCardioPlan(input: CardioPlanInput): CardioPlan {
       const others = usable.filter(([, ro]) => ro !== 'long')
       const total = others.reduce((a, [, ro]) => a + weights[ro], 0) || 1
       const floor = level === 'beginner' ? 2 : 2.5
-      amounts.set('long', roundHalf(Math.max(floor, long)))
+      amounts.set('long', floorQuarter(Math.max(floor, long)))
       for (const ro of new Set(others.map(([, x]) => x))) {
         amounts.set(ro, Math.min(roundHalf(Math.max(floor - 0.5, (remaining * weights[ro]) / total)), roundHalf(amounts.get('long')! * 0.8)))
       }

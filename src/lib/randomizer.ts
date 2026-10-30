@@ -30,7 +30,7 @@ export interface StyleInfo {
 
 export const STYLES: StyleInfo[] = [
   { id: 'standard', label: 'Standard', blurb: 'Straight sets — the classic gym workout.', focus: 'required' },
-  { id: 'strength', label: 'Strength', blurb: 'Heavy compound lifts: 4–5 sets of low reps with longer rests.', focus: 'required' },
+  { id: 'strength', label: 'Strength', blurb: 'Heavy compound lifts: 4–5 sets of low reps with longer rests. Best once you’ve lifted regularly for a few months; new to lifting, start with Standard.', focus: 'required' },
   { id: 'supersets', label: 'Supersets', blurb: 'Exercises paired back to back with little rest, so you fit more work into the time.', focus: 'required' },
   { id: 'circuit', label: 'HIIT circuit', blurb: 'Rounds of timed work and short rests. Leave body parts empty for full body.', focus: 'optional' },
   { id: 'pha', label: 'PHA', blurb: 'Peripheral heart action: six stations (upper, lower, upper, lower, full body, core) with almost no rest. Body parts pick which muscles.', focus: 'optional' },
