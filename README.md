@@ -37,7 +37,7 @@ Built around one idea: beat what you did last time.
 - Goals: workouts per week, body weight target, lift target, and cardio goals (weekly/monthly distance or time, target pace or speed, and events like a half marathon or century)
 - Training plans (Workouts → + Add → Run or ride plan, separate from the randomizer): Couch to 5K, 5K, 10K, half marathon, marathon or a mileage build for running; 25 / 50 mile, metric century, century, 200K or a fitness build for cycling. Progressive weekly plans with a long run/ride, quality sessions, cutback weeks, a taper, and an optional event date; personal training paces from a goal time. Adding a race goal (Goals → Cardio → event) builds and fills in its plan automatically
 - Stop or replace a running program from the Workouts tab, or clear a stretch of days (logged days are always kept)
-- Exercise library from [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (public domain) + custom exercises
+- Exercise library and warm-up move pictures from [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (public domain) + custom exercises
 - History by workout: month calendar, each day compared with the time before (▲ improved, PRs), hard sets per muscle this week vs last, delete a whole day
 - Body: waist/chest/arms/hips/thighs/body fat with trends, and progress photos kept only on the device (side-by-side compare)
 - History by exercise: delete a single session or all history for an exercise; est. 1RM / top weight / volume charts (lifting), pace / distance / time (cardio), PR badges

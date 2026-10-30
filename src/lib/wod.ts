@@ -116,6 +116,8 @@ export interface Segment {
   /** What to do or what's next, e.g. "Burpees" or "Next: Squats". */
   label: string
   detail?: string
+  /** An exercise whose demo to show (the move to do now, or the next one during a switch). */
+  demo?: string
 }
 
 export interface CircuitTiming { rounds: number; work: number; rest: number; roundRest: number }

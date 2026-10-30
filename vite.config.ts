@@ -73,7 +73,7 @@ export default defineConfig({
           { src: 'pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: { importScripts: ['sw-notify.js'], globPatterns: ['**/*.{js,css,html,svg,png,json}'],
+      workbox: { importScripts: ['sw-notify.js'], globPatterns: ['**/*.{js,css,html,svg,png,json,webp}'],
         // Always fetched fresh: it's how the app finds out it's out of date.
         globIgnores: ['version.json'],
       },

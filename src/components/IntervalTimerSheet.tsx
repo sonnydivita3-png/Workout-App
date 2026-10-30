@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Segment } from '../lib/wod'
+import { findExercise, useStore } from '../store'
+import { MoveDemo } from './MoveDemo'
 import { Sheet } from './Sheet'
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
@@ -18,8 +20,12 @@ function beep(long = false) {
   } catch { /* sound is optional */ }
 }
 
-/** A clock that walks through a list of work/rest segments (used for HIIT circuits). */
-export function IntervalTimerSheet({ title, segments, onClose }: { title: string; segments: Segment[]; onClose: () => void }) {
+/**
+ * A clock that walks through a list of work/rest segments (HIIT circuits, the warm-up). A segment with a demo shows the
+ * move; `onComplete` adds a button to mark the whole thing done when the clock runs out.
+ */
+export function IntervalTimerSheet({ title, segments, onClose, onComplete, completeLabel = '✓ Mark done' }: { title: string; segments: Segment[]; onClose: () => void; onComplete?: () => void; completeLabel?: string }) {
+  const custom = useStore((s) => s.custom)
   const [elapsed, setElapsed] = useState(0)
   const [running, setRunning] = useState(false)
   const started = useRef(0)
@@ -58,6 +64,7 @@ export function IntervalTimerSheet({ title, segments, onClose }: { title: string
   return (
     <Sheet title={title} onClose={onClose}>
       <div className="py-6 text-center">
+        {!done && seg.demo && <MoveDemo key={seg.demo} id={seg.demo} name={findExercise(custom, seg.demo)?.name ?? seg.label} className={`mx-auto mb-4 w-full max-w-xs rounded-2xl ${seg.phase === 'rest' ? 'opacity-60' : ''}`} />}
         {!done && <p className={`mb-1 text-sm font-semibold uppercase tracking-widest ${seg.phase === 'work' ? 'text-accent' : 'text-neutral-500'}`}>{seg.phase === 'work' ? 'Work' : 'Rest'}</p>}
         <p className="text-7xl font-extrabold tabular-nums tracking-tight">{fmt(left)}</p>
         {!done && <p className="mt-2 text-lg font-medium">{seg.label}</p>}
@@ -65,6 +72,7 @@ export function IntervalTimerSheet({ title, segments, onClose }: { title: string
         <p className="mt-1 text-xs text-neutral-400">Total {fmt(elapsed)} / {fmt(total)}</p>
         {done && <p className="mt-3 text-lg font-semibold">Done! 🔥</p>}
       </div>
+      {done && onComplete && <button onClick={() => { onComplete(); onClose() }} className="mb-2 w-full rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent">{completeLabel}</button>}
       <div className="flex gap-2">
         <button onClick={() => { elapsedRef.current = 0; setElapsed(0); setRunning(false) }} className="w-1/3 rounded-2xl bg-neutral-100 py-3 text-sm font-medium text-neutral-700">Reset</button>
         <button onClick={() => { if (!running) beep(); setRunning((r) => !r) }} disabled={done} className="flex-1 rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent disabled:opacity-30">

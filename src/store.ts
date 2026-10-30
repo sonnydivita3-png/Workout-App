@@ -118,6 +118,9 @@ interface State extends Data {
   /** One-time tips already shown, by id. */
   tipsSeen: string[]
   seeTip: (id: string) => void
+  /** Dates whose warm-up was marked done. */
+  warmupsDone: string[]
+  setWarmupDone: (date: string, done: boolean) => void
   /** Dates marked "Workout complete" (even if some planned sets weren't logged). */
   finishedDays: string[]
   finishDay: (date: string) => void
@@ -326,6 +329,7 @@ const defaults = () => ({
   tipsSeen: [] as string[],
   pickerEquipment: 'Any',
   finishedDays: [] as string[],
+  warmupsDone: [] as string[],
   equipment: null as string[] | null,
   trainingPrefs: { styles: [], cardio: [], cardioSplit: false } as TrainingPrefs,
   aboutMe: { sex: null, birthYear: null, heightIn: null } as AboutMe,
@@ -497,6 +501,7 @@ export const useStore = create<State>()(
       setEquipment: (equipment) =>
         set((s) => ({ equipment, pickerEquipment: equipment && s.pickerEquipment === 'Any' ? 'Mine' : !equipment && s.pickerEquipment === 'Mine' ? 'Any' : s.pickerEquipment })),
       seeTip: (id) => set((s) => (s.tipsSeen.includes(id) ? s : { tipsSeen: [...s.tipsSeen, id] })),
+      setWarmupDone: (date, done) => set((s) => ({ warmupsDone: done ? [...s.warmupsDone.filter((d) => d !== date), date].slice(-400) : s.warmupsDone.filter((d) => d !== date) })),
       finishDay: (date) => set((s) => (s.finishedDays.includes(date) ? s : { finishedDays: [...s.finishedDays, date].slice(-400) })),
       unfinishDay: (date) => set((s) => ({ finishedDays: s.finishedDays.filter((d) => d !== date) })),
       setDayItems: (date, items) => set((s) => editDay(s, date, () => items)),
