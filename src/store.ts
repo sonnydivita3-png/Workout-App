@@ -15,7 +15,7 @@ import type { WorkoutStyle } from './lib/randomizer'
 import type { ExtraTimeChoice } from './lib/volumePrefs'
 
 import { setOwnedGear } from './lib/equipment'
-import { setChosenModes, withChosenMode } from './lib/exerciseModes'
+import { setChosenGear, setChosenModes, withChosenMode } from './lib/exerciseModes'
 import { setFavorites } from './lib/favorites'
 import { setCustomExercises } from './lib/randomUtil'
 import { placeWarmups } from './lib/warmups'
@@ -224,6 +224,10 @@ interface State extends Data {
   exerciseModes: Record<string, ExerciseMode>
   /** Track an exercise with weight or as bodyweight (reps only), from now on. Going bodyweight, its 0 lb sets become bodyweight sets. */
   setExerciseMode: (exerciseId: string, mode: ExerciseMode) => void
+  /** What adds the weight to bodyweight moves they've made weighted (Machine, Cable, Dumbbell...), by exercise. */
+  exerciseGear: Record<string, string>
+  /** Say what adds the weight; their own exercise just changes its equipment. */
+  setExerciseGear: (exerciseId: string, equipment: string) => void
   favorites: string[]
   /** Star or unstar an exercise. */
   toggleFavorite: (exerciseId: string) => void
@@ -317,6 +321,7 @@ const defaults = () => ({
   benchmarks: [] as Benchmark[],
   measurements: [] as Measurement[],
   exerciseModes: {} as Record<string, ExerciseMode>,
+  exerciseGear: {} as Record<string, string>,
   favorites: [] as string[],
   cloud: { enabled: false, lastSyncedAt: null, lastHash: null, conflict: false, error: null, checkedAt: null } as State['cloud'],
   theme: 'dark' as ThemeMode,
@@ -358,7 +363,7 @@ export const useStore = create<State>()(
           // They agreed to the terms whatever data they erase.
           legalAccepted: s.legalAccepted,
           // Erasing turns cloud backup off, so the cloud copy stays as a safety net rather than being wiped too.
-          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone, tourVersion: s.tourVersion, onboarded: s.onboarded, tipsSeen: s.tipsSeen, equipment: s.equipment, trainingPrefs: s.trainingPrefs, aboutMe: s.aboutMe, exerciseModes: s.exerciseModes, favorites: s.favorites } : {}),
+          ...(keepProfile ? { name: s.name, units: s.units, notifPrefs: s.notifPrefs, socialChoice: s.socialChoice, tourDone: s.tourDone, tourVersion: s.tourVersion, onboarded: s.onboarded, tipsSeen: s.tipsSeen, equipment: s.equipment, trainingPrefs: s.trainingPrefs, aboutMe: s.aboutMe, exerciseModes: s.exerciseModes, exerciseGear: s.exerciseGear, favorites: s.favorites } : {}),
         })),
       pushNotifications: (items) => {
         const existing = new Map(get().notifications.map((n) => [n.id, n]))
@@ -469,7 +474,13 @@ export const useStore = create<State>()(
           exerciseModes: { ...s.exerciseModes, [id]: mode },
           ...(s.custom.some((e) => e.id === id && e.mode !== mode) ? { custom: s.custom.map((e) => (e.id === id ? { ...e, mode } : e)) } : {}),
           ...(mode === 'reps' ? { logs: zeroToBodyweight(s.logs, id) } : {}),
+          // Back to bodyweight: it files under bodyweight again (asked again if it's ever made weighted).
+          ...(mode === 'reps' && id in s.exerciseGear ? { exerciseGear: Object.fromEntries(Object.entries(s.exerciseGear).filter(([k]) => k !== id)) } : {}),
         })),
+      setExerciseGear: (id, equipment) =>
+        set((s) => (s.custom.some((e) => e.id === id)
+          ? { custom: s.custom.map((e) => (e.id === id ? { ...e, equipment } : e)) }
+          : { exerciseGear: { ...s.exerciseGear, [id]: equipment } })),
       toggleFavorite: (id) => set((s) => ({ favorites: s.favorites.includes(id) ? s.favorites.filter((f) => f !== id) : [...s.favorites, id] })),
       setUnits: (u) => set((s) => ({ units: { ...s.units, ...u } })),
       setDistanceUnit: (id, unit) => set((s) => ({ units: { ...s.units, byExercise: { ...s.units.byExercise, [id]: unit } } })),
@@ -672,7 +683,11 @@ setOwnedGear(useStore.getState().equipment)
 useStore.subscribe((s, prev) => { if (s.equipment !== prev.equipment) setOwnedGear(s.equipment) })
 // ...how they track each exercise, where they've said (see lib/exerciseModes.ts)...
 setChosenModes(useStore.getState().exerciseModes)
-useStore.subscribe((s, prev) => { if (s.exerciseModes !== prev.exerciseModes) setChosenModes(s.exerciseModes) })
+setChosenGear(useStore.getState().exerciseGear)
+useStore.subscribe((s, prev) => {
+  if (s.exerciseModes !== prev.exerciseModes) setChosenModes(s.exerciseModes)
+  if (s.exerciseGear !== prev.exerciseGear) setChosenGear(s.exerciseGear)
+})
 // ...their favorite exercises (see lib/favorites.ts)...
 setFavorites(useStore.getState().favorites)
 useStore.subscribe((s, prev) => { if (s.favorites !== prev.favorites) setFavorites(s.favorites) })

@@ -4,7 +4,7 @@ import { fmtShort } from '../lib/dates'
 import { compareSet, dropSetsOf, FIRST_TIME, formatSet, platesFor, weightStep, workSets } from '../lib/progression'
 import { restFor, warmupRamp } from '../lib/timing'
 import { BUILTIN_BY_ID } from '../data/exercises'
-import { timedWithWeight } from '../lib/exerciseModes'
+import { needsGear, timedWithWeight } from '../lib/exerciseModes'
 import { hasNumbers, insertDropSet, isTicked, rowNumber, setRows, workingRows } from '../lib/setRows'
 import { formatSeconds, showWeight, storeWeight } from '../lib/units'
 import { useStore } from '../store'
@@ -74,6 +74,12 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: pl
   // How they said they track this one (bodyweight or with weight), if they have.
   const chosenMode = useStore((s) => s.exerciseModes[exercise.id])
   const setExerciseMode = useStore((s) => s.setExerciseMode)
+  const setExerciseGear = useStore((s) => s.setExerciseGear)
+  // Re-render when an answer is saved (the lookup reads it outside React).
+  useStore((s) => s.exerciseGear[exercise.id])
+  // A bodyweight move made weighted: what adds the weight? Free weights asks which; "Later" hides it until next time.
+  const [gearStep, setGearStep] = useState<'ask' | 'free' | 'later'>('ask')
+  const chooseGear = (g: string) => { setExerciseGear(exercise.id, g); setGearStep('ask') }
   const [timing, setTiming] = useState<number | null>(null)
   const [menu, setMenu] = useState(false)
   const [plates, setPlates] = useState(false)
@@ -207,6 +213,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: pl
   const askSets = !readOnly && !!onKeepSets && !keepSets && lastCount > 0 && lastCount !== setCount && !sets.some((x) => !x.warmup && !x.drop && ticked(x))
   // 0 lb on a weighted lift usually means bodyweight: ask once, and remember the answer for this exercise.
   const askBodyweight = !readOnly && mode === 'weight' && !chosenMode && sets.some((x) => !x.warmup && !x.drop && x.weight === 0)
+  const askGear = !readOnly && gearStep !== 'later' && mode === 'weight' && (chosenMode === 'weight' || !!exercise.custom) && needsGear(exercise)
 
   const target = mode === 'time' ? (targetSeconds ? `${setCount} × ${targetSeconds}s` : '') : targetReps ? `${setCount} × ${targetReps}` : ''
   // Timed sets give the seconds more room: the box shares it with the ⏱ button.
@@ -381,6 +388,24 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: pl
       )}
 
       </>)}
+
+      {askGear && (
+        <div className="mt-3 rounded-xl bg-neutral-50 px-3 py-2.5" role="group" aria-label="What adds the weight?">
+          <p className="text-sm font-medium">{gearStep === 'free' ? 'Which free weight?' : `What adds the weight to ${exercise.name}?`}</p>
+          <p className="mt-0.5 text-xs text-neutral-500">It’s saved under that equipment, so that’s where you’ll find it in the exercise list.</p>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+            {gearStep === 'free' ? <>
+              {[['Dumbbell', 'Dumbbell'], ['Barbell', 'Barbell'], ['Kettlebell', 'Kettlebell'], ['Other', 'Belt, vest or plate']].map(([g, l]) => <button key={g} onClick={() => chooseGear(g)} className="rounded-full bg-accent px-3 py-1.5 font-medium text-on-accent">{l}</button>)}
+              <button onClick={() => setGearStep('ask')} className="rounded-full bg-neutral-100 px-3 py-1.5 text-neutral-600">Back</button>
+            </> : <>
+              <button onClick={() => chooseGear('Machine')} className="rounded-full bg-accent px-3 py-1.5 font-medium text-on-accent">Machine</button>
+              <button onClick={() => setGearStep('free')} className="rounded-full bg-accent px-3 py-1.5 font-medium text-on-accent">Free weights</button>
+              <button onClick={() => chooseGear('Cable')} className="rounded-full bg-accent px-3 py-1.5 font-medium text-on-accent">Cable</button>
+              <button onClick={() => setGearStep('later')} className="rounded-full bg-neutral-100 px-3 py-1.5 text-neutral-600">Later</button>
+            </>}
+          </div>
+        </div>
+      )}
 
       {menu && (
         <Sheet title={exercise.name} onClose={() => setMenu(false)}>

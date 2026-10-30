@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import { findExercise, useStore } from '../store'
 import type { Exercise } from '../types'
-import { modeOf, setChosenModes, timedWithWeight, withChosenMode } from './exerciseModes'
+import { modeOf, needsGear, setChosenModes, timedWithWeight, withChosenMode } from './exerciseModes'
 import { repairState } from './migrate'
 import { takesWarmup } from './warmups'
 
@@ -95,5 +95,38 @@ describe('repairState', () => {
     const fixed = repairState({ exerciseModes: { a: 'reps', b: 'weight', c: 'heavy', d: 3 } }, { exerciseModes: {} })
     expect(fixed.exerciseModes).toEqual({ a: 'reps', b: 'weight' })
     expect(repairState({ exerciseModes: [1, 2] }, { exerciseModes: {} }).exerciseModes).toEqual({})
+  })
+})
+
+describe('what adds the weight to a bodyweight move made weighted', () => {
+  const pullup = BUILTIN_BY_ID.get('Pullups')!
+  afterEach(() => useStore.setState({ exerciseGear: {} }))
+
+  it('asks only for bodyweight moves, and files the answer under that equipment while it is weighted', () => {
+    expect(pullup.equipment).toBe('Bodyweight')
+    expect(needsGear(pullup)).toBe(true)
+    expect(needsGear(BUILTIN_BY_ID.get('Dumbbell_Lunges')!)).toBe(false)
+    useStore.getState().setExerciseMode(pullup.id, 'weight')
+    useStore.getState().setExerciseGear(pullup.id, 'Cable')
+    const e = findExercise([], pullup.id)!
+    expect(e).toMatchObject({ mode: 'weight', equipment: 'Cable' })
+    expect(needsGear(pullup)).toBe(false)
+    // The library itself is untouched.
+    expect(pullup.equipment).toBe('Bodyweight')
+    // Back to bodyweight: back under bodyweight, and the answer is forgotten.
+    useStore.getState().setExerciseMode(pullup.id, 'reps')
+    expect(findExercise([], pullup.id)!.equipment).toBe('Bodyweight')
+    expect(useStore.getState().exerciseGear).toEqual({})
+  })
+  it('their own exercise just changes its equipment', () => {
+    const own: Exercise = { id: 'c-1', name: 'Ring Dip', kind: 'strength', mode: 'weight', group: 'Triceps', equipment: 'Bodyweight', custom: true }
+    useStore.setState({ custom: [own] })
+    useStore.getState().setExerciseGear('c-1', 'Other')
+    expect(useStore.getState().custom[0].equipment).toBe('Other')
+    expect(useStore.getState().exerciseGear).toEqual({})
+  })
+  it('a restored backup keeps only real answers', () => {
+    const fixed = repairState({ exerciseGear: { Pullups: 'Dumbbell', Bench_Dips: 'Rocket', Dips: 5, __proto__: 'Machine' } }, { exerciseGear: {} as Record<string, string>, logs: [] as unknown[] })
+    expect(fixed.exerciseGear).toEqual({ Pullups: 'Dumbbell' })
   })
 })
