@@ -122,7 +122,8 @@ export interface CircuitTiming { rounds: number; work: number; rest: number; rou
 
 /** Work/rest timing for a HIIT circuit block, read back from how it's described (see `circuitLabel`). */
 export function parseCircuit(label: string | undefined, items: PlannedExercise[]): CircuitTiming | null {
-  if (!label?.startsWith('HIIT circuit') || items.length === 0) return null
+  // (A core finisher is a circuit too: "Core finisher · 2 rounds · 40s on / 10s off · …".)
+  if (!(label?.startsWith('HIIT circuit') || label?.startsWith('Core finisher')) || items.length === 0) return null
   const t = /(\d+)s on \/ (\d+)s off/.exec(items[0].note ?? '') ?? /(\d+)s on \/ (\d+)s off/.exec(label)
   if (!t) return null
   const rr = /(\d+(?:\.\d+)?) min rest/.exec(label)

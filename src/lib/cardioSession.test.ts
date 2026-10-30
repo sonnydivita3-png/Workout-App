@@ -20,6 +20,20 @@ describe('cardio sessions', () => {
     expect(sessionsFor('x-row-erg')).not.toContain('hills')
     expect(cardioSession('x-row-erg', 'hills', 30).note).toMatch(/^Steady/)
   })
+  it('Tabata: sets of 8 × 20s all-out / 10s easy, a minute between, warm-up and cool-down filling the rest', () => {
+    const t = cardioSession('x-air-bike', 'tabata', 30)
+    expect(t.minutes).toBe(30)
+    // 30 min: 6 easy, 4 sets (16 min of Tabata + 3 between), the rest easy.
+    expect(t.note).toMatch(/^Tabata · 6 min easy · 4 × \(8 × 20s all-out \/ 10s easy spin\), 1 min easy between · 5 min easy$/)
+    expect(cardioSession('running', 'tabata', 20).note).toMatch(/× \(8 × 20s all-out \/ 10s easy jog\)/)
+    expect(cardioSession('x-row-erg', 'tabata', 12).note).toMatch(/· 1 × \(8 × 20s all-out \/ 10s light paddle\) · /)
+    // Not where it can't switch to all-out in a second: walks, swims and treadmills.
+    for (const id of ['walking', 'swimming', 'Running_Treadmill']) {
+      expect(sessionsFor(id), id).not.toContain('tabata')
+      expect(cardioSession(id, 'tabata', 30).note, id).toMatch(/^Steady/)
+    }
+    for (const id of ['running', 'x-air-bike', 'x-row-erg', 'x-skierg', 'Rope_Jumping']) expect(sessionsFor(id), id).toContain('tabata')
+  })
 })
 
 describe('cardio on its own is always cardio', () => {

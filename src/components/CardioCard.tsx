@@ -63,13 +63,44 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
   // A treadmill's incline: what they set, else the plan's, for the estimate.
   const treadmill = inclinable(exercise.id)
   const incline = c.incline === undefined && treadmill ? targetIncline : c.incline
+  // Calories: theirs (e.g. from a watch) if typed in, else an estimate from bodyweight, activity, time and pace.
+  const day = date ?? current?.date ?? today
+  const lb = bodyweightOn(bodyweight, day)
+  const est = estimateCalories(exercise.id, { ...c, incline }, lb, aboutMe, day)
+  const own = c.calories != null && c.calories > 0
+  // Done: the card folds to one line, like a lifting card once every set is ticked, so the next exercise is in view.
+  // Tap it to open it again; a choice to open or fold lasts until it's marked done or not done.
+  const card = useRef<HTMLDivElement>(null)
+  const [fold, setFold] = useState<{ collapsed: boolean; whenDone: boolean } | null>(null)
+  const done = !readOnly && !!c.done
+  const collapsed = fold && fold.whenDone === done ? fold.collapsed : done
+  const toggleFold = () => setFold({ collapsed: !collapsed, whenDone: done })
+  const logged = c.distance != null || c.minutes != null
+  const markDone = () => {
+    save({ ...c, done: !done })
+    if (!done) setTimeout(() => card.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60)
+  }
+  const kcal = own ? c.calories : est
+  const summary = [cardioLine({ ...c, incline }, exercise.id, units), kcal ? `${own ? '' : '≈'}${kcal} cal` : ''].filter((x) => x && x !== '–').join(' · ')
+  if (collapsed) {
+    return (
+      <div ref={card} className="scroll-mt-4 flex items-start justify-between gap-2 rounded-2xl bg-surface px-4 py-3 shadow-sm ring-1 ring-neutral-200/70">
+        <button onClick={toggleFold} className="min-w-0 text-left">
+          <span className="block font-semibold">{done ? '✓ ' : ''}{exercise.name}</span>
+          <span className="block text-xs text-neutral-400">{summary || 'Cardio'}</span>
+        </button>
+        <button onClick={toggleFold} aria-label={`Open ${exercise.name}`} aria-expanded={false} className="-mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm leading-none text-neutral-400 hover:bg-neutral-100">⌄</button>
+      </div>
+    )
+  }
   return (
-    <div className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
-      <div className="mb-3 flex items-start justify-between">
+    <div ref={card} className="scroll-mt-4 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
+      <div className="mb-3 flex items-start justify-between gap-2">
         <div>
           <h3 className="font-semibold">{exercise.name}</h3>
           <p className="text-xs text-neutral-400">Cardio{target ? ` · target ${target}` : ''}</p>
         </div>
+        {!readOnly && logged && <button onClick={toggleFold} aria-label={`Fold ${exercise.name}`} aria-expanded className="-mt-1 ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm leading-none text-neutral-400 hover:bg-neutral-100">⌃</button>}
         <button onClick={() => setMenu(true)} aria-label={`${exercise.name} options`} className="-mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg leading-none text-neutral-400 hover:bg-neutral-100">⋯</button>
       </div>
       {note && <p className="mb-3 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-neutral-600">{note}</p>}
@@ -120,12 +151,7 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
       )}
       </>)}
       {!readOnly && (() => {
-        // Calories: theirs (e.g. from a watch) if typed in, else an estimate from bodyweight, activity, time and pace.
-        const day = date ?? current?.date ?? today
-        const lb = bodyweightOn(bodyweight, day)
-        const est = estimateCalories(exercise.id, { ...c, incline }, lb, aboutMe, day)
         const personal = hasPersonalDetails(aboutMe)
-        const own = c.calories != null && c.calories > 0
         return (
           <div className="mt-3 flex items-start gap-3">
             <label className="w-24 shrink-0 text-xs font-medium text-neutral-500">
@@ -141,6 +167,11 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
           </div>
         )
       })()}
+      {!readOnly && (
+        <button onClick={markDone} disabled={!logged && !done} aria-pressed={done} className={`mt-3 w-full rounded-2xl py-2.5 text-sm font-medium disabled:opacity-40 ${done ? 'bg-neutral-100 text-neutral-600' : 'bg-accent text-on-accent'}`}>
+          {done ? 'Done ✓ · tap to undo' : logged ? '✓ Done' : '✓ Done (log the time or distance first)'}
+        </button>
+      )}
       {outdoor && <input ref={file} type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" aria-label="Import a GPX file" className="hidden" onChange={(e) => { void importGpx(e.target.files?.[0]); e.target.value = '' }} />}
       {gpxMsg && <p role="status" className="mt-2 text-xs text-neutral-500">{gpxMsg}</p>}
       {menu && (

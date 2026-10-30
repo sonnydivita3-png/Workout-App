@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import type { PlannedExercise } from '../types'
-import { defaultWarmup, generateWorkout, liftsMinutes, minutesFor, plannedFor, STYLES, swapExercise, type WorkoutStyle } from './randomizer'
+import { CORE_FINISHERS, defaultWarmup, generateCoreFinisher, generateWorkout, liftsMinutes, minutesFor, plannedFor, STYLES, swapExercise, type WorkoutStyle } from './randomizer'
 import { familyOf, mulberry32 } from './randomUtil'
 import { withGearFor } from './equipment'
 import { withCardioFor } from './cardioPrefs'
 import { isPortable, stationOf } from './stations'
+import { circuitSeconds, parseCircuit } from './wod'
 
 const ex = (p: PlannedExercise) => BUILTIN_BY_ID.get(p.exerciseId)!
 // The workout itself. Conditioning formats start with a short warm-up of their own; Hyrox and CrossFit tests check theirs.
@@ -283,6 +284,38 @@ describe('Posture', () => {
         expect(minutesFor(w), where).toBeGreaterThan(minutes * 0.75)
         expect(minutesFor(w), where).toBeLessThan(minutes * 1.15)
       }
+    }
+  })
+})
+
+describe('core finisher', () => {
+  it('more minutes, more different core moves; a circuit that takes about that long', () => {
+    expect(CORE_FINISHERS.map((c) => [c.minutes, c.moves])).toEqual([[5, 4], [10, 6], [15, 8], [20, 10]])
+    for (const { minutes, moves } of CORE_FINISHERS) {
+      for (let seed = 1; seed <= 20; seed++) {
+        const w = generateCoreFinisher(minutes, mulberry32(seed))
+        const where = `${minutes} min seed ${seed}: ${w.map((p) => ex(p).name).join(', ')}`
+        expect(w, where).toHaveLength(moves)
+        expect(new Set(w.map((p) => p.exerciseId)).size, where).toBe(moves)
+        // Core work on the floor: no machines, cables, bars or decline benches.
+        for (const p of w) {
+          expect(['Core'].includes(ex(p).group) || p.exerciseId === 'x-superman-hold', where).toBe(true)
+          expect(isPortable(stationOf(ex(p))), where).toBe(true)
+          expect(ex(p).name, where).not.toMatch(/captain|hanging|decline/i)
+        }
+        const c = parseCircuit(w[0].blockLabel, w)!
+        expect(w[0].blockLabel, where).toMatch(/^Core finisher · 2 rounds · \d+s on \/ \d+s off/)
+        expect(Math.abs(circuitSeconds(moves, c) / 60 - minutes), where).toBeLessThan(1)
+      }
+    }
+  })
+  it('a different kind of move each time before any kind twice, and not what the day already has', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const w = generateCoreFinisher(10, mulberry32(seed))
+      const kinds = w.map((p) => (p.exerciseId === 'x-superman-hold' ? 'back extension' : familyOf(ex(p))))
+      expect(new Set(kinds.slice(0, 5)).size, w.map((p) => ex(p).name).join(', ')).toBe(5)
+      const again = generateCoreFinisher(10, mulberry32(seed), new Set(w.map((p) => p.exerciseId)))
+      expect(again.filter((p) => w.some((q) => q.exerciseId === p.exerciseId))).toEqual([])
     }
   })
 })

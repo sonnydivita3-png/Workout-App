@@ -6,6 +6,7 @@ import { hasData } from '../lib/stats'
 import { useWakeLock } from '../lib/useWakeLock'
 import { findExercise, useStore } from '../store'
 import { WodBuilderSheet } from './WodBuilderSheet'
+import { CoreFinisherSheet } from './CoreFinisherSheet'
 import { BenchmarkSheet } from './BenchmarkSheet'
 import { ProgramsCard } from './ProgramsCard'
 import { CardioPlanSheet } from './CardioPlanSheet'
@@ -37,6 +38,7 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
   const [picking, setPicking] = useState(initialAction === 'add')
   const [addMenu, setAddMenu] = useState(false)
   const [wodBuilder, setWodBuilder] = useState(false)
+  const [coreFinisher, setCoreFinisher] = useState(false)
   const [benchSheet, setBenchSheet] = useState(false)
   const [dayMenu, setDayMenu] = useState<false | 'menu' | 'load'>(false)
   const [arranging, setArranging] = useState(false)
@@ -129,6 +131,7 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
         {planned.length > 0 && (
           <div className="flex gap-2">
             <button onClick={() => setPicking(true)} className="flex-1 rounded-2xl border border-dashed border-neutral-300 py-3 text-sm text-neutral-600">+ Add exercise</button>
+            <button onClick={() => setCoreFinisher(true)} className="flex-1 rounded-2xl border border-dashed border-neutral-300 py-3 text-sm text-neutral-600">+ Core finisher</button>
             {planned.length > 1 && <button onClick={() => setArranging(true)} className="flex-1 rounded-2xl border border-dashed border-neutral-300 py-3 text-sm text-neutral-600">⇅ Reorder / superset</button>}
           </div>
         )}
@@ -153,6 +156,7 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
             ['Make me a workout', 'Pick body parts and time, get a full workout', () => setGenerator('one')],
             ['Plan a week or month', 'Training and rest days built around a goal', () => setGenerator('program')],
             ['Timed workout', 'A circuit (like 30 s of each move), AMRAP, EMOM, for time or Tabata, with a clock', () => setWodBuilder(true)],
+            ['Core finisher', 'A few core moves to end with: pick 5 to 20 minutes', () => setCoreFinisher(true)],
             ...(s.benchmarks.length ? [['Benchmark workout', `Repeat one of your ${s.benchmarks.length} saved benchmarks`, () => setBenchSheet(true)] as const] : []),
             ['Run or ride plan', 'Build up to a distance or a race', () => setGenerator('cardio')],
           ] as const).map(([title, hint, go]) => (
@@ -166,6 +170,7 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
       {arranging && <ArrangeSheet date={date} onClose={() => setArranging(false)} />}
       {benchSheet && <BenchmarkSheet date={date} dayName={DAY_NAMES[day]} onClose={() => setBenchSheet(false)} />}
       {wodBuilder && <WodBuilderSheet date={date} onClose={() => setWodBuilder(false)} />}
+      {coreFinisher && <CoreFinisherSheet date={date} dayName={DAY_NAMES[day]} onClose={() => setCoreFinisher(false)} />}
       {generator === 'one' && <RandomizerSheet date={date} onClose={() => setGenerator(null)} onSwitchMode={setGenerator} />}
       {generator === 'program' && (
         <ProgramSheet

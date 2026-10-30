@@ -1,16 +1,17 @@
 import type { PlannedExercise } from '../types'
 
 /**
- * A cardio workout on its own (or as a finisher): steady, intervals, tempo, hills, or a time trial, written for the
+ * A cardio workout on its own (or as a finisher): steady, intervals, tempo, hills, Tabata or a time trial, written for the
  * activity it's done on. Everything is in minutes, so it fits the time asked for whatever someone's pace.
  */
-export type CardioSessionKind = 'steady' | 'intervals' | 'tempo' | 'hills' | 'trial'
+export type CardioSessionKind = 'steady' | 'intervals' | 'tempo' | 'hills' | 'tabata' | 'trial'
 
 export const CARDIO_SESSIONS: { id: CardioSessionKind; label: string; blurb: string }[] = [
   { id: 'steady', label: 'Steady', blurb: 'One easy, even effort. Builds your base and recovers well.' },
   { id: 'intervals', label: 'Intervals', blurb: 'Hard efforts with easy recoveries in between. Builds speed and fitness fast.' },
   { id: 'tempo', label: 'Tempo', blurb: 'A long stretch at comfortably hard: you can say a few words, not chat.' },
   { id: 'hills', label: 'Hills', blurb: 'Short, hard climbs with easy recoveries. Builds strength and power.' },
+  { id: 'tabata', label: 'Tabata', blurb: '20 seconds all-out, 10 seconds easy, 8 times (4 minutes), with a minute easy between sets. Short and very hard.' },
   { id: 'trial', label: 'Time trial', blurb: 'Warm up, then a set distance as fast as you can. Repeat it later to see progress.' },
 ]
 
@@ -25,11 +26,16 @@ export const familyOf = (exerciseId: string): Family => FAMILY[exerciseId] ?? 'm
 const TREADMILL = new Set(['Running_Treadmill', 'Jogging_Treadmill', 'Walking_Treadmill'])
 const INDOOR_BIKE = new Set(['Bicycling_Stationary', 'Recumbent_Bike', 'x-bike-erg', 'x-air-bike'])
 
-/** Session kinds that make sense for an activity (hills need a hill, an incline or resistance). */
+/**
+ * Session kinds that make sense for an activity. Hills need a hill, an incline or resistance. Tabata needs something
+ * that goes from easy to all-out in a second or two: a bike, rower, SkiErg, rope or a run outside, not a walk, a swim,
+ * or a treadmill belt that takes several seconds to change speed.
+ */
 export function sessionsFor(exerciseId: string): CardioSessionKind[] {
   const f = familyOf(exerciseId)
-  if (f === 'run' || f === 'walk' || f === 'bike') return ['steady', 'intervals', 'tempo', 'hills', 'trial']
-  return ['steady', 'intervals', 'tempo', 'trial']
+  const tabata: CardioSessionKind[] = f === 'walk' || f === 'swim' || TREADMILL.has(exerciseId) ? [] : ['tabata']
+  if (f === 'run' || f === 'walk' || f === 'bike') return ['steady', 'intervals', 'tempo', 'hills', ...tabata, 'trial']
+  return ['steady', 'intervals', 'tempo', ...tabata, 'trial']
 }
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n))
@@ -94,6 +100,13 @@ export function cardioSession(exerciseId: string, kind: CardioSessionKind, minut
       const back = where === 'treadmill' ? '90s flat and easy' : where === 'indoor' ? '90s light spin' : 'easy back down'
       const n = Math.max(4, Math.floor(main / 2.5))
       note = `Hills · ${warm} min easy · ${n} × 60s hard ${climb} / ${back} · ${fmt(Math.max(3, total - warm - n * 2.5))} easy`
+      break
+    }
+    case 'tabata': {
+      // Sets of 8 × 20s all-out / 10s easy (4 minutes), a minute easy between; the rest of the time warms up and cools down.
+      const sets = clamp(Math.floor((main + 1) / 5), 1, 6)
+      const easy = f === 'run' ? 'easy jog' : f === 'bike' ? 'easy spin' : f === 'row' ? 'light paddle' : 'easy'
+      note = `Tabata · ${warm} min easy · ${sets} × (8 × 20s all-out / 10s ${easy})${sets > 1 ? ', 1 min easy between' : ''} · ${fmt(Math.max(3, total - warm - sets * 4 - (sets - 1)))} easy`
       break
     }
     case 'trial':
