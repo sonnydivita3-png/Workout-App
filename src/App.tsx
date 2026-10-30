@@ -13,7 +13,8 @@ import { SocialView } from './components/social/SocialView'
 import { InviteBanner } from './components/social/InviteBanner'
 import { clearInviteParam, readInvite } from './lib/invite'
 import { LegalPage } from './components/LegalSheet'
-import type { LegalDoc } from './lib/legal'
+import { termsAccepted, type LegalDoc } from './lib/legal'
+import { TermsGate } from './components/TermsGate'
 
 const PAGES: Record<string, LegalDoc> = { '#privacy': 'privacy', '#terms': 'terms', '#health': 'health', '#delete-account': 'delete' }
 const pageFromHash = () => PAGES[window.location.hash] ?? null
@@ -40,6 +41,8 @@ export default function App() {
     window.addEventListener('hashchange', h)
     return () => window.removeEventListener('hashchange', h)
   }, [])
+  // Nobody uses the app before agreeing to the current terms (new installs, and everyone again when they change).
+  const needsTerms = useStore((s) => !termsAccepted(s.legalAccepted))
   // New installs get the goal-based setup first; people who used the app before it existed never see it.
   const needsSetup = useStore((s) => !s.onboarded && !s.tourDone)
   // Set up before the app asked for sex, age, height and weight (or one was cleared): they fill it in first. Decided
@@ -62,6 +65,7 @@ export default function App() {
   useBackendSwitch()
   useCloudSync()
   if (page) return <LegalPage doc={page} />
+  if (needsTerms) return <TermsGate />
   if (needsSetup) return <Onboarding />
   if (needsProfile) return <ProfileSetup onDone={() => setNeedsProfile(false)} />
   return (

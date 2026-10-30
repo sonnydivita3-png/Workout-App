@@ -15,7 +15,8 @@ when you're ready; nothing here has to happen before then.
   dashboard, see social-setup.md → Moderation).
 - **Age gate:** accounts and social features are 13+.
 - **No tracking or ads**, which keeps Apple's privacy label and Google's data safety form short.
-- **Health disclaimer** in the app and terms.
+- **Health check, assumption of risk, release and terms** agreed to before first use (see legal-review.md: have a
+  lawyer review them before release).
 
 ## Release plan, in order
 Each step is small enough to do (and check) on its own.
@@ -62,7 +63,8 @@ Each step is small enough to do (and check) on its own.
 6. **Review notes for Apple:** give a test account (a handle with an email you control) and explain that social
    features are optional and friends are found by exact handle only.
 7. **Before submitting:** move sign-in emails to a sender on your own domain (e.g. Resend) instead of Gmail, and have
-   the privacy policy and terms looked over.
+   the privacy policy and terms reviewed by a lawyer (questions in legal-review.md). Apple: under App Information →
+   License Agreement, keep Apple's standard EULA; the app's own terms (§15) add Apple's required terms.
 
 ## Worth knowing
 - Apple sometimes rejects apps that are "just a website". This app works offline, stores data on the device and has

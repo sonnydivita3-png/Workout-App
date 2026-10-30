@@ -1,4 +1,5 @@
 import { expandParts, partFromName } from './bodyParts'
+import { cleanAcceptance } from './legal'
 
 /**
  * Saved data is read back on every launch. Older versions of the app saved fewer fields, and a crash mid-save or a
@@ -81,6 +82,7 @@ export function repairState<T extends Obj>(saved: unknown, defaults: T): T {
     if (isObj(saved.exerciseModes)) for (const [id, m] of Object.entries(saved.exerciseModes)) if (m === 'weight' || m === 'reps' || m === 'time') modes[id] = m
     out.exerciseModes = modes
   }
+  if ('legalAccepted' in defaults) out.legalAccepted = cleanAcceptance(saved.legalAccepted)
   if ('favorites' in defaults) out.favorites = [...new Set(arr(saved.favorites, (f): f is string => typeof f === 'string'))]
   // Keep anything the app no longer knows about (e.g. from a newer version) so it isn't lost.
   for (const [k, v] of Object.entries(saved)) if (!UNSAFE.has(k) && !(k in out) && typeof v !== 'function') out[k] = v

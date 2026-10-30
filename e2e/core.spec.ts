@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures'
-import { iso, openSettings, seed, state } from './helpers'
+import { agreeToTerms, iso, openSettings, seed, state } from './helpers'
 
 /** The required About you step: sex, birth year, height and weight (cm and kg, or feet, inches and lb). */
 async function fillAboutYou(page: import('@playwright/test').Page, metric = false) {
@@ -16,6 +16,7 @@ async function fillAboutYou(page: import('@playwright/test').Page, metric = fals
 
 test('first run: name, goal and schedule build a first month, then Home shows today', async ({ page }) => {
   await page.goto('/')
+  await agreeToTerms(page)
   await page.getByLabel('What should we call you?').fill('Jay')
   await page.getByRole('button', { name: 'Kilograms (kg)' }).click()
   await page.getByRole('button', { name: 'Continue' }).click()
@@ -63,8 +64,34 @@ test('first run: name, goal and schedule build a first month, then Home shows to
   expect(s.bodyweight[0].lb).toBeCloseTo(136.7, 1)
 })
 
+test('nothing opens before the health check, release and terms are each agreed to', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Before you start' })).toBeVisible()
+  const agree = page.getByRole('button', { name: 'Agree and continue' })
+  await page.getByText(/None of these apply to me/).click()
+  await page.getByText(/I’m 18 or older/).click()
+  await expect(agree).toBeDisabled()
+  // The release is spelled out in the terms it points to.
+  await page.getByRole('button', { name: 'terms of use' }).first().click()
+  await expect(page.getByRole('heading', { name: '6. Release of claims, including for our negligence' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '13. Disputes: individual arbitration, no class actions, no jury' })).toBeVisible()
+  await page.getByRole('button', { name: 'Close' }).click()
+  await page.getByText(/I accept those risks/).click()
+  await agree.click()
+  await expect(page.getByLabel('What should we call you?')).toBeVisible()
+  const s = await state(page)
+  expect(s.legalAccepted.version).toBe(1)
+  expect(Date.now() - Date.parse(s.legalAccepted.at)).toBeLessThan(60_000)
+  // The public terms page still opens without agreeing (store listings link to it).
+  await page.evaluate(() => localStorage.clear())
+  await page.goto('/#terms')
+  await expect(page.getByRole('heading', { name: 'Terms of use' })).toBeVisible()
+  await expect(page.getByText('5. Assumption of risk')).toBeVisible()
+})
+
 test('first run with no plan still asks where you train and what you like', async ({ page }) => {
   await page.goto('/')
+  await agreeToTerms(page)
   await page.getByRole('button', { name: 'Continue' }).click()
   await fillAboutYou(page)
   await page.getByRole('button', { name: /Just log my workouts/ }).click()
@@ -89,6 +116,7 @@ test('first run with no plan still asks where you train and what you like', asyn
 
 test('first run can be skipped to Home, except About you', async ({ page }) => {
   await page.goto('/')
+  await agreeToTerms(page)
   await page.getByRole('button', { name: 'Skip' }).click()
   // Skipping still asks About you (calorie estimates need it); everything after it can be skipped.
   await fillAboutYou(page)
@@ -184,7 +212,7 @@ test('randomizer builds a timed workout with a clock', async ({ page }) => {
 })
 
 test('damaged saved data does not crash the app', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('workout-app-v1', JSON.stringify({ state: { plan: 'bad', logs: [null, { exerciseId: 1 }], tourDone: true, tourVersion: 1000, socialChoice: 'declined', overrides: 5 }, version: 1 })))
+  await page.addInitScript(() => localStorage.setItem('workout-app-v1', JSON.stringify({ state: { plan: 'bad', logs: [null, { exerciseId: 1 }], tourDone: true, tourVersion: 1000, socialChoice: 'declined', overrides: 5, legalAccepted: { version: 1000, at: '2026-01-01T12:00:00.000Z' } }, version: 1 })))
   await page.goto('/')
   // No profile in it: asked for first, then the app works.
   await expect(page.getByRole('heading', { name: 'Finish your profile' })).toBeVisible()
