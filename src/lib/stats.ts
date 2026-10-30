@@ -28,7 +28,9 @@ export function strengthSessions(logs: ExerciseLog[], exerciseId: string): Stren
         date: l.date,
         sets,
         topWeight: Math.max(0, ...sets.map((s) => s.weight)),
-        e1rm: Math.max(0, ...sets.map((s) => epley(s.weight, s.reps))),
+        // (Rep-max formulas hold up to about 10-12 reps; past that they inflate, so count 12 at most: an estimate on
+        // the safe side rather than a 20-rep set doubling someone's "max".)
+        e1rm: Math.max(0, ...sets.map((s) => epley(s.weight, Math.min(s.reps, 12)))),
         volume: sets.reduce((a, s) => a + s.weight * s.reps, 0),
       }
     })

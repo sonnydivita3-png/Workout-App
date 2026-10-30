@@ -11,29 +11,52 @@ const sessions = (p: ReturnType<typeof plan>, week: number) => p.days.filter((d)
 const longOf = (p: ReturnType<typeof plan>, week: number) => sessions(p, week).find((d) => d.role === 'long')
 
 describe('marathon', () => {
-  it('long run builds to ~20 miles three weeks before race week, then tapers', () => {
-    for (const level of LEVELS) {
-      for (const weeks of [16, 18, 20]) {
-        const p = plan({ level, weeks })
-        const peakWeek = weeks - 4
-        expect(longOf(p, peakWeek)!.miles!, `${level} ${weeks}w`).toBeGreaterThanOrEqual(19)
-        expect(longOf(p, peakWeek)!.miles!).toBeLessThanOrEqual(22)
-        for (let w = 0; w < peakWeek; w++) expect(longOf(p, w)!.miles!).toBeLessThanOrEqual(longOf(p, peakWeek)!.miles!)
-        expect(longOf(p, weeks - 3)!.miles!).toBeLessThan(longOf(p, peakWeek)!.miles! * 0.7) // ~12 mi
-        expect(longOf(p, weeks - 2)!.miles!).toBeLessThan(longOf(p, weeks - 3)!.miles!) // ~8 mi
-        expect(longOf(p, weeks - 1)).toBeUndefined() // race week: the race replaces the long run
+  it('no long run is more than 10% past the longest of the last 30 days (Frandsen et al., BJSM 2025)', () => {
+    for (const eventId of ['marathon', 'half', '10k', '5k', 'run-base']) {
+      for (const level of LEVELS) {
+        for (const weeks of [8, 12, 16, 18, 20]) {
+          const p = plan({ eventId, level, weeks })
+          const runs = p.days.filter((d) => d.miles && d.role !== 'race')
+          // (The first week is where they are now: the plan can't know their runs before it.)
+          runs.forEach((d, i) => {
+            if (d.weekIndex === 0) return
+            const before = runs.slice(0, i).filter((x) => parseISO(d.date).getTime() - parseISO(x.date).getTime() <= 30 * 86400000)
+            if (before.length === 0) return
+            const longest = Math.max(...before.map((x) => x.miles!))
+            expect(d.miles!, `${eventId} ${level} ${weeks}w ${d.date}: ${d.miles} after ${longest}`).toBeLessThanOrEqual(longest * 1.1 + 1e-9)
+          })
+        }
       }
     }
   })
 
-  it('follows the classic beginner shape: start ~6 mi, peak 20 in week 15 of 18, cutbacks every 4th week', () => {
+  it('long run builds to ~20 miles three weeks before race week when there is time, then tapers', () => {
+    for (const [level, weeks] of [['beginner', 24], ['intermediate', 16], ['intermediate', 18], ['advanced', 16], ['advanced', 20]] as const) {
+      const p = plan({ level, weeks })
+      const peakWeek = weeks - 4
+      expect(longOf(p, peakWeek)!.miles!, `${level} ${weeks}w`).toBeGreaterThanOrEqual(18.5)
+      expect(longOf(p, peakWeek)!.miles!).toBeLessThanOrEqual(22)
+      for (let w = 0; w < peakWeek; w++) expect(longOf(p, w)!.miles!).toBeLessThanOrEqual(longOf(p, peakWeek)!.miles!)
+      expect(longOf(p, weeks - 3)!.miles!).toBeLessThan(longOf(p, peakWeek)!.miles! * 0.7) // ~12 mi
+      expect(longOf(p, weeks - 2)!.miles!).toBeLessThan(longOf(p, weeks - 3)!.miles!) // ~8 mi
+      expect(longOf(p, weeks - 1)).toBeUndefined() // race week: the race replaces the long run
+      expect(p.warnings.join()).not.toMatch(/longest run reaches/)
+    }
+  })
+
+  it('beginner, 18 weeks: starts at 6 mi, cutbacks every 4th week, and peaks lower (with a warning) rather than jump', () => {
     const p = plan({})
     expect(longOf(p, 0)!.miles).toBe(6)
-    expect(longOf(p, 14)!.miles).toBe(20)
+    const peak = Math.max(...p.days.filter((d) => d.role === 'long').map((d) => d.miles!))
+    expect(peak).toBeGreaterThanOrEqual(15)
+    expect(peak).toBeLessThan(20)
+    expect(p.warnings.join()).toMatch(/longest run reaches about \d+(\.\d+)? mi instead of the usual 20 mi: each long run grows at most 10%/)
     for (const w of [3, 7, 11]) expect(longOf(p, w)!.miles!, `week ${w + 1}`).toBeLessThan(longOf(p, w - 1)!.miles!)
     expect(p.weeks.filter((w) => w.phase === 'cutback').map((w) => w.index)).toEqual([3, 7, 11])
     expect(p.weeks.at(-3)!.phase).toBe('taper')
     expect(p.weeks.at(-1)!.phase).toBe('race')
+    // Long ones say when to stop.
+    expect(plan({ weeks: 24 }).days.find((d) => d.role === 'long' && d.miles! >= 16)!.note).toMatch(/more than about 3 hours, stop at 3 hours/)
   })
 
   it('weekly volume grows about 10% a week at most, and cutback weeks are lighter', () => {
@@ -43,7 +66,7 @@ describe('marathon', () => {
       for (const w of p.weeks) {
         if (w.phase === 'cutback') { expect(w.volume).toBeLessThan(prev); continue }
         if (w.phase === 'taper' || w.phase === 'race') break
-        if (prev) expect(w.volume / prev, `${level} week ${w.index + 1}`).toBeLessThanOrEqual(1.16) // 12% cap + half-mile rounding
+        if (prev) expect(w.volume / prev, `${level} week ${w.index + 1}`).toBeLessThanOrEqual(1.14) // 10% cap + half-mile rounding
         prev = w.volume
       }
     }
@@ -66,7 +89,8 @@ describe('half marathon, 10K and 5K', () => {
     for (const level of LEVELS) {
       const p = plan({ eventId: 'half', level, weeks: 12, trainWeekdays: [1, 3, 5], longDay: 5 })
       const peakLong = longOf(p, 12 - 3)!.miles!
-      expect(peakLong).toBeGreaterThanOrEqual(10)
+      // (A beginner from a 5-mile long run gets to about 9.5 in 12 weeks, 10% at a time.)
+      expect(peakLong).toBeGreaterThanOrEqual(level === 'beginner' ? 9 : 10)
       expect(peakLong).toBeLessThanOrEqual(15)
       expect(p.weeks.at(-1)!.volume).toBeLessThanOrEqual(p.peak.volume * 0.5 + 0.5)
       expect(p.weeks.at(-2)!.volume).toBeLessThan(p.peak.volume * 0.8) // taper week ~65–75%

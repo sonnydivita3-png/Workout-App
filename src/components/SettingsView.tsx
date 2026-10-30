@@ -1,3 +1,4 @@
+import { toISO } from '../lib/dates'
 import { useRef, useState } from 'react'
 import { syncPayload } from '../lib/sync'
 import { useStore, type Accent } from '../store'
@@ -108,7 +109,7 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
     const blob = new Blob([JSON.stringify({ app: 'workout', ...syncPayload(useStore.getState() as unknown as Record<string, unknown>) }, null, 2)], { type: 'application/json' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `ez-workout-backup-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `ez-workout-backup-${toISO(new Date())}.json`
     a.click()
     URL.revokeObjectURL(a.href)
     setBackedUp(true)

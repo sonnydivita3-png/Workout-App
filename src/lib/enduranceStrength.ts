@@ -184,7 +184,7 @@ type Dose = { main: [number, number]; other: [number, number]; plyo: [number, nu
 /**
  * Sets × reps by phase. The first weeks of base get the body used to it (moderate weights, no jumps); then the main
  * lifts go heavy (about 5 reps, a couple short of failure) with hops before them; peak keeps the heavy lifts with less
- * of everything; cutback and taper weeks are lighter (the app aims for about 90% of last time).
+ * of everything; cutback and taper weeks are lighter (marked as deload: the card says to go lighter than last time).
  */
 function dose(phase: WeekPhase, week: number, beginner: boolean): Dose {
   // New runners (Couch to 5K: no hard or long sessions) stay at moderate weights with no jumping: build the base first.
@@ -275,7 +275,8 @@ export function strengthForPlan(input: { sessions: PlanSession[]; sport: Sport; 
       const s = on.get(d)?.kind, n = next(d)?.kind
       return s === 'long' || s === 'race' ? s : n === 'long' || n === 'race' ? `before-${n}` : n === 'hard' ? 'before-hard' : undefined
     }
-    const gap = (a: string, b: string) => Math.abs(parseISO(a).getTime() - parseISO(b).getTime()) / 86400000
+    // Whole days (rounded: a week with a clock change has a 23- or 25-hour day).
+    const gap = (a: string, b: string) => Math.round(Math.abs(parseISO(a).getTime() - parseISO(b).getTime()) / 86400000)
     const choose = (n: number, rate: (d: string) => number, spaced: boolean) => {
       const out: string[] = []
       for (const d of [...dates].sort((a, b) => rate(b) - rate(a) || a.localeCompare(b))) {

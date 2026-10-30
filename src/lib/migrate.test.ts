@@ -36,4 +36,29 @@ describe('repairState', () => {
     expect(r.pendingInvite).toBe('sam')
     expect(repairState({}, d).backendKind).toBeNull()
   })
+
+  it('damaged numbers in a backup become empty, never NaN or text', () => {
+    const r = repairState({
+      plan: defaults.plan,
+      logs: [
+        { date: '2026-10-01', exerciseId: 'bench', sets: [{ weight: '135', reps: 8 }, { weight: 135, reps: Infinity }, 'junk', { weight: -5, reps: 5, rpe: 8 }] },
+        { date: '2026-10-02', exerciseId: 'running', cardio: { distance: 'far', minutes: 30, calories: NaN } },
+      ],
+      bodyweight: [{ date: '2026-10-01', lb: 180 }, { date: '2026-10-02', lb: 'heavy' }, { date: 'yesterday', lb: 180 }, { date: '2026-10-03', lb: 0 }],
+    }, defaults)
+    const logs = r.logs as unknown as { sets?: unknown; cardio?: unknown }[]
+    expect(logs[0].sets).toEqual([{ weight: null, reps: 8 }, { weight: 135, reps: null }, { weight: null, reps: 5, rpe: 8 }])
+    expect(logs[1].cardio).toEqual({ distance: null, minutes: 30, calories: null })
+    expect(r.bodyweight).toEqual([{ date: '2026-10-01', lb: 180 }])
+    expect(repairState({ bodyweight: [{ date: '2026-10-05', lb: 178 }, { date: '2026-10-01', lb: 180 }] }, defaults).bodyweight.map((b: { date: string }) => b.date)).toEqual(['2026-10-01', '2026-10-05'])
+  })
+  it('never takes a prototype from saved or imported data', () => {
+    const evil = JSON.parse('{"plan":[[],[],[],[],[],[],[]],"logs":[],"__proto__":{"isAdmin":true},"units":{"weight":"kg","__proto__":{"isAdmin":true}}}')
+    const r = repairState(evil, defaults) as Record<string, unknown>
+    expect(Object.getPrototypeOf(r)).toBe(Object.prototype)
+    expect(r.isAdmin).toBeUndefined()
+    expect(Object.getPrototypeOf(r.units)).toBe(Object.prototype)
+    expect((r.units as Record<string, unknown>).isAdmin).toBeUndefined()
+    expect(({} as Record<string, unknown>).isAdmin).toBeUndefined()
+  })
 })

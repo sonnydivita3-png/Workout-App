@@ -1,4 +1,5 @@
 import type { AboutMe, BodyweightEntry, CardioEntry, ExerciseLog } from '../types'
+import { toISO } from './dates'
 
 /**
  * Cardio calories, the standard way: MET (how hard the activity is, from the Compendium of Physical Activities)
@@ -150,7 +151,7 @@ export function restingPerHour(lb: number, date: string, me?: AboutMe | null): n
 }
 
 /** Estimated (net) calories for a cardio log, or null without minutes or a bodyweight. */
-export function estimateCalories(exerciseId: string, c: Pick<CardioEntry, 'distance' | 'minutes' | 'incline'>, lb: number | null, me?: AboutMe | null, date = new Date().toISOString().slice(0, 10)): number | null {
+export function estimateCalories(exerciseId: string, c: Pick<CardioEntry, 'distance' | 'minutes' | 'incline'>, lb: number | null, me?: AboutMe | null, date = toISO(new Date())): number | null {
   if (!lb || !c.minutes || c.minutes <= 0) return null
   const hours = c.minutes / 60
   const gross = metFor(exerciseId, c) * lb * KG_PER_LB * hours

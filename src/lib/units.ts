@@ -23,11 +23,18 @@ export function formatPace(mi: number | null, minutes: number | null, u: Units):
 }
 
 /** 45 -> "45s", 90 -> "1:30". */
-export const formatSeconds = (s: number) =>
-  s < 90 ? `${Math.round(s)}s` : `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`
+export const formatSeconds = (s: number) => {
+  // Round first, so 179.7 is 3:00, not 2:60.
+  const t = Math.round(s)
+  return t < 90 ? `${t}s` : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`
+}
 
 /** 45 -> "45 min", 150 -> "2h 30m". */
-export const formatMinutes = (m: number) => (m < 60 ? `${Math.round(m)} min` : `${Math.floor(m / 60)}h ${String(Math.round(m % 60)).padStart(2, '0')}m`)
+export const formatMinutes = (m: number) => {
+  // Round first, so 119.6 is 2h 00m, not 1h 60m.
+  const t = Math.round(m)
+  return t < 60 ? `${t} min` : `${Math.floor(t / 60)}h ${String(t % 60).padStart(2, '0')}m`
+}
 
 /** Bike speed: stored as mph, shown as mph or km/h. */
 export const showSpeed = (mph: number, u: Units) => Math.round(mph * distanceFactor(u) * 10) / 10
