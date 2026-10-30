@@ -20,7 +20,7 @@ import { MoveChoice } from './TrainingPrefsPicker'
 import { withGearFor } from '../lib/equipment'
 import { withCardioFor } from '../lib/cardioPrefs'
 import { CardioChoice, type CardioPick } from './CardioChoice'
-import { phaThisWeek } from '../lib/plan'
+import { phaThisWeek, placeCardio } from '../lib/plan'
 import { CardioActivityPicker } from './CardioActivityPicker'
 import { cardioIds, exerciseFor, inclineOf, INCLINES, setupFromIds, type CardioSetup } from '../lib/cardioSetup'
 import { CARDIO_SESSIONS, type CardioSessionKind } from '../lib/cardioSession'
@@ -134,8 +134,10 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const cardioName = one ? (BUILTIN_BY_ID.get(one)?.name ?? 'Cardio') : 'Cardio'
   const styleLabel = cardioOnly ? `${cardioName} · ${sessionLabel}` : infos.map((i) => i.label).join(' + ')
 
-  const commit = (next: PlannedExercise[]) => {
-    if (next === items) return // nothing changed (e.g. no alternative to swap in)
+  const commit = (made: PlannedExercise[]) => {
+    if (made === items) return // nothing changed (e.g. no alternative to swap in)
+    // Cardio with lifting goes first when they asked for that (every version, swaps and rerolls too).
+    const next = cardioStart ? placeCardio(made, true) : made
     setHistory((h) => {
       const list = [...h.list.slice(0, h.at + 1), next].slice(-MAX_HISTORY)
       return { list, at: list.length - 1 }
@@ -166,7 +168,9 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const hasCardio = hasKind('cardio') && !cardioOnly
   // Warm-up cardio and mobility take their own minutes (5 each by default); warm-up sets live inside the lifting.
   const warmDefault = (warm.includes('cardio') ? 5 : 0) + (warm.includes('mobility') ? 5 : 0)
-  const parts: string[] = [...(warmDefault ? ['warmup'] : []), ...styles, ...(hasCardio ? ['cardio'] : [])]
+  // Cardio with lifting: first or last, as picked (their usual order from plans until then).
+  const cardioStart = hasCardio && (cardio.first ?? trainingPrefs.stackOrder === 'cardio')
+  const parts: string[] = [...(warmDefault ? ['warmup'] : []), ...(cardioStart ? ['cardio'] : []), ...styles, ...(hasCardio && !cardioStart ? ['cardio'] : [])]
   const showSplit = parts.length > 1 && !cardioOnly
   const workParts = parts.length - (warmDefault ? 1 : 0)
   const evenShare = Math.max(5, Math.round((minutes - warmDefault) / Math.max(1, workParts) / 5) * 5)

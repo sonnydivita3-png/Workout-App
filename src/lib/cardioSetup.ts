@@ -25,6 +25,8 @@ export interface CardioSetup {
   split: boolean
   /** Treadmill incline, percent grade (0 or unset: flat). */
   incline?: number
+  /** With lifting: do the cardio first (unset: their usual order, else last). */
+  first?: boolean
 }
 
 /** Incline choices for a treadmill (percent grade). */

@@ -6,7 +6,7 @@ import { useStore } from '../store'
 const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
 
 /**
- * Cardio for a workout, in the order people think about it: what (run, ride, row…), where (outside or on a
+ * Cardio for a workout, in the order people think about it: what (run, ride, row…), before or after the lifting, where (outside or on a
  * treadmill / indoor bike), then what kind of session (steady, intervals, tempo, hills, time trial), and on a treadmill,
  * the incline.
  */
@@ -21,14 +21,22 @@ export function CardioActivityPicker({ value, onChange, finisher }: { value: Car
   // Session types for one activity (hills only where there's a hill, incline or resistance); several share steady time.
   const kinds = ids.length > 1 ? [] : one ? sessionsFor(one) : CARDIO_SESSIONS.map((s) => s.id).filter((k) => k !== 'hills')
   const session = kinds.includes(value.session) ? value.session : 'steady'
+  // With lifting: first or last (their usual order from plans until they pick).
+  const first = value.first ?? prefs.stackOrder === 'cardio'
   const same = ids.length === prefs.cardio.length && ids.every((x) => prefs.cardio.includes(x)) && (ids.length < 2 || value.split === prefs.cardioSplit)
   return (
     <div className="mb-5">
-      <h3 className="mb-1 text-sm font-medium">{finisher ? 'Cardio to finish with' : 'What cardio?'}</h3>
+      <h3 className="mb-1 text-sm font-medium">{finisher ? 'Cardio with your workout' : 'What cardio?'}</h3>
       <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Cardio">
         <button onClick={() => onChange({ ...value, activities: [] })} aria-pressed={picked.length === 0} className={chip(picked.length === 0)}>Any</button>
         {ACTIVITIES.map((a) => <button key={a.key} onClick={() => toggle(a.key)} aria-pressed={picked.includes(a.key)} className={chip(picked.includes(a.key))}>{a.label}</button>)}
       </div>
+      {finisher && (
+        <div className="mb-3 flex gap-2" role="radiogroup" aria-label="Cardio first or last">
+          <button role="radio" aria-checked={first} onClick={() => onChange({ ...value, first: true })} className={chip(first)}>Start with it</button>
+          <button role="radio" aria-checked={!first} onClick={() => onChange({ ...value, first: false })} className={chip(!first)}>Finish with it</button>
+        </div>
+      )}
       {indoorable.length > 0 && (
         <>
           <p className="mb-1 text-sm font-medium">Where?</p>

@@ -308,3 +308,48 @@ test('Tabata as a cardio session: 20s all-out / 10s easy, offered where it works
   await sheet.getByRole('button', { name: /^Generate/ }).click()
   await expect(sheet.getByText(/Tabata · 6 min easy · 4 × \(8 × 20s all-out \/ 10s easy jog\)/)).toBeVisible()
 })
+
+test('lifting with cardio: start or finish with it, in Make me a workout and on the day', async ({ page }) => {
+  await seed(page, { trainingPrefs: { styles: [], cardio: ['running'], cardioSplit: false } })
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: 'Make me a workout' }).click()
+  const sheet = page.locator('.fixed')
+  await sheet.getByRole('button', { name: 'Lifting', exact: true }).click()
+  await sheet.getByRole('button', { name: 'Cardio', exact: true }).click()
+  await sheet.getByRole('button', { name: 'Full body', exact: true }).click()
+  const when = sheet.getByRole('radiogroup', { name: 'Cardio first or last' })
+  await expect(when.getByRole('radio', { name: 'Finish with it' })).toHaveAttribute('aria-checked', 'true')
+  await when.getByRole('radio', { name: 'Start with it' }).click()
+  await sheet.getByRole('button', { name: /^Generate/ }).click()
+  await sheet.getByRole('button', { name: /^Add to/ }).click()
+  type Item = { exerciseId: string; minutes?: number; warmup?: boolean; block?: string }
+  const made = (await state(page)).overrides[iso(0)] as Item[]
+  // The cardio (the one with minutes) right after the warm-up, then the lifting.
+  const main = made.filter((p) => !p.warmup)
+  expect(main[0].minutes).toBeGreaterThan(0)
+  expect(main.slice(1).every((p) => p.minutes == null)).toBe(true)
+  // Remembered for next time.
+  expect((await state(page)).genPrefs.cardioSetup.first).toBe(true)
+
+  // On the day: switch it to the end, and back.
+  const day = page.getByRole('radiogroup', { name: 'Cardio first or last' })
+  await expect(day.getByRole('radio', { name: 'Start with it' })).toHaveAttribute('aria-checked', 'true')
+  await day.getByRole('radio', { name: 'Finish with it' }).click()
+  const after = ((await state(page)).overrides[iso(0)] as Item[]).filter((p) => !p.warmup)
+  expect(after.at(-1)!.exerciseId).toBe(main[0].exerciseId)
+  await expect(day.getByRole('radio', { name: 'Finish with it' })).toHaveAttribute('aria-checked', 'true')
+})
+
+test('a day with lifting and a run from a plan: the run can go first or last; without it, no switch', async ({ page }) => {
+  await seed(page, { overrides: { [iso(0)]: [{ exerciseId: 'Barbell_Squat', sets: 3, reps: 5 }, { exerciseId: 'running', sets: 1, minutes: 30 }], [iso(1)]: [{ exerciseId: 'Barbell_Squat', sets: 3, reps: 5 }] } })
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  const day = page.getByRole('radiogroup', { name: 'Cardio first or last' })
+  await day.getByRole('radio', { name: 'Start with it' }).click()
+  expect(((await state(page)).overrides[iso(0)] as { exerciseId: string }[]).map((p) => p.exerciseId)).toEqual(['running', 'Barbell_Squat'])
+  // Without the run there's nothing to order.
+  await page.getByRole('button', { name: 'Running options' }).click()
+  await page.locator('.fixed').getByRole('button', { name: 'Remove exercise' }).click()
+  await expect(day).toHaveCount(0)
+})

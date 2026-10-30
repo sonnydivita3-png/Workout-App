@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { SettingsGear } from './SettingsGear'
 import { parseISO, toISO, weekDates, weekdayIndex } from '../lib/dates'
-import { dayLabel, dayPlanOf, isRestDay, workItems } from '../lib/plan'
+import { cardioFirst, dayLabel, dayPlanOf, isRestDay, liftAndCardio, placeCardio, workItems } from '../lib/plan'
 import { hasData } from '../lib/stats'
 import { useWakeLock } from '../lib/useWakeLock'
 import { findExercise, useStore } from '../store'
@@ -125,6 +125,16 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
                 <button key={label} onClick={go} className="rounded-xl bg-neutral-100 px-3 py-3 text-sm font-medium text-neutral-700">{label}</button>
               ))}
             </div>
+          </div>
+        )}
+        {liftAndCardio(planned) && (
+          // Lifting and cardio on the same day (made together, a finisher, or from two plans): either can go first.
+          <div role="radiogroup" aria-label="Cardio first or last" className="flex items-center gap-2 px-1 text-xs text-neutral-500">
+            <span>Cardio:</span>
+            {([[true, 'Start with it'], [false, 'Finish with it']] as const).map(([first, label]) => (
+              <button key={label} role="radio" aria-checked={cardioFirst(planned) === first} onClick={() => s.setDayItems(date, placeCardio(planned, first))}
+                className={`rounded-full px-3 py-1 ${cardioFirst(planned) === first ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`}>{label}</button>
+            ))}
           </div>
         )}
         <DayWorkout date={date} items={planned} onSetDone={startRest} />
