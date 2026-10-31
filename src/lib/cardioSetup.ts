@@ -1,4 +1,4 @@
-import type { CardioSessionKind, TabataFormat } from './cardioSession'
+import { CARDIO_SESSIONS, sessionsFor, type CardioSessionKind, type TabataFormat } from './cardioSession'
 import { CARDIO_TYPES } from './cardioPrefs'
 
 /** Activities, with the ones done inside or out sharing a chip ("Running" = outside or on a treadmill). */
@@ -35,9 +35,25 @@ export interface CardioSetup {
 /** Incline choices for a treadmill (percent grade). */
 export const INCLINES = [0, 2, 4, 6, 8, 10, 12, 15]
 
+/** Session kinds on offer for this cardio: those that suit one activity, all but hills for any, steady for several. */
+export function sessionKindsFor(c: CardioSetup): CardioSessionKind[] {
+  const ids = cardioIds(c)
+  if (ids.length > 1) return []
+  const one = ids.length === 1 ? exerciseFor(ids[0]) : undefined
+  return one ? sessionsFor(one) : CARDIO_SESSIONS.map((s) => s.id).filter((k) => k !== 'hills')
+}
+
+/**
+ * The session that's actually picked: the saved one if it's on offer for this cardio, else steady. A Tabata picked for
+ * an outside run doesn't carry over to the treadmill, where it isn't offered and the picker shows Steady.
+ */
+export function sessionOf(c: CardioSetup): CardioSessionKind {
+  return sessionKindsFor(c).includes(c.session) ? c.session : 'steady'
+}
+
 /** The treadmill incline for this cardio: only on a treadmill, and not for hills (they have their own climbs). */
 export const inclineOf = (c: CardioSetup) =>
-  c.where === 'in' && c.session !== 'hills' && c.activities.some((k) => k === 'running' || k === 'walking') ? c.incline ?? 0 : 0
+  c.where === 'in' && sessionOf(c) !== 'hills' && c.activities.some((k) => k === 'running' || k === 'walking') ? c.incline ?? 0 : 0
 
 /** Cardio type ids (cardioPrefs) for the picked activities, inside or out. */
 export const cardioIds = (c: CardioSetup) =>

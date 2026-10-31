@@ -298,11 +298,20 @@ test('Tabata as a cardio session: 20/10 or 30 s / 90 s, rounds picked, with the 
   await sheet.getByRole('group', { name: 'Cardio' }).getByRole('button', { name: 'Running' }).click()
   const kinds = sheet.getByRole('radiogroup', { name: 'Kind of cardio session' })
   await kinds.getByRole('radio', { name: 'Tabata' }).click()
-  // Not on a treadmill: the belt can't change speed that fast.
+  // Not on a treadmill: the belt can't change speed that fast. What shows is Steady, and that's what it makes (the
+  // Tabata picked outside doesn't carry over: no fixed length, the time chips are back, a steady run).
   await sheet.getByRole('radiogroup', { name: 'Where' }).getByRole('radio', { name: 'Treadmill' }).click()
   await expect(kinds.getByRole('radio', { name: 'Tabata' })).toHaveCount(0)
+  await expect(kinds.getByRole('radio', { name: 'Steady' })).toHaveAttribute('aria-checked', 'true')
+  await expect(sheet.getByRole('status').filter({ hasText: /About \d+ min: 5 min easy/ })).toHaveCount(0)
+  await sheet.getByRole('button', { name: '30 min', exact: true }).click()
+  await sheet.getByRole('button', { name: /^Generate/ }).click()
+  await expect(sheet.getByText(/Steady · 30 min at an easy, conversational effort/).first()).toBeVisible()
+  await expect(sheet.getByText(/Tabata/)).toHaveCount(0)
+  await sheet.getByRole('button', { name: 'Change style, focus or time' }).click()
   await sheet.getByRole('radiogroup', { name: 'Where' }).getByRole('radio', { name: 'Outside' }).click()
-  await kinds.getByRole('radio', { name: 'Tabata' }).click()
+  // Back outside, their Tabata is still picked.
+  await expect(kinds.getByRole('radio', { name: 'Tabata' })).toHaveAttribute('aria-checked', 'true')
 
   // The classic by default: its own length, so no time or calorie choice.
   const format = sheet.getByRole('radiogroup', { name: 'Tabata format' })

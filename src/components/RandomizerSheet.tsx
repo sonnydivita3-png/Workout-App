@@ -22,7 +22,7 @@ import { withCardioFor } from '../lib/cardioPrefs'
 import { CardioChoice, type CardioPick } from './CardioChoice'
 import { lastDropGroups, phaThisWeek, placeCardio } from '../lib/plan'
 import { CardioActivityPicker } from './CardioActivityPicker'
-import { cardioIds, exerciseFor, inclineOf, INCLINES, setupFromIds, type CardioSetup } from '../lib/cardioSetup'
+import { cardioIds, exerciseFor, inclineOf, INCLINES, sessionOf, setupFromIds, type CardioSetup } from '../lib/cardioSetup'
 import { CARDIO_SESSIONS, tabataMinutes, type CardioSessionKind } from '../lib/cardioSession'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import { BY_ID } from '../lib/randomUtil'
@@ -129,7 +129,8 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const canGenerate = kinds.length > 0 && (!needsParts || focus.length > 0)
   const cardioOnly = styles.length === 0
   const one = cardioIdsPicked.length === 1 ? exerciseFor(cardioIdsPicked[0]) : undefined
-  const sessionKind: CardioSessionKind = cardioIdsPicked.length > 1 ? 'steady' : cardio.session
+  // What the cardio picker shows as picked (a Tabata saved for an outside run isn't one on the treadmill).
+  const sessionKind: CardioSessionKind = sessionOf(cardio)
   const sessionLabel = CARDIO_SESSIONS.find((x) => x.id === sessionKind)!.label
   // Tabata is a set amount of work with its warm-up and cool-down on top: its own length, not the time picked (and no
   // calorie target, which would mean stretching it).
