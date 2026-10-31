@@ -228,6 +228,7 @@ test('cardio has no "beat last time" target: an easy run is just a run, and only
   // A cardio-only day shows what you did, not "0 improved".
   await expect(page.getByText('improved', { exact: true })).toHaveCount(0)
   await expect(page.getByText('25 min', { exact: true })).toBeVisible()
+  await expect(page.getByText('active cal', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Done', exact: true }).last().click()
   // Progress lists the records, not a "best pace" a short run could win.
   await page.locator('nav').getByText('Progress').click()

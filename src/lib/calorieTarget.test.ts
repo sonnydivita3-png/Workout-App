@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cardioMet, effortLabel, fitCardio, liftMet, setCardioPace, setIncline, metForRate, perMinute, planForCalories, planWithin, recentSpeed, setCardioEffort, STYLE_MET, styleFor, WARMUP_MET, workoutCalories } from './calorieTarget'
+import { cardioMet, effortLabel, finishedCalories, fitCardio, liftMet, setCardioPace, setIncline, metForRate, perMinute, planForCalories, planWithin, recentSpeed, setCardioEffort, STYLE_MET, styleFor, WARMUP_MET, workoutCalories } from './calorieTarget'
 import { metFor, speedForMet } from './calories'
 import type { PlannedExercise } from '../types'
 import { BY_ID } from './randomUtil'
@@ -207,3 +207,33 @@ describe('a workout for a calorie target', () => {
     })
   })
 })
+
+describe('calories for a finished workout', () => {
+  const look = (id: string) => BY_ID.get(id)
+  const D = '2026-10-23'
+  const bench = { exerciseId: 'Barbell_Bench_Press_-_Medium_Grip', sets: 3, reps: 8, est: 9 }
+  const warm = { exerciseId: 'Arm_Circles', sets: 1, seconds: 30, warmup: true, est: 4 }
+  const run = { exerciseId: 'running', sets: 1, minutes: 20 }
+  const sets = (n: number) => Array.from({ length: n }, () => ({ weight: 135, reps: 8 }))
+  const lifted = (n: number) => [{ id: 'a', date: D, exerciseId: bench.exerciseId, sets: sets(n) }]
+  const opts = { warmedUp: false, total: false }
+  it('counts each lift for the share of its sets that were done', () => {
+    const all = finishedCalories(D, [bench], lifted(3), LB, null, look, opts)!
+    expect(all).toBeGreaterThan(30)
+    expect(finishedCalories(D, [bench], lifted(1), LB, null, look, opts)).toBe(Math.round(all / 3))
+    expect(finishedCalories(D, [bench], [], LB, null, look, opts)).toBe(0)
+  })
+  it('the cardio as logged (a watch’s number if typed in), the warm-up only if it was done', () => {
+    const logged = [{ id: 'r', date: D, exerciseId: 'running', cardio: { distance: 2, minutes: 20 } }]
+    const est = finishedCalories(D, [run], logged, LB, null, look, opts)!
+    expect(est).toBeGreaterThan(150)
+    expect(finishedCalories(D, [run], [{ ...logged[0], cardio: { ...logged[0].cardio, calories: 321 } }], LB, null, look, opts)).toBe(321)
+    expect(finishedCalories(D, [warm, run], logged, LB, null, look, { warmedUp: true, total: false })).toBeGreaterThan(est)
+    expect(finishedCalories(D, [warm, run], logged, LB, null, look, opts)).toBe(est)
+  })
+  it('total adds what they’d burn anyway; nothing without a bodyweight', () => {
+    expect(finishedCalories(D, [bench], lifted(3), LB, null, look, { warmedUp: false, total: true })!).toBeGreaterThan(finishedCalories(D, [bench], lifted(3), LB, null, look, opts)!)
+    expect(finishedCalories(D, [bench], lifted(3), null, null, look, opts)).toBeNull()
+  })
+})
+

@@ -947,3 +947,27 @@ test('suspension (TRX) and medicine ball moves: their own equipment filters, and
   await picker.getByPlaceholder(/search/i).fill('trx row')
   await expect(picker.getByRole('button', { name: /^Suspension Row\b/ })).toBeVisible()
 })
+
+test('the workout summary shows the total weight lifted (and against last time) and the calories burned', async ({ page }) => {
+  const day = (d: number) => iso(d)
+  const bench = 'Barbell_Bench_Press_-_Medium_Grip'
+  await seed(page, {
+    overrides: { [day(0)]: [{ exerciseId: bench, sets: 2, reps: 5 }] },
+    logs: [{ id: 'old', date: day(-3), exerciseId: bench, sets: [{ weight: 100, reps: 5 }, { weight: 100, reps: 5 }] }],
+  })
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  for (const n of [1, 2]) {
+    await page.getByRole('spinbutton', { name: `Set ${n} lb`, exact: true }).fill('110')
+    await page.getByRole('spinbutton', { name: `Set ${n} reps`, exact: true }).fill('5')
+    await page.getByRole('button', { name: `Set ${n} done`, exact: true }).click()
+  }
+  await page.getByRole('button', { name: '✓ Finish workout' }).click()
+  // 2 × 110 lb × 5 = 1,100 lb, 10% more than last time's 1,000.
+  await expect(page.getByText('1,100', { exact: true })).toBeVisible()
+  await expect(page.getByText('lb lifted · +10% vs last')).toBeVisible()
+  // Calories from the bodyweight (180 lb) and what was done.
+  await expect(page.getByText(/^≈\d+$/)).toBeVisible()
+  await expect(page.getByText('active cal', { exact: true })).toBeVisible()
+})
+

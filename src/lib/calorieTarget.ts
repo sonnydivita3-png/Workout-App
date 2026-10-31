@@ -1,5 +1,5 @@
 import type { AboutMe, Exercise, ExerciseLog, PlannedExercise } from '../types'
-import { inclinable, metFor, restingPerHour, speedForMet } from './calories'
+import { estimateCalories, inclinable, metFor, restingPerHour, speedForMet } from './calories'
 import type { CardioSessionKind } from './cardioSession'
 import type { WorkoutStyle } from './randomizer'
 import { BY_ID, isIsolation } from './randomUtil'
@@ -259,4 +259,41 @@ export function fitCardio(items: PlannedExercise[], target: number, rate: (met: 
     const minutes = round5(p.minutes! * scale)
     return { ...p, minutes, est: minutes, ...(p.distance ? { distance: Math.round(p.distance * (minutes / p.minutes!) * 10) / 10 } : {}) }
   })
+}
+
+/**
+ * Calories for a finished workout, from what was done: each cardio log (the number typed in, e.g. from a watch, else the
+ * estimate), each lift for the share of its planned sets that were logged, timed blocks that were logged, and the
+ * warm-up if it was marked done. Active calories (on top of resting), or total when `total`. Null without a bodyweight.
+ */
+export function finishedCalories(
+  date: string, items: PlannedExercise[], logs: ExerciseLog[], lb: number | null, me: AboutMe | null | undefined,
+  lookup: (id: string) => Exercise | undefined, opts: { warmedUp: boolean; total: boolean },
+): number | null {
+  if (!lb) return null
+  const resting = restingPerHour(lb, date, me) / 60
+  const rate = (met: number) => perMinute(met, lb, date, me) + (opts.total ? resting : 0)
+  const logOf = (id: string) => logs.find((l) => l.date === date && l.exerciseId === id)
+  const minutes = (p: PlannedExercise, e?: Exercise) => p.est ?? (e ? liftMinutes(p, e) : 0)
+  let kcal = 0
+  for (const p of items) {
+    const e = lookup(p.exerciseId)
+    if (p.warmup) { if (opts.warmedUp) kcal += minutes(p, e) * rate(WARMUP_MET); continue }
+    const log = logOf(p.exerciseId)
+    if (!log || !e) continue
+    if (log.cardio) {
+      const c = log.cardio
+      const own = c.calories != null && c.calories > 0 ? c.calories : null
+      const est = own ?? estimateCalories(p.exerciseId, c, lb, me, date)
+      if (est != null) kcal += est + (opts.total && own == null && c.minutes ? resting * c.minutes : 0)
+      continue
+    }
+    const done = (log.sets ?? []).filter((s) => !s.warmup && !s.drop && (s.weight || s.reps || s.seconds)).length
+    if (done === 0) continue
+    // A timed block (AMRAP, EMOM, circuit) counts its time once it's logged; a lift, the share of its sets done.
+    const timed = !!p.block && !p.block.includes('ss')
+    const share = timed ? 1 : Math.min(1, done / Math.max(1, p.sets))
+    kcal += minutes(p, e) * share * rate(timed ? STYLE_MET.circuit : liftMet(e, p, STYLE_MET.standard))
+  }
+  return Math.round(kcal)
 }
