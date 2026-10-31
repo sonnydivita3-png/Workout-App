@@ -1,6 +1,6 @@
 import { inclineMet } from '../lib/calories'
-import { CARDIO_SESSIONS, sessionsFor, TABATA_FORMATS, TABATA_ROUNDS, tabataFormat, tabataMinutes, tabataRounds } from '../lib/cardioSession'
-import { ACTIVITIES, cardioIds, exerciseFor, INCLINES, type CardioSetup } from '../lib/cardioSetup'
+import { CARDIO_SESSIONS, TABATA_FORMATS, TABATA_ROUNDS, tabataFormat, tabataMinutes, tabataRounds } from '../lib/cardioSession'
+import { ACTIVITIES, cardioIds, INCLINES, sessionKindsFor, sessionOf, type CardioSetup } from '../lib/cardioSetup'
 import { useStore } from '../store'
 
 const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
@@ -17,10 +17,9 @@ export function CardioActivityPicker({ value, onChange, finisher }: { value: Car
   const toggle = (k: string) => onChange({ ...value, activities: picked.includes(k) ? picked.filter((x) => x !== k) : [...picked, k] })
   const indoorable = ACTIVITIES.filter((a) => a.in && picked.includes(a.key))
   const ids = cardioIds(value)
-  const one = ids.length === 1 ? exerciseFor(ids[0]) : undefined
   // Session types for one activity (hills only where there's a hill, incline or resistance); several share steady time.
-  const kinds = ids.length > 1 ? [] : one ? sessionsFor(one) : CARDIO_SESSIONS.map((s) => s.id).filter((k) => k !== 'hills')
-  const session = kinds.includes(value.session) ? value.session : 'steady'
+  const kinds = sessionKindsFor(value)
+  const session = sessionOf(value)
   // With lifting: first or last (their usual order from plans until they pick).
   const first = value.first ?? prefs.stackOrder === 'cardio'
   const same = ids.length === prefs.cardio.length && ids.every((x) => prefs.cardio.includes(x)) && (ids.length < 2 || value.split === prefs.cardioSplit)

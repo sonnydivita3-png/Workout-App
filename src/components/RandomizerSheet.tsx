@@ -22,7 +22,7 @@ import { withCardioFor } from '../lib/cardioPrefs'
 import { CardioChoice, type CardioPick } from './CardioChoice'
 import { lastDropGroups, phaThisWeek, placeCardio } from '../lib/plan'
 import { CardioActivityPicker } from './CardioActivityPicker'
-import { cardioIds, exerciseFor, inclineOf, INCLINES, setupFromIds, type CardioSetup } from '../lib/cardioSetup'
+import { cardioIds, exerciseFor, inclineOf, INCLINES, sessionOf, setupFromIds, type CardioSetup } from '../lib/cardioSetup'
 import { CARDIO_SESSIONS, tabataMinutes, type CardioSessionKind } from '../lib/cardioSession'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import { BY_ID } from '../lib/randomUtil'
@@ -129,12 +129,16 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const canGenerate = kinds.length > 0 && (!needsParts || focus.length > 0)
   const cardioOnly = styles.length === 0
   const one = cardioIdsPicked.length === 1 ? exerciseFor(cardioIdsPicked[0]) : undefined
-  const sessionKind: CardioSessionKind = cardioIdsPicked.length > 1 ? 'steady' : cardio.session
+  // What the cardio picker shows as picked (a Tabata saved for an outside run isn't one on the treadmill).
+  const sessionKind: CardioSessionKind = sessionOf(cardio)
   const sessionLabel = CARDIO_SESSIONS.find((x) => x.id === sessionKind)!.label
   // Tabata is a set amount of work with its warm-up and cool-down on top: its own length, not the time picked (and no
   // calorie target, which would mean stretching it).
   const fixedCardio = hasKind('cardio') && sessionKind === 'tabata' ? Math.round(tabataMinutes(cardio.tabata, cardio.rounds)) : null
-  const goal = fixedCardio ? 'time' : goalPicked
+  // With a calorie target, Tabata stays as it is (like the warm-up) and the rest of the workout makes up the burn. On
+  // its own there's nothing to make it up, so it's planned by time.
+  const cardioFlex = hasKind('cardio') && !fixedCardio
+  const goal = fixedCardio && cardioOnly ? 'time' : goalPicked
   const cardioName = one ? (BUILTIN_BY_ID.get(one)?.name ?? 'Cardio') : 'Cardio'
   const styleLabel = cardioOnly ? `${cardioName} · ${sessionLabel}` : infos.map((i) => i.label).join(' + ')
 
@@ -218,19 +222,20 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const rate = (met: number) => perMinute(met, lb ?? 0, today, aboutMe) + (countTotal ? restPerMin : 0)
   const metOf = (r: number) => metForRate(r - (countTotal ? restPerMin : 0), lb ?? 0, today, aboutMe)
   const countWord = countTotal ? 'total' : 'active'
-  const flexible = hasKind('cardio') ? 'cardio' : undefined
-  const untimed = goal === 'calories' && lb && kcal ? planForCalories(kcal, calParts, rate, flexible) : null
-  const timed = goal === 'calories' && lb && kcal && timeLimit ? planWithin(kcal, timeLimit, calParts, rate, metOf, flexible) : null
+  const flexible = cardioFlex ? 'cardio' : undefined
+  const steady = fixedCardio ? ['cardio'] : []
+  const untimed = goal === 'calories' && lb && kcal ? planForCalories(kcal, calParts, rate, flexible, steady) : null
+  const timed = goal === 'calories' && lb && kcal && timeLimit ? planWithin(kcal, timeLimit, calParts, rate, metOf, flexible, steady) : null
   const cal = timed ?? untimed
   // Within a time limit: how hard it has to be. Runs, walks and rides get a speed (compared with their recent ones);
   // other cardio an effort; lifting on its own, the style that burns enough.
   const needMet = timed?.needMet ?? null
-  const speed = needMet && one && hasKind('cardio') ? speedForMet(one, needMet / SESSION_FACTOR[sessionKind], incline) : null
+  const speed = needMet && one && cardioFlex ? speedForMet(one, needMet / SESSION_FACTOR[sessionKind], incline) : null
   const recent = recentHere
-  const effort = needMet && hasKind('cardio') ? effortLabel(needMet / cardioMetHere) : null
-  const liftNeed = needMet && !hasKind('cardio') ? styleFor(needMet) : null
+  const effort = needMet && cardioFlex ? effortLabel(needMet / cardioMetHere) : null
+  const liftNeed = needMet && !cardioFlex ? styleFor(needMet) : null
   const ownStyle = styles[0]
-  const tooHard = !!timed && (needMet == null || (hasKind('cardio')
+  const tooHard = !!timed && (needMet == null || (cardioFlex
     ? speed ? speed >= (topSpeed(one!) ?? Infinity) - 0.01 || speed > (recent ? recent * 1.15 : FAST[one!] ?? Infinity) : effort === 'too hard' || effort === 'very hard'
     : !liftNeed))
   // On a treadmill, the incline that brings the speed it takes back within reach.
@@ -252,7 +257,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const mets = { lift: STYLE_MET[liftStyle], cond: STYLE_MET[condStyle], cardioFactor: SESSION_FACTOR[sessionKind] }
   const minFor = (k: string) => cal?.minutes[k] ?? partMin(k)
   const totalMin = cal ? cal.totalMinutes : total0
-  const computed = (k: string) => (k === 'cardio' && !!fixedCardio) || (!!cal && k !== 'warmup' && (k === 'cardio' || !hasKind('cardio')))
+  const computed = (k: string) => (k === 'cardio' && !!fixedCardio) || (!!cal && k !== 'warmup' && (cardioFlex ? k === 'cardio' : k !== 'cardio' || !hasKind('cardio')))
   const partLabel = (k: string) => (k === 'cardio' ? 'Cardio' : k === 'warmup' ? 'Warm-up' : styleInfo(k as WorkoutStyle).label)
   const warmWhat = [warm.includes('cardio') && 'easy cardio', warm.includes('mobility') && 'mobility'].filter(Boolean).join(' + ')
   const defaultName = `${styleLabel} · ${focusLabel} · ${totalMin} min`
@@ -276,8 +281,8 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
     // A time limit: the cardio goes as hard as it has to; otherwise its time stretches to land on the target.
     // Otherwise it goes at their pace, and its time stretches to land on the target.
     check(
-      timed && needMet && hasKind('cardio') ? setCardioEffort(made, needMet, SESSION_FACTOR[sessionKind])
-        : cal && kcal ? fitCardio(hasKind('cardio') ? setCardioPace(made, { exerciseId: one, mph: paceMph, effort: effortPick }) : made, kcal, rate, mets)
+      timed && needMet && cardioFlex ? setCardioEffort(made, needMet, SESSION_FACTOR[sessionKind])
+        : cal && kcal && !fixedCardio ? fitCardio(cardioFlex ? setCardioPace(made, { exerciseId: one, mph: paceMph, effort: effortPick }) : made, kcal, rate, mets)
           : made,
       opts, perMuscle,
     )
@@ -375,7 +380,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
 
         <div className="mb-2 flex items-center justify-between gap-2">
           <h3 className="text-sm font-medium">{showSplit ? 'Time for each part' : goal === 'calories' ? 'How many calories?' : 'How long?'}</h3>
-          {!fixedCardio && <div role="group" aria-label="Plan by" className="flex shrink-0 rounded-full bg-neutral-100 p-0.5 text-xs">
+          {!(fixedCardio && cardioOnly) && <div role="group" aria-label="Plan by" className="flex shrink-0 rounded-full bg-neutral-100 p-0.5 text-xs">
             {(['time', 'calories'] as const).map((g) => (
               <button key={g} onClick={() => setGoal(g)} aria-pressed={goal === g} className={`rounded-full px-3 py-1 ${goal === g ? 'bg-surface font-medium shadow-sm' : 'text-neutral-500'}`}>{g === 'time' ? 'Time' : 'Calories'}</button>
             ))}
@@ -406,7 +411,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
               {LIMITS.map((m) => <button key={m} onClick={() => setTimeLimit(m)} aria-pressed={timeLimit === m} className={chip(timeLimit === m)}>{formatMinutes(m)}</button>)}
             </div>
             <p className="mt-1 text-xs text-neutral-400">{timeLimit ? 'The app works out how hard each part has to be.' : 'At your pace below; the app works out the time.'}</p>
-            {!timeLimit && hasKind('cardio') && (
+            {!timeLimit && cardioFlex && (
               <div className="mt-3">
                 <p className="mb-1 text-xs font-medium text-neutral-600">Your {cardioName.toLowerCase()} pace</p>
                 {withSpeed ? (
@@ -458,7 +463,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
           </>
         )}
         {goal === 'time' && cardioOnly && fixedCardio && (
-          <p role="status" className="mb-5 rounded-2xl bg-neutral-50 px-3 py-2 text-sm">About {fixedCardio} min: 5 min easy, the {cardio.tabata === 'sprint' ? 'sprints' : 'Tabata'}, then 5 min easy. Pick the rounds above.</p>
+          <p role="status" className="mb-5 rounded-2xl bg-neutral-50 px-3 py-2 text-sm">About {fixedCardio} min: 5 min easy, the {cardio.tabata === 'sprint' ? 'sprints' : 'Tabata'}, then 5 min easy. Pick the rounds above. <span className="text-neutral-500">To aim for calories, pick another session or add lifting: Tabata itself is a set amount of work.</span></p>
         )}
         {goal === 'time' && !(cardioOnly && fixedCardio) && (
           <div className="mb-5 flex flex-wrap gap-2">
@@ -478,22 +483,22 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
                 <p className="font-medium">About {cal.totalKcal.toLocaleString()} {countWord} cal in {formatMinutes(cal.totalMinutes)}</p>
                 <p className="text-xs text-neutral-500">That’s about {Math.round(cal.totalKcal + (countTotal ? -1 : 1) * restPerMin * cal.totalMinutes).toLocaleString()} {countTotal ? 'active' : 'total, counting what you’d burn anyway'}.</p>
                 {!showSplit && <p className="text-xs text-neutral-500">{cardioOnly ? cardioName : styleLabel}: {formatMinutes(cal.totalMinutes)}</p>}
-                {!timed && hasKind('cardio') && cal.minutes.cardio != null && (
+                {!timed && cardioFlex && cal.minutes.cardio != null && (
                   <p className="mt-1 text-xs text-neutral-600">
                     {cardioName}: {formatMinutes(cal.minutes.cardio)} at {withSpeed && paceMph
                       ? <><b>{showSpeed(paceMph, units)} {speedUnit(units)}{FAST[one!] && FAST[one!] < 10 ? ` (${formatPace(paceMph, 60, units)})` : ''}</b>{incline ? ` at ${incline}% incline` : ''}</>
                       : <>a <b>{withSpeed ? 'usual easy' : effortPick}</b> {withSpeed ? 'pace' : 'effort'}{incline ? ` at ${incline}% incline` : ''}</>}.
                   </p>
                 )}
-                {timed && needMet == null && <p className="mt-1 text-xs text-amber-700">No time left for the {hasKind('cardio') ? 'cardio' : 'workout'}: less lifting or more time.</p>}
-                {timed && needMet != null && hasKind('cardio') && (
+                {timed && needMet == null && <p className="mt-1 text-xs text-amber-700">No time left for the {cardioFlex ? 'cardio' : 'workout'}: less lifting or more time.</p>}
+                {timed && needMet != null && cardioFlex && (
                   <p className="mt-1 text-xs text-neutral-600">
                     {speed
                       ? <>{cardioName}: {formatMinutes(timed.minutes.cardio)} at about <b>{showSpeed(speed, units)} {speedUnit(units)}</b>{one && FAST[one] && FAST[one] < 10 ? ` (${formatPace(speed, 60, units)})` : ''}{incline ? ` at ${incline}% incline` : ''}{recent ? `; your recent average is ${showSpeed(recent, units)} ${speedUnit(units)}` : ''}.</>
                       : <>{cardioName}: {formatMinutes(timed.minutes.cardio)} at a <b>{effort}</b> effort{needMet / cardioMetHere > 1.1 ? ` (about ${Math.round((needMet / cardioMetHere - 1) * 100)}% harder than a usual pace)` : ''}.</>}
                   </p>
                 )}
-                {timed && needMet != null && !hasKind('cardio') && (
+                {timed && needMet != null && !cardioFlex && (
                   <p className="mt-1 text-xs text-neutral-600">
                     {liftNeed
                       ? STYLE_MET[liftNeed] > STYLE_MET[ownStyle] + 0.1
@@ -505,13 +510,13 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
                 {timed && (tooHard || (liftNeed && STYLE_MET[liftNeed] > STYLE_MET[ownStyle] + 0.1)) && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {liftNeed && STYLE_MET[liftNeed] > STYLE_MET[ownStyle] + 0.1 && <button onClick={() => switchStyle(liftNeed)} className={chip(false)}>Use {styleInfo(liftNeed).label}</button>}
-                    {tooHard && hasKind('cardio') && hasKind('lift') && STYLE_MET[liftStyle] < STYLE_MET.supersets && <button onClick={() => switchStyle('supersets')} className={chip(false)}>Harder lifting: Supersets</button>}
+                    {tooHard && cardioFlex && hasKind('lift') && STYLE_MET[liftStyle] < STYLE_MET.supersets && <button onClick={() => switchStyle('supersets')} className={chip(false)}>Harder lifting: Supersets</button>}
                     {steeper != null && <button onClick={() => setCardio({ ...cardio, incline: steeper })} className={chip(false)}>Use a {steeper}% incline</button>}
                     {tooHard && !hasKind('cardio') && <button onClick={() => { setPickedKind(true); setKinds((k) => [...k, 'cardio']) }} className={chip(false)}>Add cardio</button>}
                     {tooHard && usualMinutes && usualMinutes > (timeLimit ?? 0) && <button onClick={() => setTimeLimit(LIMITS.includes(usualMinutes) ? usualMinutes : null)} className={chip(false)}>Allow {formatMinutes(usualMinutes)}</button>}
                   </div>
                 )}
-                {tooHard && hasKind('cardio') && <p className="mt-1 text-xs text-amber-700">That’s {speed ? 'faster' : 'harder'} than most people can hold for that long{recent ? ', and well above your recent average' : ''}.</p>}
+                {tooHard && cardioFlex && <p className="mt-1 text-xs text-amber-700">That’s {speed ? 'faster' : 'harder'} than most people can hold for that long{recent ? ', and well above your recent average' : ''}.</p>}
                 {!timed && cal.totalMinutes > 120 && (
                   <p className="mt-1 text-xs text-amber-700">That’s a long session. {hasKind('cardio') ? 'Harder cardio (intervals, tempo, hills) or a lower target gets there sooner.' : 'Adding cardio gets there in much less time.'}</p>
                 )}
