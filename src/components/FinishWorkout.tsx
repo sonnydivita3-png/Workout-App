@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { BUILTIN_BY_ID } from '../data/exercises'
+import { bodyweightOn } from '../lib/calories'
+import { finishedCalories } from '../lib/calorieTarget'
 import { fmtLong } from '../lib/dates'
 import { dayPlanOf } from '../lib/plan'
 import { newBests } from '../lib/notify'
@@ -56,6 +58,15 @@ export function FinishWorkout({ date, onBack, onDone }: { date: string; onBack: 
   const bests = summary.bests
   const prOf = (id: string) => bests.some((b) => b.id.startsWith(`pr:${id}:`))
   const volDelta = summary.lastLiftVolume ? Math.round(((summary.liftVolume - summary.lastLiftVolume) / summary.lastLiftVolume) * 100) : null
+  // Calories from what was done (the cardio as logged, the lifts by sets done, the warm-up if marked done).
+  const countTotal = s.trainingPrefs.calorieCount === 'total'
+  const kcal = finishedCalories(date, items, s.logs, bodyweightOn(s.bodyweight, date), s.aboutMe, lookup, { warmedUp: s.warmupsDone.includes(date), total: countTotal })
+  const calTile = (
+    <div className={tile}>
+      <p className="text-2xl font-bold">{kcal == null ? '–' : `≈${kcal.toLocaleString()}`}</p>
+      <p className="text-xs text-neutral-400">{kcal == null ? 'cal: add your weight' : `${countTotal ? 'total' : 'active'} cal`}</p>
+    </div>
+  )
   const icon = { up: '▲', same: '=', down: '▼', new: '🆕', done: '✓', skipped: '–' } as const
   const color = { up: 'text-green-600', same: 'text-neutral-400', down: 'text-red-600', new: 'text-neutral-500', done: 'text-neutral-500', skipped: 'text-neutral-300' } as const
   const word = { up: 'better', same: 'matched', down: 'lower', new: 'first time', done: 'done', skipped: 'skipped' } as const
@@ -70,19 +81,21 @@ export function FinishWorkout({ date, onBack, onDone }: { date: string; onBack: 
             : summary.beat === summary.compared ? 'Beat last time on everything 🔥' : summary.beat > 0 ? `Beat last time on ${summary.beat} of ${summary.compared}` : 'Logged. Next time you beat it 💪'}
         </h1>
         {lifted ? (
-          <div className="my-4 grid grid-cols-3 gap-2 text-center">
+          <div className="my-4 grid grid-cols-2 gap-2 text-center">
+            <div className={tile}>
+              <p className="text-2xl font-bold">{Math.round(showWeight(summary.liftVolume, units)!).toLocaleString()}</p>
+              <p className="text-xs text-neutral-400">{units.weight} lifted{volDelta == null ? '' : ` · ${volDelta >= 0 ? '+' : ''}${volDelta}% vs last`}</p>
+            </div>
+            {calTile}
             <div className={tile}><p className="text-2xl font-bold">{summary.beat}</p><p className="text-xs text-neutral-400">improved</p></div>
             <div className={tile}><p className="text-2xl font-bold">{bests.length}</p><p className="text-xs text-neutral-400">new bests</p></div>
-            <div className={tile}>
-              <p className="text-2xl font-bold">{volDelta == null ? `${Math.round(showWeight(summary.liftVolume, units)!).toLocaleString()}` : `${volDelta >= 0 ? '+' : ''}${volDelta}%`}</p>
-              <p className="text-xs text-neutral-400">{volDelta == null ? `volume (${units.weight})` : 'volume vs last'}</p>
-            </div>
           </div>
         ) : (
           // Cardio only: what you did, not how it compares with last time.
-          <div className="my-4 grid grid-cols-3 gap-2 text-center">
+          <div className="my-4 grid grid-cols-2 gap-2 text-center">
             <div className={tile}><p className="text-2xl font-bold">{formatMinutes(cardio.minutes)}</p><p className="text-xs text-neutral-400">time</p></div>
             <div className={tile}><p className="text-2xl font-bold">{cardio.distance ? showDistance(cardio.distance, units) : '–'}</p><p className="text-xs text-neutral-400">{units.distance}</p></div>
+            {calTile}
             <div className={tile}><p className="text-2xl font-bold">{bests.length}</p><p className="text-xs text-neutral-400">new bests</p></div>
           </div>
         )}
