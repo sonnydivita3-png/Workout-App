@@ -37,3 +37,27 @@ describe('the exercise library', () => {
     expect(BUILTIN_BY_ID.get('Flutter_Kicks')!.group).toBe('Core')
   })
 })
+
+describe('suspension, medicine ball and other functional kit', () => {
+  it('is in the library under its own equipment, ready for functional workouts', async () => {
+    const { familyOf } = await import('../lib/randomUtil')
+    const { takesWarmup } = await import('../lib/warmups')
+    const { stationOf } = await import('../lib/stations')
+    const kit = ['Suspension (TRX)', 'Medicine ball', 'Battle rope', 'Sandbag', 'Rings', 'Sliders', 'Exercise ball']
+    const by = (eq: string) => EXERCISES.filter((e) => e.equipment === eq)
+    expect(by('Suspension (TRX)').length).toBeGreaterThanOrEqual(20)
+    expect(by('Medicine ball').length).toBeGreaterThanOrEqual(10)
+    for (const eq of kit) for (const e of by(eq)) {
+      // One weight (or none) all session: no ramp-up sets on a ball, rope, straps…
+      expect(takesWarmup(e), e.name).toBe(false)
+      // …and the ones added here aren't handed out in everyday lifting workouts (functional, HIIT and the list use them).
+      if (/^x-|^Suspended|^Battling/.test(e.id)) expect(e.suggest, e.name).toBe(false)
+    }
+    // Every one tagged for functional workouts fits one of their movement patterns.
+    for (const e of EXERCISES.filter((x) => x.tags?.includes('functional') && kit.includes(x.equipment ?? ''))) expect(familyOf(e), e.name).toBeTruthy()
+    // Straps and rings hang from an anchor: a fixed spot, next to the pull-up bar.
+    expect(stationOf(BUILTIN_BY_ID.get('Suspended_Row')!)).toBe('straps')
+    expect(stationOf(BUILTIN_BY_ID.get('x-mb-woodchop')!)).toBe('floor')
+    expect(BUILTIN_BY_ID.get('Battling_Ropes')).toMatchObject({ name: 'Battle Rope Waves', mode: 'time', group: 'Conditioning', equipment: 'Battle rope' })
+  })
+})

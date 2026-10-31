@@ -7,6 +7,7 @@ const squash = (t: string) => t.toLowerCase().replace(/[-\s]/g, '')
 const ALIASES: Record<string, string> = {
   rdl: 'romanian deadlift', sldl: 'stiff legged', ohp: 'overhead press', db: 'dumbbell', bb: 'barbell', kb: 'kettlebell',
   bw: 'bodyweight', tri: 'tricep', bi: 'bicep', ghr: 'glute ham', flies: 'fly', flys: 'fly', skaters: 'skater',
+  trx: 'suspension', medball: 'medicine ball', mb: 'medicine ball',
 }
 
 /** The words of a search, with shorthand spelled out. Hyphens and spaces don't matter (pushup finds Push-Up). */

@@ -35,11 +35,11 @@ test('a search nothing fully matches (a typo, or something not in the list) show
   await expect(picker.getByRole('button', { name: /^Dumbbell Shoulder Press.*Added/ })).toBeDisabled()
 
   // Not in the list: the nearest ones, and making it their own starts with what they typed.
-  await search.fill('landmine press')
+  await search.fill('viking press')
   await expect(picker.getByText('No exact match')).toBeVisible()
-  await picker.getByRole('button', { name: /Create “landmine press” as your own exercise/ }).click()
+  await picker.getByRole('button', { name: /Create “viking press” as your own exercise/ }).click()
   const make = page.locator('.fixed').filter({ has: page.getByRole('heading', { name: 'New exercise' }) })
-  await expect(make.getByLabel('Name')).toHaveValue('landmine press')
+  await expect(make.getByLabel('Name')).toHaveValue('viking press')
   await make.getByRole('button', { name: 'Cancel' }).click()
 
   // Gibberish: nothing close, just the offer.

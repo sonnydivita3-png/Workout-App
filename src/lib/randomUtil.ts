@@ -105,7 +105,7 @@ const FAMILIES: [string, RegExp][] = [
   ['burpee', /squat thrust|sprawl/i],
   ['seated calf', /seated.*calf|calf.*seated/i], ['calf', /calf|calves/i],
   ['leg curl', /leg curl|hamstring curl|nordic|glute[- ]ham/i], ['leg extension', /leg extension|sissy squat/i], ['leg press', /leg press/i],
-  ['hinge', /deadlift|\brdl\b|good ?morning|pull[- ]?through|(kettlebell|dumbbell)s? swings?|rack pull|stiff[- ]legs?\b/i],
+  ['hinge', /deadlift|\brdl\b|good ?morning|to shoulder|pull[- ]?through|(kettlebell|dumbbell)s? swings?|rack pull|stiff[- ]legs?\b/i],
   ['lunge', /lunge|split squat|step[- ]?ups?\b/i], ['jump', /jump|bound\b|\bhops?\b|skater/i], ['squat', /squat|thruster/i],
   ['bridge', /hip thrust|glute bridge|hip bridge|butt lift|hip lift|leg bridge/i], ['abduction', /abduct|monster walk|clamshell/i], ['adduction', /adduct/i],
   ['glute kickback', /glute kickback|hip extension|legged cable kickback|^leg lift\b/i], ['back extension', /back extension|hyperextension|superman/i],
@@ -124,9 +124,9 @@ const FAMILIES: [string, RegExp][] = [
   ['lying triceps', /skull|lying.*triceps?|triceps?.*lying|tate press|jm press|decline.*triceps extension|incline barbell triceps/i],
   ['pushdown', /push-?down|triceps? extension|kickback/i],
   // Trunk and the rest
-  ['side plank', /side plank|side bridge|side bend/i], ['plank', /plank|rollout|ab roller|ab wheel|dead bug/i],
+  ['side plank', /side plank|side bridge|side bend/i], ['plank', /plank|rollout|fallout|ab roller|ab wheel|dead bug/i],
   ['leg raise', /leg raise|knee raise|leg lift|knee tuck|leg tuck|pull-in|toes to bar|hanging pike|flutter kick|scissor kick|reverse crunch|hip raise/i],
-  ['crunch', /crunch|sit-?up|v-?up|jackknife|toe touch|elbow to knee|heel touch/i], ['rotation', /russian twist|woodchop|wood chop|twist|pallof|landmine 180|cable lift/i],
+  ['crunch', /crunch|sit-?up|v-?up|jackknife|toe touch|elbow to knee|heel touch/i], ['rotation', /russian twist|woodchop|wood chop|twist|pallof|landmine 180|cable lift|rotational throw/i],
   ['carry', /carry|farmer|yoke/i], ['olympic', /\bclean\b|snatch|jerk/i], ['burpee', /burpee/i], ['slam', /slam|wall ball/i],
 ]
 /** The big lifts a session never doubles up on, even to fill the time: a second squat or deadlift only adds fatigue. */

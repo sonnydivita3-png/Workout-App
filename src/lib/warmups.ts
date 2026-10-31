@@ -2,9 +2,12 @@ import type { Exercise, PlannedExercise } from '../types'
 import { modeOf } from './exerciseModes'
 import { isIsolation } from './randomUtil'
 
+/** Kit you don't ramp up to: a ball, a rope, a sandbag, straps or rings are one weight (or none) all session. */
+const NO_RAMP = new Set(['Bodyweight', 'Medicine ball', 'Battle rope', 'Sandbag', 'Suspension (TRX)', 'Rings', 'Sliders', 'Exercise ball', 'Sled'])
+
 /** Warm-up sets (and drop sets) are for weight lifting: never bodyweight moves, core, cardio, holds or timed blocks. */
 export const takesWarmup = (e?: Exercise) =>
-  !!e && e.kind === 'strength' && (modeOf(e) ?? 'weight') === 'weight' && e.group !== 'Core' && e.equipment !== 'Bodyweight'
+  !!e && e.kind === 'strength' && (modeOf(e) ?? 'weight') === 'weight' && e.group !== 'Core' && !NO_RAMP.has(e.equipment ?? '')
 
 /**
  * Warm-up sets always sit on the first two weight-lifting exercises of the day, whatever the order: more before the

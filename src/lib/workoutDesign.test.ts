@@ -144,7 +144,7 @@ describe('swapping an exercise', () => {
 })
 
 describe('their own exercises in workouts made for them', () => {
-  const landmine: Exercise = { id: 'custom-landmine', name: 'Landmine Press', kind: 'strength', mode: 'weight', group: 'Shoulders', equipment: 'Barbell', custom: true }
+  const landmine: Exercise = { id: 'custom-landmine', name: 'Viking Press', kind: 'strength', mode: 'weight', group: 'Shoulders', equipment: 'Barbell', custom: true }
   const airplane: Exercise = { id: 'custom-airplane', name: 'Banded Hip Airplane', kind: 'strength', mode: 'reps', group: 'Glutes', equipment: 'Bodyweight', custom: true }
   const sandbag: Exercise = { id: 'custom-sandbag', name: 'Sandbag Shouldering', kind: 'strength', mode: 'reps', group: 'Conditioning', equipment: 'Bodyweight', custom: true }
   const share = (id: string, focus: string[], style: WorkoutStyle, n = 60) => {
@@ -180,7 +180,7 @@ describe('their own exercises in workouts made for them', () => {
   it('follow what they save: new, changed and deleted ones (a deleted one is still found for old plans)', async () => {
     const { useStore } = await import('../store')
     useStore.setState({ custom: [landmine] })
-    expect(customPool().map((e) => e.name)).toEqual(['Landmine Press'])
+    expect(customPool().map((e) => e.name)).toEqual(['Viking Press'])
     useStore.setState({ custom: [{ ...landmine, name: 'Landmine Push Press' }] })
     expect(customPool().map((e) => e.name)).toEqual(['Landmine Push Press'])
     useStore.setState({ custom: [{ ...landmine, retired: true }] })
