@@ -78,11 +78,12 @@ const round5 = (m: number) => Math.max(5, Math.round(m / 5) * 5)
 /**
  * Minutes for each part to burn about `target` calories. With a `flexible` part (the cardio), the others keep their
  * minutes and it makes up the rest (at least 5 minutes). Without one, the warm-up keeps its minutes and the other parts
- * keep their shares of the time and grow (or shrink) together. Minutes round to 5.
+ * keep their shares of the time and grow (or shrink) together. `steady` parts keep their minutes too (a Tabata is a set
+ * amount of work). Minutes round to 5.
  */
-export function planForCalories(target: number, parts: CaloriePart[], rate: (met: number) => number, flexible?: string): CaloriePlan {
+export function planForCalories(target: number, parts: CaloriePart[], rate: (met: number) => number, flexible?: string, steady: string[] = []): CaloriePlan {
   const minutes: Record<string, number> = {}
-  const fixed = parts.filter((p) => p.key === 'warmup' || (flexible && p.key !== flexible))
+  const fixed = parts.filter((p) => p.key === 'warmup' || steady.includes(p.key) || (flexible && p.key !== flexible))
   for (const p of fixed) minutes[p.key] = p.minutes
   const fixedKcal = fixed.reduce((a, p) => a + p.minutes * rate(p.met), 0)
   const rest = Math.max(0, target - fixedKcal)
@@ -122,9 +123,9 @@ export interface TimedPlan extends CaloriePlan {
  * (the cardio), the others keep their minutes and it gets the time that's left; without one, the warm-up keeps its
  * minutes and the other parts share the rest as they share it now.
  */
-export function planWithin(target: number, limit: number, parts: CaloriePart[], rate: (met: number) => number, metOf: (rate: number) => number, flexible?: string): TimedPlan {
+export function planWithin(target: number, limit: number, parts: CaloriePart[], rate: (met: number) => number, metOf: (rate: number) => number, flexible?: string, steady: string[] = []): TimedPlan {
   const minutes: Record<string, number> = {}
-  const fixed = parts.filter((p) => p.key === 'warmup' || (flexible && p.key !== flexible))
+  const fixed = parts.filter((p) => p.key === 'warmup' || steady.includes(p.key) || (flexible && p.key !== flexible))
   for (const p of fixed) minutes[p.key] = p.minutes
   const left = limit - fixed.reduce((a, p) => a + p.minutes, 0)
   const grow = parts.filter((p) => !fixed.includes(p))

@@ -8,6 +8,16 @@ const LB = 80 / 0.45359237 // 80 kg
 const rate = (met: number) => perMinute(met, LB, '2026-10-23')
 
 describe('a workout for a calorie target', () => {
+  it('a Tabata keeps its minutes, like the warm-up, and the lifting makes up the rest', () => {
+    const parts = [{ key: 'warmup', met: WARMUP_MET, minutes: 5 }, { key: 'standard', met: STYLE_MET.standard, minutes: 30 }, { key: 'cardio', met: 9, minutes: 14 }]
+    const plan = planForCalories(700, parts, rate, undefined, ['cardio'])
+    expect(plan.minutes.cardio).toBe(14)
+    expect(plan.minutes.warmup).toBe(5)
+    expect(plan.minutes.standard).toBeGreaterThan(30)
+    expect(Math.abs(plan.totalKcal - 700)).toBeLessThan(40)
+    const within = planWithin(700, 60, parts, rate, (r) => r, undefined, ['cardio'])
+    expect(within.minutes).toMatchObject({ warmup: 5, cardio: 14, standard: 41 })
+  })
   it('net calories a minute: (MET − 1) × kg / 60 without personal details', () => {
     expect(rate(8)).toBeCloseTo((7 * 80) / 60, 5) // running at a usual pace: about 9.3 a minute
     expect(rate(3.5)).toBeCloseTo((2.5 * 80) / 60, 5) // light lifting (8-15 reps, multiple exercises): about 3.3 a minute
