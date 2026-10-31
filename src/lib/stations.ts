@@ -14,7 +14,7 @@ import { gearOf, isHomeSetup } from './equipment'
  */
 export type Station =
   | 'floor' | 'dumbbells' | 'kettlebells'
-  | 'rack' | 'bench' | 'platform' | 'smith' | 'cable' | 'pullup' | 'dip' | 'turf' | 'box'
+  | 'rack' | 'bench' | 'platform' | 'smith' | 'cable' | 'pullup' | 'dip' | 'turf' | 'box' | 'straps'
   | `machine:${string}`
 
 const text = (e: Exercise) => `${e.name} ${e.fullName ?? ''}`
@@ -39,6 +39,8 @@ export const stationOf = (e: Exercise): Station => {
   // Inverted rows hang under a bar set low in a rack or Smith machine.
   if (/inverted row/i.test(t)) return 'rack'
   if (e.equipment === 'Box') return 'box'
+  // Suspension straps and rings hang from an anchor (often the rig or a pull-up bar): you stay at them.
+  if (e.equipment === 'Suspension (TRX)' || e.equipment === 'Rings') return 'straps'
   switch (g) {
     case 'Dumbbell': return 'dumbbells'
     case 'Kettlebell': return 'kettlebells'
@@ -65,11 +67,11 @@ export const isPortable = (s: Station) => PORTABLE.has(s)
 
 /** Barbell setups that share a bar, or are usually next to each other (a bench beside the rack, a pull-up bar on it). */
 const NEARBY: [Station, Station][] = [
-  ['rack', 'platform'], ['bench', 'platform'], ['rack', 'pullup'], ['rack', 'bench'], ['dip', 'pullup'],
+  ['rack', 'platform'], ['bench', 'platform'], ['rack', 'pullup'], ['rack', 'bench'], ['dip', 'pullup'], ['straps', 'pullup'], ['straps', 'rack'],
 ]
 
 // At home or in a garage (see isHomeSetup), the barbell, bench, rack and bars are all one setup.
-const RIG = new Set<Station>(['rack', 'bench', 'platform', 'pullup', 'dip', 'box'])
+const RIG = new Set<Station>(['rack', 'bench', 'platform', 'pullup', 'dip', 'box', 'straps'])
 
 /**
  * How much moving a pair (or the next station of a circuit) takes: 0 = same spot, 1 = carry your dumbbells over or a

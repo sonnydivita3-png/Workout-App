@@ -16,7 +16,7 @@ test('your own exercise: made from the exercise list, logged like any other, cha
   const make = form(page, 'New exercise')
   const save = make.getByRole('button', { name: 'Save exercise' })
   await expect(save).toBeDisabled()
-  await make.getByLabel('Name').fill('Landmine Press')
+  await make.getByLabel('Name').fill('Viking Press')
   await expect(make.getByText('Pick a muscle group')).toBeVisible()
   await chip(make, 'Muscle group', 'Shoulders').click()
   await expect(save).toBeDisabled()
@@ -26,21 +26,21 @@ test('your own exercise: made from the exercise list, logged like any other, cha
   await expect(make).toHaveCount(0)
 
   // It's added straight away, and listed under the body part with its equipment.
-  await expect(picker.getByRole('button', { name: /^Landmine Press.*Added/ })).toBeDisabled()
+  await expect(picker.getByRole('button', { name: /^Viking Press.*Added/ })).toBeDisabled()
   await picker.getByRole('button', { name: 'Muscle group filter: all' }).click()
   await picker.getByRole('group', { name: 'Muscle group' }).getByRole('button', { name: /^Shoulders \d+$/ }).click()
-  await picker.getByPlaceholder(/search/i).fill('landmine')
-  await expect(picker.getByRole('button', { name: /^Landmine Press/ })).toBeVisible()
+  await picker.getByPlaceholder(/search/i).fill('viking')
+  await expect(picker.getByRole('button', { name: /^Viking Press/ })).toBeVisible()
   await picker.getByRole('button', { name: 'Equipment filter: any' }).click()
   await picker.getByRole('group', { name: 'Equipment' }).getByRole('button', { name: /^Barbell/ }).click()
-  await expect(picker.getByRole('button', { name: /^Landmine Press/ })).toBeVisible()
+  await expect(picker.getByRole('button', { name: /^Viking Press/ })).toBeVisible()
   const saved = (await state(page)).custom[0]
-  expect(saved).toMatchObject({ name: 'Landmine Press', kind: 'strength', mode: 'weight', group: 'Shoulders', equipment: 'Barbell', custom: true })
+  expect(saved).toMatchObject({ name: 'Viking Press', kind: 'strength', mode: 'weight', group: 'Shoulders', equipment: 'Barbell', custom: true })
 
   // Change it from the list (✎).
-  await picker.getByRole('button', { name: 'Edit Landmine Press' }).click()
+  await picker.getByRole('button', { name: 'Edit Viking Press' }).click()
   const edit = form(page, 'Edit exercise')
-  await edit.getByLabel('Name').fill('Landmine Push Press')
+  await edit.getByLabel('Name').fill('Viking Push Press')
   await edit.getByRole('button', { name: 'Save changes' }).click()
   await expect(edit).toHaveCount(0)
   await picker.getByPlaceholder(/search/i).fill('')
@@ -57,7 +57,7 @@ test('your own exercise: made from the exercise list, logged like any other, cha
   await picker.getByRole('button', { name: 'Done' }).click()
 
   // Logged like any lift.
-  const card = page.locator('.scroll-mt-4').filter({ has: page.getByRole('button', { name: 'Landmine Push Press', exact: true }) })
+  const card = page.locator('.scroll-mt-4').filter({ has: page.getByRole('button', { name: 'Viking Push Press', exact: true }) })
   await card.getByRole('spinbutton', { name: 'Set 1 lb' }).fill('65')
   await card.getByRole('spinbutton', { name: 'Set 1 reps' }).fill('10')
   await expect.poll(async () => (await state(page)).logs.find((l: { exerciseId: string }) => l.exerciseId === saved.id)?.sets[0]).toMatchObject({ weight: 65, reps: 10 })

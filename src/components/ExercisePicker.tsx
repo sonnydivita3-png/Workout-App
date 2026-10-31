@@ -23,7 +23,7 @@ interface Props {
 const GROUPS = ['All', 'Favorites', ...BODY_PARTS, 'Forearms', 'Cardio', 'Conditioning', 'Mobility', 'Other']
 const PART_ORDER: string[] = [...BODY_PARTS, 'Forearms']
 // Equipment filters; a few rarer kinds are folded into the closest one or "Other".
-const EQUIPMENT = ['Any', 'Mine', 'Barbell', 'Dumbbell', 'Bodyweight', 'Cable', 'Machine', 'Kettlebell', 'Bands', 'Other'] as const
+const EQUIPMENT = ['Any', 'Mine', 'Barbell', 'Dumbbell', 'Bodyweight', 'Cable', 'Machine', 'Kettlebell', 'Bands', 'Suspension (TRX)', 'Medicine ball', 'Other'] as const
 type Equip = (typeof EQUIPMENT)[number]
 const equipOf = (e: Exercise): Equip => {
   const k = e.equipment ?? ''

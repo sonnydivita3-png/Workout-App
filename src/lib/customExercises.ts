@@ -17,7 +17,7 @@ export interface CustomExerciseInput {
 /** Where it's filed, in the same order as the exercise list's muscle groups. Cardio makes it a cardio exercise. */
 export const CUSTOM_GROUPS: string[] = [...BODY_PARTS, 'Forearms', 'Cardio', 'Conditioning', 'Mobility', 'Other']
 /** The exercise list's equipment filters, and what cardio is done on. */
-export const LIFT_EQUIPMENT: string[] = ['Barbell', 'Dumbbell', 'Bodyweight', 'Cable', 'Machine', 'Kettlebell', 'Bands', 'Other']
+export const LIFT_EQUIPMENT: string[] = ['Barbell', 'Dumbbell', 'Bodyweight', 'Cable', 'Machine', 'Kettlebell', 'Bands', 'Suspension (TRX)', 'Medicine ball', 'Other']
 export const CARDIO_EQUIPMENT: string[] = ['Machine', 'Outdoor', 'Other']
 export const MODE_CHOICES: [ExerciseMode, string][] = [['weight', 'Weight × reps'], ['reps', 'Reps only'], ['time', 'Time']]
 

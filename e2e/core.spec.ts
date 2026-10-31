@@ -928,3 +928,22 @@ test('Make me a workout: Posture opens up, works the upper back, and ends with a
   await sheet.getByRole('button', { name: /^Generate/ }).click()
   await expect(sheet.getByText(/Child’s Pose|Couch Stretch|Hamstring Stretch|Doorway Chest Stretch|Open Book/).last()).toBeVisible()
 })
+
+test('suspension (TRX) and medicine ball moves: their own equipment filters, and "trx" finds them', async ({ page }) => {
+  await seed(page)
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: 'Add exercises' }).click()
+  const picker = page.locator('.fixed')
+  await picker.getByRole('button', { name: /^Equipment filter/ }).click()
+  await picker.getByRole('group', { name: 'Equipment' }).getByRole('button', { name: /^Suspension \(TRX\) \d+$/ }).click()
+  for (const name of ['Suspension Row', 'Suspension Chest Press', 'Suspension Hamstring Curl']) await expect(picker.getByRole('button', { name: new RegExp(`^${name}\\b`) })).toBeVisible()
+  await picker.getByRole('button', { name: /^Equipment filter/ }).click()
+  await picker.getByRole('group', { name: 'Equipment' }).getByRole('button', { name: /^Medicine ball \d+$/ }).click()
+  for (const name of ['Medicine Ball Slam', 'Medicine Ball Russian Twist', 'Medicine Ball Squat to Press']) await expect(picker.getByRole('button', { name: new RegExp(`^${name}\\b`) })).toBeVisible()
+  // Gym shorthand: "trx row" finds the suspension row with any equipment.
+  await picker.getByRole('button', { name: /^Equipment filter/ }).click()
+  await picker.getByRole('group', { name: 'Equipment' }).getByRole('button', { name: 'Any equipment' }).click()
+  await picker.getByPlaceholder(/search/i).fill('trx row')
+  await expect(picker.getByRole('button', { name: /^Suspension Row\b/ })).toBeVisible()
+})

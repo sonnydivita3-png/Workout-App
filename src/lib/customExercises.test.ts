@@ -14,8 +14,8 @@ afterEach(() => {
 
 describe('making your own exercise', () => {
   it('saves the name, body part, equipment and how it is logged', () => {
-    const e = store().createCustom({ name: '  Landmine   Press ', group: 'Shoulders', equipment: 'Barbell', mode: 'weight' })
-    expect(e).toMatchObject({ name: 'Landmine Press', kind: 'strength', mode: 'weight', group: 'Shoulders', equipment: 'Barbell', custom: true })
+    const e = store().createCustom({ name: '  Viking   Press ', group: 'Shoulders', equipment: 'Barbell', mode: 'weight' })
+    expect(e).toMatchObject({ name: 'Viking Press', kind: 'strength', mode: 'weight', group: 'Shoulders', equipment: 'Barbell', custom: true })
     expect(e.id).toMatch(/^custom-/)
     expect(store().custom).toEqual([e])
     expect(findExercise(store().custom, e.id)).toEqual(e)
@@ -52,11 +52,11 @@ describe('making your own exercise', () => {
     expect(findDuplicate('zercher squat', [])?.name).toBe('Zercher Squats')
     expect(findDuplicate('pushups', [])?.name).toBe('Push-Up')
     expect(findDuplicate('Bench', [])).toBeUndefined()
-    const mine: Exercise = { id: 'custom-a', name: 'Landmine Press', kind: 'strength', group: 'Shoulders', custom: true }
-    expect(findDuplicate('landmine-press', [mine])).toBe(mine)
+    const mine: Exercise = { id: 'custom-a', name: 'Viking Press', kind: 'strength', group: 'Shoulders', custom: true }
+    expect(findDuplicate('viking-press', [mine])).toBe(mine)
     // Not itself while being edited, not one they deleted, and not an empty name.
-    expect(findDuplicate('Landmine Press', [mine], mine.id)).toBeUndefined()
-    expect(findDuplicate('Landmine Press', [{ ...mine, retired: true }])).toBeUndefined()
+    expect(findDuplicate('Viking Press', [mine], mine.id)).toBeUndefined()
+    expect(findDuplicate('Viking Press', [{ ...mine, retired: true }])).toBeUndefined()
     expect(findDuplicate('  ', [])).toBeUndefined()
   })
 })

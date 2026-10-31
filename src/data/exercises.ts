@@ -21,6 +21,8 @@ export const EXERCISES: Exercise[] = (raw as Row[]).map(([id, name, group, equip
 // Movements the dataset lacks, mostly for HIIT / Hyrox / CrossFit-style workouts.
 // [id, name, group, equipment, mode, suggest for normal randomizing, tags]
 type Extra = [string, string, string, string, 'weight' | 'reps' | 'time', boolean, string[]]
+/** Equipment name for suspension trainers (TRX is one brand). */
+export const TRX = 'Suspension (TRX)'
 const EXTRAS: Extra[] = [
   ['x-skierg', 'SkiErg', 'Conditioning', 'Machine', 'time', false, ['hyrox']],
   ['x-sled-push', 'Sled Push', 'Conditioning', 'Sled', 'time', false, ['hyrox']],
@@ -119,6 +121,48 @@ const EXTRAS: Extra[] = [
   ['Crossover_Reverse_Lunge', 'Crossover Reverse Lunge', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'lower']],
   ['Knee_Circles', 'Knee Circles', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'lower']],
   ['Ankle_Circles', 'Ankle Circles', 'Mobility', 'Bodyweight', 'time', false, ['mobility', 'lower']],
+  // Suspension trainer (TRX and the like), medicine ball and other functional kit. Bodyweight-leverage moves on the
+  // straps are logged as reps (harder by walking the feet in); ball, sandbag and landmine moves with their weight.
+  ['x-trx-chest-press', 'Suspension Chest Press', 'Chest', TRX, 'reps', false, ['functional']],
+  ['x-trx-y-fly', 'Suspension Y-Fly', 'Shoulders', TRX, 'reps', false, ['posture']],
+  ['x-trx-face-pull', 'Suspension Face Pull', 'Shoulders', TRX, 'reps', false, ['posture', 'functional']],
+  ['x-trx-reverse-fly', 'Suspension Reverse Fly', 'Shoulders', TRX, 'reps', false, ['posture']],
+  ['x-trx-curl', 'Suspension Biceps Curl', 'Biceps', TRX, 'reps', false, []],
+  ['x-trx-triceps-ext', 'Suspension Triceps Extension', 'Triceps', TRX, 'reps', false, []],
+  ['x-trx-squat', 'Suspension Squat', 'Quads', TRX, 'reps', false, ['functional']],
+  ['x-trx-reverse-lunge', 'Suspension Reverse Lunge', 'Quads', TRX, 'reps', false, ['functional', 'balance']],
+  ['x-trx-pistol', 'Suspension Pistol Squat', 'Quads', TRX, 'reps', false, ['balance']],
+  ['x-trx-hamstring-curl', 'Suspension Hamstring Curl', 'Hamstrings', TRX, 'reps', false, ['functional']],
+  ['x-trx-hip-press', 'Suspension Glute Bridge', 'Glutes', TRX, 'reps', false, []],
+  ['x-trx-pike', 'Suspension Pike', 'Core', TRX, 'reps', false, []],
+  ['x-trx-plank', 'Suspension Plank', 'Core', TRX, 'time', false, ['functional']],
+  ['x-trx-side-plank', 'Suspension Side Plank', 'Core', TRX, 'time', false, ['functional']],
+  ['x-trx-mountain-climber', 'Suspension Mountain Climber', 'Core', TRX, 'time', false, ['hiit']],
+  ['x-trx-atomic-pushup', 'Suspension Atomic Push-Up', 'Chest', TRX, 'reps', false, ['hiit', 'fullbody']],
+  ['x-trx-jump-squat', 'Suspension Jump Squat', 'Quads', TRX, 'reps', false, ['hiit']],
+  ['x-mb-rotational-throw', 'Medicine Ball Rotational Throw', 'Core', 'Medicine ball', 'weight', false, ['functional']],
+  ['x-mb-russian-twist', 'Medicine Ball Russian Twist', 'Core', 'Medicine ball', 'weight', false, ['functional']],
+  ['x-mb-woodchop', 'Medicine Ball Woodchop', 'Core', 'Medicine ball', 'weight', false, ['functional']],
+  ['x-mb-squat-press', 'Medicine Ball Squat to Press', 'Conditioning', 'Medicine ball', 'weight', false, ['hiit', 'fullbody', 'functional']],
+  ['x-mb-lunge-twist', 'Medicine Ball Lunge with Twist', 'Quads', 'Medicine ball', 'weight', false, ['functional']],
+  ['x-mb-pushup', 'Medicine Ball Push-Up', 'Chest', 'Medicine ball', 'reps', false, []],
+  ['x-mb-situp-throw', 'Medicine Ball Sit-Up Throw', 'Core', 'Medicine ball', 'weight', false, []],
+  ['x-mb-v-up', 'Medicine Ball V-Up', 'Core', 'Medicine ball', 'weight', false, []],
+  ['x-battle-rope-slams', 'Battle Rope Slams', 'Conditioning', 'Battle rope', 'time', false, ['hiit', 'fullbody']],
+  ['x-battle-rope-alt-waves', 'Battle Rope Alternating Waves', 'Conditioning', 'Battle rope', 'time', false, ['hiit', 'fullbody']],
+  ['x-sandbag-squat', 'Sandbag Bear-Hug Squat', 'Quads', 'Sandbag', 'weight', false, ['functional']],
+  ['x-sandbag-carry', 'Sandbag Bear-Hug Carry', 'Conditioning', 'Sandbag', 'time', false, ['functional', 'hyrox']],
+  ['x-sandbag-clean', 'Sandbag Clean', 'Conditioning', 'Sandbag', 'weight', false, ['crossfit', 'fullbody']],
+  ['x-landmine-press', 'Landmine Press', 'Shoulders', 'Barbell', 'weight', false, ['functional']],
+  ['x-landmine-squat', 'Landmine Squat', 'Quads', 'Barbell', 'weight', false, ['functional']],
+  ['x-landmine-row', 'Landmine Row', 'Back', 'Barbell', 'weight', false, ['functional']],
+  ['x-ring-row', 'Ring Row', 'Back', 'Rings', 'reps', false, ['functional']],
+  ['x-ring-pushup', 'Ring Push-Up', 'Chest', 'Rings', 'reps', false, []],
+  ['x-ball-rollout', 'Stability Ball Rollout', 'Core', 'Exercise ball', 'reps', false, ['functional']],
+  ['x-ball-pike', 'Stability Ball Pike', 'Core', 'Exercise ball', 'reps', false, []],
+  ['x-slider-reverse-lunge', 'Slider Reverse Lunge', 'Quads', 'Sliders', 'reps', false, ['functional']],
+  ['x-slider-hamstring-curl', 'Slider Hamstring Curl', 'Hamstrings', 'Sliders', 'reps', false, []],
+  ['x-slider-mountain-climber', 'Slider Mountain Climber', 'Core', 'Sliders', 'time', false, ['hiit']],
 ]
 
 EXERCISES.push(
@@ -141,6 +185,8 @@ for (const e of EXERCISES) {
   if (e.id === 'Rowing_Stationary') e.suggest = false // the same machine as the Rower; kept for old logs
   // A jump rope isn't a machine: bodyweight-and-a-rope workouts should be able to use it.
   if (e.id === 'Rope_Jumping') e.equipment = 'Jump rope'
+  // Battle ropes are worked for time, all over.
+  if (e.id === 'Battling_Ropes') Object.assign(e, { mode: 'time', group: 'Conditioning' })
   // The air squat of CrossFit and HIIT workouts (it replaced a duplicate "Air Squat").
   if (e.id === 'Bodyweight_Squat') e.tags = ['hiit', 'crossfit']
 }
@@ -162,6 +208,8 @@ const MORE_TAGS: Record<string, string[]> = {
   Band_Pull_Apart: ['posture'], Face_Pull: ['posture'], Dead_Bug: ['posture'], 'x-bird-dog': ['posture'], 'x-prone-ytw': ['posture'],
   'x-wall-angel': ['posture'], 'x-couch-stretch': ['posture'], 'x-open-book': ['posture'], Cat_Stretch: ['posture'],
   Pallof_Press: ['functional', 'posture'], Standing_Cable_Wood_Chop: ['functional'],
+  Suspended_Row: ['functional'], 'Suspended_Push-Up': ['functional'], Suspended_Fallout: ['functional'], Suspended_Split_Squat: ['functional', 'balance'],
+  Medicine_Ball_Chest_Pass: ['hiit'], Overhead_Slam: ['hiit', 'crossfit', 'fullbody'], Ab_Roller: ['functional'],
 }
 for (const e of EXERCISES) if (MORE_TAGS[e.id]) e.tags = [...new Set([...(e.tags ?? []), ...MORE_TAGS[e.id]])]
 // Equipment audit. "Bodyweight" means no gear beyond a bar or bench to hang from, push off or lie on (pull-ups were
@@ -174,6 +222,8 @@ const EQUIPMENT_FIX: Record<string, string> = {
   'Band_Assisted_Pull-Up': 'Bands', Seated_Band_Hamstring_Curl: 'Bands',
   Trap_Bar_Deadlift: 'Barbell', 'Close-Grip_EZ_Bar_Curl': 'EZ bar', Decline_EZ_Bar_Triceps_Extension: 'EZ bar',
   'Crunch_-_Legs_On_Exercise_Ball': 'Exercise ball',
+  Suspended_Row: TRX, 'Suspended_Push-Up': TRX, Suspended_Fallout: TRX, Suspended_Reverse_Crunch: TRX, Suspended_Split_Squat: TRX,
+  Battling_Ropes: 'Battle rope', Ring_Dips: 'Rings',
 }
 // ...and a couple of body parts: mountain climbers and flutter kicks are ab work, not quads and glutes.
 const GROUP_FIX: Record<string, string> = { Mountain_Climbers: 'Core', Flutter_Kicks: 'Core' }
@@ -210,6 +260,9 @@ const SHORT: Record<string, string> = {
   Barbell_Deadlift: 'Deadlift',
   Standing_Military_Press: 'Overhead Press',
   Pullups: 'Pull-Up',
+  Suspended_Row: 'Suspension Row', 'Suspended_Push-Up': 'Suspension Push-Up', Suspended_Fallout: 'Suspension Fallout',
+  Suspended_Reverse_Crunch: 'Suspension Knee Tuck', Suspended_Split_Squat: 'Suspension Split Squat',
+  Battling_Ropes: 'Battle Rope Waves',
   Pushups: 'Push-Up',
   'Dips_-_Chest_Version': 'Chest Dip',
   'Dips_-_Triceps_Version': 'Triceps Dip',
@@ -258,7 +311,9 @@ for (const e of EXERCISES) {
 // The library keeps 500 everyday exercises from the dataset, plus the extras above. The rest of the dataset (strongman
 // events, sport drills, band-and-chain variations, near-duplicates) is retired: never offered, but still known, so old
 // workouts and plans keep their names.
-const RETIRED = new Set<string>(retired)
+// ...except suspension and medicine ball basics, back for functional workouts.
+const UNRETIRED = ['Suspended_Fallout', 'Suspended_Reverse_Crunch', 'Suspended_Split_Squat', 'Medicine_Ball_Chest_Pass']
+const RETIRED = new Set<string>((retired as string[]).filter((id) => !UNRETIRED.includes(id)))
 for (const e of EXERCISES) if (RETIRED.has(e.id)) e.retired = true
 
 /** Every exercise ever in the library, retired ones included: for looking up what's already in logs and plans. */
