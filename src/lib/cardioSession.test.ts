@@ -20,7 +20,7 @@ describe('cardio sessions', () => {
     expect(sessionsFor('x-row-erg')).not.toContain('hills')
     expect(cardioSession('x-row-erg', 'hills', 30).note).toMatch(/^Steady/)
   })
-  it('Tabata: 20s / 10s or 30s / 2 min, as many rounds as picked; warm-up and cool-down on top of the work', () => {
+  it('Tabata: 20s / 10s or 30s / 90s, as many rounds as picked; warm-up and cool-down on top of the work', () => {
     // The classic by default: 8 rounds, 4 minutes of work, 5 easy before and after, whatever time was picked.
     for (const picked of [10, 30, 60]) {
       const t = cardioSession('x-air-bike', 'tabata', picked)
@@ -32,13 +32,13 @@ describe('cardio sessions', () => {
     expect(four.note).toBe('Tabata · 5 min easy, building up · 4 × 20s all-out / 10s easy jog (2 min) · 5 min easy')
     expect(four.minutes).toBe(12)
     expect(cardioSession('running', 'tabata', 30, { rounds: 5 }).note).toContain('5 × 20s all-out / 10s easy jog (2:30)')
-    // Sprints: 30 s on, 2 min easy after each but the last (4 sprints, the usual: 2 + 6 = 8 minutes).
+    // Sprints: 30 s on, 90 s easy after each but the last (4 sprints, the usual: 2 + 4.5 = 6.5 minutes).
     const sprint = cardioSession('x-row-erg', 'tabata', 30, { tabata: 'sprint' })
-    expect(sprint.note).toBe('Sprint intervals · 5 min easy, building up · 4 × 30s all-out / 2 min light paddle · 5 min easy')
-    expect(sprint.minutes).toBe(18)
-    expect(cardioSession('x-row-erg', 'tabata', 30, { tabata: 'sprint', rounds: 6 }).minutes).toBe(5 + 3 + 10 + 5)
+    expect(sprint.note).toBe('Sprint intervals · 5 min easy, building up · 4 × 30s all-out / 90s light paddle · 5 min easy')
+    expect(sprint.minutes).toBe(16.5)
+    expect(cardioSession('x-row-erg', 'tabata', 30, { tabata: 'sprint', rounds: 6 }).minutes).toBe(5 + 3 + 7.5 + 5)
     expect(tabataMinutes('tabata', 8)).toBe(14)
-    expect(tabataMinutes('sprint', 5)).toBe(5 + 2.5 + 8 + 5)
+    expect(tabataMinutes('sprint', 5)).toBe(5 + 2.5 + 6 + 5)
     // Out of range or unknown: the usual for the format.
     expect(tabataRounds('tabata', 12)).toBe(8)
     expect(tabataRounds('tabata', 1)).toBe(8)
