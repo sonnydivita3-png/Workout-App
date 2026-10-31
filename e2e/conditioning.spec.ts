@@ -288,7 +288,7 @@ test('a core finisher on any day: the minutes set how many moves, with a circuit
   await expect(page.locator('.fixed').getByText('A few core moves to end with: pick 5 to 20 minutes')).toBeVisible()
 })
 
-test('Tabata as a cardio session: 20/10 or 30 s / 2 min, rounds picked, with the warm-up and cool-down on top', async ({ page }) => {
+test('Tabata as a cardio session: 20/10 or 30 s / 90 s, rounds picked, with the warm-up and cool-down on top', async ({ page }) => {
   await seed(page)
   await page.goto('/')
   await page.locator('nav').getByText('Workouts').click()
@@ -316,19 +316,19 @@ test('Tabata as a cardio session: 20/10 or 30 s / 2 min, rounds picked, with the
   await sheet.getByRole('button', { name: /^Generate/ }).click()
   await expect(sheet.getByText('Tabata · 5 min easy, building up · 8 × 20s all-out / 10s easy jog (4 min) · 5 min easy')).toBeVisible()
 
-  // Fewer rounds, or sprints of 30 s with 2 min easy (from their usual 4).
+  // Fewer rounds, or sprints of 30 s with 90 s easy (from their usual 4).
   await sheet.getByRole('button', { name: 'Change style, focus or time' }).click()
   for (let i = 0; i < 4; i++) await rounds.getByRole('button', { name: 'Fewer rounds' }).click()
   await expect(rounds).toContainText('4 rounds')
   await expect(sheet.getByRole('status').filter({ hasText: 'About 12 min' })).toBeVisible()
-  await format.getByRole('radio', { name: '30 s / 2 min' }).click()
+  await format.getByRole('radio', { name: '30 s / 90 s' }).click()
   await expect(rounds).toContainText('4 rounds')
   await rounds.getByRole('button', { name: 'More rounds' }).click()
   await rounds.getByRole('button', { name: 'More rounds' }).click()
-  await expect(sheet.getByRole('status').filter({ hasText: 'About 23 min: 5 min easy, the sprints, then 5 min easy' })).toBeVisible()
-  await expect(sheet.getByText('30 s all-out, then 2 minutes easy. About 23 min with 5 min easy before and after.')).toBeVisible()
+  await expect(sheet.getByRole('status').filter({ hasText: 'About 21 min: 5 min easy, the sprints, then 5 min easy' })).toBeVisible()
+  await expect(sheet.getByText('30 s all-out, then 90 seconds easy. About 21 min with 5 min easy before and after.')).toBeVisible()
   await sheet.getByRole('button', { name: /^Generate/ }).click()
-  await expect(sheet.getByText('Sprint intervals · 5 min easy, building up · 6 × 30s all-out / 2 min easy jog · 5 min easy')).toBeVisible()
+  await expect(sheet.getByText('Sprint intervals · 5 min easy, building up · 6 × 30s all-out / 90s easy jog · 5 min easy')).toBeVisible()
 })
 
 test('lifting with cardio: start or finish with it, in Make me a workout and on the day', async ({ page }) => {
