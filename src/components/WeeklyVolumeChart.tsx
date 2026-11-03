@@ -63,7 +63,7 @@ export function WeeklyVolumeChart({ weeks, format, label }: Props) {
             <path
               key={wk.index}
               d={d}
-              className={isActive ? 'fill-accent' : wk.phase === 'cutback' ? 'fill-neutral-300' : 'fill-neutral-400'}
+              className={isActive ? 'fill-accent-ink' : wk.phase === 'cutback' ? 'fill-neutral-300' : 'fill-neutral-400'}
             />
           )
         })}
