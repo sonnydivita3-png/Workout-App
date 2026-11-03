@@ -20,6 +20,7 @@ import { setFavorites } from './lib/favorites'
 import { setCustomExercises } from './lib/randomUtil'
 import { placeWarmups } from './lib/warmups'
 import { workSets } from './lib/progression'
+import { hasData } from './lib/stats'
 import { setCardioPrefs } from './lib/cardioPrefs'
 import { activePrograms, addSession, clearRange, layerDays, orderDay, orderDays, removeProgramDays, type StackOrder } from './lib/programs'
 import { customFields, newCustomId, sameName, usageOf, type CustomExerciseInput } from './lib/customExercises'
@@ -707,8 +708,11 @@ export function findExercise(custom: Exercise[], id: string): Exercise | undefin
   return e && withChosenMode(e)
 }
 
-/** Most recent log for an exercise strictly before `date` — powers the "last time" hint. */
+/**
+ * Most recent log for an exercise strictly before `date` with something logged in it — powers the "last time" hint. A
+ * later day left empty (a set ticked by mistake and unticked, a note on a day it was skipped) doesn't hide it.
+ */
 export const selectLastLog = (logs: ExerciseLog[], exerciseId: string, date: string) =>
   logs
-    .filter((l) => l.exerciseId === exerciseId && l.date < date)
+    .filter((l) => l.exerciseId === exerciseId && l.date < date && hasData(l))
     .sort((a, b) => b.date.localeCompare(a.date))[0]
