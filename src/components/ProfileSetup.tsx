@@ -10,7 +10,7 @@ import { AboutYouForm } from './AboutYouForm'
 export function ProfileSetup({ onDone }: { onDone: () => void }) {
   const done = useStore((s) => profileComplete(s.aboutMe, s.bodyweight))
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-screen">
       <div className="mx-auto flex min-h-screen max-w-md flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
         <h1 className="mb-2 text-2xl font-semibold tracking-tight">Finish your profile</h1>
         <p className="mb-5 text-neutral-600">

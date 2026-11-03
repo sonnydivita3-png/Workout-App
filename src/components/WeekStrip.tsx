@@ -26,13 +26,14 @@ export function WeekStrip({ dates, selected, counts, labels, done, rest, today, 
             aria-label={`${d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}${rest?.[i] ? ', rest day' : labels?.[i] ? `, ${labels[i]}` : counts[i] ? `, ${counts[i]} exercises` : ''}${done?.[i] ? ', done' : ''}`}
             aria-pressed={active}
             className={`flex min-w-0 flex-col items-center rounded-xl py-2 transition ${
-              active ? 'bg-accent text-on-accent shadow-sm' : `text-neutral-500 hover:bg-neutral-200/60 ${toISO(d) === today ? 'ring-1 ring-inset ring-accent/70' : ''}`
+              active ? 'bg-accent text-on-accent shadow-sm' : `text-neutral-500 hover:bg-neutral-200/60 ${toISO(d) === today ? 'ring-1 ring-inset ring-accent-ink/70' : ''}`
             }`}
           >
             <span className="text-xs uppercase tracking-wide">{DAY_LABELS[i]}</span>
-            {/* Done: the date sits in a green circle, so the day's label keeps its room on a small phone. */}
+            {/* Done: the date sits in a green circle, so the day's label keeps its room on a small phone. On the picked
+                day it's a ring in the text's colour, which reads on every vibe (a tint lightened white text on blue). */}
             <span className={`flex h-7 w-7 items-center justify-center rounded-full text-lg font-semibold ${
-              done?.[i] ? (active ? 'bg-on-accent/15' : 'bg-green-600/15 text-green-600') : toISO(d) === today && !active ? 'text-neutral-900' : ''
+              done?.[i] ? (active ? 'ring-2 ring-inset ring-on-accent/45' : 'bg-green-600/15 text-green-800') : toISO(d) === today && !active ? 'text-neutral-900' : ''
             }`}>
               {d.getDate()}
             </span>

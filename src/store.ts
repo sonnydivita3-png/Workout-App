@@ -17,14 +17,17 @@ import type { ExtraTimeChoice } from './lib/volumePrefs'
 import { setOwnedGear } from './lib/equipment'
 import { setChosenGear, setChosenModes, withChosenMode } from './lib/exerciseModes'
 import { setFavorites } from './lib/favorites'
+import { freshBlocks, withoutExercise } from './lib/arrange'
 import { setCustomExercises } from './lib/randomUtil'
 import { placeWarmups } from './lib/warmups'
 import { workSets } from './lib/progression'
+import { hasData } from './lib/stats'
 import { setCardioPrefs } from './lib/cardioPrefs'
 import { activePrograms, addSession, clearRange, layerDays, orderDay, orderDays, removeProgramDays, type StackOrder } from './lib/programs'
 import { customFields, newCustomId, sameName, usageOf, type CustomExerciseInput } from './lib/customExercises'
+import { finishIn, isFinished, unfinishIn } from './lib/sessions'
 import type {
-  AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Benchmark, AboutMe, Sport, TimedLog, StrengthSet, Units, WeekPlan, WeekPhase,
+  AppNotification, BodyweightEntry, DaySession, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Benchmark, AboutMe, Sport, TimedLog, StrengthSet, Units, WeekPlan, WeekPhase,
 } from './types'
 
 export interface TrainingPrefs {
@@ -123,9 +126,10 @@ interface State extends Data {
   setWarmupDone: (date: string, done: boolean) => void
   /** Dates marked "Workout complete" (even if some planned sets weren't logged). */
   finishedDays: string[]
-  finishDay: (date: string) => void
+  /** Finish the day's workout, or on a day split in two, one of its sessions (the day is finished once both are). */
+  finishDay: (date: string, session?: DaySession) => void
   /** Undo "Workout complete" (tapped by mistake, or there's more to do). */
-  unfinishDay: (date: string) => void
+  unfinishDay: (date: string, session?: DaySession) => void
   /** Replace a date's exercises (reordered, grouped into supersets...). */
   setDayItems: (date: string, items: PlannedExercise[]) => void
   /** Make a date's exercises the usual plan for that weekday (every week). */
@@ -288,7 +292,14 @@ function editDay(s: Pick<Data, 'plan' | 'overrides' | 'custom'>, date: string, f
 }
 
 // One entry per exercise a day; a block clashing with an entry moves over rather than either going (see mergeIntoDay).
-const appendMissing = (d: PlannedExercise[], items: PlannedExercise[]) => mergeIntoDay(d, items)
+// Blocks keep apart from the day's own (see freshBlocks).
+const appendMissing = (d: PlannedExercise[], items: PlannedExercise[]) => mergeIntoDay(d, freshBlocks(d, items))
+
+/**
+ * A plan's workout made your own, as a routine or your usual week: not that plan's deload week (lighter targets, and
+ * left out of "last time"), not tied to the plan for stopping it, and no answer about sets kept from that one date.
+ */
+const asOwn = ({ deload: _deload, plan: _plan, keepSets: _keep, ...p }: PlannedExercise): PlannedExercise => p
 
 /** Editing sets shouldn't wipe the note on that exercise. */
 const keepNote = (logs: ExerciseLog[], date: string, exerciseId: string) => {
@@ -313,7 +324,7 @@ const defaults = () => ({
   routines: [] as Routine[],
   goals: [] as Goal[],
   notifications: [] as AppNotification[],
-  notifPrefs: { system: false, goals: true, pbs: true, daily: true, reminderTime: '17:00' } as NotifPrefs,
+  notifPrefs: { system: false, goals: true, pbs: true, daily: true, reminderTime: '17:00', amTime: '07:00', pmTime: '17:00' } as NotifPrefs,
   programs: [] as Program[],
   timedLogs: [] as TimedLog[],
   benchmarks: [] as Benchmark[],
@@ -398,7 +409,7 @@ export const useStore = create<State>()(
           const sets = kind !== 'strength' ? 1 : before ? Math.min(before, 10) : 3
           return editDay(s, date, (d) => (d.some((p) => p.exerciseId === exerciseId) ? d : [...d, { exerciseId, sets }]))
         }),
-      removeExercise: (date, exerciseId) => set((s) => editDay(s, date, (d) => d.filter((p) => p.exerciseId !== exerciseId))),
+      removeExercise: (date, exerciseId) => set((s) => editDay(s, date, (d) => withoutExercise(d, exerciseId))),
       setSetCount: (date, exerciseId, sets) =>
         set((s) => editDay(s, date, (d) => d.map((p) => (p.exerciseId === exerciseId ? { ...p, sets } : p)))),
       saveStrength: (date, exerciseId, sets) =>
@@ -511,8 +522,8 @@ export const useStore = create<State>()(
         set((s) => ({ equipment, pickerEquipment: equipment && s.pickerEquipment === 'Any' ? 'Mine' : !equipment && s.pickerEquipment === 'Mine' ? 'Any' : s.pickerEquipment })),
       seeTip: (id) => set((s) => (s.tipsSeen.includes(id) ? s : { tipsSeen: [...s.tipsSeen, id] })),
       setWarmupDone: (date, done) => set((s) => ({ warmupsDone: done ? [...s.warmupsDone.filter((d) => d !== date), date].slice(-400) : s.warmupsDone.filter((d) => d !== date) })),
-      finishDay: (date) => set((s) => (s.finishedDays.includes(date) ? s : { finishedDays: [...s.finishedDays, date].slice(-400) })),
-      unfinishDay: (date) => set((s) => ({ finishedDays: s.finishedDays.filter((d) => d !== date) })),
+      finishDay: (date, session) => set((s) => (isFinished(s.finishedDays, date, session) ? s : { finishedDays: finishIn(s.finishedDays, date, session).slice(-800) })),
+      unfinishDay: (date, session) => set((s) => ({ finishedDays: unfinishIn(s.finishedDays, date, session) })),
       setDayItems: (date, items) => set((s) => editDay(s, date, () => items)),
       clearUsualDay: (date) =>
         set((s) => {
@@ -522,7 +533,7 @@ export const useStore = create<State>()(
         }),
       setUsualDay: (date) =>
         set((s) => {
-          const items = dayPlanOf(s.plan, s.overrides, date).map((p) => ({ ...p }))
+          const items = dayPlanOf(s.plan, s.overrides, date).map(asOwn)
           const day = weekdayIndex(parseISO(date))
           const { [date]: _gone, ...rest } = s.overrides
           return { plan: s.plan.map((d, i) => (i === day ? items : d)), overrides: rest }
@@ -631,7 +642,7 @@ export const useStore = create<State>()(
         }),
       saveRoutine: (name, items) =>
         set((s) => ({
-          routines: [...s.routines, { id: `r-${Date.now().toString(36)}`, name: name.trim(), items: items.map((p) => ({ ...p })) }],
+          routines: [...s.routines, { id: `r-${Date.now().toString(36)}`, name: name.trim(), items: items.map(asOwn) }],
         })),
       saveBenchmark: (name, items) =>
         set((s) => ({ benchmarks: [...s.benchmarks, { id: `b-${Date.now().toString(36)}`, name: name.trim(), items: items.map((p) => ({ ...p })) }] })),
@@ -647,7 +658,7 @@ export const useStore = create<State>()(
       loadRoutine: (date, id) =>
         set((s) => {
           const r = s.routines.find((x) => x.id === id)
-          return r ? editDay(s, date, (d) => appendMissing(d, r.items)) : s
+          return r ? editDay(s, date, (d) => appendMissing(d, r.items.map(asOwn))) : s
         }),
       addGoal: (goal) => {
         const id = `g-${Date.now().toString(36)}`
@@ -707,8 +718,11 @@ export function findExercise(custom: Exercise[], id: string): Exercise | undefin
   return e && withChosenMode(e)
 }
 
-/** Most recent log for an exercise strictly before `date` — powers the "last time" hint. */
+/**
+ * Most recent log for an exercise strictly before `date` with something logged in it — powers the "last time" hint. A
+ * later day left empty (a set ticked by mistake and unticked, a note on a day it was skipped) doesn't hide it.
+ */
 export const selectLastLog = (logs: ExerciseLog[], exerciseId: string, date: string) =>
   logs
-    .filter((l) => l.exerciseId === exerciseId && l.date < date)
+    .filter((l) => l.exerciseId === exerciseId && l.date < date && hasData(l))
     .sort((a, b) => b.date.localeCompare(a.date))[0]

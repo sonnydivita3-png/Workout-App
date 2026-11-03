@@ -37,7 +37,7 @@ export function GoalSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-      <Sheet title="New goal" onClose={onClose} closeLabel="Cancel">
+      <Sheet title="New goal" onClose={onClose} closeLabel="Cancel" footer={kind !== 'cardio' && <button disabled={!valid} onClick={save} className={primaryBtn}>Add goal</button>}>
         <div className="mb-4 flex flex-wrap gap-2">
           {KINDS.map((k) => (
             <button
@@ -78,7 +78,6 @@ export function GoalSheet({ onClose }: { onClose: () => void }) {
           </label>
         )}
 
-        {kind !== 'cardio' && <button disabled={!valid} onClick={save} className={primaryBtn}>Add goal</button>}
       </Sheet>
 
       {picking && (

@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 test-results/
 playwright-report/
+
+# Agent worktrees (separate checkouts made while agents work)
+.claude/worktrees/

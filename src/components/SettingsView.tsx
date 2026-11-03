@@ -21,10 +21,12 @@ import { LEGAL_TITLES, type LegalDoc } from '../lib/legal'
 import { isIos, isStandalone, useInstallPrompt } from '../lib/install'
 import { APP_VERSION, feedbackLink } from '../lib/feedback'
 import { CaloriesFaq } from './CaloriesFaq'
+import { sessionTimes } from '../lib/notify'
 import { VersionRow } from './VersionRow'
 import { AboutYouForm } from './AboutYouForm'
 
-const ACCENTS: [Accent, string][] = [['lime', '#c8ff3e'], ['pink', '#ff5cae'], ['violet', '#a78bfa'], ['orange', '#ff9f45'], ['blue', '#5eb1ff']]
+// Each vibe as it looks in the dark theme, then the light (the same values as index.css).
+const ACCENTS: [Accent, string, string][] = [['lime', '#c8ff3e', '#9be31a'], ['pink', '#ff5cae', '#db2777'], ['violet', '#a78bfa', '#7c3aed'], ['orange', '#ff9f45', '#c2410c'], ['blue', '#5eb1ff', '#2563eb']]
 
 function Segmented<T extends string>({ value, options, onChange }: { value: T; options: T[]; onChange: (v: T) => void }) {
   return (
@@ -243,16 +245,17 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
         <Segmented value={theme} options={['dark', 'light', 'auto']} onChange={setTheme} />
       </Row>
       <Row title="Vibe">
-        <div className="flex gap-2" role="radiogroup" aria-label="Accent colour">
-          {ACCENTS.map(([id, color]) => (
+        <div className="flex gap-3" role="radiogroup" aria-label="Accent colour">
+          {/* Shown in the tone the vibe takes in the theme in use. */}
+          {ACCENTS.map(([id, dark, light]) => (
             <button
               key={id}
               role="radio"
               aria-checked={accent === id}
               aria-label={id}
               onClick={() => setAccent(id)}
-              style={{ backgroundColor: color }}
-              className={`h-7 w-7 rounded-full ${accent === id ? 'ring-2 ring-neutral-900 ring-offset-2 ring-offset-surface' : ''}`}
+              style={{ backgroundColor: (theme === 'auto' ? window.matchMedia('(prefers-color-scheme: dark)').matches : theme === 'dark') ? dark : light }}
+              className={`hit h-9 w-9 rounded-full ${accent === id ? 'ring-2 ring-neutral-900 ring-offset-2 ring-offset-surface' : ''}`}
             />
           ))}
         </div>
@@ -272,6 +275,23 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
             className="rounded-lg bg-neutral-100 px-3 py-1.5 outline-none"
           />
         </Row>
+      )}
+      {notifPrefs.daily && (
+        // Days split into a morning and an evening session (⋯ → Morning & evening on a day) get a reminder for each.
+        <div className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
+          <p>On two-session days</p>
+          <p className="mb-3 text-xs text-neutral-500">Days split into morning and evening get a reminder for each, instead of the one above.</p>
+          <div className="grid grid-cols-2 gap-3">
+            {([['amTime', 'Morning', sessionTimes(notifPrefs).am], ['pmTime', 'Evening', sessionTimes(notifPrefs).pm]] as const).map(([key, label, value]) => (
+              <label key={key} className="flex items-center justify-between gap-2 rounded-xl bg-neutral-50 px-3 py-2 text-sm">
+                <span>{label}</span>
+                <input type="time" value={value} aria-label={`${label} reminder time`}
+                  onChange={(e) => e.target.value && setNotifPrefs({ [key]: e.target.value })}
+                  className="min-w-0 rounded-lg bg-neutral-100 px-2 py-1.5 outline-none" />
+              </label>
+            ))}
+          </div>
+        </div>
       )}
       <Row title="Phone / system alerts">
         <Toggle on={notifPrefs.system && perm === 'granted'} onChange={enableSystem} label="System alerts" />
@@ -297,7 +317,7 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
       <div className="flex gap-2">
         <button onClick={exportData} className="flex-1 rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent">Export backup</button>
         <button onClick={() => file.current?.click()} className="flex-1 rounded-2xl bg-surface py-3 text-sm font-medium shadow-sm ring-1 ring-neutral-200/70">Import backup</button>
-        <input ref={file} type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && onImport(e.target.files[0])} />
+        <input ref={file} type="file" accept="application/json" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void onImport(f) }} />
       </div>
       </>)}
       {msg && <p className="text-sm text-neutral-500">{msg}</p>}

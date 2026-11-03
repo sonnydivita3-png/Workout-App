@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
+import { selectLastLog, useStore } from '../store'
 import type { ExerciseLog } from '../types'
-import { compareSet, formatSet, plateau, platesFor, sessionBasis, sessionScore } from './progression'
+import { compareSet, formatSet, plateau, platesFor, sessionBasis, sessionScore, workSets } from './progression'
 
 const lb = { weight: 'lb', distance: 'mi' } as const
 const bench = BUILTIN_BY_ID.get('Barbell_Bench_Press_-_Medium_Grip')!
@@ -21,6 +22,36 @@ describe('comparisons and plates', () => {
     expect(platesFor(185, lb).perSide).toEqual([45, 25])
     expect(platesFor(100, { weight: 'kg', distance: 'km' }).perSide).toEqual([25, 15])
     expect(platesFor(47, lb).left).toBe(2)
+  })
+})
+
+describe('the sets done last time', () => {
+  it('are the ticked working sets: not warm-ups, drop sets, or numbers typed in but never ticked', () => {
+    const l = log([{ weight: 95, reps: 8, warmup: true, done: true }, { weight: 185, reps: 5, done: true }, { weight: 150, reps: 8, drop: true, done: true }, { weight: 185, reps: 5, done: false }, { weight: 185, reps: 4 }])
+    expect(workSets(l)).toEqual([{ weight: 185, reps: 5, done: true }, { weight: 185, reps: 4 }])
+  })
+})
+
+describe('last time', () => {
+  const BP = 'Barbell_Bench_Press_-_Medium_Grip'
+  const logs: ExerciseLog[] = [
+    { date: '2026-10-01', exerciseId: BP, sets: [{ weight: 185, reps: 5, done: true }, { weight: 185, reps: 5, done: true }] },
+    // A set ticked by mistake and unticked again, a note on a day it was skipped, numbers typed but never ticked.
+    { date: '2026-10-03', exerciseId: BP, sets: [{ weight: null, reps: null, done: false, auto: false }, { weight: null, reps: null }] },
+    { date: '2026-10-04', exerciseId: BP, sets: [], note: 'shoulder sore, skipped' },
+    { date: '2026-10-05', exerciseId: BP, sets: [{ weight: 190, reps: 5, done: false }] },
+    { date: '2026-10-06', exerciseId: 'running', cardio: { distance: null, minutes: null } },
+    { date: '2026-10-02', exerciseId: 'running', cardio: { distance: 3, minutes: 27 } },
+  ]
+  it('is the last session with something logged, not a later one left empty', () => {
+    expect(selectLastLog(logs, BP, '2026-10-08')?.date).toBe('2026-10-01')
+    expect(selectLastLog(logs, 'running', '2026-10-08')?.cardio).toEqual({ distance: 3, minutes: 27 })
+  })
+  it('sets how many sets an exercise added again gets', () => {
+    useStore.setState({ logs, overrides: {} })
+    useStore.getState().addExercise('2026-10-08', BP, 'strength')
+    expect(useStore.getState().overrides['2026-10-08']).toEqual([{ exerciseId: BP, sets: 2 }])
+    useStore.setState({ logs: [], overrides: {} })
   })
 })
 

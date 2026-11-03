@@ -1,9 +1,10 @@
 import type { Exercise, ExerciseLog, StrengthSet, Units } from '../types'
 import { epley } from './stats'
+import { isLogged } from './setRows'
 import { formatSeconds, showWeight } from './units'
 
-/** Working sets with data (warm-ups and drop sets left out). */
-export const workSets = (l?: ExerciseLog): StrengthSet[] => (l?.sets ?? []).filter((s) => !s.warmup && !s.drop && (s.weight || s.reps || s.seconds))
+/** Working sets logged (warm-ups, drop sets and numbers typed in but not ticked left out). */
+export const workSets = (l?: ExerciseLog): StrengthSet[] => (l?.sets ?? []).filter((s) => !s.warmup && !s.drop && isLogged(s))
 /** A set with added weight. Reps with no weight (blank or 0) on a weighted lift is a bodyweight set: dips, pull-ups, an ab roller. */
 const loaded = (s: StrengthSet) => !!s.weight && s.weight > 0 && !!s.reps
 
@@ -20,8 +21,8 @@ export function sessionBasis(l: ExerciseLog | undefined, mode: Exercise['mode'],
   return sets.some((s) => s.reps) ? 'reps' : null
 }
 
-/** Drop sets with data. */
-export const dropSetsOf = (l?: ExerciseLog): StrengthSet[] => (l?.sets ?? []).filter((s) => s.drop && (s.weight || s.reps))
+/** Drop sets logged. */
+export const dropSetsOf = (l?: ExerciseLog): StrengthSet[] => (l?.sets ?? []).filter((s) => s.drop && isLogged(s))
 
 
 const LOWER = ['Quads', 'Hamstrings', 'Glutes', 'Legs']

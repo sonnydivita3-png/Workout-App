@@ -77,9 +77,11 @@ export function TimerSheet({ wod, names, onClose, onFinish }: { wod: Wod; names:
   const remaining = Math.max(0, total - elapsed)
   const big = tab ? fmt(Math.ceil(tLeft)) : wod.kind === 'fortime' ? fmt(elapsed) : wod.kind === 'emom' ? fmt(Math.max(0, interval - (elapsed - idx * interval))) : fmt(remaining)
   const reset = () => { elapsedRef.current = 0; setElapsed(0); setRunning(false) }
+  // A stray tap outside the sheet mid-workout shouldn't lose the clock: ask before closing one that has time on it.
+  const close = () => { if (elapsedRef.current > 0 && !done && !confirm(`Stop the clock? Your ${fmt(elapsedRef.current)} so far won’t be kept.`)) return; onClose() }
 
   return (
-    <Sheet title={wodTitle(wod)} onClose={onClose}>
+    <Sheet title={wodTitle(wod)} onClose={close}>
       <div className="py-6 text-center">
         {wod.kind === 'emom' && (
           <p className="mb-1 text-sm text-neutral-500">Interval {done ? emomIntervals(wod) : idx + 1} of {emomIntervals(wod)}</p>
@@ -87,7 +89,7 @@ export function TimerSheet({ wod, names, onClose, onFinish }: { wod: Wod; names:
         <p className="text-7xl font-extrabold tabular-nums tracking-tight" aria-live="off">{big}</p>
         {tab && !done && (
           <>
-            <p className={`mb-1 text-sm font-semibold uppercase tracking-widest ${tPhase === 'work' ? 'text-accent' : 'text-neutral-500'}`}>{tPhase === 'work' ? 'Work' : tPhase === 'rest' ? 'Rest' : 'Break'}</p>
+            <p className={`mb-1 text-sm font-semibold uppercase tracking-widest ${tPhase === 'work' ? 'text-accent-ink' : 'text-neutral-500'}`}>{tPhase === 'work' ? 'Work' : tPhase === 'rest' ? 'Rest' : 'Break'}</p>
           </>
         )}
         {tab && !done && <p className="mt-2 text-lg font-medium">{tPhase === 'gap' ? `Next: ${names[tMove + 1]}` : names[tMove]}</p>}

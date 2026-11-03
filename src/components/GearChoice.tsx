@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { equipmentSummary, GEAR_PRESETS, sameGear } from '../lib/equipment'
 import { useStore } from '../store'
-
-const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
+import { chipBtn as chip } from './ui'
 
 /**
  * Equipment for one generated workout or plan: one line with your usual setup, and Change for somewhere else (a hotel
@@ -21,13 +20,13 @@ export function GearChoice({ value, onChange }: { value: string[] | null; onChan
           <span className="block text-sm font-medium">Equipment</span>
           <span className="block truncate text-xs text-neutral-500">{value === null ? 'Full gym' : equipmentSummary(value)}{differs ? ' · just for this workout' : ''}</span>
         </span>
-        <button onClick={() => setOpen(true)} className="shrink-0 rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-700">Change</button>
+        <button onClick={() => setOpen(true)} className="hit shrink-0 rounded-full bg-surface px-3 py-1.5 text-sm font-medium text-neutral-700 ring-1 ring-neutral-200">Change</button>
       </div>
     )
   }
   return (
     <div className="mb-5">
-      <h3 className="mb-2 text-sm font-medium">Where are you training?</h3>
+      <h3 className="mb-2 text-sm font-semibold">Where are you training?</h3>
       <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Equipment">
         {GEAR_PRESETS.map((p) => (
           <button key={p.id} role="radio" aria-checked={preset?.id === p.id} onClick={() => onChange(p.gear)} className={chip(preset?.id === p.id)}>{p.label}</button>

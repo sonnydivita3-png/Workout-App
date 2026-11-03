@@ -7,9 +7,11 @@ import { useToday } from '../lib/useToday'
 import { findExercise, useStore } from '../store'
 import type { PlannedExercise, WeekPhase } from '../types'
 import { primaryBtn, Sheet } from './Sheet'
+import { chipBtn } from './ui'
 import { StackOrderPicker } from './StackOrderPicker'
 
-const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
+// The shared chip (ui.ts): the accent when picked, a 44 px tap area.
+const chip = chipBtn
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const PHASE: Record<WeekPhase, string> = { base: 'Base', build: 'Build', peak: 'Peak', cutback: 'Lighter week', taper: 'Taper', race: 'Race week' }
 const AFTER = { hard: 'after a hard session', easy: 'after an easy one', long: '', race: '', rest: 'rest day' } as const
@@ -60,7 +62,7 @@ export function StrengthForPlanSheet({ programId, onClose, onApplied }: { progra
   }
 
   return (
-    <Sheet title={`Strength for ${plan.title}`} onClose={onClose} closeLabel="Cancel">
+    <Sheet title={`Strength for ${plan.title}`} onClose={onClose} closeLabel="Cancel" footer={<button onClick={apply} disabled={days.length === 0 || (shared > 0 && !order)} className={primaryBtn}>Add strength plan</button>}>
       <ul className="mb-4 space-y-1.5 text-sm text-neutral-600">
         <li>• {ride ? 'Heavy legs, single-leg work and core: what research shows makes pedalling more economical. No jumping.' : 'Heavy legs, calves, single-leg work, hops and core: what research shows makes running more economical and your legs more robust.'}</li>
         <li>• {n} a week while you build, fewer near race time (one a week keeps the strength), none in race week.</li>
@@ -133,7 +135,6 @@ export function StrengthForPlanSheet({ programId, onClose, onApplied }: { progra
 
       {lifting && <p className="mb-3 text-xs text-neutral-500">Replaces your current lifting plan “{lifting.title}” from today on.</p>}
       {days.length > 0 && shared > 0 && <StackOrderPicker value={order} onChange={setOrder} sport={sport} days={shared} />}
-      <button onClick={apply} disabled={days.length === 0 || (shared > 0 && !order)} className={primaryBtn}>Add strength plan</button>
     </Sheet>
   )
 }

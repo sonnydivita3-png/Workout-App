@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { SettingsGear } from './SettingsGear'
 import { cardioLine, distanceUnitFor, paceBasis, formatSeconds, showDistanceIn, showWeight } from '../lib/units'
-import { cardioRecords } from '../lib/cardioBests'
+import { cardioRecords, sessionNoun } from '../lib/cardioBests'
+import { withRuns } from '../lib/cardioRuns'
 import { cardioSessions, hasData, isPR, setSessions, strengthSessions } from '../lib/stats'
 import { findExercise, useStore } from '../store'
 import type { Exercise, StrengthSet } from '../types'
@@ -11,6 +12,9 @@ import { LineChart } from './LineChart'
 import { BodyTab } from './history/BodyTab'
 import { WorkoutsTab } from './history/WorkoutsTab'
 import { Tip } from './Tip'
+import { Chevron } from './Chevron'
+import { EmptyState } from './EmptyState'
+import { chipBtn } from './ui'
 
 const fmtLong = (iso: string) =>
   new Date(iso + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
@@ -19,7 +23,8 @@ type HTab = 'workouts' | 'exercises' | 'body'
 
 export function HistoryView({ initialTab, onSettings }: { initialTab?: string; onSettings?: () => void }) {
   const [tab, setTab] = useState<HTab>(initialTab === 'body' || initialTab === 'exercises' ? initialTab : 'workouts')
-  const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
+  // The shared chip (ui.ts): the accent when picked, a 44 px tap area.
+const chip = chipBtn
   const tabs = (
     <div data-tour="progress-tabs" className="mb-4 flex gap-2">
       {(['workouts', 'exercises', 'body'] as const).map((t) => <button key={t} onClick={() => setTab(t)} className={chip(tab === t)}>{t === 'workouts' ? 'History' : t === 'exercises' ? 'Exercises' : 'Body'}</button>)}
@@ -64,7 +69,7 @@ function ExercisesTab() {
   return (
     <section>
       {rows.length === 0 && timedLogs.length === 0 ? (
-        <p className="py-16 text-center text-neutral-400">Nothing logged yet. Log a workout and your glow-up shows up here 📈</p>
+        <EmptyState icon="📈" title="No exercises yet" className="py-16">Log a workout and each exercise gets a page here, with its charts and personal bests.</EmptyState>
       ) : (
         <>
         {timedLogs.length > 0 && (
@@ -112,7 +117,7 @@ function ExercisesTab() {
 type Metric = 'e1rm' | 'top' | 'volume' | 'pace' | 'distance' | 'time' | 'best' | 'total'
 
 function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }) {
-  const { logs, units, deleteLogs } = useStore()
+  const { logs, units, deleteLogs, saveCardio } = useStore()
   const isStrength = exercise.kind === 'strength'
   const strength = useMemo(() => (exercise.mode ?? 'weight') === 'weight' ? strengthSessions(logs, exercise.id) : [], [logs, exercise.id, exercise.mode])
   // A weighted lift only ever done with bodyweight (dips, pull-ups, an ab roller) charts reps, like a bodyweight move.
@@ -130,6 +135,15 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
     [logs, exercise.id],
   )
   const setLabel = (x: StrengthSet) => (exercise.mode === 'reps' ? `${x.reps} reps` : formatSet(x, exercise.mode ?? 'weight', units).replace('×', ' × '))
+  // One of two runs on a day is deleted on its own; the other stays.
+  const noun = sessionNoun(exercise.id, exercise)
+  const removeSession = (date: string, part?: number) => {
+    const c = logs.find((l) => l.exerciseId === exercise.id && l.date === date)?.cardio
+    const what = part == null ? `${exercise.name} on ${fmtLong(date)}` : `this ${noun} on ${fmtLong(date)}`
+    if (!confirm(`Delete ${what}? This can’t be undone.`)) return
+    if (part != null && c?.parts && c.parts.length > 1) saveCardio(date, exercise.id, withRuns(c, c.parts.filter((_, i) => i !== part)))
+    else deleteLogs(exercise.id, date)
+  }
 
   const metrics: { id: Metric; label: string }[] = isStrength
     ? mode === 'weight'
@@ -175,7 +189,7 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
 
   return (
     <section>
-      <button onClick={onBack} className="mb-2 text-sm text-neutral-500">‹ History</button>
+      <button onClick={onBack} className="-ml-2 mb-1 flex min-h-11 items-center gap-0.5 rounded-full pl-1 pr-3 text-sm font-medium text-neutral-500 hover:bg-neutral-200/60"><Chevron left className="h-4 w-4" />All exercises</button>
       <h1 className="text-2xl font-semibold tracking-tight">{exercise.name}</h1>
       {records.length > 0 && (
         <div className="mt-4 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
@@ -228,12 +242,12 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
       <h2 className="mb-2 mt-6 text-sm font-semibold text-neutral-700">Sessions</h2>
       <ul className="space-y-2">
         {(isStrength ? lifts : [...cardio].reverse()).map((s) => (
-          <li key={s.date} className="rounded-2xl bg-surface p-4 text-sm shadow-sm ring-1 ring-neutral-200/70">
+          <li key={'part' in s ? `${s.date}-${s.part}` : s.date} className="rounded-2xl bg-surface p-4 text-sm shadow-sm ring-1 ring-neutral-200/70">
             <div className="mb-1 flex items-center justify-between">
               <span className="font-medium">{fmtLong(s.date)}</span>
               <button
-                onClick={() => confirm(`Delete ${exercise.name} on ${fmtLong(s.date)}? This can’t be undone.`) && deleteLogs(exercise.id, s.date)}
-                aria-label={`Delete ${fmtLong(s.date)}`}
+                onClick={() => removeSession(s.date, 'part' in s ? s.part : undefined)}
+                aria-label={`Delete ${fmtLong(s.date)}${'part' in s && s.part != null ? `, ${noun} ${s.part + 1}` : ''}`}
                 className="text-xs text-red-600"
               >
                 Delete

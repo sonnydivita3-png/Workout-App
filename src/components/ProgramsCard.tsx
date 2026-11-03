@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { addDays, fmtShort, parseISO, toISO } from '../lib/dates'
+import { addDays, fmtShort, mondayOf, parseISO, toISO } from '../lib/dates'
 import { activePrograms, clearRange, sharedDays, stoppableEntries } from '../lib/programs'
 import { useToday } from '../lib/useToday'
 import { useStore } from '../store'
@@ -8,7 +8,8 @@ import { primaryBtn, Sheet } from './Sheet'
 import { StackOrderPicker } from './StackOrderPicker'
 
 const RANGES = [
-  { id: 'week', label: 'The rest of this week', days: 6 },
+  // Through Sunday (a week from today reached into next week).
+  { id: 'week', label: 'The rest of this week' },
   { id: 'four', label: 'The next 4 weeks', days: 28 },
   { id: 'all', label: 'Everything from today on', days: 3650 },
 ] as const
@@ -27,7 +28,10 @@ export function ProgramsCard({ onReplace, onStrength }: { onReplace: (kind: Prog
   // Only when a generated plan is running: an ordinary planned day needs nothing extra on screen.
   if (active.length === 0 && !msg) return null
 
-  const rangeTo = (id: (typeof RANGES)[number]['id']) => toISO(addDays(parseISO(today), RANGES.find((r) => r.id === id)!.days))
+  const rangeTo = (id: (typeof RANGES)[number]['id']) => {
+    const r = RANGES.find((x) => x.id === id)!
+    return toISO('days' in r ? addDays(parseISO(today), r.days) : addDays(mondayOf(parseISO(today)), 6))
+  }
   const clearCount = clearRange(overrides, logs, today, rangeTo(range)).count
   const last = (p: Program) => p.entries.map((e) => e.date).sort().at(-1)!
   const shared = sharedDays(active, today).length
@@ -47,7 +51,7 @@ export function ProgramsCard({ onReplace, onStrength }: { onReplace: (kind: Prog
               <span className="block truncate text-sm font-medium">{p.title}</span>
               <span className="block text-xs text-neutral-400">through {fmtShort(last(p))}</span>
               {onStrength && p.kind === 'cardio' && !active.some((q) => q.supports === p.id) && (
-                <button onClick={() => onStrength(p.id)} className="mt-0.5 text-xs text-accent underline underline-offset-2">+ Strength made for it</button>
+                <button onClick={() => onStrength(p.id)} className="hit mt-0.5 text-xs font-medium text-accent-ink underline underline-offset-2">+ Strength made for it</button>
               )}
             </span>
             <button onClick={() => onReplace(p.kind)} className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-600">Replace</button>

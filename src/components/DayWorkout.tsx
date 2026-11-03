@@ -10,7 +10,8 @@ import { hasData } from '../lib/stats'
 import { dayPlanOf } from '../lib/plan'
 import { addWorkingSets, removeWorkingSets, setRows, workingRows } from '../lib/setRows'
 import { useToday } from '../lib/useToday'
-import type { Exercise, PlannedExercise } from '../types'
+import type { DaySession, Exercise, PlannedExercise } from '../types'
+import { sessionsOf } from '../lib/sessions'
 import { CardioCard } from './CardioCard'
 import { ExerciseHistorySheet } from './ExerciseHistorySheet'
 import { ExercisePicker } from './ExercisePicker'
@@ -19,11 +20,13 @@ import { IntervalTimerSheet } from './IntervalTimerSheet'
 import { StrengthCard } from './StrengthCard'
 import { TimedBlockCard } from './TimedBlockCard'
 import { HyroxFinish } from './HyroxFinish'
+import { Chevron } from './Chevron'
+import { shownLabels } from './blockLabels'
 import { WarmupCard } from './WarmupCard'
 import { hyroxRoute, isHyroxBlock } from '../lib/hyrox'
 
 /** The exercises planned for a day, ready to log (the Workouts tab). `onSetDone` hears about each ticked set. */
-export function DayWorkout({ date, items: planned, onSetDone }: { date: string; items: PlannedExercise[]; onSetDone?: (restSeconds: number) => void }) {
+export function DayWorkout({ date, items: planned, onSetDone, only }: { date: string; items: PlannedExercise[]; onSetDone?: (restSeconds: number) => void; only?: DaySession }) {
   const s = useStore()
   const [circuitTimer, setCircuitTimer] = useState<{ title: string; segments: ReturnType<typeof circuitSegments> } | null>(null)
   // Swapping one exercise: first how (random or choose), then the picker if choosing.
@@ -55,6 +58,10 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
   // A planned deload week is lighter on purpose: targets afterwards build from the last full week instead.
   const wasDeload = (d: string, id: string) => dayPlanOf(s.plan, s.overrides, d).some((q) => q.exerciseId === id && q.deload)
   const groups = groupByBlock(planned)
+  const headings = shownLabels(groups.map((g) => g.label))
+  // On a day split in two, just one session's part (`only`); edits still go to the whole day.
+  const sessionOf = only ? sessionsOf(planned) : null
+  const hidden = (gi: number) => !!sessionOf && sessionOf[groups[gi].items[0].index] !== only
   // Supersets (not circuits, which have their own timer) rest once per round, as long as the longest planned rest.
   const meta = groups.map((g) => {
     const superset = !!g.block && g.items.length > 1 && canCombine(g) && (/(^|-)ss\d/.test(g.block) || /^Superset/.test(g.label ?? ''))
@@ -68,7 +75,7 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
   })
   return (
     <>
-        {groups.map((g, gi) => g.items[0].item.warmup ? (
+        {groups.map((g, gi) => hidden(gi) ? null : g.items[0].item.warmup ? (
           <WarmupCard key={`warmup-${gi}`} date={date} items={g.items.map((x) => x.item)} onRemove={() => g.items.forEach((x) => s.removeExercise(date, x.item.exerciseId))} />
         ) : g.items[0].item.wod ? (
           <TimedBlockCard key={g.block ?? gi} items={g.items.map((x) => x.item)} date={date} onRemove={() => g.items.forEach((x) => s.removeExercise(date, x.item.exerciseId))} />
@@ -76,9 +83,9 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
           <div key={gi} className={g.block ? 'space-y-2 rounded-3xl bg-neutral-200/50 p-2' : 'contents'}>
             {g.block && g.label && (
               <div className="flex items-center justify-between px-2 pt-1">
-                <p className="text-xs uppercase tracking-wide text-neutral-500">{g.label}</p>
+                <p className="text-xs font-semibold text-neutral-600">{headings[gi]}</p>
                 {canCombine(g) && g.items.length > 1 && (
-                  <button onClick={() => s.setDayItems(date, ungroup(planned, gi))} className="text-xs text-neutral-500 underline underline-offset-2">Split</button>
+                  <button onClick={() => s.setDayItems(date, ungroup(planned, gi))} className="hit shrink-0 text-xs font-medium text-neutral-500 underline underline-offset-2">Split</button>
                 )}
               </div>
             )}
@@ -91,7 +98,7 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
               const c = parseCircuit(g.label, g.items.map((x) => x.item))
               if (!c) return null
               const names = g.items.map((x) => findExercise(s.custom, x.item.exerciseId)?.name ?? 'Exercise')
-              return <button onClick={() => setCircuitTimer({ title: g.label?.split(' · ')[0] ?? 'HIIT circuit', segments: circuitSegments(names, c) })} className="mx-2 rounded-full bg-surface px-3 py-1 text-xs text-neutral-600 ring-1 ring-neutral-200/70">⏱ Start circuit timer</button>
+              return <button onClick={() => setCircuitTimer({ title: g.label?.split(' · ')[0] ?? 'HIIT circuit', segments: circuitSegments(names, c) })} className="hit mx-2 rounded-full bg-surface px-3 py-1.5 text-xs font-medium text-neutral-700 ring-1 ring-neutral-200">⏱ Start circuit timer</button>
             })()}
             {g.items.map(({ item: p, index }, mi) => {
               const ex = findExercise(s.custom, p.exerciseId)
@@ -184,12 +191,12 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
       {swap?.step === 'how' && (
         <Sheet title={`Swap ${swap.ex.name}`} onClose={() => setSwap(null)} closeLabel="Cancel">
           <button onClick={randomSwap} className={rowBtn}>
-            <span><span className="block text-sm font-medium">Random {swap.ex.group.toLowerCase()} exercise</span><span className="block text-xs text-neutral-400">Same body part, with your equipment. Keeps the number of sets</span></span>
+            <span><span className="block text-sm font-medium">Random {swap.ex.group.toLowerCase()} exercise</span><span className="block text-xs text-neutral-500">Same body part, with your equipment. Keeps the number of sets</span></span>
             <span className="text-neutral-300">↻</span>
           </button>
           <button onClick={() => setSwap({ ...swap, step: 'pick' })} className={rowBtn}>
-            <span><span className="block text-sm font-medium">Choose one</span><span className="block text-xs text-neutral-400">Browse {swap.ex.group.toLowerCase()} exercises, or search them all</span></span>
-            <span className="text-neutral-300">›</span>
+            <span><span className="block text-sm font-medium">Choose one</span><span className="block text-xs text-neutral-500">Browse {swap.ex.group.toLowerCase()} exercises, or search them all</span></span>
+            <Chevron className="h-4 w-4 shrink-0 text-neutral-400" />
           </button>
           {swapMsg && <p role="status" className="px-3 pt-2 text-sm text-neutral-500">{swapMsg}</p>}
         </Sheet>

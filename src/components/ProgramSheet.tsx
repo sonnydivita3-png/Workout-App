@@ -14,7 +14,8 @@ import { activePrograms, keptItems, sharedDays, type StackOrder } from '../lib/p
 import { withGearFor } from '../lib/equipment'
 import { ModeSwitch, type GeneratorMode } from './ModeSwitch'
 import { WarmupRestControls } from './WarmupRestControls'
-import { primaryBtn, Sheet } from './Sheet'
+import { primaryBtn, secondaryBtn, Sheet } from './Sheet'
+import { chipBtn } from './ui'
 import { StackOrderPicker } from './StackOrderPicker'
 import { WorkoutList } from './WorkoutList'
 import { GearChoice } from './GearChoice'
@@ -38,9 +39,10 @@ const STEP_TITLE: Record<Step, string> = {
   warmup: 'Warm-up and rest',
 }
 
-const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
-const h3 = 'mb-2 text-sm font-semibold text-neutral-700'
-const note = 'text-xs text-neutral-400'
+// The shared chip (ui.ts): the accent when picked, a 44 px tap area.
+const chip = chipBtn
+const h3 = 'mb-2 text-sm font-semibold'
+const note = 'text-xs text-neutral-500'
 
 /** A choice with a line of explanation under it. */
 function Option({ on, onClick, title, blurb, badge }: { on: boolean; onClick: () => void; title: string; blurb: string; badge?: string }) {
@@ -49,9 +51,9 @@ function Option({ on, onClick, title, blurb, badge }: { on: boolean; onClick: ()
       onClick={onClick}
       aria-pressed={on}
       aria-label={title}
-      className={`flex w-full items-start gap-3 rounded-2xl px-4 py-3 text-left ring-1 ${on ? 'bg-accent/15 ring-2 ring-accent' : 'bg-surface ring-neutral-200/70'}`}
+      className={`flex w-full items-start gap-3 rounded-2xl px-4 py-3 text-left ring-1 ${on ? 'bg-accent/15 ring-2 ring-accent-ink' : 'bg-surface ring-neutral-200/70 hover:bg-neutral-50'}`}
     >
-      <span aria-hidden className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${on ? 'bg-accent text-on-accent' : 'ring-1 ring-neutral-300'}`}>{on ? '✓' : ''}</span>
+      <span aria-hidden className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${on ? 'bg-accent text-on-accent' : 'ring-1 ring-inset ring-neutral-300'}`}>{on ? '✓' : ''}</span>
       <span className="min-w-0">
         <span className="block text-sm font-medium">
           {title}
@@ -140,7 +142,24 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
     const fits = splitInfo(split).fits.includes(days.length)
     return (
       // Each step (and the review) opens at its top.
-      <Sheet key={step} title="Plan a week or month" onClose={onClose} closeLabel="Cancel">
+      <Sheet
+        key={step}
+        title="Plan a week or month"
+        onClose={onClose}
+        closeLabel="Cancel"
+        footer={(
+          <div className="flex gap-2">
+            {i > 0 && <button onClick={() => setStep(STEPS[i - 1])} className={secondaryBtn}>Back</button>}
+            <button
+              disabled={(step === 'schedule' || last) && days.length === 0}
+              onClick={() => (last ? build() : setStep(STEPS[i + 1]))}
+              className={`${primaryBtn} flex-1`}
+            >
+              {last ? 'Build my plan' : 'Next'}
+            </button>
+          </div>
+        )}
+      >
         {step === 'goal' && <ModeSwitch mode="program" onChange={onSwitchMode} />}
         <div className="mb-3 flex items-center justify-between">
           <p className="text-xs text-neutral-400">Step {i + 1} of {STEPS.length}</p>
@@ -281,17 +300,6 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
         )}
 
         {step === 'warmup' && <WarmupRestControls lifting lengthControl ownWarmupNote />}
-
-        <div className="mt-5 flex gap-2">
-          {i > 0 && <button onClick={() => setStep(STEPS[i - 1])} className="rounded-2xl bg-neutral-100 px-5 py-3 text-sm font-medium">Back</button>}
-          <button
-            disabled={(step === 'schedule' || last) && days.length === 0}
-            onClick={() => (last ? build() : setStep(STEPS[i + 1]))}
-            className={`${primaryBtn} flex-1`}
-          >
-            {last ? 'Build my plan' : 'Next'}
-          </button>
-        </div>
       </Sheet>
     )
   }
@@ -344,7 +352,13 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
   }
 
   return (
-    <Sheet key="review" title="Your plan" onClose={onClose} closeLabel="Close">
+    <Sheet
+      key="review"
+      title="Your plan"
+      onClose={onClose}
+      closeLabel="Close"
+      footer={<button onClick={apply} disabled={shared > 0 && !order} className={primaryBtn}>{onUse ? 'Use this plan' : 'Apply to my plan'}</button>}
+    >
       <p className="mb-1 text-sm text-neutral-500">
         {goalsLabel(goal)}{split !== 'auto' && ` · ${splitInfo(split).label}`} · {workouts.length} workout{workouts.length === 1 ? '' : 's'} · {result.length - workouts.length} rest day{result.length - workouts.length === 1 ? '' : 's'}
       </p>
@@ -439,12 +453,11 @@ export function ProgramSheet({ onClose, onSwitchMode, onApplied, onUse }: Props)
       )}
       {!onUse && runningProgram && <p className="mt-2 text-xs text-neutral-500">Your current lifting program “{runningProgram.title}” will be stopped and replaced.</p>}
       <div className="mt-4 flex gap-2">
-        <button onClick={build} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium">Regenerate</button>
-        <button onClick={() => { setResult(null); setStep('goal') }} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium">Change settings</button>
+        <button onClick={build} className={`${secondaryBtn} flex-1`}>Regenerate</button>
+        <button onClick={() => { setResult(null); setStep('goal') }} className={`${secondaryBtn} flex-1`}>Change settings</button>
       </div>
       {shared > 0 && <div className="mt-3"><StackOrderPicker value={order} onChange={setOrder} sport={underneath[0].sport ?? 'run'} days={shared} /></div>}
       {shared === 0 && withCardio > 0 && <div className="mt-3"><StackOrderPicker value={cardioOrder} onChange={setOrder} sport="cardio" days={withCardio} /></div>}
-      <button onClick={apply} disabled={shared > 0 && !order} className={`${primaryBtn} mt-2`}>{onUse ? 'Use this plan' : 'Apply to my plan'}</button>
     </Sheet>
   )
 }

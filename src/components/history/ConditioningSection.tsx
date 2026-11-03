@@ -82,7 +82,7 @@ export function ConditioningSection() {
   return (
     <>
       <section className={card}>
-        <p className="mb-1 text-sm font-semibold text-neutral-700">Cardio · this week</p>
+        <h2 className="mb-1 text-sm font-semibold">Cardio · this week</h2>
         <p className="mb-3 text-xs text-neutral-400">Target {minTarget} min a week, {why}{milesTarget ? `, and ${showDistance(milesTarget, units)} ${units.distance}` : ''}. Change it in Settings → Profile. Grey is last week.</p>
         <div className="mb-3">
           <div className="mb-1 flex justify-between text-xs">
@@ -124,7 +124,7 @@ export function ConditioningSection() {
       </section>
 
       <section className={card}>
-        <p className="mb-1 text-sm font-semibold text-neutral-700">Conditioning · this week vs last</p>
+        <h2 className="mb-1 text-sm font-semibold">Conditioning · this week vs last</h2>
         <p className="mb-3 text-xs text-neutral-400">
           {condNow.sessions} session{condNow.sessions === 1 ? '' : 's'}, {Math.round(condNow.minutes)} min this week (last week {Math.round(condThen.minutes)}). Hyrox, timed workouts and circuits. Grey is last week.
         </p>
@@ -134,7 +134,7 @@ export function ConditioningSection() {
       </section>
 
       <section className={card}>
-        <p className="mb-1 text-sm font-semibold text-neutral-700">Benchmarks</p>
+        <h2 className="mb-1 text-sm font-semibold">Benchmarks</h2>
         <p className="mb-2 text-xs text-neutral-400">The same workout, repeated, is the fairest test. Save any timed workout with ☆ Save as benchmark; Hyrox finish times appear on their own.</p>
         {tracks.length === 0 && <p className="text-xs text-neutral-400">No benchmarks yet.</p>}
         <ul className="divide-y divide-neutral-100">

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 
 export interface Point {
   date: string // YYYY-MM-DD
@@ -22,6 +22,8 @@ const fmtDate = (iso: string) =>
 export function LineChart({ points, format, label, refLine }: Props) {
   const ref = useRef<SVGSVGElement>(null)
   const [hover, setHover] = useState<number | null>(null)
+  // A plain id for the gradient (useId's own has characters a url(#…) reference would need escaped).
+  const fillId = `area${useId().replace(/[^a-zA-Z0-9]/g, '')}`
   if (points.length === 0) return null
 
   const active = hover ?? points.length - 1
@@ -40,6 +42,8 @@ export function LineChart({ points, format, label, refLine }: Props) {
   const y = (v: number) => PAD.t + (1 - (v - lo) / (hi - lo)) * (H - PAD.t - PAD.b)
   const ticks = [lo + pad, (lo + hi) / 2, hi - pad]
   const path = points.map((_, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(points[i].y).toFixed(1)}`).join('')
+  // The area under the line, fading out towards the baseline.
+  const area = `${path}L${x(points.length - 1).toFixed(1)},${H - PAD.b}L${x(0).toFixed(1)},${H - PAD.b}Z`
 
   const onMove = (e: React.PointerEvent) => {
     const r = ref.current!.getBoundingClientRect()
@@ -87,10 +91,18 @@ export function LineChart({ points, format, label, refLine }: Props) {
             <text x={W - PAD.r} y={y(refLine.y) - 4} textAnchor="end" className="fill-neutral-500 text-[9px]">{refLine.label}</text>
           </g>
         )}
-        <line x1={ax} x2={ax} y1={PAD.t} y2={H - PAD.b} className="stroke-neutral-300" strokeWidth={1} />
-        {points.length > 1 && <path d={path} fill="none" className="stroke-accent" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />}
+        {/* The line in the accent's ink (legible on light cards), over a soft wash of the accent itself. */}
+        <defs>
+          <linearGradient id={fillId} x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" style={{ stopColor: 'var(--color-accent)', stopOpacity: 0.32 }} />
+            <stop offset="100%" style={{ stopColor: 'var(--color-accent)', stopOpacity: 0 }} />
+          </linearGradient>
+        </defs>
+        {points.length > 1 && <path d={area} fill={`url(#${fillId})`} />}
+        <line x1={ax} x2={ax} y1={PAD.t} y2={H - PAD.b} className="stroke-neutral-300" strokeWidth={1} strokeDasharray="3 3" />
+        {points.length > 1 && <path d={path} fill="none" className="stroke-accent-ink" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />}
         {points.map((_, i) => (
-          <circle key={i} cx={x(i)} cy={y(points[i].y)} r={i === active ? 5 : 4} className="fill-accent stroke-surface" strokeWidth={2} />
+          <circle key={i} cx={x(i)} cy={y(points[i].y)} r={i === active ? 5.5 : 3.5} className={i === active ? 'fill-accent-ink stroke-surface' : 'fill-surface stroke-accent-ink'} strokeWidth={2} />
         ))}
       </svg>
     </div>

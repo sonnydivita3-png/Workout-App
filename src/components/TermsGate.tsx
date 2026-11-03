@@ -19,7 +19,7 @@ export function TermsGate() {
   const link = (d: LegalDoc, text: string) => <button type="button" onClick={() => setLegal(d)} className="font-medium underline">{text}</button>
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-screen">
       <main className="mx-auto flex min-h-screen max-w-md flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
         <h1 className="mb-2 text-2xl font-semibold tracking-tight">Before you start</h1>
         <p className="mb-5 text-neutral-600">Durata gives you workouts and training plans. It doesn’t know your health, so please read this and agree before using it.</p>

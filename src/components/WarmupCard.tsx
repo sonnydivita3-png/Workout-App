@@ -39,9 +39,9 @@ export function WarmupCard({ date, items, onRemove }: { date: string; items: Pla
       <div className="flex items-start justify-between gap-2 rounded-2xl bg-surface px-4 py-3 shadow-sm ring-1 ring-neutral-200/70">
         <button onClick={toggleFold} className="min-w-0 text-left">
           <span className="block font-semibold">✓ Warm-up</span>
-          <span className="block text-xs text-neutral-400">About {minutes} min · {rows.length} {rows.length === 1 ? 'part' : 'parts'}</span>
+          <span className="block text-xs text-neutral-500">About {minutes} min · {rows.length} {rows.length === 1 ? 'part' : 'parts'}</span>
         </button>
-        <button onClick={toggleFold} aria-label="Open warm-up" aria-expanded={false} className="-mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm leading-none text-neutral-400 hover:bg-neutral-100">⌄</button>
+        <button onClick={toggleFold} aria-label="Open warm-up" aria-expanded={false} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm leading-none text-neutral-500 hover:bg-neutral-100 -mr-2 -mt-1.5">⌄</button>
       </div>
     )
   }
@@ -52,7 +52,7 @@ export function WarmupCard({ date, items, onRemove }: { date: string; items: Pla
           <p className="text-xs font-medium text-neutral-500">Warm-up · about {minutes} min</p>
           <h3 className="font-semibold">Get loose first</h3>
         </div>
-        <button onClick={() => confirm('Remove the warm-up from this day?') && onRemove()} aria-label="Remove warm-up" className="text-lg leading-none text-neutral-400">×</button>
+        <button onClick={() => confirm('Remove the warm-up from this day?') && onRemove()} aria-label="Remove warm-up" className="hit -mr-1.5 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg leading-none text-neutral-500 hover:bg-neutral-100">×</button>
       </div>
       <ul className="mb-3 divide-y divide-neutral-100">
         {rows.map(({ p, ex }) => (
@@ -63,12 +63,12 @@ export function WarmupCard({ date, items, onRemove }: { date: string; items: Pla
                 <span className="min-w-0 line-clamp-2">{ex.name}</span>
               </button>
             ) : <span className="min-w-0 line-clamp-2">{ex.name}</span>}
-            <span className="shrink-0 text-xs tabular-nums text-neutral-400">{ex.kind === 'cardio' ? `${p.minutes} min easy` : describeItem(p, ex, units)}</span>
+            <span className="shrink-0 text-xs tabular-nums text-neutral-500">{ex.kind === 'cardio' ? `${p.minutes} min easy` : describeItem(p, ex, units)}</span>
           </li>
         ))}
       </ul>
-      <button onClick={() => setTimer(true)} className="w-full rounded-xl bg-neutral-100 py-2 text-sm font-medium text-neutral-700">⏱ Start warm-up</button>
-      <button onClick={() => setWarmupDone(date, !done)} aria-pressed={done} className={`mt-2 w-full rounded-xl py-2.5 text-sm font-medium ${done ? 'bg-neutral-100 text-neutral-600' : 'bg-accent text-on-accent'}`}>
+      <button onClick={() => setTimer(true)} className="min-h-12 w-full rounded-2xl bg-neutral-100 py-3 text-sm font-semibold text-neutral-800">⏱ Start warm-up</button>
+      <button onClick={() => setWarmupDone(date, !done)} aria-pressed={done} className={`mt-2 min-h-12 w-full rounded-2xl py-3 text-sm font-semibold ${done ? 'bg-neutral-100 text-neutral-600' : 'bg-accent text-on-accent'}`}>
         {done ? 'Done ✓ · tap to undo' : '✓ Warm-up done'}
       </button>
       {timer && <IntervalTimerSheet title="Warm-up" segments={segments} onClose={() => setTimer(false)} onComplete={() => setWarmupDone(date, true)} completeLabel="✓ Mark warm-up done" />}

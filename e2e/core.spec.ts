@@ -189,7 +189,9 @@ test('plan and log an exercise, then see it in History', async ({ page }) => {
   await page.locator('.fixed button').filter({ has: page.locator('span', { hasText: /^Push-Up$/ }) }).first().click()
   await page.locator('.fixed').getByRole('button', { name: /Done|Close/ }).first().click()
   await page.locator('input[type=number]').first().fill('20')
-  await expect.poll(async () => (await state(page)).logs.length).toBe(1)
+  // Typed numbers count once the set is ticked.
+  await page.getByRole('button', { name: 'Set 1 done', exact: true }).click()
+  await expect.poll(async () => (await state(page)).logs[0]?.sets?.[0]).toMatchObject({ reps: 20, done: true })
   await page.locator('nav').getByText('Progress').click()
   await page.getByRole('button', { name: 'Exercises' }).click()
   await expect(page.getByText('Push-Up', { exact: true })).toBeVisible()

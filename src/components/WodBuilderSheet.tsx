@@ -4,9 +4,11 @@ import { findExercise, useStore } from '../store'
 import type { Exercise, Wod, WodKind } from '../types'
 import { ExercisePicker } from './ExercisePicker'
 import { NumberInput } from './NumberInput'
-import { Sheet } from './Sheet'
+import { primaryBtn, Sheet } from './Sheet'
+import { chipBtn } from './ui'
 
-const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
+// The shared chip (ui.ts): the accent when picked, a 44 px tap area.
+const chip = chipBtn
 const h3 = 'mb-2 text-sm font-semibold text-neutral-700'
 
 type Kind = WodKind | 'circuit'
@@ -54,7 +56,7 @@ export function WodBuilderSheet({ date, onClose }: { date: string; onClose: () =
 
   return (
     <>
-      <Sheet title="Build a timed workout" onClose={onClose} closeLabel="Cancel">
+      <Sheet title="Build a timed workout" onClose={onClose} closeLabel="Cancel" footer={<button disabled={!valid} onClick={add} className={primaryBtn}>Add to this day</button>}>
         <div className="mb-1 flex flex-wrap gap-2">
           {KINDS.map((k) => <button key={k.id} onClick={() => setKind(k.id)} aria-pressed={kind === k.id} className={chip(kind === k.id)}>{k.label}</button>)}
         </div>
@@ -110,7 +112,7 @@ export function WodBuilderSheet({ date, onClose }: { date: string; onClose: () =
             })}
           </ul>
         )}
-        <button onClick={() => setPicking(true)} className="mb-3 w-full rounded-xl bg-neutral-100 py-2.5 text-sm font-medium text-neutral-700">+ Add movement</button>
+        <button onClick={() => setPicking(true)} className="mb-3 min-h-11 w-full rounded-2xl bg-neutral-100 py-2.5 text-sm font-medium text-neutral-700">+ Add movement</button>
 
         {valid && (
           <p className="mb-3 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-neutral-600">
@@ -119,7 +121,6 @@ export function WodBuilderSheet({ date, onClose }: { date: string; onClose: () =
               : `${timing.rounds} round${timing.rounds === 1 ? '' : 's'} of ${moves.length} move${moves.length === 1 ? '' : 's'} · ${timing.work}s on / ${timing.rest}s off · about ${Math.max(1, Math.round(circuitSeconds(moves.length, timing) / 60))} min`}
           </p>
         )}
-        <button disabled={!valid} onClick={add} className="w-full rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent disabled:opacity-30">Add to this day</button>
       </Sheet>
       {picking && (
         <ExercisePicker

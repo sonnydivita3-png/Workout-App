@@ -3,6 +3,7 @@ import { SettingsGear } from './SettingsGear'
 import { parseISO, toISO, weekDates, weekdayIndex } from '../lib/dates'
 import { cardioFirst, dayLabel, dayPlanOf, isRestDay, liftAndCardio, placeCardio, workItems } from '../lib/plan'
 import { hasData } from '../lib/stats'
+import { useToday } from '../lib/useToday'
 import { useWakeLock } from '../lib/useWakeLock'
 import { findExercise, useStore } from '../store'
 import { WodBuilderSheet } from './WodBuilderSheet'
@@ -24,8 +25,16 @@ import { FinishWorkout } from './FinishWorkout'
 import { RestTimer } from './RestTimer'
 import { Tip } from './Tip'
 import { Chevron } from './Chevron'
+import { isFinished, sessionLabel, SESSIONS, splitItems } from '../lib/sessions'
+import { minutesFor } from '../lib/randomizer'
+import { bodyweightOn, restingPerHour } from '../lib/calories'
+import { perMinute, STYLE_MET, workoutCalories } from '../lib/calorieTarget'
+import { formatMinutes } from '../lib/units'
+import type { DaySession, PlannedExercise } from '../types'
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+// Ways to add to or change a day that's already planned: quieter than the workout itself.
+const dashed = 'min-h-12 flex-1 rounded-2xl border border-dashed border-neutral-300 px-1 py-2.5 text-sm leading-tight text-neutral-600 hover:bg-neutral-100/60'
 
 /** "Nov 2 – 8", or "Oct 26 – Nov 1" across a month end (in the phone's own date order). */
 function weekRange(a: Date, b: Date): string {
@@ -39,9 +48,9 @@ function weekRange(a: Date, b: Date): string {
  * between sets is optional (Settings → Workouts).
  */
 export function PlanView({ initialAction, onSettings }: { initialAction?: string; onSettings?: () => void }) {
-  const [anchor, setAnchor] = useState(() => new Date())
-  const [day, setDay] = useState(() => weekdayIndex(new Date()))
-  const [today] = useState(() => toISO(new Date()))
+  const today = useToday()
+  const [anchor, setAnchor] = useState(() => parseISO(today))
+  const [day, setDay] = useState(() => weekdayIndex(parseISO(today)))
   const [picking, setPicking] = useState(initialAction === 'add')
   const [addMenu, setAddMenu] = useState(false)
   const [wodBuilder, setWodBuilder] = useState(false)
@@ -49,7 +58,8 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
   const [benchSheet, setBenchSheet] = useState(false)
   const [dayMenu, setDayMenu] = useState<false | 'menu' | 'load'>(false)
   const [arranging, setArranging] = useState(false)
-  const [finishing, setFinishing] = useState(false)
+  // Finishing the day, or on a day split in two, one of its sessions.
+  const [finishing, setFinishing] = useState<boolean | DaySession>(false)
   const [generator, setGenerator] = useState<GeneratorMode | null>(null)
   // A strength plan to build for this run/bike plan (by id): from My plans, or right after adding the run plan.
   const [strengthFor, setStrengthFor] = useState<string | null>(null)
@@ -59,10 +69,27 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
 
   const dates = useMemo(() => weekDates(anchor), [anchor])
   const date = toISO(dates[day])
+  // Left open overnight, the day that was today moves on to the new today, so sets aren't logged on yesterday by
+  // mistake. A workout still going past midnight (sets logged, not finished) stays where it is to be finished.
+  const [shownToday, setShownToday] = useState(today)
+  if (shownToday !== today) {
+    setShownToday(today)
+    const going = s.logs.some((l) => l.date === shownToday && hasData(l)) && !s.finishedDays.includes(shownToday)
+    if (date === shownToday && !going) { setAnchor(parseISO(today)); setDay(weekdayIndex(parseISO(today))) }
+  }
   const planned = dayPlanOf(s.plan, s.overrides, date)
   const work = workItems(planned)
   const rest = isRestDay(s.overrides, date)
   const finished = s.finishedDays.includes(date)
+  // Two sessions (a morning run, evening weights): each shows its own time and calories, and is finished on its own.
+  const split = splitItems(planned)
+  const lb = bodyweightOn(s.bodyweight, date)
+  const countTotal = s.trainingPrefs.calorieCount === 'total'
+  const kcalOf = (items: PlannedExercise[]) => lb
+    ? workoutCalories(items, (met) => perMinute(met, lb, date, s.aboutMe) + (countTotal ? restingPerHour(lb, date, s.aboutMe) / 60 : 0), { lift: STYLE_MET.standard, cond: STYLE_MET.circuit, cardioFactor: 1 })
+    : null
+  // The session to finish next gets the main button; the other waits its turn.
+  const nextSession = split ? SESSIONS.find((x) => !isFinished(s.finishedDays, date, x) && workItems(split[x]).length > 0) : undefined
   const shiftWeek = (n: number) => setAnchor((a) => new Date(a.getFullYear(), a.getMonth(), a.getDate() + 7 * n))
   // Mid-workout the phone shouldn't lock between sets.
   useWakeLock(date === today && work.length > 0 && !finished)
@@ -82,9 +109,9 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
       <header className="mb-4 flex items-center justify-between gap-2">
         <h1 className="min-w-0 text-2xl font-semibold tracking-tight">{weekRange(dates[0], dates[6])}</h1>
         <div className="flex shrink-0 items-center gap-1 text-neutral-500">
-          {!thisWeek && <button onClick={() => { setAnchor(new Date()); setDay(weekdayIndex(new Date())) }} className="mr-1 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">Today</button>}
-          <button onClick={() => shiftWeek(-1)} aria-label="Previous week" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-neutral-200/60"><Chevron left /></button>
-          <button onClick={() => shiftWeek(1)} aria-label="Next week" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-neutral-200/60"><Chevron /></button>
+          {!thisWeek && <button onClick={() => { setAnchor(parseISO(today)); setDay(weekdayIndex(parseISO(today))) }} className="hit mr-1 rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-700">Today</button>}
+          <button onClick={() => shiftWeek(-1)} aria-label="Previous week" className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-neutral-200/60"><Chevron left /></button>
+          <button onClick={() => shiftWeek(1)} aria-label="Next week" className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-neutral-200/60"><Chevron /></button>
           {onSettings && <SettingsGear onClick={onSettings} />}
         </div>
       </header>
@@ -100,8 +127,8 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
       <div className="mb-3 mt-5 flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">{dayTitle}</h2>
         <div className="flex shrink-0 gap-2">
-          <button onClick={() => setAddMenu(true)} data-tour="add" className="rounded-full bg-accent px-3 py-1.5 text-sm font-medium text-on-accent">+ Add</button>
-          <button onClick={() => setDayMenu('menu')} aria-label="Day options" className="flex h-8 w-10 items-center justify-center rounded-full bg-neutral-100 text-lg leading-none text-neutral-600">⋯</button>
+          <button onClick={() => setAddMenu(true)} data-tour="add" className="hit h-9 rounded-full bg-accent px-4 text-sm font-semibold text-on-accent">+ Add</button>
+          <button onClick={() => setDayMenu('menu')} aria-label="Day options" className="hit flex h-9 w-10 items-center justify-center rounded-full bg-neutral-100 text-lg leading-none text-neutral-600">⋯</button>
         </div>
       </div>
 
@@ -133,36 +160,63 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
             </div>
           </div>
         )}
-        {liftAndCardio(planned) && (
+        {liftAndCardio(planned) && !split && (
           // Lifting and cardio on the same day (made together, a finisher, or from two plans): either can go first.
-          <div role="radiogroup" aria-label="Cardio first or last" className="flex items-center gap-2 px-1 text-xs text-neutral-500">
-            <span>Cardio:</span>
-            {([[true, 'Start with it'], [false, 'Finish with it']] as const).map(([first, label]) => (
-              <button key={label} role="radio" aria-checked={cardioFirst(planned) === first} onClick={() => s.setDayItems(date, placeCardio(planned, first))}
-                className={`rounded-full px-3 py-1 ${cardioFirst(planned) === first ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`}>{label}</button>
-            ))}
+          <div className="flex items-center justify-between gap-2 px-1 text-xs text-neutral-500">
+            <span>Cardio</span>
+            <div role="radiogroup" aria-label="Cardio first or last" className="flex rounded-full bg-neutral-100 p-0.5">
+              {([[true, 'Start with it'], [false, 'Finish with it']] as const).map(([first, label]) => (
+                <button key={label} role="radio" aria-checked={cardioFirst(planned) === first} onClick={() => s.setDayItems(date, placeCardio(planned, first))}
+                  className={`hit rounded-full px-3 py-1.5 ${cardioFirst(planned) === first ? 'bg-surface font-medium text-neutral-900 shadow-sm' : 'text-neutral-500'}`}>{label}</button>
+              ))}
+            </div>
           </div>
         )}
-        <DayWorkout date={date} items={planned} onSetDone={startRest} />
+        {split ? SESSIONS.map((ses, k) => {
+          const part = split[ses]
+          const done = isFinished(s.finishedDays, date, ses)
+          const minutes = Math.round(minutesFor(part))
+          const kcal = kcalOf(part)
+          const facts = [minutes > 0 ? `~${formatMinutes(minutes)}` : '', kcal ? `≈ ${kcal.toLocaleString()} ${countTotal ? 'total' : 'active'} cal` : ''].filter(Boolean).join(' · ')
+          return (
+            <section key={ses} aria-labelledby={`session-${ses}`} className={`space-y-3 ${k ? 'border-t border-neutral-200/70 pt-4' : ''}`}>
+              <div className="flex items-baseline justify-between gap-3 px-1">
+                <h3 id={`session-${ses}`} className="text-base font-semibold"><span aria-hidden>{ses === 'am' ? '☀️' : '🌙'} </span>{sessionLabel(ses)}</h3>
+                <p className="shrink-0 text-xs text-neutral-500">{done ? '✓ Done' : facts}</p>
+              </div>
+              <DayWorkout date={date} items={planned} only={ses} onSetDone={startRest} />
+              {workItems(part).length > 0 && date <= today && (done ? (
+                <div className="flex gap-2">
+                  <button onClick={() => setFinishing(ses)} className="min-h-12 flex-1 rounded-2xl bg-accent/15 py-3 text-sm font-semibold text-neutral-800 ring-1 ring-inset ring-accent/40">✓ {sessionLabel(ses)} complete · see summary</button>
+                  <button onClick={() => s.unfinishDay(date, ses)} className="min-h-12 rounded-2xl bg-neutral-100 px-4 py-3 text-sm font-medium text-neutral-600">Undo</button>
+                </div>
+              ) : nextSession === ses ? (
+                <button onClick={() => setFinishing(ses)} className="min-h-14 w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-on-accent shadow-sm">✓ Finish {sessionLabel(ses).toLowerCase()}</button>
+              ) : (
+                <button onClick={() => setFinishing(ses)} className="min-h-12 w-full rounded-2xl bg-neutral-100 py-3 text-sm font-medium text-neutral-700">✓ Finish {sessionLabel(ses).toLowerCase()}</button>
+              ))}
+            </section>
+          )
+        }) : <DayWorkout date={date} items={planned} onSetDone={startRest} />}
         {planned.length > 0 && (
           <div className="flex gap-2">
-            <button onClick={() => setPicking(true)} className="flex-1 rounded-2xl border border-dashed border-neutral-300 py-3 text-sm text-neutral-600">+ Add exercise</button>
-            <button onClick={() => setCoreFinisher(true)} className="flex-1 rounded-2xl border border-dashed border-neutral-300 py-3 text-sm text-neutral-600">+ Core finisher</button>
-            {planned.length > 1 && <button onClick={() => setArranging(true)} className="flex-1 rounded-2xl border border-dashed border-neutral-300 py-3 text-sm text-neutral-600">⇅ Reorder / superset</button>}
+            <button onClick={() => setPicking(true)} className={dashed}>+ Add exercise</button>
+            <button onClick={() => setCoreFinisher(true)} className={dashed}>+ Core finisher</button>
+            {planned.length > 1 && <button onClick={() => setArranging(true)} className={dashed}>⇅ Reorder</button>}
           </div>
         )}
-        {work.length > 0 && date <= today && (
+        {!split && work.length > 0 && date <= today && (
           finished ? (
             <div className="flex gap-2">
-              <button onClick={() => setFinishing(true)} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium text-neutral-600">✓ Workout complete · see summary</button>
-              <button onClick={() => s.unfinishDay(date)} className="rounded-2xl bg-neutral-100 px-4 py-3 text-sm text-neutral-600">Undo</button>
+              <button onClick={() => setFinishing(true)} className="min-h-12 flex-1 rounded-2xl bg-accent/15 py-3 text-sm font-semibold text-neutral-800 ring-1 ring-inset ring-accent/40">✓ Workout complete · see summary</button>
+              <button onClick={() => s.unfinishDay(date)} className="min-h-12 rounded-2xl bg-neutral-100 px-4 py-3 text-sm font-medium text-neutral-600">Undo</button>
             </div>
           ) : (
-            <button onClick={() => setFinishing(true)} className="w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-on-accent">✓ Finish workout</button>
+            <button onClick={() => setFinishing(true)} className="min-h-14 w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-on-accent shadow-sm">✓ Finish workout</button>
           )
         )}
       </section>
-      {finishing && <FinishWorkout date={date} onBack={() => setFinishing(false)} onDone={() => { setFinishing(false); setRestTimer(null) }} />}
+      {finishing && <FinishWorkout date={date} session={typeof finishing === 'string' ? finishing : undefined} onBack={() => setFinishing(false)} onDone={() => { setFinishing(false); setRestTimer(null) }} />}
       {restTimer?.date === date && <RestTimer until={restTimer.until} onChange={(until) => setRestTimer({ date, until })} onClose={() => setRestTimer(null)} />}
 
       {addMenu && (
@@ -177,8 +231,8 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
             ['Run or ride plan', 'Build up to a distance or a race', () => setGenerator('cardio')],
           ] as const).map(([title, hint, go]) => (
             <button key={title} onClick={() => { setAddMenu(false); go() }} className={rowBtn}>
-              <span><span className="block text-sm font-medium">{title}</span><span className="block text-xs text-neutral-400">{hint}</span></span>
-              <span className="text-neutral-300">›</span>
+              <span><span className="block text-sm font-medium">{title}</span><span className="block text-xs text-neutral-500">{hint}</span></span>
+              <Chevron className="h-4 w-4 shrink-0 text-neutral-400" />
             </button>
           ))}
         </Sheet>

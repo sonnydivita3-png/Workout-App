@@ -9,6 +9,7 @@ import { useStore } from '../store'
 import type { CardioEntry, CardioRun, Exercise, ExerciseLog } from '../types'
 import { NumberInput } from './NumberInput'
 import { rowBtn, Sheet } from './Sheet'
+import { scrollToTop } from './ui'
 
 interface Props {
   exercise: Exercise
@@ -50,7 +51,8 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
     onChange(withRuns(c, runs.map((r, i) => (i === at ? next : r))))
   }
   const addRun = () => onChange(withRuns(c, [...runs, { distance: null, minutes: null }]))
-  const removeRun = (i: number) => onChange(withRuns(c, runs.filter((_, j) => j !== i)))
+  // A logged run's numbers go with it, so ask first (like removing an exercise with sets logged).
+  const removeRun = (i: number) => { if (confirm(`Remove ${noun} ${i + 1}? Its time and distance are deleted.`)) onChange(withRuns(c, runs.filter((_, j) => j !== i))) }
   const prev = last?.cardio
   // Rowers and swims default to meters, everything else to the miles/km setting; the chips above switch this card's own.
   const unit = distanceUnitFor(exercise.id, units)
@@ -93,31 +95,34 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
   const curLogged = cur.distance != null || cur.minutes != null
   const markDone = () => {
     save({ ...c, done: !done })
-    if (!done) setTimeout(() => card.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60)
+    if (!done) setTimeout(() => scrollToTop(card.current), 60)
   }
   // The whole day's: every run's distance and time, and each run's calories (typed in, else estimated).
   const all = runs.length > 1 ? runCalories(exercise.id, c, lb, aboutMe, day) : own ? { kcal: cur.calories!, estimated: false } : est != null ? { kcal: est, estimated: true } : null
   const summary = [cardioLine(runs.length > 1 ? c : { ...c, incline }, exercise.id, units), runs.length > 1 ? `${runs.length} ${noun}s` : '', all ? `${all.estimated ? '≈' : ''}${all.kcal} cal` : ''].filter((x) => x && x !== '–').join(' · ')
   if (collapsed) {
     return (
-      <div ref={card} className="scroll-mt-4 flex items-start justify-between gap-2 rounded-2xl bg-surface px-4 py-3 shadow-sm ring-1 ring-neutral-200/70">
-        <button onClick={toggleFold} className="min-w-0 text-left">
-          <span className="block font-semibold">{done ? '✓ ' : ''}{exercise.name}</span>
-          <span className="block text-xs text-neutral-400">{summary || 'Cardio'}</span>
+      <div ref={card} className={`scroll-mt-4 flex items-start justify-between gap-2 rounded-2xl bg-surface py-2 pl-4 pr-2 shadow-sm ring-1 ${done ? 'ring-accent/40' : 'ring-neutral-200/70'}`}>
+        <button onClick={toggleFold} className="min-w-0 py-1 text-left">
+          <span className="flex items-center gap-2 text-[17px] font-semibold leading-snug">
+            {done && <><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent text-[11px] font-bold text-on-accent">✓</span>{' '}</>}
+            <span>{exercise.name}</span>
+          </span>
+          <span className="block text-xs text-neutral-500">{summary || 'Cardio'}</span>
         </button>
-        <button onClick={toggleFold} aria-label={`Open ${exercise.name}`} aria-expanded={false} className="-mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm leading-none text-neutral-400 hover:bg-neutral-100">⌄</button>
+        <button onClick={toggleFold} aria-label={`Open ${exercise.name}`} aria-expanded={false} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full leading-none text-neutral-500 hover:bg-neutral-100 -mt-0.5 text-sm">⌄</button>
       </div>
     )
   }
   return (
     <div ref={card} className="scroll-mt-4 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div>
-          <h3 className="font-semibold">{exercise.name}</h3>
-          <p className="text-xs text-neutral-400">Cardio{target ? ` · target ${target}` : ''}</p>
+      <div className="-mr-2 mb-3 flex items-start justify-between gap-1">
+        <div className="min-w-0">
+          <h3 className="text-[17px] font-semibold leading-snug">{exercise.name}</h3>
+          <p className="text-xs text-neutral-500">Cardio{target ? ` · target ${target}` : ''}</p>
         </div>
-        {!readOnly && logged && <button onClick={toggleFold} aria-label={`Fold ${exercise.name}`} aria-expanded className="-mt-1 ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm leading-none text-neutral-400 hover:bg-neutral-100">⌃</button>}
-        <button onClick={() => setMenu(true)} aria-label={`${exercise.name} options`} className="-mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg leading-none text-neutral-400 hover:bg-neutral-100">⋯</button>
+        {!readOnly && logged && <button onClick={toggleFold} aria-label={`Fold ${exercise.name}`} aria-expanded className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full leading-none text-neutral-500 hover:bg-neutral-100 -mt-1.5 ml-auto text-sm">⌃</button>}
+        <button onClick={() => setMenu(true)} aria-label={`${exercise.name} options`} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full leading-none text-neutral-500 hover:bg-neutral-100 -mt-1.5 text-lg">⋯</button>
       </div>
       {note && <p className="mb-3 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-neutral-600">{note}</p>}
       {readOnly ? <p className="text-sm text-neutral-500">Log it on the day.</p> : (<>
@@ -126,7 +131,7 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
           {runs.slice(0, at).map((r, i) => (
             <li key={i} className="flex items-center justify-between gap-2 py-1.5">
               <span><span className="font-medium">{noun[0].toUpperCase() + noun.slice(1)} {i + 1}</span> <span className="text-neutral-500">· {cardioLine(r, exercise.id, units)}</span></span>
-              <button onClick={() => removeRun(i)} aria-label={`Remove ${noun} ${i + 1}`} className="h-7 w-7 shrink-0 rounded-full text-neutral-400 hover:bg-neutral-100">×</button>
+              <button onClick={() => removeRun(i)} aria-label={`Remove ${noun} ${i + 1}`} className="hit h-8 w-8 shrink-0 rounded-full text-neutral-500 hover:bg-neutral-100">×</button>
             </li>
           ))}
         </ul>
@@ -134,16 +139,16 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
       {runs.length > 1 && (
         <div className="mb-1 flex items-center justify-between text-xs font-medium text-neutral-500">
           <span>{noun[0].toUpperCase() + noun.slice(1)} {at + 1}</span>
-          <button onClick={() => removeRun(at)} aria-label={`Remove ${noun} ${at + 1}`} className="text-neutral-400 underline-offset-2 hover:underline">Remove</button>
+          <button onClick={() => removeRun(at)} aria-label={`Remove ${noun} ${at + 1}`} className="hit font-medium text-neutral-500 underline-offset-2 hover:underline">Remove</button>
         </div>
       )}
-      <div role="group" aria-label={`${exercise.name} units`} className="mb-2 flex gap-1">
+      <div role="group" aria-label={`${exercise.name} units`} className="mb-3 inline-flex rounded-full bg-neutral-100 p-0.5">
         {distanceUnitsFor(exercise.id).map((u) => (
           <button
             key={u}
             onClick={() => setDistanceUnit(exercise.id, u)}
             aria-pressed={unit === u}
-            className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${unit === u ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-500'}`}
+            className={`hit rounded-full px-3 py-1 text-xs font-medium ${unit === u ? 'bg-surface text-neutral-900 shadow-sm' : 'text-neutral-500'}`}
           >
             {u}
           </button>
@@ -151,7 +156,7 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
       </div>
       <div className="grid grid-cols-[1fr_1.5fr_1fr] items-end gap-2">
         <label className="text-xs font-medium text-neutral-500">
-          {{ m: 'Meters', yd: 'Yards', km: 'Km', mi: 'Miles' }[unit]}
+          <span className="mb-1 block">{{ m: 'Meters', yd: 'Yards', km: 'Km', mi: 'Miles' }[unit]}</span>
           <NumberInput
             label={`${exercise.name} distance`}
             value={showDistanceIn(cur.distance, unit)}
@@ -162,7 +167,7 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
           />
         </label>
         <div className="text-xs font-medium text-neutral-500">
-          Time <span className="font-normal text-neutral-400">min : sec</span>
+          <span className="mb-1 block">Time <span className="font-normal">min : sec</span></span>
           <div className="flex items-center gap-1">
             <NumberInput label={`${exercise.name} minutes`} value={wholeMin} placeholder="–" onChange={(v) => (v != null && !Number.isInteger(v) ? saveRun({ minutes: v }) : setTime(v, secs))} />
             <span className="text-neutral-400">:</span>
@@ -170,8 +175,8 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
           </div>
         </div>
         <div className="text-xs font-medium text-neutral-500">
-          Pace
-          <div className="py-2 text-center text-sm normal-case tabular-nums text-neutral-900">{formatPaceFor(cur.distance, cur.minutes, exercise.id, units) ?? '–'}</div>
+          <span className="mb-1 block">Pace</span>
+          <div className="flex h-11 items-center justify-center rounded-xl text-sm font-semibold tabular-nums text-neutral-900 ring-1 ring-inset ring-neutral-200">{formatPaceFor(cur.distance, cur.minutes, exercise.id, units) ?? '–'}</div>
         </div>
       </div>
       {treadmill && (
@@ -187,10 +192,10 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
         return (
           <div className="mt-3 flex items-start gap-3">
             <label className="w-24 shrink-0 text-xs font-medium text-neutral-500">
-              Calories
+              <span className="mb-1 block">Calories</span>
               <NumberInput label={`${exercise.name} calories`} value={cur.calories ?? null} step={10} placeholder={est != null ? `≈${est}` : '–'} onChange={(v) => saveRun({ calories: v })} />
             </label>
-            <p className="pt-5 text-xs text-neutral-400">
+            <p className="pt-5 text-xs text-neutral-500">
               {own ? 'Your number (e.g. from your watch).'
                 : est != null ? <><b className="font-medium text-neutral-600">≈{est} cal, estimated</b> from your bodyweight ({showWeight(lb, units)} {units.weight}){personal ? ', sex, age, height' : ''}, the activity and its time{cur.distance ? ' and pace' : ''}{incline ? ' and incline' : ''}. {personal ? '' : 'Add sex, age and height in Settings → Profile for a closer estimate. '}Type your watch’s number to use that instead.</>
                 : !lb ? <>Estimated calories need your <b className="font-medium text-neutral-600">bodyweight</b> (add it in Progress → Body), plus this workout’s minutes. Or type your watch’s number.</>
@@ -200,13 +205,13 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
         )
       })()}
       {!readOnly && curLogged && !done && (
-        <button onClick={addRun} className="mt-3 w-full rounded-2xl bg-neutral-100 py-2 text-sm font-medium text-neutral-700">＋ Add another {noun}</button>
+        <button onClick={addRun} className="mt-3 min-h-11 w-full rounded-2xl bg-neutral-100 py-2 text-sm font-medium text-neutral-700">＋ Add another {noun}</button>
       )}
       {!readOnly && runs.length > 1 && (
         <p className="mt-2 text-xs text-neutral-500">{runs.length} {noun}s today: {cardioLine(c, exercise.id, units)}{all ? ` · ${all.estimated ? '≈' : ''}${all.kcal} cal` : ''}</p>
       )}
       {!readOnly && (
-        <button onClick={markDone} disabled={!logged && !done} aria-pressed={done} className={`mt-3 w-full rounded-2xl py-2.5 text-sm font-medium disabled:opacity-40 ${done ? 'bg-neutral-100 text-neutral-600' : 'bg-accent text-on-accent'}`}>
+        <button onClick={markDone} disabled={!logged && !done} aria-pressed={done} className={`mt-3 min-h-12 w-full rounded-2xl py-3 text-base font-semibold ${done ? 'bg-neutral-100 text-neutral-600' : 'bg-accent text-on-accent'}`}>
           {done ? 'Done ✓ · tap to undo' : logged ? '✓ Done' : '✓ Done (log the time or distance first)'}
         </button>
       )}
@@ -220,7 +225,7 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
         </Sheet>
       )}
       {prev && (
-        <p className="mt-2 text-xs text-neutral-400">
+        <p className="mt-2 text-xs text-neutral-500">
           Last time: {cardioLine(prev, exercise.id, units)}
         </p>
       )}

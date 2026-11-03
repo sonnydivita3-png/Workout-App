@@ -144,7 +144,15 @@ export interface PlannedExercise {
    * exercises, never another plan's run that happens to be the same exercise.
    */
   plan?: string
+  /**
+   * On a day split into two sessions (a run in the morning, weights in the evening): which one it's in. A day with no
+   * item marked is one session. See lib/sessions.
+   */
+  session?: DaySession
 }
+
+/** One of a day's two sessions. */
+export type DaySession = 'am' | 'pm'
 
 /** Plan is a weekly template: 0 = Monday ... 6 = Sunday. */
 export type WeekPlan = PlannedExercise[][]
@@ -263,4 +271,7 @@ export interface NotifPrefs {
   pbs: boolean
   daily: boolean
   reminderTime: string // HH:MM, local
+  /** On days split into a morning and an evening session: when to remind about each (HH:MM, local). */
+  amTime?: string
+  pmTime?: string
 }

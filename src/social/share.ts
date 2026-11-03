@@ -4,6 +4,7 @@ import type { Exercise, ExerciseLog, PlanOverrides, PlannedExercise, WeekPlan } 
 import { addDays, mondayOf, parseISO, toISO } from '../lib/dates'
 import { dayPlanOf } from '../lib/plan'
 import { formatSeconds } from '../lib/units'
+import { workSets } from '../lib/progression'
 import type { Scope, SharedPayload } from './types'
 
 const SCOPE_DAYS: Record<Scope, number> = { day: 1, week: 7, month: 28 }
@@ -172,7 +173,8 @@ export function completedWorkout(date: string, logs: ExerciseLog[], lookup: (id:
       items.push({ exerciseId: ex.id, sets: 1, ...(minutes ? { minutes: Math.round(minutes) } : {}), ...(distance ? { distance } : {}) })
       results.push(`${ex.name} ${[distance ? `${Math.round(distance * 100) / 100} mi` : '', minutes ? `${Math.round(minutes)} min` : ''].filter(Boolean).join(' in ')}`)
     } else if (l.sets) {
-      const done = l.sets.filter((s) => s.weight || s.reps || s.seconds)
+      // The working sets done: not warm-ups or drop sets, nor numbers typed in but never ticked.
+      const done = workSets(l)
       if (done.length === 0) continue
       const timed = ex.mode === 'time'
       const best = timed ? Math.max(...done.map((s) => s.seconds ?? 0)) : Math.max(...done.map((s) => s.reps ?? 0))

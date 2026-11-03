@@ -2,6 +2,7 @@ import type { BodyweightEntry, Exercise, ExerciseLog, Goal, NotifPrefs, Notifica
 import { addDays } from './dates'
 import { goalPeriodKey, goalPct, goalTitle } from './goals'
 import { dayPlanOf, workItems } from './plan'
+import { anyFinished, isFinished, SESSIONS, splitItems } from './sessions'
 import { newCardioBests } from './cardioBests'
 import { hasData, setSessions, strengthSessions } from './stats'
 import { formatSeconds, showWeight } from './units'
@@ -33,6 +34,13 @@ export const timeToMinutes = (hhmm: string) => {
   return (h || 0) * 60 + (m || 0)
 }
 
+/** When to remind about each session of a day split in two: the times they picked, else 7 am and the usual time. */
+export const sessionTimes = (prefs: NotifPrefs) => ({ am: prefs.amTime || '07:00', pm: prefs.pmTime || prefs.reminderTime || '17:00' })
+
+/** The day's reminder times: one, or on a day split into a morning and an evening session, one for each. */
+export const reminderTimes = (prefs: NotifPrefs, split: boolean): string[] =>
+  !prefs.daily ? [] : split ? [sessionTimes(prefs).am, sessionTimes(prefs).pm] : prefs.reminderTime ? [prefs.reminderTime] : []
+
 /**
  * Everything worth telling the user about right now. IDs are deterministic
  * (e.g. one PR per exercise per day) so calling this repeatedly never duplicates.
@@ -62,33 +70,61 @@ export function computeNotifications(i: Input): Candidate[] {
 
   // Personal bests are celebrated when the workout is finished ("Finish workout"), not set by set along the way.
   // Without a finished list (older callers), every logged day counts.
-  if (i.prefs.pbs && (!i.finished || i.finished.includes(today))) out.push(...newBests(today, i.logs, units, i.exerciseName))
+  // (On a day split in two, finishing either session counts.)
+  if (i.prefs.pbs && (!i.finished || anyFinished(i.finished, today))) out.push(...newBests(today, i.logs, units, i.exerciseName))
 
-  if (i.prefs.daily && i.prefs.reminderTime && i.nowMinutes >= timeToMinutes(i.prefs.reminderTime)) {
-    const planned = workItems(dayPlanOf(i.plan, i.overrides, today))
+  if (i.prefs.daily) {
+    const day = dayPlanOf(i.plan, i.overrides, today)
     const done = new Set(i.logs.filter((l) => l.date === today && hasData(l)).map((l) => l.exerciseId))
-    const left = planned.filter((p) => !done.has(p.exerciseId))
-    if (left.length > 0) {
-      const names = left.map((p) => i.exerciseName(p.exerciseId)?.name).filter(Boolean) as string[]
-      out.push({
-        id: `planned:${today}`,
-        type: 'planned',
-        title: done.size ? `${left.length} exercise${left.length > 1 ? 's' : ''} left today` : 'Today’s workout is up 💪',
-        body: names.slice(0, 3).join(', ') + (names.length > 3 ? ` +${names.length - 3} more` : ''),
-      })
+    const finished = i.finished ?? []
+    const names = (left: typeof day) => {
+      const n = left.map((p) => i.exerciseName(p.exerciseId)?.name).filter(Boolean) as string[]
+      return n.slice(0, 3).join(', ') + (n.length > 3 ? ` +${n.length - 3} more` : '')
+    }
+    const split = splitItems(day)
+    if (split) {
+      // Two sessions: a reminder for each at its own time, until it's done (or finished).
+      const at = sessionTimes(i.prefs)
+      for (const s of SESSIONS) {
+        if (i.nowMinutes < timeToMinutes(at[s]) || isFinished(finished, today, s)) continue
+        const planned = workItems(split[s])
+        const left = planned.filter((p) => !done.has(p.exerciseId))
+        if (!left.length) continue
+        const when = s === 'am' ? 'this morning' : 'this evening'
+        out.push({
+          id: `planned-${s}:${today}`,
+          type: 'planned',
+          title: left.length < planned.length ? `${left.length} exercise${left.length > 1 ? 's' : ''} left ${when}` : s === 'am' ? 'Your morning workout is up ☀️' : 'Your evening workout is up 💪',
+          body: names(left),
+        })
+      }
+    } else if (i.prefs.reminderTime && i.nowMinutes >= timeToMinutes(i.prefs.reminderTime) && !isFinished(finished, today)) {
+      const left = workItems(day).filter((p) => !done.has(p.exerciseId))
+      if (left.length > 0) {
+        out.push({
+          id: `planned:${today}`,
+          type: 'planned',
+          title: done.size ? `${left.length} exercise${left.length > 1 ? 's' : ''} left today` : 'Today’s workout is up 💪',
+          body: names(left),
+        })
+      }
     }
   }
 
   return out
 }
 
-/** Milliseconds until the daily reminder time today, or null if already past / disabled. */
-export function msUntilReminder(prefs: NotifPrefs, now: Date): number | null {
-  if (!prefs.daily || !prefs.reminderTime) return null
-  const target = addDays(now, 0)
-  target.setHours(0, timeToMinutes(prefs.reminderTime), 0, 0)
-  const ms = target.getTime() - now.getTime()
-  return ms > 0 ? ms : null
+/**
+ * Milliseconds until the next reminder time today (on a day split into two sessions, the morning's or the evening's),
+ * or null if they're past or reminders are off.
+ */
+export function msUntilReminder(prefs: NotifPrefs, now: Date, split = false): number | null {
+  const ahead = reminderTimes(prefs, split).map((t) => {
+    const target = addDays(now, 0)
+    target.setHours(0, timeToMinutes(t), 0, 0)
+    return target.getTime() - now.getTime()
+  }).filter((ms) => ms > 0)
+  return ahead.length ? Math.min(...ahead) : null
 }
 
 /**

@@ -52,6 +52,30 @@ describe('repairState', () => {
     expect(r.bodyweight).toEqual([{ date: '2026-10-01', lb: 180 }])
     expect(repairState({ bodyweight: [{ date: '2026-10-05', lb: 178 }, { date: '2026-10-01', lb: 180 }] }, defaults).bodyweight.map((b: { date: string }) => b.date)).toEqual(['2026-10-01', '2026-10-05'])
   })
+  it('drops a plan, timed result, routine or benchmark missing what its screen reads (which crashed that tab), and cleans the rest', () => {
+    const r = repairState({
+      programs: [{ id: 'p1' }, { id: 'p2', entries: 'x' }, { id: 'p3', kind: 'cardio', entries: [{ date: '2026-10-01', exerciseId: 'running' }, null, 7] }],
+      timedLogs: [
+        { id: 't1', date: '2026-10-01', block: 'b', movements: ['a'] },
+        { id: 't2', date: '2026-10-01', block: 'b', wod: { kind: 'amrap', minutes: 10 }, movements: ['a', 5] },
+        { id: 't3', block: 'b', wod: { kind: 'amrap', minutes: 10 }, movements: ['a'] },
+        { id: 't4', date: '2026-10-01', block: 'b', wod: { kind: 'amrap', minutes: 10 } },
+      ],
+      routines: [{ id: 'r1', name: 'R' }, { id: 'r2', name: 'Push', items: [{ exerciseId: 'a', sets: 3 }, 'x'] }],
+      benchmarks: [{ id: 'b1', name: 'B' }],
+    }, { ...defaults, benchmarks: [] })
+    expect(r.programs).toEqual([{ id: 'p3', kind: 'cardio', entries: [{ date: '2026-10-01', exerciseId: 'running' }] }])
+    expect(r.timedLogs).toEqual([{ id: 't2', date: '2026-10-01', block: 'b', wod: { kind: 'amrap', minutes: 10 }, movements: ['a'] }])
+    expect(r.routines).toEqual([{ id: 'r2', name: 'Push', items: [{ exerciseId: 'a', sets: 3 }] }])
+    expect(r.benchmarks).toEqual([])
+  })
+  it('equipment is a list of names or a full gym: anything else stopped the app from starting', () => {
+    const d = { ...defaults, equipment: null as string[] | null }
+    expect(repairState({ equipment: 5 }, d).equipment).toBeNull()
+    expect(repairState({ equipment: 'Dumbbell' }, d).equipment).toBeNull()
+    expect(repairState({ equipment: ['Dumbbell', 7, 'Barbell'] }, d).equipment).toEqual(['Dumbbell', 'Barbell'])
+    expect(repairState({}, d).equipment).toBeNull()
+  })
   it('never takes a prototype from saved or imported data', () => {
     const evil = JSON.parse('{"plan":[[],[],[],[],[],[],[]],"logs":[],"__proto__":{"isAdmin":true},"units":{"weight":"kg","__proto__":{"isAdmin":true}}}')
     const r = repairState(evil, defaults) as Record<string, unknown>
@@ -60,5 +84,16 @@ describe('repairState', () => {
     expect(Object.getPrototypeOf(r.units)).toBe(Object.prototype)
     expect((r.units as Record<string, unknown>).isAdmin).toBeUndefined()
     expect(({} as Record<string, unknown>).isAdmin).toBeUndefined()
+  })
+  it('keeps a morning or evening session on planned items and drops anything else', () => {
+    const d = { plan: Array.from({ length: 7 }, () => []), overrides: {}, notifPrefs: { system: false, goals: true, pbs: true, daily: true, reminderTime: '17:00', amTime: '07:00', pmTime: '17:00' } }
+    const out = repairState({ overrides: { '2026-11-03': [{ exerciseId: 'running', sets: 1, session: 'am' }, { exerciseId: 'Pushups', sets: 3, session: 'noon' }, { exerciseId: 'Plank', sets: 3, session: 'pm' }] } }, d) as typeof d & { overrides: Record<string, { session?: string }[]> }
+    expect(out.overrides['2026-11-03'].map((p) => p.session)).toEqual(['am', undefined, 'pm'])
+    expect('session' in out.overrides['2026-11-03'][1]).toBe(false)
+  })
+  it('reminder times that aren\'t a time of day go back to the usual ones', () => {
+    const d = { notifPrefs: { system: false, goals: true, pbs: true, daily: true, reminderTime: '17:00', amTime: '07:00', pmTime: '17:00' } }
+    const out = repairState({ notifPrefs: { daily: true, reminderTime: '25:99', amTime: '6:30', pmTime: '18:15' } }, d)
+    expect(out.notifPrefs).toMatchObject({ reminderTime: '17:00', amTime: '07:00', pmTime: '18:15' })
   })
 })
