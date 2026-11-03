@@ -1,7 +1,9 @@
 import { allCardio, cardioFor } from '../lib/cardioPrefs'
 import { useStore } from '../store'
+import { chipBtn } from './ui'
 
-const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
+// The shared chip (ui.ts): the accent when picked, a 44 px tap area.
+const chip = chipBtn
 
 export interface CardioPick { cardio: string[]; split: boolean }
 

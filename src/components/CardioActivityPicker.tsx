@@ -2,8 +2,10 @@ import { inclineMet } from '../lib/calories'
 import { CARDIO_SESSIONS, TABATA_FORMATS, TABATA_ROUNDS, tabataFormat, tabataMinutes, tabataRounds } from '../lib/cardioSession'
 import { ACTIVITIES, cardioIds, INCLINES, sessionKindsFor, sessionOf, type CardioSetup } from '../lib/cardioSetup'
 import { useStore } from '../store'
+import { chipBtn } from './ui'
 
-const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
+// The shared chip (ui.ts): the accent when picked, a 44 px tap area.
+const chip = chipBtn
 
 /**
  * Cardio for a workout, in the order people think about it: what (run, ride, row…), before or after the lifting, where (outside or on a

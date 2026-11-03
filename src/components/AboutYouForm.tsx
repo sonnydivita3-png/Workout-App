@@ -5,9 +5,11 @@ import { useToday } from '../lib/useToday'
 import { useStore } from '../store'
 import type { AboutMe } from '../types'
 import { NumberInput } from './NumberInput'
+import { chipBtn } from './ui'
 
 const SEXES: [NonNullable<AboutMe['sex']>, string][] = [['male', 'Male'], ['female', 'Female'], ['unspecified', 'Prefer not to say']]
-const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
+// The shared chip (ui.ts): the accent when picked, a 44 px tap area.
+const chip = chipBtn
 
 /**
  * Sex, birth year, height and weight: what calorie estimates need (resting burn, Mifflin-St Jeor, from the first

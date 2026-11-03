@@ -13,7 +13,7 @@ type Step = 'welcome' | 'about' | 'goal' | 'where' | 'likes' | 'moves' | 'cardio
 const STEPS: Step[] = ['welcome', 'about', 'goal', 'where', 'likes', 'moves', 'cardio', 'schedule', 'plan']
 const DAY = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const primary = 'w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-on-accent disabled:opacity-30'
-const choice = (on: boolean) => `w-full rounded-2xl px-4 py-3.5 text-left ring-1 ${on ? 'bg-accent/15 ring-accent' : 'bg-surface ring-neutral-200'}`
+const choice = (on: boolean) => `w-full rounded-2xl px-4 py-3.5 text-left ${on ? 'bg-accent/15 ring-2 ring-accent-ink' : 'bg-surface ring-1 ring-neutral-200'}`
 const chip = (on: boolean) => `h-12 flex-1 rounded-2xl text-base font-medium ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
 
 /**
@@ -65,7 +65,7 @@ export function Onboarding() {
   const firstWeek = week?.filter((d) => d.weekIndex === 0) ?? []
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-screen">
       <div className="mx-auto flex min-h-screen max-w-md flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex gap-1.5" aria-label={`Step ${steps.indexOf(step) + 1} of ${steps.length}`}>
@@ -81,7 +81,7 @@ export function Onboarding() {
             <p className="mb-6 text-neutral-600">Plan workouts, log them in a few taps, and beat what you did last time.</p>
             {invite && <p className="mb-6 rounded-2xl bg-accent/15 px-4 py-3 text-sm">👋 <b className="font-medium">@{invite}</b> invited you. You can add them as a friend once you’re set up.</p>}
             <label className="mb-2 block text-sm font-medium" htmlFor="ob-name">What should we call you?</label>
-            <input id="ob-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your first name" className="mb-5 w-full rounded-2xl bg-surface px-4 py-3.5 text-base outline-none ring-1 ring-neutral-200 focus:ring-accent" />
+            <input id="ob-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your first name" className="mb-5 w-full rounded-2xl bg-surface px-4 py-3.5 text-base outline-none ring-1 ring-neutral-200 focus:ring-2 focus:ring-accent-ink" />
             <p className="mb-2 text-sm font-medium">Weights in</p>
             <div className="mb-8 flex gap-2">
               {(['lb', 'kg'] as const).map((u) => <button key={u} onClick={() => s.setUnits({ weight: u, distance: u === 'kg' ? 'km' : 'mi' })} className={chip(s.units.weight === u)}>{u === 'lb' ? 'Pounds (lb)' : 'Kilograms (kg)'}</button>)}

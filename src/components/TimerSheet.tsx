@@ -87,7 +87,7 @@ export function TimerSheet({ wod, names, onClose, onFinish }: { wod: Wod; names:
         <p className="text-7xl font-extrabold tabular-nums tracking-tight" aria-live="off">{big}</p>
         {tab && !done && (
           <>
-            <p className={`mb-1 text-sm font-semibold uppercase tracking-widest ${tPhase === 'work' ? 'text-accent' : 'text-neutral-500'}`}>{tPhase === 'work' ? 'Work' : tPhase === 'rest' ? 'Rest' : 'Break'}</p>
+            <p className={`mb-1 text-sm font-semibold uppercase tracking-widest ${tPhase === 'work' ? 'text-accent-ink' : 'text-neutral-500'}`}>{tPhase === 'work' ? 'Work' : tPhase === 'rest' ? 'Rest' : 'Break'}</p>
           </>
         )}
         {tab && !done && <p className="mt-2 text-lg font-medium">{tPhase === 'gap' ? `Next: ${names[tMove + 1]}` : names[tMove]}</p>}

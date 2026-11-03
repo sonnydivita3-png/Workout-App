@@ -35,4 +35,27 @@ describe('text contrast', () => {
     expect(ratio(token(light, 'neutral-400'), token(light, 'neutral-100'))).toBeGreaterThanOrEqual(4.5)
     expect(ratio(token(light, 'neutral-500'), '#ffffff')).toBeGreaterThanOrEqual(4.5)
   })
+  it('light theme: "▲ improved" green and "Delete" red read as small text on cards and on the page', () => {
+    const light = block('@theme {')
+    const page = token(light, 'page')
+    for (const c of ['green-600', 'green-800', 'red-600']) {
+      expect(ratio(token(light, c), '#ffffff')).toBeGreaterThanOrEqual(4.5)
+      expect(ratio(token(light, c), page)).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+  it('every vibe, both themes: the accent ink reads as text on cards and the page, and text on the accent reads too', () => {
+    const light = block('@theme {')
+    const dark = block(':root[data-theme="dark"] {')
+    const vibes = ['lime', 'pink', 'violet', 'orange', 'blue']
+    for (const v of vibes) {
+      const l = block(`:root[data-accent="${v}"] {`)
+      const d = block(`:root[data-theme="dark"][data-accent="${v}"] {`)
+      for (const [vibe, bgs] of [[l, [token(light, 'surface'), token(light, 'page')]], [d, [token(dark, 'surface'), token(dark, 'page')]]] as const) {
+        // The ink: wordmark, chart lines, focus rings.
+        for (const bg of bgs) expect(ratio(token(vibe, 'accent-ink'), bg), v).toBeGreaterThanOrEqual(4.5)
+        // Labels on accent buttons and chips.
+        expect(ratio(token(vibe, 'on-accent'), token(vibe, 'accent')), v).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+  })
 })
