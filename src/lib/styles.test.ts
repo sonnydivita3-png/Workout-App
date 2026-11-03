@@ -523,6 +523,45 @@ describe('time per part', () => {
   })
 })
 
+describe('a cardio part that the conditioning already uses (Hyrox + a run, an AMRAP + the rower)', () => {
+  // As Make me a workout asks: each part its own minutes, and the cardio picked for this workout.
+  const make = (style: WorkoutStyle, ex: string, type: string, gear: string[] | null, seed = 3) =>
+    withGearFor(gear, () => withCardioFor([type], false, () => generateWorkout(['Cardio'], 105, {
+      style, styles: [style], minutesByStyle: { [style]: 45 }, cardioMinutes: 60, cardio: { exerciseId: ex, kind: 'steady' }, rng: mulberry32(seed),
+    })))
+  const own = (w: PlannedExercise[]) => w.filter((p) => !p.block && !p.warmup && BUILTIN_BY_ID.get(p.exerciseId)?.kind === 'cardio')
+  it('Hyrox + running: the run is there (it used to vanish), and the Hyrox runs move to the treadmill', () => {
+    for (let seed = 1; seed <= 10; seed++) {
+      const w = make('hyrox', 'running', 'run', null, seed)
+      expect(own(w).map((p) => [p.exerciseId, p.minutes])).toEqual([['running', 60]])
+      expect(w.find((p) => p.block?.endsWith('hyrox') && /run before each/.test(p.note ?? ''))?.exerciseId).toBe('Running_Treadmill')
+      expect(new Set(w.map((p) => p.exerciseId)).size).toBe(w.length)
+      expect(minutesFor(w)).toBeGreaterThan(95)
+    }
+  })
+  it('Hyrox + the treadmill: the run on the treadmill, the Hyrox runs on the other treadmill entry', () => {
+    const w = make('hyrox', 'Running_Treadmill', 'treadmill', null)
+    expect(own(w).map((p) => p.exerciseId)).toEqual(['Running_Treadmill'])
+    expect(new Set(w.map((p) => p.exerciseId)).size).toBe(w.length)
+  })
+  it('Hyrox + running with no treadmill: one running card for it all, the extra time counted as its own run', () => {
+    const w = make('hyrox', 'running', 'run', ['Dumbbell', 'Kettlebell'])
+    expect(own(w)).toEqual([])
+    const run = w.find((p) => p.exerciseId === 'running')!
+    expect(run.extra).toBe(60)
+    expect(run.minutes).toBeGreaterThan(60)
+    expect(run.note).toMatch(/plus 60 min on its own/)
+    expect(new Set(w.map((p) => p.exerciseId)).size).toBe(w.length)
+  })
+  it('an AMRAP + the rower: the rowing is its own part, and the AMRAP gets another station', () => {
+    for (let seed = 1; seed <= 10; seed++) {
+      const w = make('amrap', 'x-row-erg', 'row', null, seed)
+      expect(own(w).map((p) => p.exerciseId), `seed ${seed}`).toEqual(['x-row-erg'])
+      expect(new Set(w.map((p) => p.exerciseId)).size).toBe(w.length)
+    }
+  })
+})
+
 describe('Hyrox and CrossFit fit the person', () => {
   it('Hyrox runs go on the treadmill when that is the running they do', () => {
     const w = withCardioFor(['treadmill'], false, () => main(gen('hyrox', [], 45)))

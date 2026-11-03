@@ -558,8 +558,11 @@ export interface ProgramDay {
 const DAY_MS = 86400000
 const daysBetween = (a: string, b: string) => Math.round((parseISO(b).getTime() - parseISO(a).getTime()) / DAY_MS)
 
-/** Extra minutes a week's added sets may take: about two sets, so the session stays close to the length picked. */
-const EXTRA_SET_BUDGET = 6
+/**
+ * Minutes each set added in a week may take: a tenth of the session (3 in a 30-minute one, 6 in an hour or longer), so
+ * the session stays close to the length picked. A flat 6 minutes grew a 30-minute session by 40% in week 3.
+ */
+const extraSetBudget = (minutes: number) => Math.min(6, Math.max(2.5, minutes * 0.1))
 /** Sets added to the main lifts in each week of a 4-week block (week 1 is the baseline), by scheme. */
 const EXTRA_SETS: Record<SetScheme, number[]> = { week3: [0, 0, 1, 1], weekly: [0, 1, 2, 2], flat: [0, 0, 0, 0] }
 
@@ -568,11 +571,12 @@ const growable = (p: PlannedExercise) => !p.block && !p.minutes && p.sets > 1 &&
 
 /**
  * Progressive overload over a 4-week block: extra sets on the main lifts (by `sets` scheme: a set in week 3, a set
- * each week, or none), then a lighter deload week. Extra sets go to the first lifts (the main ones) until about
- * EXTRA_SET_BUDGET minutes a set are used, rather than to every lift, which made a 45-minute session run past an hour.
- * Deload week: a set fewer, and every lift is marked `deload` so its target is about 90% of last time.
+ * each week, or none), then a lighter deload week. Extra sets go to the first lifts (the main ones) until about a tenth
+ * of the session (`minutes`, else its own length) a set is used, rather than to every lift, which made a 45-minute
+ * session run past an hour. Deload week: a set fewer, and every lift is marked `deload` so its target is about 90% of
+ * last time.
  */
-export function applyProgression(items: PlannedExercise[], weekIndex: number, weeks: number, opts: { sets?: SetScheme; deload?: boolean } = {}): PlannedExercise[] {
+export function applyProgression(items: PlannedExercise[], weekIndex: number, weeks: number, opts: { sets?: SetScheme; deload?: boolean; minutes?: number } = {}): PlannedExercise[] {
   if (weeks !== 4 || weekIndex === 0) return items
   if (weekIndex === 3 && opts.deload !== false) {
     return items.map((p) => {
@@ -585,6 +589,7 @@ export function applyProgression(items: PlannedExercise[], weekIndex: number, we
     })
   }
   const add = EXTRA_SETS[opts.sets ?? 'week3'][weekIndex]
+  const budget = extraSetBudget(opts.minutes ?? minutesFor(items)) * add
   let out = items
   let extra = 0
   for (let pass = 0; pass < add; pass++) {
@@ -594,7 +599,7 @@ export function applyProgression(items: PlannedExercise[], weekIndex: number, we
       const next = { ...p, sets: p.sets + 1 }
       const est = Math.round(liftMinutes(next, ex) * 10) / 10
       const more = est - (p.est ?? liftMinutes(p, ex))
-      if (extra + more > EXTRA_SET_BUDGET * add) return p
+      if (extra + more > budget) return p
       extra += more
       return { ...next, est }
     })
@@ -628,9 +633,14 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
   // A split starts on the first day that doesn't hit what was trained yesterday, then runs in order.
   let turn = split ? Math.max(0, split.findIndex((t) => !majorsOf(t).some((g) => prevMajors.has(g)))) : 0
 
+  let slotWeek = -1
   for (let offset = firstOffset; offset < total; offset++) {
     const date = toISO(addDays(parseISO(anchorMonday), offset))
     const weekIndex = Math.floor(offset / 7)
+    // Each week counts its sessions of a type afresh (its second Upper body is the same workout every week), whether or
+    // not the week starts with a training day: counting only from a Monday session made a Tuesday-Thursday-Saturday
+    // plan a new workout every week, so nothing it planned could build week to week.
+    if (weekIndex !== slotWeek) { slotCount.clear(); slotWeek = weekIndex }
     if (!trainWeekdays.includes(weekdayIndex(parseISO(date)))) {
       out.push({ date, rest: true, focus: [], groups: [], weekIndex, items: [] })
       prevMajors = new Set()
@@ -656,7 +666,6 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
     const focus = isCardioDay(type) ? ['Cardio'] : type.generic ? [] : type.groups
     const cardioKind = isCardioDay(type) ? cardioKindFor(goals, cardioDays++) : undefined
     const avoid = new Set([...recent.flat(), ...(input.rotate ?? [])])
-    if (offset % 7 === 0) slotCount.clear()
     const nth = slotCount.get(type.name) ?? 0
     slotCount.set(type.name, nth + 1)
     const slot = repeats(type) ? `${type.name}#${nth}` : undefined
@@ -729,7 +738,7 @@ function rotateDrops(days: ProgramDay[], prev: string[]) {
 /** Regenerate one day with the same session type (used by "reroll this day"). */
 export function rerollDay(day: ProgramDay, minutes: number, weeks: number, avoidIds: Set<string>, rng: Rng = Math.random, opts: DayOptions = {}): ProgramDay {
   if (day.rest || !day.style) return day
-  const items = applyProgression(makeDay(day.focus, minutes, day.style, rng, avoidIds, opts, day.cardioKind), day.weekIndex, weeks, opts)
+  const items = applyProgression(makeDay(day.focus, minutes, day.style, rng, avoidIds, opts, day.cardioKind), day.weekIndex, weeks, { ...opts, minutes })
   return { ...day, items }
 }
 
@@ -742,7 +751,7 @@ export function rerollSlot(days: ProgramDay[], date: string, minutes: number, we
   if (opts.dropSets && before) opts = { ...opts, avoidDropGroups: dropGroupsOf(before.items, (id) => BY_ID.get(id)) }
   if (!day.slot) return days.map((d) => (d === day ? rerollDay(d, minutes, weeks, avoidIds, rng, opts) : d))
   const base = rerollDay({ ...day, weekIndex: 0 }, minutes, weeks, avoidIds, rng, opts).items
-  return days.map((d) => (d.slot === day.slot ? { ...d, items: applyProgression(base.map((p) => ({ ...p })), d.weekIndex, weeks, opts) } : d))
+  return days.map((d) => (d.slot === day.slot ? { ...d, items: applyProgression(base.map((p) => ({ ...p })), d.weekIndex, weeks, { ...opts, minutes }) } : d))
 }
 
 /** Major muscle groups logged on a date, for recovery-aware planning. */

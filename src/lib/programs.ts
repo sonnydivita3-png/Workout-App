@@ -1,5 +1,6 @@
 import type { ExerciseLog, PlanOverrides, PlannedExercise, Program } from '../types'
 import { hasData } from './stats'
+import { makeRoom, mergeIntoDay } from './randomizer'
 
 /** A program is active while any of its days is today or later. */
 export const isActive = (p: Program, today: string) => p.entries.some((e) => e.date >= today)
@@ -71,7 +72,13 @@ export const keptItems = (overrides: PlanOverrides, programs: Program[], date: s
  */
 export function layerDays(days: PlanOverrides, overrides: PlanOverrides, programs: Program[], self: Program): PlanOverrides {
   const next = { ...overrides }
-  for (const [date, items] of Object.entries(days)) next[date] = [...items.map((x) => ({ ...x, plan: self.id })), ...keptItems(overrides, programs, date, self)]
+  for (const [date, items] of Object.entries(days)) {
+    // The other plans' sessions (a run plan's run) stay as they are; a block of the new plan that uses one (its Hyrox's
+    // runs) moves over to another way of doing it, one entry per exercise a day.
+    const kept = keptItems(overrides, programs, date, self)
+    const mine = mergeIntoDay(kept, items.map((x) => ({ ...x, plan: self.id }))).slice(kept.length)
+    next[date] = [...mine, ...kept]
+  }
   return next
 }
 
@@ -82,9 +89,13 @@ export function layerDays(days: PlanOverrides, overrides: PlanOverrides, program
  */
 export function addSession(day: PlannedExercise[], item: PlannedExercise, programs: Program[], isCardio: (id: string) => boolean): PlannedExercise[] {
   const lifting = new Set(programs.filter((q) => q.kind === 'program').map((q) => q.id))
+  // A run in a block (a Hyrox's runs, a WOD's run) isn't a run of its own: the block moves over (see mergeIntoDay).
   const replaced = (x: PlannedExercise) =>
-    x.plan && lifting.has(x.plan) ? !x.warmup && !x.block && isCardio(x.exerciseId) : x.exerciseId === item.exerciseId
-  return [...day.filter((x) => !replaced(x)), item]
+    !x.block && (x.plan && lifting.has(x.plan) ? !x.warmup && isCardio(x.exerciseId) : x.exerciseId === item.exerciseId)
+  const kept = day.filter((x) => !replaced(x))
+  const room = kept.some((x) => x.exerciseId === item.exerciseId) ? makeRoom(kept, item.exerciseId) : null
+  // Nothing to move it to (they only run outside, and so does the Hyrox): the plan's run is the day's run card.
+  return [...(room ?? kept.filter((x) => x.exerciseId !== item.exerciseId)), item]
 }
 
 /** On days with both: the run or ride from a run/bike plan first, or the lifting first. */

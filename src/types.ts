@@ -120,6 +120,11 @@ export interface PlannedExercise {
   intensity?: number
   /** Treadmill incline, percent grade (cardio). */
   incline?: number
+  /**
+   * Cardio in a block: minutes of it done on its own as well, counted in `minutes` (a run asked for with a Hyrox whose
+   * runs are the same exercise, when there's no other way to run: one card for all the running).
+   */
+  extra?: number
   /** Set on every item of a timed block (AMRAP / EMOM / for time). `reps` or `seconds` is per round. */
   wod?: Wod
   /** Planned rest after each set, in seconds (used for time estimates and the rest timer). */

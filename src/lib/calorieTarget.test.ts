@@ -46,9 +46,9 @@ describe('a workout for a calorie target', () => {
     expect(Math.abs(plan.totalKcal - 500)).toBeLessThan(40)
   })
 
-  it('a small target never asks for less than five minutes of cardio', () => {
+  it('a small target never asks for less than ten minutes of cardio (the shortest session the app makes)', () => {
     const plan = planForCalories(100, [{ key: 'standard', met: STYLE_MET.standard, minutes: 60 }, { key: 'cardio', met: 8, minutes: 10 }], rate, 'cardio')
-    expect(plan.minutes.cardio).toBe(5)
+    expect(plan.minutes.cardio).toBe(10)
   })
 
   it('the workout as made: its own cardio counts, and the cardio is stretched to land on the target', () => {

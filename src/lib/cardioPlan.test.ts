@@ -196,6 +196,18 @@ describe('event dates and timelines', () => {
       expect(raceWeek.volume).toBeLessThan(Math.max(...build.map((w) => w.volume)))
     }
   })
+  it('starts from what they run now, even on more days than their miles fill (no jump in week 1)', () => {
+    // 3 miles a week over four days used to start at 6.5: each run's minimum (2-mile long run, 1.5-mile easy runs) added up.
+    for (const [currentWeekly, trainWeekdays] of [[3, [0, 1, 3, 5]], [5, [0, 1, 3, 4, 5]], [5, [1, 3, 5]]] as const) {
+      const p = plan({ eventId: '10k', level: 'beginner', trainWeekdays: [...trainWeekdays], longDay: 5, weeks: 12, currentWeekly })
+      const build = p.weeks.filter((w) => w.phase !== 'race' && w.phase !== 'taper')
+      expect(build[0].volume, `${currentWeekly} mi on ${trainWeekdays.length} days`).toBeLessThanOrEqual(currentWeekly * 1.6)
+      expect(Math.max(...build.map((w) => w.volume)), `${currentWeekly} mi on ${trainWeekdays.length} days`).toBeGreaterThan(build[0].volume * 1.5)
+      for (const d of sessions(p, 0)) expect(d.miles ?? 1, d.title).toBeGreaterThanOrEqual(1)
+      // Still more than they run now: the plan says so, and how to start gentler.
+      if (build[0].volume > currentWeekly * 1.25 + 0.25) expect(p.warnings.join(' '), `${currentWeekly} mi on ${trainWeekdays.length} days`).toMatch(/more than the 3 mi you run now\. Fewer running days, or Couch to 5K/)
+    }
+  })
   it('warns when the timeline is too short and lowers the peak instead of ramping unsafely', () => {
     const short = plan({ level: 'beginner', weeks: 8 })
     expect(short.warnings.join()).toMatch(/timeline is short/)

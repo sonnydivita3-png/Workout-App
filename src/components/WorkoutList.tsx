@@ -1,5 +1,5 @@
 import { describeItem, groupByBlock } from '../lib/describe'
-import { hyroxRoute, isHyroxBlock } from '../lib/hyrox'
+import { hyroxRoute, isHyroxBlock, runsAs } from '../lib/hyrox'
 import { formatCardioTime } from '../lib/units'
 import { findExercise, useStore } from '../store'
 import type { PlannedExercise } from '../types'
@@ -52,7 +52,7 @@ export function WorkoutList({ items, onSwap, onChoose, onRemove }: Props) {
                   )
                 })}
               </ol>
-              {runEx && <p className="pt-1 text-xs text-neutral-500">Runs: {runEx.name.toLowerCase()}, about {formatCardioTime(run!.item.minutes ?? 0)} in all.</p>}
+              {runEx && <p className="pt-1 text-xs text-neutral-500">Runs: {runsAs(runEx.name)}, about {formatCardioTime(run!.item.minutes ?? 0)} in all.</p>}
             </div>
           )
         })()

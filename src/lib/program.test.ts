@@ -162,6 +162,20 @@ describe('progression (4-week block)', () => {
     expect(w3[2]).toEqual(items()[2])
     expect(applyProgression(items(), 3, 4)[0].sets).toBe(2)
   })
+  it('keeps a short session short: extra sets take about a tenth of the session each, not a fixed 6 minutes', () => {
+    for (const minutes of [30, 45]) {
+      for (const trainWeekdays of [[0, 2, 4], [1, 3, 5, 6]]) {
+        for (let seed = 1; seed <= 4; seed++) {
+          const days = generateProgram(base({ goal: 'muscle', trainWeekdays, weeks: 4, minutes, sets: 'weekly', deload: false, rng: mulberry32(seed) }))
+          const w1 = new Map(days.filter((d) => d.slot && d.weekIndex === 0).map((d) => [d.slot, minutesFor(d.items)]))
+          for (const d of days.filter((x) => x.slot && x.weekIndex >= 2 && w1.has(x.slot))) {
+            // Two sets more by week 3: about a fifth more time, never the 40% a 30-minute session used to grow by.
+            expect(minutesFor(d.items) - w1.get(d.slot)!, `${minutes} min ${trainWeekdays} ${d.name} week ${d.weekIndex + 1}`).toBeLessThanOrEqual(minutes * 0.2 + 0.5)
+          }
+        }
+      }
+    }
+  })
   it('keeps week 3 close to the session length: extra sets go to the first lifts, about two sets in all', () => {
     const days = generateProgram(base({ goal: 'muscle', trainWeekdays: [0, 1, 3, 4, 5], weeks: 4, minutes: 45, rng: mulberry32(7), warmup: { sets: true } }))
     const bySlot = new Map(days.filter((d) => d.slot && d.weekIndex === 0).map((d) => [d.slot, minutesFor(d.items)]))
@@ -283,6 +297,22 @@ describe('named splits', () => {
 
 describe('progress carries over', () => {
   const ids = (d: { items: { exerciseId: string }[] }) => d.items.map((p) => p.exerciseId)
+
+  it('repeats them on any training days, not only weeks that start with a Monday session', () => {
+    for (const trainWeekdays of [[1, 3, 5], [2, 4, 6], [1, 3, 5, 6], [0, 2, 4]]) {
+      for (const split of ['ppl', 'upperlower', 'full'] as const) {
+        const days = generateProgram(base({ weeks: 4, split, trainWeekdays, rng: mulberry32(3) }))
+        const lifting = days.filter((d) => d.slot)
+        const slots = new Set(lifting.map((d) => d.slot))
+        // Each workout comes back week after week (Tuesday-Thursday-Saturday made a new one every week).
+        expect(lifting.length / slots.size, `${trainWeekdays} ${split}: ${[...slots]}`).toBeGreaterThanOrEqual(2.5)
+        // Most of week 2 is week 1 again (a 3-way split on 4 days rotates, so not all of it).
+        const w1 = lifting.filter((d) => d.weekIndex === 0).map((d) => ids(d).join())
+        const w2 = lifting.filter((d) => d.weekIndex === 1)
+        expect(w2.filter((d) => w1.includes(ids(d).join())).length / w2.length, `${trainWeekdays} ${split}`).toBeGreaterThanOrEqual(0.5)
+      }
+    }
+  })
 
   it('a month repeats each lifting workout week to week (with the block\'s extra set and deload)', () => {
     for (const split of ['ppl', 'upperlower', 'auto'] as const) {
