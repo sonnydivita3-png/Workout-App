@@ -26,6 +26,8 @@ import { Tip } from './Tip'
 import { Chevron } from './Chevron'
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+// Ways to add to or change a day that's already planned: quieter than the workout itself.
+const dashed = 'min-h-12 flex-1 rounded-2xl border border-dashed border-neutral-300 px-1 py-2.5 text-sm leading-tight text-neutral-600 hover:bg-neutral-100/60'
 
 /** "Nov 2 – 8", or "Oct 26 – Nov 1" across a month end (in the phone's own date order). */
 function weekRange(a: Date, b: Date): string {
@@ -82,9 +84,9 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
       <header className="mb-4 flex items-center justify-between gap-2">
         <h1 className="min-w-0 text-2xl font-semibold tracking-tight">{weekRange(dates[0], dates[6])}</h1>
         <div className="flex shrink-0 items-center gap-1 text-neutral-500">
-          {!thisWeek && <button onClick={() => { setAnchor(new Date()); setDay(weekdayIndex(new Date())) }} className="mr-1 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">Today</button>}
-          <button onClick={() => shiftWeek(-1)} aria-label="Previous week" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-neutral-200/60"><Chevron left /></button>
-          <button onClick={() => shiftWeek(1)} aria-label="Next week" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-neutral-200/60"><Chevron /></button>
+          {!thisWeek && <button onClick={() => { setAnchor(new Date()); setDay(weekdayIndex(new Date())) }} className="hit mr-1 rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-700">Today</button>}
+          <button onClick={() => shiftWeek(-1)} aria-label="Previous week" className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-neutral-200/60"><Chevron left /></button>
+          <button onClick={() => shiftWeek(1)} aria-label="Next week" className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-neutral-200/60"><Chevron /></button>
           {onSettings && <SettingsGear onClick={onSettings} />}
         </div>
       </header>
@@ -100,8 +102,8 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
       <div className="mb-3 mt-5 flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">{dayTitle}</h2>
         <div className="flex shrink-0 gap-2">
-          <button onClick={() => setAddMenu(true)} data-tour="add" className="rounded-full bg-accent px-3 py-1.5 text-sm font-medium text-on-accent">+ Add</button>
-          <button onClick={() => setDayMenu('menu')} aria-label="Day options" className="flex h-8 w-10 items-center justify-center rounded-full bg-neutral-100 text-lg leading-none text-neutral-600">⋯</button>
+          <button onClick={() => setAddMenu(true)} data-tour="add" className="hit h-9 rounded-full bg-accent px-4 text-sm font-semibold text-on-accent">+ Add</button>
+          <button onClick={() => setDayMenu('menu')} aria-label="Day options" className="hit flex h-9 w-10 items-center justify-center rounded-full bg-neutral-100 text-lg leading-none text-neutral-600">⋯</button>
         </div>
       </div>
 
@@ -135,30 +137,32 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
         )}
         {liftAndCardio(planned) && (
           // Lifting and cardio on the same day (made together, a finisher, or from two plans): either can go first.
-          <div role="radiogroup" aria-label="Cardio first or last" className="flex items-center gap-2 px-1 text-xs text-neutral-500">
-            <span>Cardio:</span>
-            {([[true, 'Start with it'], [false, 'Finish with it']] as const).map(([first, label]) => (
-              <button key={label} role="radio" aria-checked={cardioFirst(planned) === first} onClick={() => s.setDayItems(date, placeCardio(planned, first))}
-                className={`rounded-full px-3 py-1 ${cardioFirst(planned) === first ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`}>{label}</button>
-            ))}
+          <div className="flex items-center justify-between gap-2 px-1 text-xs text-neutral-500">
+            <span>Cardio</span>
+            <div role="radiogroup" aria-label="Cardio first or last" className="flex rounded-full bg-neutral-100 p-0.5">
+              {([[true, 'Start with it'], [false, 'Finish with it']] as const).map(([first, label]) => (
+                <button key={label} role="radio" aria-checked={cardioFirst(planned) === first} onClick={() => s.setDayItems(date, placeCardio(planned, first))}
+                  className={`hit rounded-full px-3 py-1.5 ${cardioFirst(planned) === first ? 'bg-surface font-medium text-neutral-900 shadow-sm' : 'text-neutral-500'}`}>{label}</button>
+              ))}
+            </div>
           </div>
         )}
         <DayWorkout date={date} items={planned} onSetDone={startRest} />
         {planned.length > 0 && (
           <div className="flex gap-2">
-            <button onClick={() => setPicking(true)} className="flex-1 rounded-2xl border border-dashed border-neutral-300 py-3 text-sm text-neutral-600">+ Add exercise</button>
-            <button onClick={() => setCoreFinisher(true)} className="flex-1 rounded-2xl border border-dashed border-neutral-300 py-3 text-sm text-neutral-600">+ Core finisher</button>
-            {planned.length > 1 && <button onClick={() => setArranging(true)} className="flex-1 rounded-2xl border border-dashed border-neutral-300 py-3 text-sm text-neutral-600">⇅ Reorder / superset</button>}
+            <button onClick={() => setPicking(true)} className={dashed}>+ Add exercise</button>
+            <button onClick={() => setCoreFinisher(true)} className={dashed}>+ Core finisher</button>
+            {planned.length > 1 && <button onClick={() => setArranging(true)} className={dashed}>⇅ Reorder</button>}
           </div>
         )}
         {work.length > 0 && date <= today && (
           finished ? (
             <div className="flex gap-2">
-              <button onClick={() => setFinishing(true)} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium text-neutral-600">✓ Workout complete · see summary</button>
-              <button onClick={() => s.unfinishDay(date)} className="rounded-2xl bg-neutral-100 px-4 py-3 text-sm text-neutral-600">Undo</button>
+              <button onClick={() => setFinishing(true)} className="min-h-12 flex-1 rounded-2xl bg-accent/15 py-3 text-sm font-semibold text-neutral-800 ring-1 ring-inset ring-accent/40">✓ Workout complete · see summary</button>
+              <button onClick={() => s.unfinishDay(date)} className="min-h-12 rounded-2xl bg-neutral-100 px-4 py-3 text-sm font-medium text-neutral-600">Undo</button>
             </div>
           ) : (
-            <button onClick={() => setFinishing(true)} className="w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-on-accent">✓ Finish workout</button>
+            <button onClick={() => setFinishing(true)} className="min-h-14 w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-on-accent shadow-sm">✓ Finish workout</button>
           )
         )}
       </section>
@@ -177,8 +181,8 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
             ['Run or ride plan', 'Build up to a distance or a race', () => setGenerator('cardio')],
           ] as const).map(([title, hint, go]) => (
             <button key={title} onClick={() => { setAddMenu(false); go() }} className={rowBtn}>
-              <span><span className="block text-sm font-medium">{title}</span><span className="block text-xs text-neutral-400">{hint}</span></span>
-              <span className="text-neutral-300">›</span>
+              <span><span className="block text-sm font-medium">{title}</span><span className="block text-xs text-neutral-500">{hint}</span></span>
+              <Chevron className="h-4 w-4 shrink-0 text-neutral-400" />
             </button>
           ))}
         </Sheet>

@@ -19,6 +19,7 @@ import { IntervalTimerSheet } from './IntervalTimerSheet'
 import { StrengthCard } from './StrengthCard'
 import { TimedBlockCard } from './TimedBlockCard'
 import { HyroxFinish } from './HyroxFinish'
+import { Chevron } from './Chevron'
 import { WarmupCard } from './WarmupCard'
 import { hyroxRoute, isHyroxBlock } from '../lib/hyrox'
 
@@ -76,9 +77,9 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
           <div key={gi} className={g.block ? 'space-y-2 rounded-3xl bg-neutral-200/50 p-2' : 'contents'}>
             {g.block && g.label && (
               <div className="flex items-center justify-between px-2 pt-1">
-                <p className="text-xs uppercase tracking-wide text-neutral-500">{g.label}</p>
+                <p className="text-xs font-semibold text-neutral-600">{g.label}</p>
                 {canCombine(g) && g.items.length > 1 && (
-                  <button onClick={() => s.setDayItems(date, ungroup(planned, gi))} className="text-xs text-neutral-500 underline underline-offset-2">Split</button>
+                  <button onClick={() => s.setDayItems(date, ungroup(planned, gi))} className="hit shrink-0 text-xs font-medium text-neutral-500 underline underline-offset-2">Split</button>
                 )}
               </div>
             )}
@@ -91,7 +92,7 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
               const c = parseCircuit(g.label, g.items.map((x) => x.item))
               if (!c) return null
               const names = g.items.map((x) => findExercise(s.custom, x.item.exerciseId)?.name ?? 'Exercise')
-              return <button onClick={() => setCircuitTimer({ title: g.label?.split(' · ')[0] ?? 'HIIT circuit', segments: circuitSegments(names, c) })} className="mx-2 rounded-full bg-surface px-3 py-1 text-xs text-neutral-600 ring-1 ring-neutral-200/70">⏱ Start circuit timer</button>
+              return <button onClick={() => setCircuitTimer({ title: g.label?.split(' · ')[0] ?? 'HIIT circuit', segments: circuitSegments(names, c) })} className="hit mx-2 rounded-full bg-surface px-3 py-1.5 text-xs font-medium text-neutral-700 ring-1 ring-neutral-200">⏱ Start circuit timer</button>
             })()}
             {g.items.map(({ item: p, index }, mi) => {
               const ex = findExercise(s.custom, p.exerciseId)
@@ -184,12 +185,12 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
       {swap?.step === 'how' && (
         <Sheet title={`Swap ${swap.ex.name}`} onClose={() => setSwap(null)} closeLabel="Cancel">
           <button onClick={randomSwap} className={rowBtn}>
-            <span><span className="block text-sm font-medium">Random {swap.ex.group.toLowerCase()} exercise</span><span className="block text-xs text-neutral-400">Same body part, with your equipment. Keeps the number of sets</span></span>
+            <span><span className="block text-sm font-medium">Random {swap.ex.group.toLowerCase()} exercise</span><span className="block text-xs text-neutral-500">Same body part, with your equipment. Keeps the number of sets</span></span>
             <span className="text-neutral-300">↻</span>
           </button>
           <button onClick={() => setSwap({ ...swap, step: 'pick' })} className={rowBtn}>
-            <span><span className="block text-sm font-medium">Choose one</span><span className="block text-xs text-neutral-400">Browse {swap.ex.group.toLowerCase()} exercises, or search them all</span></span>
-            <span className="text-neutral-300">›</span>
+            <span><span className="block text-sm font-medium">Choose one</span><span className="block text-xs text-neutral-500">Browse {swap.ex.group.toLowerCase()} exercises, or search them all</span></span>
+            <Chevron className="h-4 w-4 shrink-0 text-neutral-400" />
           </button>
           {swapMsg && <p role="status" className="px-3 pt-2 text-sm text-neutral-500">{swapMsg}</p>}
         </Sheet>

@@ -61,9 +61,9 @@ export function TimedBlockCard({ items, date, onRemove }: { items: PlannedExerci
       <div className="mb-2 flex items-start justify-between gap-2">
         <div>
           <p className="text-xs font-medium text-neutral-500">{benchmark ? `★ Benchmark · ${benchmark.name}` : 'Timed workout'}</p>
-          <h3 className="text-lg font-semibold">{wodTitle(wod)}</h3>
+          <h3 className="text-lg font-semibold leading-snug">{wodTitle(wod)}</h3>
         </div>
-        <button onClick={() => confirm('Remove this timed workout from the day?') && onRemove()} aria-label="Remove timed workout" className="text-lg leading-none text-neutral-400">×</button>
+        <button onClick={() => confirm('Remove this timed workout from the day?') && onRemove()} aria-label="Remove timed workout" className="hit -mr-1.5 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg leading-none text-neutral-500 hover:bg-neutral-100">×</button>
       </div>
       <ul className="mb-3 divide-y divide-neutral-100">
         {items.map((p) => {
@@ -71,13 +71,13 @@ export function TimedBlockCard({ items, date, onRemove }: { items: PlannedExerci
           return (
             <li key={p.exerciseId} className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
               <span className="min-w-0 line-clamp-2">{name(p.exerciseId)}</span>
-              <span className="shrink-0 text-xs tabular-nums text-neutral-400">{ex ? describeItem(p, ex, units) : ''}</span>
+              <span className="shrink-0 text-xs tabular-nums text-neutral-500">{ex ? describeItem(p, ex, units) : ''}</span>
             </li>
           )
         })}
       </ul>
       {last && (
-        <p className="mb-3 text-xs text-neutral-400">
+        <p className="mb-3 text-xs text-neutral-500">
           Last time: {formatResult(last)}{best && best !== last ? ` · Best: ${formatResult(best)}` : ''}
         </p>
       )}
@@ -87,37 +87,37 @@ export function TimedBlockCard({ items, date, onRemove }: { items: PlannedExerci
             const name = prompt('Name this benchmark (repeat it now and then to see your progress):', wodTitle(wod))
             if (name?.trim()) saveBenchmark(name, items.map(({ block: _b, ...p }) => (void _b, p)))
           }}
-          className="mb-3 text-xs text-neutral-500 underline underline-offset-2"
+          className="hit mb-3 text-xs font-medium text-neutral-500 underline underline-offset-2"
         >
           ☆ Save as benchmark
         </button>
       )}
 
       {future ? <p className="text-sm text-neutral-500">Start the clock and log your result on the day.</p> : <>
-      <button onClick={() => setTimer(true)} className="mb-3 w-full rounded-xl bg-neutral-100 py-2 text-sm font-medium text-neutral-700">⏱ Start timer</button>
+      <button onClick={() => setTimer(true)} className="mb-3 min-h-12 w-full rounded-2xl bg-neutral-100 py-3 text-base font-semibold text-neutral-800">⏱ Start timer</button>
 
       {showForm ? (
         <div>
-          <p className="mb-2 text-sm font-semibold text-neutral-700">Log your result</p>
+          <p className="mb-2 text-sm font-semibold">Log your result</p>
           {wod.kind === 'amrap' && (
             <div className="mb-3 flex gap-2">
-              <label className="flex-1 text-xs text-neutral-500">Full rounds<NumberInput value={rounds} onChange={setRounds} /></label>
-              <label className="flex-1 text-xs text-neutral-500">Extra reps<NumberInput value={reps} onChange={setReps} /></label>
+              <label className="flex-1 text-xs font-medium text-neutral-500"><span className="mb-1 block">Full rounds</span><NumberInput value={rounds} onChange={setRounds} /></label>
+              <label className="flex-1 text-xs font-medium text-neutral-500"><span className="mb-1 block">Extra reps</span><NumberInput value={reps} onChange={setReps} /></label>
             </div>
           )}
           {wod.kind === 'emom' && (
             <label className="mb-3 block text-xs text-neutral-500">Intervals completed (of {emomIntervals(wod)})
               <div className="mt-1 flex gap-2">
                 <div className="w-24"><NumberInput value={intervals} onChange={setIntervals} /></div>
-                <button onClick={() => setIntervals(emomIntervals(wod))} className="rounded-xl bg-neutral-100 px-3 text-sm text-neutral-600">All of them</button>
+                <button onClick={() => setIntervals(emomIntervals(wod))} className="rounded-xl bg-neutral-100 px-3 text-sm font-medium text-neutral-700">All of them</button>
               </div>
             </label>
           )}
           {wod.kind === 'tabata' && (
             <div className="mb-3 flex items-end gap-2">
-              <label className="w-28 text-xs text-neutral-500">Intervals done (of {tabataOf(wod, ids.length).intervals})<NumberInput value={intervals} onChange={setIntervals} /></label>
-              <label className="w-24 text-xs text-neutral-500">Total reps<NumberInput value={reps} onChange={setReps} placeholder="optional" /></label>
-              <button onClick={() => setIntervals(tabataOf(wod, ids.length).intervals)} className="rounded-xl bg-neutral-100 px-3 py-2 text-sm text-neutral-600">All</button>
+              <label className="w-28 text-xs font-medium text-neutral-500"><span className="mb-1 block">Intervals done (of {tabataOf(wod, ids.length).intervals})</span><NumberInput value={intervals} onChange={setIntervals} /></label>
+              <label className="w-24 text-xs font-medium text-neutral-500"><span className="mb-1 block">Total reps</span><NumberInput value={reps} onChange={setReps} placeholder="optional" /></label>
+              <button onClick={() => setIntervals(tabataOf(wod, ids.length).intervals)} className="h-11 rounded-xl bg-neutral-100 px-3 text-sm font-medium text-neutral-700">All</button>
             </div>
           )}
           {wod.kind === 'fortime' && (
@@ -130,24 +130,24 @@ export function TimedBlockCard({ items, date, onRemove }: { items: PlannedExerci
                 <label className="mb-3 block text-xs text-neutral-500">Rounds completed (of {wod.rounds ?? 1})<div className="mt-1 w-24"><NumberInput value={rounds} onChange={setRounds} /></div></label>
               ) : (
                 <div className="mb-3 flex items-end gap-2">
-                  <label className="w-20 text-xs text-neutral-500">Minutes<NumberInput value={mins} onChange={setMins} /></label>
-                  <label className="w-20 text-xs text-neutral-500">Seconds<NumberInput value={secs} onChange={setSecs} /></label>
+                  <label className="w-20 text-xs font-medium text-neutral-500"><span className="mb-1 block">Minutes</span><NumberInput value={mins} onChange={setMins} /></label>
+                  <label className="w-20 text-xs font-medium text-neutral-500"><span className="mb-1 block">Seconds</span><NumberInput value={secs} onChange={setSecs} /></label>
                 </div>
               )}
             </>
           )}
           <div className="flex gap-2">
-            {saved && <button onClick={() => setEditing(false)} className="w-1/3 rounded-xl bg-neutral-100 py-2.5 text-sm text-neutral-600">Cancel</button>}
-            <button disabled={!d} onClick={save} className="flex-1 rounded-xl bg-accent py-2.5 text-sm font-medium text-on-accent disabled:opacity-30">Save result</button>
+            {saved && <button onClick={() => setEditing(false)} className="min-h-12 w-1/3 rounded-2xl bg-neutral-100 py-3 text-sm font-medium text-neutral-700">Cancel</button>}
+            <button disabled={!d} onClick={save} className="min-h-12 flex-1 rounded-2xl bg-accent py-3 text-base font-semibold text-on-accent">Save result</button>
           </div>
-          <p className="mt-2 text-xs text-neutral-400">Also counted toward each exercise’s history.</p>
+          <p className="mt-2 text-xs text-neutral-500">Also counted toward each exercise’s history.</p>
         </div>
       ) : (
-        <div className="flex items-center justify-between rounded-xl bg-neutral-50 px-3 py-2.5">
-          <span className="text-sm"><span className="text-neutral-400">Result </span><b className="font-semibold">{formatResult(saved!)}</b></span>
-          <span className="flex gap-3 text-xs">
-            <button onClick={() => setEditing(true)} className="text-neutral-500 underline underline-offset-2">Edit</button>
-            <button onClick={() => confirm('Delete this result?') && deleteTimed(saved!.id)} className="text-red-600">Delete</button>
+        <div className="flex items-center justify-between rounded-xl bg-accent/15 px-3 py-2.5 ring-1 ring-inset ring-accent/40">
+          <span className="text-sm"><span className="text-neutral-600">✓ Result </span><b className="font-semibold">{formatResult(saved!)}</b></span>
+          <span className="flex gap-4 text-xs font-medium">
+            <button onClick={() => setEditing(true)} className="hit text-neutral-600 underline underline-offset-2">Edit</button>
+            <button onClick={() => confirm('Delete this result?') && deleteTimed(saved!.id)} className="hit text-red-600">Delete</button>
           </span>
         </div>
       )}

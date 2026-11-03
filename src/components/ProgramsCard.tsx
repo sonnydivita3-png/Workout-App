@@ -47,7 +47,7 @@ export function ProgramsCard({ onReplace, onStrength }: { onReplace: (kind: Prog
               <span className="block truncate text-sm font-medium">{p.title}</span>
               <span className="block text-xs text-neutral-400">through {fmtShort(last(p))}</span>
               {onStrength && p.kind === 'cardio' && !active.some((q) => q.supports === p.id) && (
-                <button onClick={() => onStrength(p.id)} className="mt-0.5 text-xs text-accent underline underline-offset-2">+ Strength made for it</button>
+                <button onClick={() => onStrength(p.id)} className="hit mt-0.5 text-xs font-medium text-accent-ink underline underline-offset-2">+ Strength made for it</button>
               )}
             </span>
             <button onClick={() => onReplace(p.kind)} className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-600">Replace</button>
