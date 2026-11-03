@@ -23,8 +23,9 @@ import { workSets } from './lib/progression'
 import { setCardioPrefs } from './lib/cardioPrefs'
 import { activePrograms, addSession, clearRange, layerDays, orderDay, orderDays, removeProgramDays, type StackOrder } from './lib/programs'
 import { customFields, newCustomId, sameName, usageOf, type CustomExerciseInput } from './lib/customExercises'
+import { finishIn, isFinished, unfinishIn } from './lib/sessions'
 import type {
-  AppNotification, BodyweightEntry, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Benchmark, AboutMe, Sport, TimedLog, StrengthSet, Units, WeekPlan, WeekPhase,
+  AppNotification, BodyweightEntry, DaySession, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Benchmark, AboutMe, Sport, TimedLog, StrengthSet, Units, WeekPlan, WeekPhase,
 } from './types'
 
 export interface TrainingPrefs {
@@ -123,9 +124,10 @@ interface State extends Data {
   setWarmupDone: (date: string, done: boolean) => void
   /** Dates marked "Workout complete" (even if some planned sets weren't logged). */
   finishedDays: string[]
-  finishDay: (date: string) => void
+  /** Finish the day's workout, or on a day split in two, one of its sessions (the day is finished once both are). */
+  finishDay: (date: string, session?: DaySession) => void
   /** Undo "Workout complete" (tapped by mistake, or there's more to do). */
-  unfinishDay: (date: string) => void
+  unfinishDay: (date: string, session?: DaySession) => void
   /** Replace a date's exercises (reordered, grouped into supersets...). */
   setDayItems: (date: string, items: PlannedExercise[]) => void
   /** Make a date's exercises the usual plan for that weekday (every week). */
@@ -313,7 +315,7 @@ const defaults = () => ({
   routines: [] as Routine[],
   goals: [] as Goal[],
   notifications: [] as AppNotification[],
-  notifPrefs: { system: false, goals: true, pbs: true, daily: true, reminderTime: '17:00' } as NotifPrefs,
+  notifPrefs: { system: false, goals: true, pbs: true, daily: true, reminderTime: '17:00', amTime: '07:00', pmTime: '17:00' } as NotifPrefs,
   programs: [] as Program[],
   timedLogs: [] as TimedLog[],
   benchmarks: [] as Benchmark[],
@@ -511,8 +513,8 @@ export const useStore = create<State>()(
         set((s) => ({ equipment, pickerEquipment: equipment && s.pickerEquipment === 'Any' ? 'Mine' : !equipment && s.pickerEquipment === 'Mine' ? 'Any' : s.pickerEquipment })),
       seeTip: (id) => set((s) => (s.tipsSeen.includes(id) ? s : { tipsSeen: [...s.tipsSeen, id] })),
       setWarmupDone: (date, done) => set((s) => ({ warmupsDone: done ? [...s.warmupsDone.filter((d) => d !== date), date].slice(-400) : s.warmupsDone.filter((d) => d !== date) })),
-      finishDay: (date) => set((s) => (s.finishedDays.includes(date) ? s : { finishedDays: [...s.finishedDays, date].slice(-400) })),
-      unfinishDay: (date) => set((s) => ({ finishedDays: s.finishedDays.filter((d) => d !== date) })),
+      finishDay: (date, session) => set((s) => (isFinished(s.finishedDays, date, session) ? s : { finishedDays: finishIn(s.finishedDays, date, session).slice(-800) })),
+      unfinishDay: (date, session) => set((s) => ({ finishedDays: unfinishIn(s.finishedDays, date, session) })),
       setDayItems: (date, items) => set((s) => editDay(s, date, () => items)),
       clearUsualDay: (date) =>
         set((s) => {

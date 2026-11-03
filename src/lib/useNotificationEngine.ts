@@ -3,6 +3,8 @@ import { findExercise, useStore } from '../store'
 import { useToasts } from '../toastStore'
 import type { AppNotification } from '../types'
 import { computeNotifications, msUntilReminder } from './notify'
+import { dayPlanOf } from './plan'
+import { isSplit } from './sessions'
 import { useToday } from './useToday'
 
 export const canSystemNotify = () => typeof Notification !== 'undefined' && Notification.permission === 'granted'
@@ -56,13 +58,14 @@ export function useNotificationEngine() {
     return () => clearTimeout(t)
   }, [logs, goals, bodyweight, plan, overrides, prefs, finished, today, tick])
 
-  // Fire the daily reminder if the app is open when the time arrives.
+  // Fire the daily reminder (on a two-session day, the morning's and the evening's) if the app is open when it's time.
+  const split = isSplit(dayPlanOf(plan, overrides, today))
   useEffect(() => {
-    const ms = msUntilReminder(prefs, new Date())
+    const ms = msUntilReminder(prefs, new Date(), split)
     if (ms == null) return
     const t = setTimeout(() => setTick((n) => n + 1), ms + 500)
     return () => clearTimeout(t)
-  }, [prefs, today, tick])
+  }, [prefs, today, tick, split])
 
   // Re-check whenever the app comes back to the foreground.
   useEffect(() => {

@@ -43,6 +43,14 @@ function cleanLog(l: Obj): Obj {
   return out
 }
 const isPlanned = (p: unknown): p is Obj => isObj(p) && typeof p.exerciseId === 'string'
+/** A planned item as saved, with a session that isn't the morning's or the evening's left out (one session). */
+function cleanPlanned(p: Obj): Obj {
+  if (!('session' in p) || p.session === 'am' || p.session === 'pm') return p
+  const { session: _s, ...rest } = p
+  void _s
+  return rest
+}
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/
 const hasId = (x: unknown): x is Obj => isObj(x) && typeof x.id === 'string'
 
 // Exercises that were logged as timed sets in older versions and are cardio (time and distance) now.
@@ -71,10 +79,16 @@ export function repairState<T extends Obj>(saved: unknown, defaults: T): T {
   }
   // Field-specific checks.
   const plan = Array.isArray(saved.plan) && saved.plan.length === 7 ? saved.plan : null
-  out.plan = plan ? plan.map((d) => arr(d, isPlanned)) : defaults.plan
+  out.plan = plan ? plan.map((d) => arr(d, isPlanned).map(cleanPlanned)) : defaults.plan
   const overrides: Obj = {}
-  if (isObj(saved.overrides)) for (const [d, items] of Object.entries(saved.overrides)) if (ISO.test(d) && Array.isArray(items)) overrides[d] = items.filter(isPlanned)
+  if (isObj(saved.overrides)) for (const [d, items] of Object.entries(saved.overrides)) if (ISO.test(d) && Array.isArray(items)) overrides[d] = items.filter(isPlanned).map(cleanPlanned)
   out.overrides = overrides
+  // Reminder times are HH:MM; anything else goes back to the usual time.
+  if (isObj(out.notifPrefs) && isObj(defaults.notifPrefs)) {
+    const n = { ...out.notifPrefs }
+    for (const k of ['reminderTime', 'amTime', 'pmTime']) if (k in n && !(typeof n[k] === 'string' && HHMM.test(n[k] as string))) n[k] = defaults.notifPrefs[k]
+    out.notifPrefs = n
+  }
   out.logs = arr(saved.logs, isLog).map(toCardioLog).map(cleanLog)
   for (const k of ['custom', 'routines', 'goals', 'notifications', 'programs', 'timedLogs', 'measurements', 'benchmarks']) if (k in defaults) out[k] = arr(saved[k], hasId)
   // Legs and Arms became body parts (Quads, Hamstrings, Calves; Biceps, Triceps): file older exercises and choices.

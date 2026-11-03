@@ -61,4 +61,15 @@ describe('repairState', () => {
     expect((r.units as Record<string, unknown>).isAdmin).toBeUndefined()
     expect(({} as Record<string, unknown>).isAdmin).toBeUndefined()
   })
+  it('keeps a morning or evening session on planned items and drops anything else', () => {
+    const d = { plan: Array.from({ length: 7 }, () => []), overrides: {}, notifPrefs: { system: false, goals: true, pbs: true, daily: true, reminderTime: '17:00', amTime: '07:00', pmTime: '17:00' } }
+    const out = repairState({ overrides: { '2026-11-03': [{ exerciseId: 'running', sets: 1, session: 'am' }, { exerciseId: 'Pushups', sets: 3, session: 'noon' }, { exerciseId: 'Plank', sets: 3, session: 'pm' }] } }, d) as typeof d & { overrides: Record<string, { session?: string }[]> }
+    expect(out.overrides['2026-11-03'].map((p) => p.session)).toEqual(['am', undefined, 'pm'])
+    expect('session' in out.overrides['2026-11-03'][1]).toBe(false)
+  })
+  it('reminder times that aren\'t a time of day go back to the usual ones', () => {
+    const d = { notifPrefs: { system: false, goals: true, pbs: true, daily: true, reminderTime: '17:00', amTime: '07:00', pmTime: '17:00' } }
+    const out = repairState({ notifPrefs: { daily: true, reminderTime: '25:99', amTime: '6:30', pmTime: '18:15' } }, d)
+    expect(out.notifPrefs).toMatchObject({ reminderTime: '17:00', amTime: '07:00', pmTime: '18:15' })
+  })
 })

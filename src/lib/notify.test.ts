@@ -135,6 +135,40 @@ describe('daily reminder', () => {
   })
 })
 
+describe('two sessions in a day: a reminder for each', () => {
+  const split = () => { const p = emptyPlan(); p[1] = [{ exerciseId: 'running', sets: 1, minutes: 30, session: 'am' }, { exerciseId: BP, sets: 3, session: 'pm' }]; return p }
+  const two = { ...prefs, amTime: '06:30', pmTime: '18:00' }
+  const planned = (over: Partial<Parameters<typeof computeNotifications>[0]>) => run({ plan: split(), prefs: two, ...over }).filter((n) => n.type === 'planned')
+  it('reminds about the morning at its time, and the evening at its own, not at the usual time', () => {
+    expect(planned({ nowMinutes: 6 * 60 })).toHaveLength(0)
+    expect(planned({ nowMinutes: 6 * 60 + 30 })).toMatchObject([{ id: `planned-am:${today}`, title: 'Your morning workout is up ☀️', body: 'Running' }])
+    // The usual 17:00 doesn't apply on a two-session day.
+    expect(planned({ nowMinutes: 17 * 60 }).map((n) => n.id)).toEqual([`planned-am:${today}`])
+    expect(planned({ nowMinutes: 18 * 60 }).map((n) => n.id)).toEqual([`planned-am:${today}`, `planned-pm:${today}`])
+  })
+  it('stays quiet about a session once it is done or finished', () => {
+    const ran: ExerciseLog[] = [{ date: today, exerciseId: 'running', cardio: { distance: 3, minutes: 30 } }]
+    expect(planned({ logs: ran, nowMinutes: 18 * 60 }).map((n) => n.id)).toEqual([`planned-pm:${today}`])
+    expect(planned({ finished: [`${today}:am`], nowMinutes: 18 * 60 }).map((n) => n.id)).toEqual([`planned-pm:${today}`])
+    expect(planned({ finished: [today], nowMinutes: 20 * 60 })).toHaveLength(0)
+  })
+  it('falls back to 7:00 and the usual time when no session times were picked', () => {
+    expect(planned({ prefs, nowMinutes: 7 * 60 }).map((n) => n.id)).toEqual([`planned-am:${today}`])
+    expect(planned({ prefs, nowMinutes: 17 * 60 }).map((n) => n.id)).toEqual([`planned-am:${today}`, `planned-pm:${today}`])
+  })
+  it('schedules the next of the two', () => {
+    expect(msUntilReminder(two, new Date(2026, 8, 29, 6, 0, 0), true)).toBe(30 * 60 * 1000)
+    expect(msUntilReminder(two, new Date(2026, 8, 29, 12, 0, 0), true)).toBe(6 * 60 * 60 * 1000)
+    expect(msUntilReminder(two, new Date(2026, 8, 29, 19, 0, 0), true)).toBeNull()
+    // One-session days keep the usual time.
+    expect(msUntilReminder(two, new Date(2026, 8, 29, 16, 0, 0))).toBe(60 * 60 * 1000)
+  })
+  it('a finished one-session day isn\'t reminded about what was skipped', () => {
+    const p = emptyPlan(); p[1] = [{ exerciseId: BP, sets: 3 }]
+    expect(run({ plan: p, finished: [today], nowMinutes: 18 * 60 }).filter((n) => n.type === 'planned')).toHaveLength(0)
+  })
+})
+
 describe('helpers', () => {
   it('parses times and schedules the reminder', () => {
     expect(timeToMinutes('07:30')).toBe(450)
