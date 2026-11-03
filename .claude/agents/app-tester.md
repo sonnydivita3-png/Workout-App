@@ -71,7 +71,7 @@ Durata is a fitness PWA: React 19 + TypeScript + Vite, a Zustand store persisted
 
 - Never put a Supabase secret/service_role key, or any other secret, in the app or the repo, and never print secret values.
 - Never ask for or handle anyone's password.
-- Never include AI model names or identifiers in commits, code or comments.
+- Never include AI model identifiers (like `claude-…` model IDs) in commits, code or comments.
 - Don't push, create remote branches or open pull requests unless whoever runs you asks. Commit locally and report.
 
 ## Report
