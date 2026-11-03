@@ -25,7 +25,7 @@ export function ExerciseHistorySheet({ exercise, before, onClose }: { exercise: 
               <p className="text-sm font-medium">{fmtLong(l.date)}</p>
               <p className="text-sm tabular-nums text-neutral-500">
                 {l.cardio
-                  ? cardioLine(l.cardio, exercise.id, units)
+                  ? `${cardioLine(l.cardio, exercise.id, units)}${(l.cardio.parts?.length ?? 0) > 1 ? ` (${l.cardio.parts!.map((r) => cardioLine(r, exercise.id, units)).join(' + ')})` : ''}`
                   : `${workSets(l).map(setText).join(' · ')}${dropSetsOf(l).length ? ` · drops ${dropSetsOf(l).map(setText).join(', ')}` : ''}`}
               </p>
               {l.note && <p className="text-xs text-neutral-400">“{l.note}”</p>}

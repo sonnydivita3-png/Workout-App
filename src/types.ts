@@ -45,6 +45,19 @@ export interface CardioEntry {
   incline?: number | null
   /** Marked done: the card folds to one line. */
   done?: boolean
+  /**
+   * Two or more separate sessions on the day (a run in the morning and one after work), each as it was. The fields
+   * above are then their totals, which is what history, charts and weekly totals read.
+   */
+  parts?: CardioRun[]
+}
+
+/** One session inside a cardio log. */
+export interface CardioRun {
+  distance: number | null
+  minutes: number | null
+  calories?: number | null
+  incline?: number | null
 }
 
 /** Time-based workout formats: as many rounds as possible, every minute on the minute, or a fixed amount of work against the clock. */

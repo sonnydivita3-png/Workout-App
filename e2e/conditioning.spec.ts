@@ -54,6 +54,10 @@ test('Hyrox: log a finish time, compare with last time, and see run pace and car
   })
   await page.goto('/')
   await page.locator('nav').getByText('Workouts').click()
+  // Once through, a run before each station: each station card says where it comes in.
+  await expect(page.getByText('Once through: run 500 m, then the next station, 2 times. Log the runs together on the run card.')).toBeVisible()
+  await expect(page.getByText('Station 1 of 2 · run 500 m first · 40 m')).toBeVisible()
+  await expect(page.getByText('Station 2 of 2 · run 500 m first · 500 m')).toBeVisible()
   await expect(page.getByText('Finish time')).toBeVisible()
   await expect(page.getByText('Last time: 16:05')).toBeVisible()
   await page.getByLabel('Hyrox minutes').fill('15')
@@ -437,5 +441,64 @@ test('a calorie target with Tabata: Tabata keeps its length and the lifting make
   const run = ((await state(page)).overrides[iso(0)] as { exerciseId: string; minutes?: number; note?: string }[]).find((p) => p.exerciseId === 'running')!
   expect(run.minutes).toBe(14)
   expect(run.note).toMatch(/^Tabata · 5 min easy, building up · 8 × 20s/)
+})
+
+
+test('two runs on one day: log each on the same card, the day shows the total, and records judge each run', async ({ page }) => {
+  await seed(page, {
+    overrides: { [iso(0)]: [{ exerciseId: 'running', sets: 1, minutes: 30 }] },
+    // The longest run before: 4 miles. Today's 3 + 2 is 5 miles of running, but no run longer than 4.
+    logs: [{ id: 'old', date: iso(-5), exerciseId: 'running', cardio: { distance: 4, minutes: 36 } }],
+  })
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByLabel('Running distance').fill('3')
+  await page.getByLabel('Running minutes').fill('27')
+  await page.getByRole('button', { name: '＋ Add another run' }).click()
+  // Run 1 is listed above; the boxes are for run 2.
+  await expect(page.getByRole('list', { name: 'Earlier runs' })).toContainText('Run 1 · 3 mi · 27 min')
+  await expect(page.getByLabel('Running distance')).toHaveValue('')
+  await page.getByLabel('Running distance').fill('2')
+  await page.getByLabel('Running minutes').fill('17')
+  await expect(page.getByText(/^2 runs today: 5 mi · 44 min · 8:48 \/mi · ≈\d+ cal$/)).toBeVisible()
+  const log = (await state(page)).logs.find((l: { date: string; exerciseId: string }) => l.date === iso(0) && l.exerciseId === 'running')
+  expect(log.cardio).toMatchObject({ distance: 5, minutes: 44, parts: [{ distance: 3, minutes: 27 }, { distance: 2, minutes: 17 }] })
+  // Done: the card folds to the day's total.
+  await page.getByRole('button', { name: '✓ Done' }).click()
+  await expect(page.getByText(/^5 mi · 44 min · 8:48 \/mi · 2 runs · ≈\d+ cal$/)).toBeVisible()
+  // Finishing: 5 miles in total isn't a longest run (each was shorter than 4).
+  await page.getByRole('button', { name: '✓ Finish workout' }).click()
+  await expect(page.getByText(/Longest run yet/)).toHaveCount(0)
+  await expect(page.getByText('active cal', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Back to the workout' }).click()
+  // A run can be taken out again: back to one run.
+  await page.getByRole('button', { name: 'Open Running' }).click()
+  await page.getByRole('button', { name: 'Done ✓ · tap to undo' }).click()
+  await page.getByRole('button', { name: 'Remove run 1' }).first().click()
+  const after = (await state(page)).logs.find((l: { date: string; exerciseId: string }) => l.date === iso(0) && l.exerciseId === 'running')
+  expect(after.cardio.parts).toBeUndefined()
+  expect(after.cardio).toMatchObject({ distance: 2, minutes: 17 })
+})
+
+test('a Hyrox workout reads as its route: a run before each station, once through, one line each', async ({ page }) => {
+  await seed(page)
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: 'Make me a workout' }).click()
+  const sheet = page.locator('.fixed')
+  await sheet.getByRole('button', { name: 'Conditioning', exact: true }).click()
+  await sheet.getByRole('button', { name: 'Hyrox / CrossFit', exact: true }).click()
+  await sheet.getByRole('button', { name: 'Hyrox-style', exact: true }).click()
+  await sheet.getByRole('button', { name: '60 min', exact: true }).click()
+  await sheet.getByRole('button', { name: /^Generate/ }).click()
+  const route = sheet.getByRole('list', { name: 'Hyrox route' })
+  await expect(sheet.getByText(/^Once through: run \d+ m, then the next station\. (\d+) runs, \1 stations\.$/)).toBeVisible()
+  const rows = route.getByRole('listitem')
+  const n = await rows.count()
+  expect(n).toBeGreaterThanOrEqual(3)
+  for (let i = 0; i < n; i++) await expect(rows.nth(i)).toContainText(new RegExp(`^${i + 1}\\d+ m run → `))
+  // The run isn't a separate row: its total time is under the route.
+  await expect(sheet.getByText(/^Runs: running, about \d+ min in all\.$/)).toBeVisible()
+  await expect(route.getByRole('button', { name: /^Random swap for / }).first()).toBeVisible()
 })
 

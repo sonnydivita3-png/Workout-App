@@ -1,6 +1,7 @@
 import { BUILTIN_BY_ID } from '../data/exercises'
 import type { CardioSport, Exercise, ExerciseLog, GoalPeriod, Sport } from '../types'
 import { addDays, mondayOf, parseISO, toISO } from './dates'
+import { runsOf } from './cardioRuns'
 
 export type Lookup = (id: string) => Exercise | undefined
 const builtin: Lookup = (id) => BUILTIN_BY_ID.get(id)
@@ -23,7 +24,8 @@ export interface CardioSession {
 export function cardioSessions(logs: ExerciseLog[], lookup: Lookup = builtin): CardioSession[] {
   return logs
     .filter((l) => l.cardio && (l.cardio.distance || l.cardio.minutes))
-    .map((l) => ({ date: l.date, sport: sportOf(lookup(l.exerciseId)), distance: l.cardio!.distance, minutes: l.cardio!.minutes }))
+    // Two runs on one day are two sessions (a longest run is one run), not one long one.
+    .flatMap((l) => runsOf(l.cardio).filter((r) => r.distance || r.minutes).map((r) => ({ date: l.date, sport: sportOf(lookup(l.exerciseId)), distance: r.distance, minutes: r.minutes })))
 }
 
 export const matchesSport = (s: CardioSession, sport: CardioSport) => sport === 'any' || s.sport === sport

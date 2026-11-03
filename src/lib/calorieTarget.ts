@@ -4,6 +4,7 @@ import type { CardioSessionKind } from './cardioSession'
 import type { WorkoutStyle } from './randomizer'
 import { BY_ID, isIsolation } from './randomUtil'
 import { liftMinutes } from './timing'
+import { runsOf } from './cardioRuns'
 
 // ---------------------------------------------------------------------------------------------
 // A workout built to burn about so many calories. Each part burns (MET − resting) × bodyweight × time, the same net
@@ -282,10 +283,12 @@ export function finishedCalories(
     const log = logOf(p.exerciseId)
     if (!log || !e) continue
     if (log.cardio) {
-      const c = log.cardio
-      const own = c.calories != null && c.calories > 0 ? c.calories : null
-      const est = own ?? estimateCalories(p.exerciseId, c, lb, me, date)
-      if (est != null) kcal += est + (opts.total && own == null && c.minutes ? resting * c.minutes : 0)
+      // Each run (two on one day count separately): its own number if typed in, else the estimate.
+      for (const r of runsOf(log.cardio)) {
+        const own = r.calories != null && r.calories > 0 ? r.calories : null
+        const est = own ?? estimateCalories(p.exerciseId, r, lb, me, date)
+        if (est != null) kcal += est + (opts.total && own == null && r.minutes ? resting * r.minutes : 0)
+      }
       continue
     }
     const done = (log.sets ?? []).filter((s) => !s.warmup && !s.drop && (s.weight || s.reps || s.seconds)).length
