@@ -12,7 +12,9 @@ import { findExercise, useStore } from '../store'
 import type { PlannedExercise } from '../types'
 import { ExercisePicker } from './ExercisePicker'
 import { ModeSwitch, type GeneratorMode } from './ModeSwitch'
-import { primaryBtn, Sheet } from './Sheet'
+import { primaryBtn, secondaryBtn, Sheet } from './Sheet'
+import { chipBtn } from './ui'
+import { Chevron } from './Chevron'
 import { WarmupRestControls } from './WarmupRestControls'
 import { WorkoutList } from './WorkoutList'
 import { GearChoice } from './GearChoice'
@@ -40,8 +42,9 @@ const CONDITIONING: WorkoutStyle[] = ['crossfit', 'amrap', 'emom', 'fortime', 't
 const KINDS: { id: Kind; label: string }[] = [{ id: 'lift', label: 'Lifting' }, { id: 'cond', label: 'Conditioning' }, { id: 'cardio', label: 'Cardio' }]
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
-const chip = (on: boolean, disabled = false) =>
-  `rounded-full px-3 py-1.5 text-sm ${disabled ? 'bg-neutral-100 text-neutral-300' : on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
+const chip = (on: boolean) => chipBtn(on)
+// Section headings: one style down the whole sheet.
+const h3 = 'mb-2 text-sm font-semibold'
 
 interface Props {
   date: string
@@ -216,19 +219,35 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
 
   if (!items) {
     const condGroup = COND_GROUPS.find((g) => g.styles.includes(condStyle))
+    const ready = canGenerate && !(goal === 'calories' && !cal)
+    // Beside Generate: what it will make, or what's still missing.
+    const summary = !canGenerate ? 'Pick at least one body part to train'
+      : goal === 'calories' && !cal ? (lb ? 'Choose a calorie target' : 'Your weight is needed for calories')
+      : `${styleLabel} · ${focusLabel}${hasCardio && !cardioOnly ? ' + Cardio' : ''} · ${goal === 'calories' && cal ? `≈${cal.totalKcal.toLocaleString()} cal in ${formatMinutes(cal.totalMinutes)}` : `${totalMin} min`}`
     return (
       // Keys: the result opens at its top (with any note about the workout), not where Generate was.
-      <Sheet key="setup" title="Make me a workout" onClose={onClose} closeLabel="Cancel">
+      <Sheet
+        key="setup"
+        title="Make me a workout"
+        onClose={onClose}
+        closeLabel="Cancel"
+        footer={(
+          <>
+            <p className={`mb-2 truncate text-center text-xs ${ready ? 'text-neutral-500' : 'font-medium text-amber-700'}`}>{summary}</p>
+            <button disabled={!ready} onClick={() => generate()} className={primaryBtn}>Generate workout</button>
+          </>
+        )}
+      >
         <ModeSwitch mode="one" onChange={onSwitchMode} />
 
-        <h3 className="mb-2 text-sm font-medium">What kind of workout? <span className="font-normal text-neutral-400">(one or more)</span></h3>
+        <h3 className={h3}>What kind of workout? <span className="font-normal text-neutral-500">(one or more)</span></h3>
         <div className="mb-5 flex flex-wrap gap-2" role="group" aria-label="Kind of workout">
           {KINDS.map((k) => <button key={k.id} onClick={() => toggleKind(k.id)} aria-pressed={hasKind(k.id)} className={chip(hasKind(k.id))}>{k.label}</button>)}
         </div>
 
         {hasKind('lift') && (
           <>
-            <h3 className="mb-2 text-sm font-medium">Lifting style</h3>
+            <h3 className={h3}>Lifting style</h3>
             <div className="mb-1 flex flex-wrap gap-2" role="group" aria-label="Lifting style">
               {LIFT_STYLES.map((st) => <button key={st} onClick={() => setLiftStyle(st)} aria-pressed={liftStyle === st} className={chip(liftStyle === st)}>{styleInfo(st).label}</button>)}
             </div>
@@ -238,7 +257,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
 
         {hasKind('cond') && (
           <>
-            <h3 className="mb-2 text-sm font-medium">Conditioning style</h3>
+            <h3 className={h3}>Conditioning style</h3>
             <div className="mb-1 flex flex-wrap gap-2" role="group" aria-label="Conditioning style">
               {COND_GROUPS.map((g) => <button key={g.label} onClick={() => setCondStyle(g.styles[0])} aria-pressed={g === condGroup} className={chip(g === condGroup)}>{g.label}</button>)}
             </div>
@@ -246,7 +265,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
               <div className="mb-1 mt-2 flex flex-wrap items-center gap-1.5 pl-1">
                 <span className="text-xs text-neutral-400">{condGroup.label}:</span>
                 {condGroup.styles.map((st) => (
-                  <button key={st} onClick={() => setCondStyle(st)} aria-pressed={condStyle === st} className={`rounded-full px-2.5 py-1 text-xs ${condStyle === st ? 'bg-neutral-900 text-surface' : 'bg-neutral-100 text-neutral-600'}`}>{styleInfo(st).label}</button>
+                  <button key={st} onClick={() => setCondStyle(st)} aria-pressed={condStyle === st} className={`hit rounded-full px-2.5 py-1 text-xs ${condStyle === st ? 'bg-neutral-900 font-medium text-surface' : 'bg-neutral-100 text-neutral-600'}`}>{styleInfo(st).label}</button>
                 ))}
               </div>
             )}
@@ -258,15 +277,15 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
           <p className="mb-5 text-sm text-neutral-400">{styleInfo(condStyle).label} is a full-body format, so body parts aren’t used.</p>
         ) : (
           <>
-            <h3 className="mb-2 text-sm font-medium">What are you training?{!needsParts && <span className="font-normal text-neutral-400"> (optional, empty = full body)</span>}</h3>
+            <h3 className={h3}>What are you training?{!needsParts && <span className="font-normal text-neutral-500"> (optional, empty = full body)</span>}</h3>
             <div className="mb-2 flex flex-wrap gap-2">
               {presets.map(([label, ps]) => (
                 <button key={label} onClick={() => setBody(ps)} aria-pressed={same(ps)} className={chip(same(ps))}>{label}</button>
               ))}
             </div>
-            <div className="mb-2 flex flex-wrap gap-1.5" role="group" aria-label="Body parts">
+            <div className="mb-2 flex flex-wrap gap-2" role="group" aria-label="Body parts">
               {LIFT_GROUPS.map((g) => (
-                <button key={g} onClick={() => toggle(g)} aria-pressed={focus.includes(g)} className={`rounded-full px-2.5 py-1 text-sm ${focus.includes(g) ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`}>{g}</button>
+                <button key={g} onClick={() => toggle(g)} aria-pressed={focus.includes(g)} className={`hit rounded-full px-2.5 py-1.5 text-sm ${focus.includes(g) ? 'bg-accent font-medium text-on-accent' : 'bg-neutral-100 text-neutral-600'}`}>{g}</button>
               ))}
             </div>
             <p className="mb-5 text-xs text-neutral-400">{same(LIFT_GROUPS) ? 'Full body: one exercise for each part, big lifts first.' : hasKind('cardio') ? 'Cardio comes with it: pick the activity below.' : <>Add <b className="font-medium">Cardio</b> above to finish with a run, ride or row.</>}</p>
@@ -285,10 +304,10 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
         {!cardioOnly && <WarmupRestControls lifting={lifting} ownWarmupNote={styles.some(bringsOwnWarmup)} onWarmupChange={() => setSplit(({ warmup: _w, ...r }) => (void _w, r))} />}
 
         <div className="mb-2 flex items-center justify-between gap-2">
-          <h3 className="text-sm font-medium">{showSplit ? 'Time for each part' : goal === 'calories' ? 'How many calories?' : 'How long?'}</h3>
+          <h3 className="text-sm font-semibold">{showSplit ? 'Time for each part' : goal === 'calories' ? 'How many calories?' : 'How long?'}</h3>
           {!(fixedCardio && cardioOnly) && <div role="group" aria-label="Plan by" className="flex shrink-0 rounded-full bg-neutral-100 p-0.5 text-xs">
             {(['time', 'calories'] as const).map((g) => (
-              <button key={g} onClick={() => setGoal(g)} aria-pressed={goal === g} className={`rounded-full px-3 py-1 ${goal === g ? 'bg-surface font-medium shadow-sm' : 'text-neutral-500'}`}>{g === 'time' ? 'Time' : 'Calories'}</button>
+              <button key={g} onClick={() => setGoal(g)} aria-pressed={goal === g} className={`hit rounded-full px-3 py-1 ${goal === g ? 'bg-surface font-medium text-neutral-900 shadow-sm' : 'text-neutral-500'}`}>{g === 'time' ? 'Time' : 'Calories'}</button>
             ))}
           </div>}
         </div>
@@ -357,9 +376,9 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
                     <span className="w-16 text-center text-sm font-medium tabular-nums">{minFor(k)} min</span>
                   ) : (
                     <span className="flex items-center gap-2">
-                      <button onClick={() => bump(k, -5)} aria-label={`Less ${partLabel(k)} time`} className="h-8 w-8 rounded-full bg-neutral-100 text-lg">−</button>
+                      <button onClick={() => bump(k, -5)} aria-label={`Less ${partLabel(k)} time`} className="hit h-9 w-9 rounded-full bg-neutral-100 text-lg">−</button>
                       <span className="w-16 text-center text-sm tabular-nums">{minFor(k)} min</span>
-                      <button onClick={() => bump(k, 5)} aria-label={`More ${partLabel(k)} time`} className="h-8 w-8 rounded-full bg-neutral-100 text-lg">+</button>
+                      <button onClick={() => bump(k, 5)} aria-label={`More ${partLabel(k)} time`} className="hit h-9 w-9 rounded-full bg-neutral-100 text-lg">+</button>
                     </span>
                   )}
                 </li>
@@ -435,7 +454,6 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
           </div>
         )}
 
-        <button disabled={!canGenerate || (goal === 'calories' && !cal)} onClick={() => generate()} className={primaryBtn}>Generate workout</button>
       </Sheet>
     )
   }
@@ -443,30 +461,41 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const total = minutesFor(items)
   const madeKcal = cal ? workoutCalories(items, rate, mets) : 0
 
+  const stepBtn = 'hit flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 disabled:opacity-30'
   return (
-    <Sheet key="result" title="Your workout" onClose={onClose} closeLabel="Close">
-      <div className="mb-2 flex items-center justify-between text-sm">
-        <button
-          onClick={() => go(-1)}
-          disabled={history.at === 0}
-          aria-label="Previous version"
-          className="rounded-full bg-neutral-100 px-3 py-1 disabled:opacity-30"
-        >
-          ‹ Back
-        </button>
-        <span className="text-xs text-neutral-400">Version {history.at + 1} of {history.list.length}</span>
-        <button
-          onClick={() => go(1)}
-          disabled={history.at >= history.list.length - 1}
-          aria-label="Next version"
-          className="rounded-full bg-neutral-100 px-3 py-1 disabled:opacity-30"
-        >
-          Forward ›
-        </button>
+    <Sheet
+      key="result"
+      title="Your workout"
+      onClose={onClose}
+      closeLabel="Close"
+      footer={(
+        <div className="flex gap-2">
+          <button onClick={() => generate(items)} className={`${secondaryBtn} flex-1`}>Reroll</button>
+          <button
+            disabled={items.length === 0}
+            onClick={() => { if (onUse) onUse(items); else { addPlanned(date, items); onClose() } }}
+            className={`${primaryBtn} flex-[2]`}
+          >
+            {onUse ? 'Use this workout' : `Add to ${dayName}`}
+          </button>
+        </div>
+      )}
+    >
+      {/* What was made, with the way back to change it; earlier versions (after a reroll or swap) one tap away. */}
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="min-w-0 text-sm text-neutral-500">
+          <span className="font-medium text-neutral-900">{styleLabel} · {focusLabel}{hasCardio ? ' + Cardio' : ''}</span>{' '}
+          · about {Math.round(total)} min{cal ? ` · ≈ ${madeKcal.toLocaleString()} ${countWord} cal` : ''}
+        </p>
+        <button onClick={() => { setHistory({ list: [], at: 0 }); setVolume(null) }} aria-label="Change style, focus or time" className="hit shrink-0 rounded-full bg-neutral-100 px-3 py-1.5 text-sm font-medium text-neutral-700">Change</button>
       </div>
-      <p className="mb-3 text-sm text-neutral-400">
-        {styleLabel} · {focusLabel}{hasCardio ? ' + Cardio' : ''} · about {Math.round(total)} min{cal ? ` · ≈ ${madeKcal.toLocaleString()} ${countWord} cal` : ''}
-      </p>
+      {history.list.length > 1 && (
+        <div className="mb-3 flex items-center justify-between rounded-2xl bg-neutral-50 px-2 py-1.5 text-sm">
+          <button onClick={() => go(-1)} disabled={history.at === 0} aria-label="Previous version" className={stepBtn}><Chevron left className="h-4 w-4" /></button>
+          <span className="text-xs text-neutral-500">Version {history.at + 1} of {history.list.length}</span>
+          <button onClick={() => go(1)} disabled={history.at >= history.list.length - 1} aria-label="Next version" className={stepBtn}><Chevron className="h-4 w-4" /></button>
+        </div>
+      )}
       {items.length > 0 && cal && kcal && madeKcal < kcal * 0.9 && !(timeLimit && total >= timeLimit - 5) && (
         // A Tabata or a Hyrox has its own length, and a bodyweight day runs out of moves: say what it comes to, and offer
         // the rest as easy cardio.
@@ -519,25 +548,14 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
           </button>
         </div>
       ) : (
-        <div className="mb-3 flex gap-2">
-          <button onClick={() => generate(items)} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium">Reroll</button>
-          <button
-            disabled={items.length === 0 || saved}
-            onClick={() => setNaming(true)}
-            className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium disabled:opacity-40"
-          >
-            {saved ? 'Saved ✓' : 'Save as routine'}
-          </button>
-        </div>
+        <button
+          disabled={items.length === 0 || saved}
+          onClick={() => setNaming(true)}
+          className={`${secondaryBtn} mb-1 w-full`}
+        >
+          {saved ? 'Saved ✓' : 'Save as routine'}
+        </button>
       )}
-
-      <button
-        disabled={items.length === 0}
-        onClick={() => { if (onUse) onUse(items); else { addPlanned(date, items); onClose() } }}
-        className={primaryBtn}
-      >
-        {onUse ? 'Use this workout' : `Add to ${dayName}`}
-      </button>
       {pickIndex !== null && (
         <ExercisePicker
           taken={new Set(items.map((p) => p.exerciseId))}
@@ -545,7 +563,6 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
           onClose={() => setPickIndex(null)}
         />
       )}
-      <button onClick={() => { setHistory({ list: [], at: 0 }); setVolume(null) }} className="mt-3 w-full text-center text-sm text-neutral-400">Change style, focus or time</button>
     </Sheet>
   )
 }

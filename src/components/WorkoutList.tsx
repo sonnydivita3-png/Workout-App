@@ -26,7 +26,7 @@ export function WorkoutList({ items, onSwap, onChoose, onRemove }: Props) {
           const runEx = run && findExercise(custom, run.item.exerciseId)
           return (
             <div key={gi} className="rounded-2xl bg-neutral-50 px-3 py-2">
-              <p className="pt-0.5 text-xs uppercase tracking-wide text-neutral-500">{g.label}</p>
+              <p className="pt-0.5 text-xs font-semibold text-neutral-600">{g.label}</p>
               <p className="pb-1 text-xs text-neutral-500">Once through: run{runM ? ` ${runM} m` : ''}, then the next station. {stations.length} runs, {stations.length} stations.</p>
               <ol aria-label="Hyrox route" className="divide-y divide-neutral-100">
                 {stations.map(({ item: p, index }, n) => {
@@ -44,8 +44,8 @@ export function WorkoutList({ items, onSwap, onChoose, onRemove }: Props) {
                       </span>
                       {editable && (
                         <span className="flex shrink-0 items-center text-neutral-400">
-                          {onSwap && <button onClick={() => onSwap(index)} aria-label={`Random swap for ${ex.name}`} title="Random swap" className="h-7 w-7 rounded-full text-base hover:bg-neutral-100">↻</button>}
-                          {onChoose && <button onClick={() => onChoose(index)} aria-label={`Choose a replacement for ${ex.name}`} title="Choose exercise" className="h-7 w-7 rounded-full text-sm hover:bg-neutral-100">✎</button>}
+                          {onSwap && <button onClick={() => onSwap(index)} aria-label={`Random swap for ${ex.name}`} title="Random swap" className="hit h-9 w-9 rounded-full text-base hover:bg-neutral-100">↻</button>}
+                          {onChoose && <button onClick={() => onChoose(index)} aria-label={`Choose a replacement for ${ex.name}`} title="Choose exercise" className="hit h-9 w-9 rounded-full text-sm hover:bg-neutral-100">✎</button>}
                         </span>
                       )}
                     </li>
@@ -58,7 +58,7 @@ export function WorkoutList({ items, onSwap, onChoose, onRemove }: Props) {
         })()
       ) : (
         <div key={gi} className={g.block ? 'rounded-2xl bg-neutral-50 px-3 py-2' : ''}>
-          {g.block && g.label && <p className="pb-1 pt-0.5 text-xs uppercase tracking-wide text-neutral-500">{g.label}</p>}
+          {g.block && g.label && <p className="pb-1 pt-0.5 text-xs font-semibold text-neutral-600">{g.label}</p>}
           <ul className="divide-y divide-neutral-100">
             {g.items.map(({ item: p, index }) => {
               const ex = findExercise(custom, p.exerciseId)
@@ -67,15 +67,15 @@ export function WorkoutList({ items, onSwap, onChoose, onRemove }: Props) {
                 <li key={p.exerciseId} className="flex items-center justify-between gap-2 py-2.5">
                   <span className="min-w-0">
                     <span className="block line-clamp-2">{ex.name}</span>
-                    <span className="text-xs tabular-nums text-neutral-400">
+                    <span className="text-xs tabular-nums text-neutral-500">
                       {[describeItem(p, ex, units), ex.group].filter(Boolean).join(' · ')}
                     </span>
                   </span>
                   {editable && (
-                    <span className="flex shrink-0 items-center gap-1 text-neutral-400">
-                      {onSwap && <button onClick={() => onSwap(index)} aria-label={`Random swap for ${ex.name}`} title="Random swap" className="h-8 w-8 rounded-full text-lg hover:bg-neutral-100">↻</button>}
-                      {onChoose && <button onClick={() => onChoose(index)} aria-label={`Choose a replacement for ${ex.name}`} title="Choose exercise" className="h-8 w-8 rounded-full text-base hover:bg-neutral-100">✎</button>}
-                      {onRemove && <button onClick={() => onRemove(index)} aria-label={`Remove ${ex.name}`} className="h-8 w-8 rounded-full text-lg hover:bg-neutral-100">×</button>}
+                    <span className="-mr-1 flex shrink-0 items-center text-neutral-500">
+                      {onSwap && <button onClick={() => onSwap(index)} aria-label={`Random swap for ${ex.name}`} title="Random swap" className="h-11 w-10 rounded-full text-lg hover:bg-neutral-100">↻</button>}
+                      {onChoose && <button onClick={() => onChoose(index)} aria-label={`Choose a replacement for ${ex.name}`} title="Choose exercise" className="h-11 w-10 rounded-full text-base hover:bg-neutral-100">✎</button>}
+                      {onRemove && <button onClick={() => onRemove(index)} aria-label={`Remove ${ex.name}`} className="h-11 w-10 rounded-full text-xl hover:bg-neutral-100">×</button>}
                     </span>
                   )}
                 </li>
