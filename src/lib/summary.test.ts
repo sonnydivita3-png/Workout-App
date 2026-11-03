@@ -23,6 +23,21 @@ describe('workoutSummary', () => {
     expect(run(6, 6, 5).results[0].status).toBe('same')
     expect(run(6, 5, 5).results[0].status).toBe('down')
   })
+  it('a set typed in but not ticked is not part of the result: no PR, no volume, and last time is the sets done', () => {
+    const lookup = (id: string) => BUILTIN_BY_ID.get(id)
+    const done = (weight: number) => ({ weight, reps: 5, done: true })
+    const typed = (weight: number) => ({ weight, reps: 5, done: false, auto: false })
+    const logs: ExerciseLog[] = [
+      { date: '2026-09-10', exerciseId: B, sets: [done(185), done(185), typed(185)] },
+      { date: '2026-09-20', exerciseId: B, sets: [done(185), done(185), typed(225)] },
+    ]
+    const s = workoutSummary('2026-09-20', [{ exerciseId: B, sets: 3 }], logs, lookup)
+    expect(s.results[0]).toMatchObject({ status: 'same', pr: false, volume: 1850, lastVolume: 1850 })
+    // Nothing ticked at all: skipped, and nothing else claims it was done.
+    const none = workoutSummary('2026-09-20', [{ exerciseId: B, sets: 1 }], [logs[0], { date: '2026-09-20', exerciseId: B, sets: [typed(225)] }], lookup)
+    expect(none.results[0]).toMatchObject({ status: 'skipped', pr: false, volume: 0 })
+    expect(none).toMatchObject({ beat: 0, prs: 0, liftVolume: 0 })
+  })
   it('first time is "new", not a PR', () => {
     const s = workoutSummary('2026-09-20', [{ exerciseId: B, sets: 2 }], [lift('2026-09-20', 100, 5)], (id) => BUILTIN_BY_ID.get(id))
     expect(s.results[0]).toMatchObject({ status: 'new', pr: false })

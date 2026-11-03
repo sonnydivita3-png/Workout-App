@@ -297,7 +297,7 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
       <div className="flex gap-2">
         <button onClick={exportData} className="flex-1 rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent">Export backup</button>
         <button onClick={() => file.current?.click()} className="flex-1 rounded-2xl bg-surface py-3 text-sm font-medium shadow-sm ring-1 ring-neutral-200/70">Import backup</button>
-        <input ref={file} type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && onImport(e.target.files[0])} />
+        <input ref={file} type="file" accept="application/json" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void onImport(f) }} />
       </div>
       </>)}
       {msg && <p className="text-sm text-neutral-500">{msg}</p>}

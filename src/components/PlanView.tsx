@@ -3,6 +3,7 @@ import { SettingsGear } from './SettingsGear'
 import { parseISO, toISO, weekDates, weekdayIndex } from '../lib/dates'
 import { cardioFirst, dayLabel, dayPlanOf, isRestDay, liftAndCardio, placeCardio, workItems } from '../lib/plan'
 import { hasData } from '../lib/stats'
+import { useToday } from '../lib/useToday'
 import { useWakeLock } from '../lib/useWakeLock'
 import { findExercise, useStore } from '../store'
 import { WodBuilderSheet } from './WodBuilderSheet'
@@ -39,9 +40,9 @@ function weekRange(a: Date, b: Date): string {
  * between sets is optional (Settings → Workouts).
  */
 export function PlanView({ initialAction, onSettings }: { initialAction?: string; onSettings?: () => void }) {
-  const [anchor, setAnchor] = useState(() => new Date())
-  const [day, setDay] = useState(() => weekdayIndex(new Date()))
-  const [today] = useState(() => toISO(new Date()))
+  const today = useToday()
+  const [anchor, setAnchor] = useState(() => parseISO(today))
+  const [day, setDay] = useState(() => weekdayIndex(parseISO(today)))
   const [picking, setPicking] = useState(initialAction === 'add')
   const [addMenu, setAddMenu] = useState(false)
   const [wodBuilder, setWodBuilder] = useState(false)
@@ -59,6 +60,14 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
 
   const dates = useMemo(() => weekDates(anchor), [anchor])
   const date = toISO(dates[day])
+  // Left open overnight, the day that was today moves on to the new today, so sets aren't logged on yesterday by
+  // mistake. A workout still going past midnight (sets logged, not finished) stays where it is to be finished.
+  const [shownToday, setShownToday] = useState(today)
+  if (shownToday !== today) {
+    setShownToday(today)
+    const going = s.logs.some((l) => l.date === shownToday && hasData(l)) && !s.finishedDays.includes(shownToday)
+    if (date === shownToday && !going) { setAnchor(parseISO(today)); setDay(weekdayIndex(parseISO(today))) }
+  }
   const planned = dayPlanOf(s.plan, s.overrides, date)
   const work = workItems(planned)
   const rest = isRestDay(s.overrides, date)
@@ -82,7 +91,7 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
       <header className="mb-4 flex items-center justify-between gap-2">
         <h1 className="min-w-0 text-2xl font-semibold tracking-tight">{weekRange(dates[0], dates[6])}</h1>
         <div className="flex shrink-0 items-center gap-1 text-neutral-500">
-          {!thisWeek && <button onClick={() => { setAnchor(new Date()); setDay(weekdayIndex(new Date())) }} className="mr-1 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">Today</button>}
+          {!thisWeek && <button onClick={() => { setAnchor(parseISO(today)); setDay(weekdayIndex(parseISO(today))) }} className="mr-1 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">Today</button>}
           <button onClick={() => shiftWeek(-1)} aria-label="Previous week" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-neutral-200/60"><Chevron left /></button>
           <button onClick={() => shiftWeek(1)} aria-label="Next week" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-neutral-200/60"><Chevron /></button>
           {onSettings && <SettingsGear onClick={onSettings} />}

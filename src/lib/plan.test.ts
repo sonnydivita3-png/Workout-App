@@ -93,6 +93,12 @@ describe('repeatPlan', () => {
       { exerciseId: 'running', sets: 1, minutes: 27, distance: 3 },
     ])
   })
+  it('keeps drop sets as drop sets, and leaves out sets that were never ticked', () => {
+    const logs: ExerciseLog[] = [
+      { date: TODAY, exerciseId: 'Leg_Press', sets: [{ weight: 320, reps: 12, done: true }, { weight: 320, reps: 12, done: true }, { weight: 320, reps: 10, done: true }, { weight: 255, reps: 12, drop: true, done: true }, { weight: 320, reps: 10, done: false }] },
+    ]
+    expect(repeatPlan(logs, (id) => BUILTIN_BY_ID.get(id))).toEqual([{ exerciseId: 'Leg_Press', sets: 3, reps: 12, dropSets: 1 }])
+  })
 })
 
 describe('dayLabel', () => {

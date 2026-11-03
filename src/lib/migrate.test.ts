@@ -52,6 +52,30 @@ describe('repairState', () => {
     expect(r.bodyweight).toEqual([{ date: '2026-10-01', lb: 180 }])
     expect(repairState({ bodyweight: [{ date: '2026-10-05', lb: 178 }, { date: '2026-10-01', lb: 180 }] }, defaults).bodyweight.map((b: { date: string }) => b.date)).toEqual(['2026-10-01', '2026-10-05'])
   })
+  it('drops a plan, timed result, routine or benchmark missing what its screen reads (which crashed that tab), and cleans the rest', () => {
+    const r = repairState({
+      programs: [{ id: 'p1' }, { id: 'p2', entries: 'x' }, { id: 'p3', kind: 'cardio', entries: [{ date: '2026-10-01', exerciseId: 'running' }, null, 7] }],
+      timedLogs: [
+        { id: 't1', date: '2026-10-01', block: 'b', movements: ['a'] },
+        { id: 't2', date: '2026-10-01', block: 'b', wod: { kind: 'amrap', minutes: 10 }, movements: ['a', 5] },
+        { id: 't3', block: 'b', wod: { kind: 'amrap', minutes: 10 }, movements: ['a'] },
+        { id: 't4', date: '2026-10-01', block: 'b', wod: { kind: 'amrap', minutes: 10 } },
+      ],
+      routines: [{ id: 'r1', name: 'R' }, { id: 'r2', name: 'Push', items: [{ exerciseId: 'a', sets: 3 }, 'x'] }],
+      benchmarks: [{ id: 'b1', name: 'B' }],
+    }, { ...defaults, benchmarks: [] })
+    expect(r.programs).toEqual([{ id: 'p3', kind: 'cardio', entries: [{ date: '2026-10-01', exerciseId: 'running' }] }])
+    expect(r.timedLogs).toEqual([{ id: 't2', date: '2026-10-01', block: 'b', wod: { kind: 'amrap', minutes: 10 }, movements: ['a'] }])
+    expect(r.routines).toEqual([{ id: 'r2', name: 'Push', items: [{ exerciseId: 'a', sets: 3 }] }])
+    expect(r.benchmarks).toEqual([])
+  })
+  it('equipment is a list of names or a full gym: anything else stopped the app from starting', () => {
+    const d = { ...defaults, equipment: null as string[] | null }
+    expect(repairState({ equipment: 5 }, d).equipment).toBeNull()
+    expect(repairState({ equipment: 'Dumbbell' }, d).equipment).toBeNull()
+    expect(repairState({ equipment: ['Dumbbell', 7, 'Barbell'] }, d).equipment).toEqual(['Dumbbell', 'Barbell'])
+    expect(repairState({}, d).equipment).toBeNull()
+  })
   it('never takes a prototype from saved or imported data', () => {
     const evil = JSON.parse('{"plan":[[],[],[],[],[],[],[]],"logs":[],"__proto__":{"isAdmin":true},"units":{"weight":"kg","__proto__":{"isAdmin":true}}}')
     const r = repairState(evil, defaults) as Record<string, unknown>

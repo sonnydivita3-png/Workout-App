@@ -130,6 +130,12 @@ describe('completed workouts', () => {
     expect(p.results).toEqual(['Push-Up 3 × 20', 'Deadlift 2 sets, top 245 lb × 3', 'Plank 1 × 60s', 'Running 3.1 mi in 27 min'])
     expect(completedWorkout('2026-01-01', logs, lookup, [])).toBeNull()
   })
+  it('count the working sets done: not warm-ups, nor numbers typed in but never ticked', () => {
+    const squat: ExerciseLog = { date: TODAY, exerciseId: 'Barbell_Squat', sets: [{ weight: 135, reps: 5, warmup: true, done: true }, { weight: 225, reps: 5, done: true }, { weight: 225, reps: 5, done: true }, { weight: 245, reps: 5, done: false }] }
+    const p = completedWorkout(TODAY, [squat], lookup, [])!
+    expect(p.days[0].items).toEqual([{ exerciseId: 'Barbell_Squat', sets: 2, reps: 5 }])
+    expect(p.results).toEqual(['Back Squat 2 sets, top 225 lb × 5'])
+  })
 })
 
 describe('challenge progress', () => {

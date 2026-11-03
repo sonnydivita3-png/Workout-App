@@ -2,6 +2,7 @@ import type { Exercise, ExerciseLog, PlanOverrides, PlannedExercise, WeekPlan } 
 import { areaOf } from './bodyParts'
 import { addDays, mondayOf, parseISO, toISO, weekdayIndex } from './dates'
 import { hasData } from './stats'
+import { dropSetsOf, workSets } from './progression'
 
 /** The exercises planned for a date: a date-specific override if one exists, else the weekly template. */
 export function dayPlanOf(plan: WeekPlan, overrides: PlanOverrides | undefined, date: string): PlannedExercise[] {
@@ -73,7 +74,9 @@ export function repeatPlan(logs: ExerciseLog[], lookup: (id: string) => Exercise
     if (ex.kind === 'cardio') {
       return [{ exerciseId: l.exerciseId, sets: 1, ...(l.cardio?.minutes ? { minutes: l.cardio.minutes } : {}), ...(l.cardio?.distance ? { distance: l.cardio.distance } : {}) }]
     }
-    const work = (l.sets ?? []).filter((s) => !s.warmup && (s.reps || s.seconds || s.weight))
+    // The working sets done (drop sets go back in as drop sets, after them).
+    const work = workSets(l)
+    const drops = dropSetsOf(l).length
     const warm = (l.sets ?? []).filter((s) => s.warmup).length
     const reps = mostCommon(work.map((s) => s.reps ?? 0).filter(Boolean))
     const seconds = mostCommon(work.map((s) => s.seconds ?? 0).filter(Boolean))
@@ -82,6 +85,7 @@ export function repeatPlan(logs: ExerciseLog[], lookup: (id: string) => Exercise
       sets: Math.max(1, work.length),
       ...(ex.mode === 'time' ? (seconds ? { seconds } : {}) : reps ? { reps } : {}),
       ...(warm ? { warmupSets: warm } : {}),
+      ...(drops ? { dropSets: drops } : {}),
     }]
   })
 }

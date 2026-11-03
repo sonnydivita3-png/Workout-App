@@ -18,7 +18,9 @@ export function NumberInput({ value, onChange, placeholder, step = 1, stepper, l
       value={value ?? ''}
       placeholder={placeholder}
       aria-label={label}
-      onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
+      // Nothing here is ever below zero (min only limits the arrows): a minus sign typed by mistake is dropped, rather
+      // than saving -135 lb or a negative pace (and an out-of-range number, like 1e400, is no number).
+      onChange={(e) => { const n = Math.abs(Number(e.target.value)); onChange(e.target.value === '' || !Number.isFinite(n) ? null : n) }}
       className="w-full min-w-0 rounded-lg bg-neutral-100 px-1 py-2 text-center tabular-nums outline-none placeholder:text-neutral-400 focus:bg-neutral-200/70"
     />
   )

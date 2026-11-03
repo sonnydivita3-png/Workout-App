@@ -77,9 +77,11 @@ export function TimerSheet({ wod, names, onClose, onFinish }: { wod: Wod; names:
   const remaining = Math.max(0, total - elapsed)
   const big = tab ? fmt(Math.ceil(tLeft)) : wod.kind === 'fortime' ? fmt(elapsed) : wod.kind === 'emom' ? fmt(Math.max(0, interval - (elapsed - idx * interval))) : fmt(remaining)
   const reset = () => { elapsedRef.current = 0; setElapsed(0); setRunning(false) }
+  // A stray tap outside the sheet mid-workout shouldn't lose the clock: ask before closing one that has time on it.
+  const close = () => { if (elapsedRef.current > 0 && !done && !confirm(`Stop the clock? Your ${fmt(elapsedRef.current)} so far won’t be kept.`)) return; onClose() }
 
   return (
-    <Sheet title={wodTitle(wod)} onClose={onClose}>
+    <Sheet title={wodTitle(wod)} onClose={close}>
       <div className="py-6 text-center">
         {wod.kind === 'emom' && (
           <p className="mb-1 text-sm text-neutral-500">Interval {done ? emomIntervals(wod) : idx + 1} of {emomIntervals(wod)}</p>
