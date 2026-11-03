@@ -16,7 +16,8 @@ test('a stray tap outside a running workout clock asks before stopping it', asyn
   await page.getByRole('button', { name: '⏱ Start timer' }).click()
   const clock = page.getByRole('dialog', { name: 'AMRAP 10 min' })
   await clock.getByRole('button', { name: 'Start' }).click()
-  await expect(clock.getByText('9:58')).toBeVisible()
+  // Running: under 10:00 (any second of the first minute, however busy the machine is).
+  await expect(clock.getByText(/^9:[0-5]\d$/)).toBeVisible()
 
   // Tapping the dimmed page above the sheet: asked, kept, still running.
   await page.mouse.click(200, 40)
