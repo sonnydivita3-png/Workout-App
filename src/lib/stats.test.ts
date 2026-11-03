@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ExerciseLog } from '../types'
-import { bestLift, epley, hasData, isPR, strengthSessions, weekStats } from './stats'
+import { bestLift, epley, hasData, isPR, setSessions, strengthSessions, weekStats } from './stats'
 
 const lift = (date: string, sets: ExerciseLog['sets'], exerciseId = 'bench'): ExerciseLog => ({ date, exerciseId, sets })
 
@@ -33,6 +33,19 @@ describe('PRs and what counts as logged', () => {
     const logs = [lift('2026-10-01', [{ weight: 135, reps: 5 }]), lift('2026-10-08', [{ weight: 145, reps: 3 }])]
     expect(bestLift(logs, 'bench')).toBe(145)
     expect(bestLift([lift('2026-10-01', [{ weight: null, reps: 12 }, { weight: null, reps: 15 }], 'push')], 'push', 'reps')).toBe(15)
+  })
+})
+
+describe('drop sets', () => {
+  it('add to the volume but never set a best: a lighter set to failure is not a max', () => {
+    // 225 × 3 (est. 1RM 247.5), then a drop to 180 for 12: Epley would make that 252.
+    const [s] = strengthSessions([lift('2026-10-01', [{ weight: 225, reps: 3 }, { weight: 180, reps: 12, drop: true }])], 'bench')
+    expect(s.e1rm).toBeCloseTo(epley(225, 3))
+    expect(s.topWeight).toBe(225)
+    expect(s.volume).toBe(225 * 3 + 180 * 12)
+    // Push-ups to failure, then knee push-ups as the drop: the best set is the real one.
+    const [p] = setSessions([lift('2026-10-01', [{ weight: null, reps: 15 }, { weight: null, reps: 20, drop: true }], 'push')], 'push', 'reps')
+    expect(p).toMatchObject({ best: 15, total: 35 })
   })
 })
 

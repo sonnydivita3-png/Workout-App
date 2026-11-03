@@ -1,4 +1,4 @@
-import type { ExerciseLog, ExerciseMode } from '../types'
+import type { ExerciseLog, ExerciseMode, StrengthSet } from '../types'
 import { addDays, mondayOf, parseISO, toISO } from './dates'
 import { runsOf } from './cardioRuns'
 import { isLogged } from './setRows'
@@ -25,7 +25,9 @@ export function strengthSessions(logs: ExerciseLog[], exerciseId: string): Stren
   return logs
     .filter((l) => l.exerciseId === exerciseId && l.sets)
     .map((l) => {
-      const sets = l.sets!.filter((s): s is { weight: number; reps: number } => !s.warmup && !!s.weight && !!s.reps && isLogged(s))
+      const done = l.sets!.filter((s): s is StrengthSet & { weight: number; reps: number } => !s.warmup && !!s.weight && !!s.reps && isLogged(s))
+      // Drop sets add to the volume, but bests come from the working sets: a lighter set to failure isn't a max.
+      const sets = done.filter((s) => !s.drop)
       return {
         date: l.date,
         sets,
@@ -33,7 +35,7 @@ export function strengthSessions(logs: ExerciseLog[], exerciseId: string): Stren
         // (Rep-max formulas hold up to about 10-12 reps; past that they inflate, so count 12 at most: an estimate on
         // the safe side rather than a 20-rep set doubling someone's "max".)
         e1rm: Math.max(0, ...sets.map((s) => epley(s.weight, Math.min(s.reps, 12)))),
-        volume: sets.reduce((a, s) => a + s.weight * s.reps, 0),
+        volume: done.reduce((a, s) => a + s.weight * s.reps, 0),
       }
     })
     .filter((s) => s.sets.length > 0)
@@ -112,8 +114,11 @@ export function setSessions(logs: ExerciseLog[], exerciseId: string, mode: 'reps
   return logs
     .filter((l) => l.exerciseId === exerciseId && l.sets)
     .map((l) => {
-      const values = l.sets!.filter((s) => !s.warmup && isLogged(s)).map((s) => (mode === 'time' ? s.seconds : s.reps)).filter((v): v is number => !!v)
-      return { date: l.date, values, best: Math.max(0, ...values), total: values.reduce((a, v) => a + v, 0) }
+      const value = (s: StrengthSet) => (mode === 'time' ? s.seconds : s.reps) || 0
+      const done = l.sets!.filter((s) => !s.warmup && isLogged(s) && value(s) > 0)
+      // As with weights: drop sets (an easier version, to failure) count in the total, not as the best set.
+      const values = done.filter((s) => !s.drop).map(value)
+      return { date: l.date, values, best: Math.max(0, ...values), total: done.reduce((a, s) => a + value(s), 0) }
     })
     .filter((s) => s.values.length > 0)
     .sort((a, b) => a.date.localeCompare(b.date))
