@@ -10,6 +10,7 @@ import { useStore } from '../store'
 import type { CardioSport, GoalPeriod, NewGoal, Sport } from '../types'
 import { NumberInput } from './NumberInput'
 import { primaryBtn } from './Sheet'
+import { chipBtn } from './ui'
 
 type Sub = 'distance' | 'time' | 'pace' | 'event'
 
@@ -20,7 +21,8 @@ const SUBS: { id: Sub; label: string }[] = [
   { id: 'event', label: 'Run or ride an event' },
 ]
 
-const chip = (on: boolean) => `rounded-full px-3 py-1 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
+// The shared chip (ui.ts): the accent when picked, a 44 px tap area.
+const chip = chipBtn
 
 export function CardioGoalForm({ onDone }: { onDone: () => void }) {
   const { units, addGoal, programs, startCardioProgram } = useStore()

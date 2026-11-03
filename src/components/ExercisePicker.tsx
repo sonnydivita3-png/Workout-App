@@ -9,7 +9,7 @@ import type { Exercise } from '../types'
 import { CUSTOM_GROUPS, sameName } from '../lib/customExercises'
 import { closestExercises, matchesSearch, searchWords } from '../lib/exerciseSearch'
 import { CustomExerciseSheet } from './CustomExercise'
-import { SheetHandle, sheetBackdrop, sheetPanel } from './Sheet'
+import { SheetHandle, sheetBackdrop, sheetCloseBtn, sheetPanel } from './Sheet'
 import { useModal } from '../lib/useModal'
 
 interface Props {
@@ -173,7 +173,7 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
           aria-pressed={isFav(e)}
           aria-label={`Favorite: ${e.name}`}
           title={isFav(e) ? 'Remove from favorites' : 'Add to favorites'}
-          className={`flex h-10 w-9 shrink-0 items-center justify-center text-lg leading-none ${isFav(e) ? 'text-amber-700' : 'text-neutral-300'}`}
+          className={`flex h-11 w-10 shrink-0 items-center justify-center rounded-full text-lg leading-none hover:bg-neutral-100 ${isFav(e) ? 'text-amber-700' : 'text-neutral-400'}`}
         >
           {isFav(e) ? '★' : '☆'}
         </button>
@@ -186,9 +186,9 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
     <div className={sheetBackdrop} onClick={onClose}>
       <div ref={panel} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className={sheetPanel} onClick={(e) => e.stopPropagation()}>
         <SheetHandle />
-        <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
+        <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
           <h2 id={titleId} className="text-lg font-semibold">{title}</h2>
-          <button onClick={onClose} className="-mr-2 shrink-0 rounded-full px-2 py-1 text-sm text-neutral-500 hover:bg-neutral-100">Done</button>
+          <button onClick={onClose} className={sheetCloseBtn}>Done</button>
         </div>
         {/* Search, then the muscle group and equipment filters: each one button that opens a panel showing every option at once. */}
         <input
@@ -235,7 +235,7 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
           <p className="min-w-0 truncate text-xs text-neutral-400">
             {closest.length ? 'No exact match' : <>{results.length} exercise{results.length === 1 ? '' : 's'}{equip === 'Mine' ? ' · my equipment' : equip !== 'Any' ? ` · ${equip.toLowerCase()}` : ''}{group !== 'All' ? ` · ${group.toLowerCase()}` : ''}</>}
           </p>
-          <button onClick={() => setMaking({ name: q })} className="shrink-0 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">+ Custom exercise</button>
+          <button onClick={() => setMaking({ name: q })} className="hit shrink-0 rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-700">+ Custom exercise</button>
         </div>
         <ul className="-mx-1 overflow-y-auto">
           {q.trim() && !exact && results.length > 0 && (

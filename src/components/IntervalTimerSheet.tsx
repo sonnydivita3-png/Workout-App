@@ -68,7 +68,7 @@ export function IntervalTimerSheet({ title, segments, onClose, onComplete, compl
     <Sheet title={title} onClose={close}>
       <div className="py-6 text-center">
         {!done && seg.demo && <MoveDemo key={seg.demo} id={seg.demo} name={findExercise(custom, seg.demo)?.name ?? seg.label} className={`mx-auto mb-4 w-full max-w-xs rounded-2xl ${seg.phase === 'rest' ? 'opacity-60' : ''}`} />}
-        {!done && <p className={`mb-1 text-sm font-semibold uppercase tracking-widest ${seg.phase === 'work' ? 'text-accent' : 'text-neutral-500'}`}>{seg.phase === 'work' ? 'Work' : 'Rest'}</p>}
+        {!done && <p className={`mb-1 text-sm font-semibold uppercase tracking-widest ${seg.phase === 'work' ? 'text-accent-ink' : 'text-neutral-500'}`}>{seg.phase === 'work' ? 'Work' : 'Rest'}</p>}
         <p className="text-7xl font-extrabold tabular-nums tracking-tight">{fmt(left)}</p>
         {!done && <p className="mt-2 text-lg font-medium">{seg.label}</p>}
         {!done && seg.detail && <p className="mt-1 text-xs text-neutral-400">{seg.detail}</p>}

@@ -7,9 +7,11 @@ import { useToday } from '../lib/useToday'
 import { findExercise, selectLastLog, useStore } from '../store'
 import { RandomizerSheet } from './RandomizerSheet'
 import type { Tab } from './TabBar'
+import { Chevron } from './Chevron'
 
-const big = 'w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-on-accent'
-const option = 'flex w-full items-center justify-between gap-3 rounded-2xl bg-neutral-100 px-4 py-3 text-left'
+const big = 'min-h-14 w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-on-accent shadow-sm'
+const option = 'flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl bg-neutral-100 px-4 py-3 text-left hover:bg-neutral-200/70'
+const go = <Chevron className="h-4 w-4 shrink-0 text-neutral-400" />
 
 /**
  * The first thing on Home: today's workout with one big Start button (it opens the workout to tick off, no clock),
@@ -36,11 +38,11 @@ export function TodayCard({ onNavigate }: { onNavigate: (t: Tab, part?: string) 
   if (planned.length > 0 && (upcoming.length === 0 || s.finishedDays.includes(today))) {
     body = (
       <>
-        <p className="text-lg font-semibold">Done for today ✓</p>
+        <h2 className="text-lg font-semibold">Done for today ✓</h2>
         <p className="mb-3 text-sm text-neutral-500">{upcoming.length === 0 ? `All ${planned.length} exercise${planned.length === 1 ? '' : 's'} logged.` : `${planned.length - upcoming.length} of ${planned.length} exercises logged.`} Nice work.</p>
         <div className="flex gap-2">
-          <button onClick={start} className="rounded-full bg-neutral-100 px-4 py-1.5 text-sm text-neutral-600">Open workout</button>
-          {s.finishedDays.includes(today) && <button onClick={() => s.unfinishDay(today)} className="rounded-full bg-neutral-100 px-4 py-1.5 text-sm text-neutral-600">Not done yet</button>}
+          <button onClick={start} className="hit rounded-full bg-neutral-100 px-4 py-1.5 text-sm font-medium text-neutral-700">Open workout</button>
+          {s.finishedDays.includes(today) && <button onClick={() => s.unfinishDay(today)} className="hit rounded-full bg-neutral-100 px-4 py-1.5 text-sm font-medium text-neutral-700">Not done yet</button>}
         </div>
       </>
     )
@@ -48,8 +50,8 @@ export function TodayCard({ onNavigate }: { onNavigate: (t: Tab, part?: string) 
     body = (
       <>
         <div className="mb-3 flex items-baseline justify-between gap-3">
-          <p className="text-lg font-semibold">Today’s workout</p>
-          <p className="shrink-0 text-sm text-neutral-400">{planned.length} exercise{planned.length === 1 ? '' : 's'}{minutes > 0 ? ` · ~${minutes} min` : ''}</p>
+          <h2 className="text-lg font-semibold">Today’s workout</h2>
+          <p className="shrink-0 text-sm text-neutral-500">{planned.length} exercise{planned.length === 1 ? '' : 's'}{minutes > 0 ? ` · ~${minutes} min` : ''}</p>
         </div>
         <ul className="mb-4 space-y-2">
           {upcoming.slice(0, 5).map((p) => {
@@ -60,11 +62,11 @@ export function TodayCard({ onNavigate }: { onNavigate: (t: Tab, part?: string) 
             return (
               <li key={ex.id} className="flex items-baseline justify-between gap-3">
                 <span className="min-w-0 line-clamp-2">{ex.name}</span>
-                <span className="shrink-0 text-sm tabular-nums text-neutral-400">{target}{ex.kind === 'strength' && last && hasData(last) ? ' · beat last' : ''}</span>
+                <span className="shrink-0 text-sm tabular-nums text-neutral-500">{target}{ex.kind === 'strength' && last && hasData(last) ? ' · beat last' : ''}</span>
               </li>
             )
           })}
-          {upcoming.length > 5 && <li className="text-sm text-neutral-400">+{upcoming.length - 5} more</li>}
+          {upcoming.length > 5 && <li className="text-sm text-neutral-500">+{upcoming.length - 5} more</li>}
         </ul>
         <button onClick={start} className={big}>Start workout</button>
       </>
@@ -72,7 +74,7 @@ export function TodayCard({ onNavigate }: { onNavigate: (t: Tab, part?: string) 
   } else {
     body = (
       <>
-        <p className="text-lg font-semibold">{rest ? 'Rest day' : 'Nothing planned today'}</p>
+        <h2 className="text-lg font-semibold">{rest ? 'Rest day' : 'Nothing planned today'}</h2>
         <p className="mb-3 text-sm text-neutral-500">{rest ? 'Recovery is part of the plan. Feel like training anyway?' : 'Pick a way to train:'}</p>
         <div className="space-y-2">
           {repeatItems.length > 0 && previous && (
@@ -81,19 +83,19 @@ export function TodayCard({ onNavigate }: { onNavigate: (t: Tab, part?: string) 
                 <span className="block font-medium">Repeat last workout</span>
                 <span className="block truncate text-sm text-neutral-500">{fmtLong(previous.date)} · {repeatItems.map((p) => lookup(p.exerciseId)?.name).filter(Boolean).join(', ')}</span>
               </span>
-              <span className="text-neutral-400">›</span>
+              {go}
             </button>
           )}
           <button onClick={() => setRandomize(true)} className={option}>
             <span><span className="block font-medium">Make me a workout</span><span className="block text-sm text-neutral-500">Pick body parts and time, get a full workout</span></span>
-            <span className="text-neutral-400">›</span>
+            {go}
           </button>
           <button onClick={() => onNavigate('plan', 'add')} className={option}>
             <span><span className="block font-medium">Pick exercises</span><span className="block text-sm text-neutral-500">Add them yourself, as you go</span></span>
-            <span className="text-neutral-400">›</span>
+            {go}
           </button>
         </div>
-        <button onClick={() => onNavigate('plan')} className="mt-3 text-sm text-neutral-500">Plan your week ›</button>
+        <button onClick={() => onNavigate('plan')} className="hit mt-3 text-sm font-medium text-neutral-600">Plan your week ›</button>
       </>
     )
   }

@@ -12,6 +12,7 @@ import type { Exercise, ExerciseLog, ExerciseMode, StrengthSet } from '../types'
 import { HoldTimerSheet } from './IntervalTimerSheet'
 import { NumberInput } from './NumberInput'
 import { rowBtn, Sheet } from './Sheet'
+import { scrollToTop } from './ui'
 
 interface Props {
   exercise: Exercise
@@ -57,7 +58,8 @@ interface Props {
 }
 
 const TRACK: [ExerciseMode, string][] = [['weight', 'Track with weight'], ['reps', 'Track as bodyweight (reps only)'], ['time', 'Track by time (seconds)']]
-const MARK = { up: { t: '▲', c: 'text-green-600', l: 'beat last time' }, same: { t: '=', c: 'text-neutral-400', l: 'matched last time' }, down: { t: '▼', c: 'text-red-600', l: 'below last time' } } as const
+// The deeper shades: these sit on the set number's box, which takes a tint once the set is done.
+const MARK = { up: { t: '▲', c: 'text-green-800', l: 'beat last time' }, same: { t: '=', c: 'text-neutral-500', l: 'matched last time' }, down: { t: '▼', c: 'text-red-700', l: 'below last time' } } as const
 
 /**
  * One exercise to log: a target from last time, then a row per set. ✓ logs a set (filling in the target if nothing
@@ -195,7 +197,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: pl
     const next = { ...s, weight: s.weight ?? t.weight ?? null, reps: s.reps ?? t.reps ?? null, ...(mode === 'time' ? { seconds: s.seconds ?? t.seconds ?? null } : {}) }
     update(i, { ...next, done: true, auto: !filled(s) })
     // That was the last one: the card folds up; bring it to the top so the next exercise is right below.
-    if (!readOnly && sets.every((x, j) => x.warmup || j === i || ticked(x))) setTimeout(() => card.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60)
+    if (!readOnly && sets.every((x, j) => x.warmup || j === i || ticked(x))) setTimeout(() => scrollToTop(card.current), 60)
     try { navigator.vibrate?.(15) } catch { /* not supported */ }
     const round = sets.slice(0, i + 1).filter((x) => !x.warmup && !x.drop).length
     // No rest before a drop set, nor after one (that's the point of them).
@@ -244,16 +246,23 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: pl
   const summary = counted.filter((x) => filled(x)).map((x) => `${x.drop ? 'D ' : ''}${formatSet(x, mode, units)}`).join(' · ')
 
   return (
-    <div ref={card} className={`scroll-mt-4 rounded-2xl bg-surface shadow-sm ring-1 ring-neutral-200/70 ${collapsed ? 'px-4 py-3' : 'p-4'}`}>
-      <div className={`${collapsed ? '' : 'mb-2 '}flex items-start justify-between gap-2`}>
-        <div className="min-w-0">
-          <button onClick={toggleFold} className="text-left font-semibold">{allDone && collapsed ? '✓ ' : ''}{exercise.name}</button>
+    <div ref={card} className={`scroll-mt-4 rounded-2xl bg-surface shadow-sm ring-1 ${allDone ? 'ring-accent/40' : 'ring-neutral-200/70'} ${collapsed ? 'py-2 pl-4 pr-2' : 'p-4 pr-2'}`}>
+      <div className={`${collapsed ? '' : 'mb-2 '}flex items-start justify-between gap-1`}>
+        <div className={`min-w-0 flex-1 ${collapsed ? 'py-1' : ''}`}>
+          {/* A heading per exercise, so a screen reader can jump between them; the name folds or opens the card. */}
+          <h3>
+            <button onClick={toggleFold} className="flex items-center gap-2 text-left text-[17px] font-semibold leading-snug">
+              {/* The check is part of the name ("✓ Bench Press"), drawn as a badge. */}
+              {allDone && collapsed && <><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent text-[11px] font-bold text-on-accent">✓</span>{' '}</>}
+              <span>{exercise.name}</span>
+            </button>
+          </h3>
           {collapsed ? (
-            <button onClick={toggleFold} className="block text-left text-xs text-neutral-400">
+            <button onClick={toggleFold} className="block text-left text-xs text-neutral-500">
               {doneCount} of {counted.length} sets{summary ? ` · ${summary}` : ''}{beat > 0 ? ` · ▲ ${beat} beat last time` : ''}
             </button>
           ) : (
-          <p className="text-xs text-neutral-400">
+          <p className="text-xs text-neutral-500">
             {exercise.group}
             {mode === 'time' && ' · timed'}
             {deload && ' · deload week'}
@@ -266,21 +275,24 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: pl
           </p>
           )}
         </div>
-        <button onClick={toggleFold} aria-label={`${collapsed ? 'Open' : 'Fold'} ${exercise.name}`} aria-expanded={!collapsed} className="-mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm leading-none text-neutral-400 hover:bg-neutral-100">{collapsed ? '⌄' : '⌃'}</button>
-        <button onClick={() => setMenu(true)} aria-label={`${exercise.name} options`} className="-mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg leading-none text-neutral-400 hover:bg-neutral-100">⋯</button>
+        {!collapsed && !readOnly && doneCount > 0 && (
+          <span className="mt-1.5 shrink-0 rounded-full bg-accent/20 px-2 py-0.5 text-xs font-semibold tabular-nums text-neutral-800" aria-label={`${doneCount} of ${counted.length} sets done`}>{doneCount}/{counted.length}</span>
+        )}
+        <button onClick={toggleFold} aria-label={`${collapsed ? 'Open' : 'Fold'} ${exercise.name}`} aria-expanded={!collapsed} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full leading-none text-neutral-500 hover:bg-neutral-100 -mt-1.5 text-sm">{collapsed ? '⌄' : '⌃'}</button>
+        <button onClick={() => setMenu(true)} aria-label={`${exercise.name} options`} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full leading-none text-neutral-500 hover:bg-neutral-100 -mt-1.5 text-lg">⋯</button>
       </div>
-      {!collapsed && (<>
+      {!collapsed && (<div className="pr-2">
 
       {lastWork.length > 0 ? (
         <div className="mb-3 rounded-xl bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
           <span className="font-semibold text-neutral-900">Last time{last && last.date !== date ? ` (${fmtShort(last.date)})` : ''}:</span> {lastWork.map(setText).join(' · ')}
-          <span className="mt-0.5 block text-neutral-400">
+          <span className="mt-0.5 block text-neutral-500">
             {deload ? 'Deload week: go lighter than last time and stop well short of failure.'
               : 'Pick your weight from how that felt. Add weight only when every set felt solid.'}
           </span>
         </div>
       ) : !readOnly && (
-        <p className="mb-3 text-xs text-neutral-400">{FIRST_TIME[mode ?? 'weight']}</p>
+        <p className="mb-3 text-xs text-neutral-500">{FIRST_TIME[mode ?? 'weight']}</p>
       )}
       {askSets && (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl bg-neutral-50 px-3 py-2" role="group" aria-label="Sets this time">
@@ -315,7 +327,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: pl
                 onClick={() => setSetOpts(i)}
                 aria-label={`${label} options`}
                 title="Drop set, warm-up or delete"
-                className={`h-8 rounded-lg bg-neutral-50 text-sm ${s.warmup ? 'font-semibold text-amber-700' : 'text-neutral-500'}`}
+                className={`hit h-11 rounded-xl text-sm tabular-nums ${s.warmup ? 'font-semibold text-amber-800' : 'font-medium text-neutral-600'} ${ticked(s) ? 'bg-accent/15' : 'bg-neutral-50'}`}
               >
                 {s.warmup ? 'W' : s.drop ? 'D' : n}
                 {mark && <span className={`ml-0.5 text-[10px] ${mark.c}`} aria-label={mark.l}>{mark.t}</span>}
@@ -337,19 +349,20 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: pl
                   value={showWeight(s.weight, units)}
                   step={units.weight === 'kg' ? 1 : 2.5}
                   placeholder="–"
+                  done={ticked(s)}
                   onChange={(v) => update(i, { weight: storeWeight(v, units) })}
                 />
               )}
               {mode === 'time' ? (
                 <div className="flex items-center gap-1">
-                  <NumberInput label={`${label} seconds`} value={s.seconds ?? null} step={5} placeholder="–" onChange={(v) => update(i, { seconds: v })} />
-                  <button onClick={() => setTiming(i)} aria-label={`Time set ${i + 1}`} title="Time this set" className="h-9 w-8 shrink-0 rounded-lg bg-neutral-100 text-base">⏱</button>
+                  <NumberInput label={`${label} seconds`} value={s.seconds ?? null} step={5} placeholder="–" done={ticked(s)} onChange={(v) => update(i, { seconds: v })} />
+                  <button onClick={() => setTiming(i)} aria-label={`Time set ${i + 1}`} title="Time this set" className="h-11 w-9 shrink-0 rounded-xl bg-neutral-100 text-base">⏱</button>
                 </div>
               ) : (
-                <NumberInput label={`${label} reps`} value={s.reps} placeholder="–" onChange={(v) => update(i, { reps: v })} />
+                <NumberInput label={`${label} reps`} value={s.reps} placeholder="–" done={ticked(s)} onChange={(v) => update(i, { reps: v })} />
               )}
-              {trackRpe && <NumberInput label={`${label} RPE`} value={s.rpe ?? null} placeholder="–" onChange={(v) => update(i, { rpe: v == null ? null : Math.min(10, Math.max(1, v)) })} />}
-              <button onClick={() => done(i)} aria-label={`${label} done`} aria-pressed={ticked(s)} title={ticked(s) ? 'Tap to untick' : 'Tap when done'} className={`h-10 rounded-xl text-base font-bold ${ticked(s) ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-400'}`}>✓</button>
+              {trackRpe && <NumberInput label={`${label} RPE`} value={s.rpe ?? null} placeholder="–" done={ticked(s)} onChange={(v) => update(i, { rpe: v == null ? null : Math.min(10, Math.max(1, v)) })} />}
+              <button onClick={() => done(i)} aria-label={`${label} done`} aria-pressed={ticked(s)} title={ticked(s) ? 'Tap to untick' : 'Tap when done'} className={`h-11 rounded-xl text-lg font-bold ${ticked(s) ? 'bg-accent text-on-accent shadow-sm' : 'bg-neutral-100 text-neutral-400'}`}>✓</button>
             </div>
           )
         })}
@@ -369,12 +382,12 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: pl
       <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-neutral-500">
         <span className="flex gap-2">
           {/* One more working set than the card shows now (it can show more than planned, if the plan changed after logging). */}
-          <button onClick={() => onSetCount(Math.max(setCount, workingCount) + 1)} className="rounded-full bg-neutral-100 px-3 py-1 text-neutral-600">+ Add set</button>
-          {canDrop && <button onClick={() => addDrop()} title="Straight after the set you just did" className="rounded-full bg-neutral-100 px-3 py-1 text-neutral-600">+ Drop set</button>}
+          <button onClick={() => onSetCount(Math.max(setCount, workingCount) + 1)} className="hit rounded-full bg-neutral-100 px-3 py-1.5 font-medium text-neutral-600">+ Add set</button>
+          {canDrop && <button onClick={() => addDrop()} title="Straight after the set you just did" className="hit rounded-full bg-neutral-100 px-3 py-1.5 font-medium text-neutral-600">+ Drop set</button>}
         </span>
         {beat > 0 && <span className="font-medium text-green-600">▲ Beat last time on {beat} set{beat === 1 ? '' : 's'}</span>}
       </div>
-      {last?.note && <p className="mt-2 text-xs text-neutral-400">Last note: “{last.note}”</p>}
+      {last?.note && <p className="mt-2 text-xs text-neutral-500">Last note: “{last.note}”</p>}
       {current?.note && !editingNote && <button onClick={() => setEditingNote(true)} className="mt-2 block text-left text-sm text-neutral-600">📝 {current.note}</button>}
       {editingNote && onNote && (
         <input
@@ -396,10 +409,10 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: pl
         </p>
       )}
 
-      </>)}
+      </div>)}
 
       {askGear && (
-        <div className="mt-3 rounded-xl bg-neutral-50 px-3 py-2.5" role="group" aria-label="What adds the weight?">
+        <div className="mr-2 mt-3 rounded-xl bg-neutral-50 px-3 py-2.5" role="group" aria-label="What adds the weight?">
           <p className="text-sm font-medium">{gearStep === 'free' ? 'Which free weight?' : `What adds the weight to ${exercise.name}?`}</p>
           <p className="mt-0.5 text-xs text-neutral-500">It’s saved under that equipment, so that’s where you’ll find it in the exercise list.</p>
           <div className="mt-2 flex flex-wrap gap-2 text-xs">

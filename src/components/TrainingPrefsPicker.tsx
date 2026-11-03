@@ -8,6 +8,7 @@ import { goalsLabel, PROGRAM_GOALS, savedGoals, type ProgramGoal } from '../lib/
 import { NumberInput } from './NumberInput'
 import type { WorkoutStyle } from '../lib/randomizer'
 import { useStore } from '../store'
+import { chipBtn } from './ui'
 
 // What people call the kinds of workout they like; one choice can cover several generator styles.
 const LIKES: { label: string; blurb: string; styles: WorkoutStyle[] }[] = [
@@ -45,7 +46,8 @@ export function LikedStylesPicker() {
   )
 }
 
-const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
+// The shared chip (ui.ts): the accent when picked, a 44 px tap area.
+const chip = chipBtn
 
 /** Cardio someone likes (machines too: many home gyms have a treadmill or bike), and whether to split the time between several. */
 export function LikedCardioPicker() {
@@ -120,7 +122,7 @@ export function MoveChoice() {
           <span className="block text-sm font-medium">Exercise types</span>
           <span className="block truncate text-xs text-neutral-500">{movePrefsSummary(moves) ?? 'No preference'}</span>
         </span>
-        <button onClick={() => setOpen(true)} aria-label="Change exercise types" className="shrink-0 rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-700">Change</button>
+        <button onClick={() => setOpen(true)} aria-label="Change exercise types" className="hit shrink-0 rounded-full bg-surface px-3 py-1.5 text-sm font-medium text-neutral-700 ring-1 ring-neutral-200">Change</button>
       </div>
     )
   }

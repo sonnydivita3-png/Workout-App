@@ -9,7 +9,7 @@ export function Tip({ id, children }: { id: string; children: React.ReactNode })
     <div role="note" className="mb-3 flex items-start gap-3 rounded-2xl bg-accent/15 px-4 py-3 text-sm">
       <span aria-hidden>💡</span>
       <p className="flex-1">{children}</p>
-      <button onClick={() => seeTip(id)} className="shrink-0 font-medium">Got it</button>
+      <button onClick={() => seeTip(id)} className="hit shrink-0 font-semibold">Got it</button>
     </div>
   )
 }

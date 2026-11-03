@@ -10,7 +10,8 @@ import { useToday } from '../lib/useToday'
 import { useStore } from '../store'
 import type { Sport } from '../types'
 import { NumberInput } from './NumberInput'
-import { primaryBtn, Sheet } from './Sheet'
+import { primaryBtn, secondaryBtn, Sheet } from './Sheet'
+import { chipBtn } from './ui'
 import { StackOrderPicker } from './StackOrderPicker'
 import { WeeklyVolumeChart } from './WeeklyVolumeChart'
 
@@ -22,7 +23,8 @@ const LEVELS: { id: PlanLevel; label: string; blurb: Record<Sport, string> }[] =
   { id: 'advanced', label: 'Advanced', blurb: { run: 'Experienced, 35+ miles a week.', bike: 'Experienced, 8+ hours a week.' } },
 ]
 
-const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
+// The shared chip (ui.ts): the accent when picked, a 44 px tap area.
+const chip = chipBtn
 const h3 = 'mb-2 text-sm font-semibold text-neutral-700'
 
 interface Props {
@@ -110,7 +112,7 @@ export function CardioPlanSheet({ onClose, onApplied }: Props) {
   // ---------------------------------------------------------------- form
   if (!result) {
     return (
-      <Sheet title="Training plan" onClose={onClose} closeLabel="Cancel">
+      <Sheet title="Training plan" onClose={onClose} closeLabel="Cancel" footer={<button disabled={days.length === 0 || !dateOk} onClick={build} className={primaryBtn}>Build my plan</button>}>
         <p className="mb-4 text-sm text-neutral-500">Build a run or bike plan for a goal or race. It’s added to your calendar and can be stopped or replaced any time.</p>
 
         <div className="mb-4 flex gap-2">
@@ -216,7 +218,6 @@ export function CardioPlanSheet({ onClose, onApplied }: Props) {
           </>
         )}
 
-        <button disabled={days.length === 0 || !dateOk} onClick={build} className={primaryBtn}>Build my plan</button>
       </Sheet>
     )
   }
@@ -244,7 +245,17 @@ export function CardioPlanSheet({ onClose, onApplied }: Props) {
   }
 
   return (
-    <Sheet title={`Your ${ev.label} plan`} onClose={onClose} closeLabel="Close">
+    <Sheet
+      title={`Your ${ev.label} plan`}
+      onClose={onClose}
+      closeLabel="Close"
+      footer={sessions.length > 0 && (
+        <div className="flex gap-2">
+          <button onClick={() => setResult(null)} className={`${secondaryBtn} flex-1`}>Change settings</button>
+          <button onClick={apply} disabled={shared > 0 && !order} className={`${primaryBtn} flex-1`}>Add to my plan</button>
+        </div>
+      )}
+    >
       {sessions.length === 0 ? (
         <>
           {result.warnings.map((w) => <p key={w} className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">{w}</p>)}
@@ -334,10 +345,6 @@ export function CardioPlanSheet({ onClose, onApplied }: Props) {
             {' '}Rest days are left as they are.
           </p>
           {shared > 0 && <StackOrderPicker value={order} onChange={setOrder} sport={sport} days={shared} />}
-          <div className="flex gap-2">
-            <button onClick={() => setResult(null)} className="flex-1 rounded-2xl bg-neutral-100 py-3 text-sm font-medium">Change settings</button>
-            <button onClick={apply} disabled={shared > 0 && !order} className="flex-1 rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent disabled:opacity-40">Add to my plan</button>
-          </div>
         </>
       )}
     </Sheet>
