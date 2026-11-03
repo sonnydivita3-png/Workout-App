@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures'
-import { iso, seed, state } from './helpers'
+import { iso, openSettings, seed, state } from './helpers'
 
 const fmtLong = (date: string) => new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 
@@ -39,4 +39,25 @@ test('a minus sign typed by mistake is dropped: no negative weights, reps or dis
   const logs = (await state(page)).logs
   expect(logs.find((l: { exerciseId: string }) => l.exerciseId === 'Barbell_Squat').sets[0]).toMatchObject({ weight: 135, reps: 5 })
   expect(logs.find((l: { exerciseId: string }) => l.exerciseId === 'running').cardio).toMatchObject({ distance: 2, minutes: 20 })
+})
+
+test('a backup file can be picked again after saying no to restoring it', async ({ page }) => {
+  await seed(page, { name: 'Now' })
+  page.removeAllListeners('dialog')
+  let restore = false
+  page.on('dialog', (d) => void (restore ? d.accept() : d.dismiss()))
+  await page.goto('/')
+  await openSettings(page, 'Backup & data')
+  await page.getByRole('button', { name: /Backup file/ }).click()
+  const box = page.locator('input[type=file][accept="application/json"]')
+  const backup = { name: 'b.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ app: 'workout', plan: Array.from({ length: 7 }, () => []), logs: [], name: 'Restored' })) }
+  await box.setInputFiles(backup)
+  // Said no: nothing changes, and the box is ready for the same file again (a browser skips a file already in it).
+  await expect(box).toHaveValue('')
+  expect((await state(page)).name).toBe('Now')
+  restore = true
+  await box.setInputFiles(backup)
+  await expect(page.getByText('Backup restored.')).toBeVisible()
+  await expect(box).toHaveValue('')
+  expect((await state(page)).name).toBe('Restored')
 })
