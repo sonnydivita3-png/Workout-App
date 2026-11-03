@@ -14,6 +14,7 @@ import { useToday } from '../../lib/useToday'
 import { formatResult } from '../../lib/wod'
 import { findExercise, useStore } from '../../store'
 import { Sheet } from '../Sheet'
+import { Chevron } from '../Chevron'
 import { sessionNoun } from '../../lib/cardioBests'
 
 const WD = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
@@ -55,9 +56,9 @@ export function WorkoutsTab() {
     <div className="space-y-4">
       <section className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
         <div className="mb-2 flex items-center justify-between">
-          <button onClick={() => shift(-1)} aria-label="Previous month" className="h-8 w-8 rounded-full text-neutral-500">‹</button>
-          <p className="text-sm font-semibold">{first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })} · {monthCount} workout{monthCount === 1 ? '' : 's'}</p>
-          <button onClick={() => shift(1)} aria-label="Next month" className="h-8 w-8 rounded-full text-neutral-500">›</button>
+          <button onClick={() => shift(-1)} aria-label="Previous month" className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100"><Chevron left className="h-5 w-5" /></button>
+          <p className="text-sm font-semibold">{first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })} <span className="font-normal text-neutral-500">· {monthCount} workout{monthCount === 1 ? '' : 's'}</span></p>
+          <button onClick={() => shift(1)} aria-label="Next month" className="-mr-2 flex h-10 w-10 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100"><Chevron className="h-5 w-5" /></button>
         </div>
         <div className="grid grid-cols-7 gap-1 text-center text-xs text-neutral-400">
           {WD.map((d, i) => <span key={i}>{d}</span>)}
@@ -67,7 +68,7 @@ export function WorkoutsTab() {
               disabled={!days.has(d)}
               onClick={() => setOpenDay(d)}
               aria-label={`${fmtLong(d)}${days.has(d) ? ', workout logged' : ''}`}
-              className={`aspect-square rounded-lg text-sm ${days.has(d) ? 'bg-accent font-semibold text-on-accent' : d === today ? 'ring-1 ring-neutral-300' : 'text-neutral-400'}`}
+              className={`aspect-square rounded-xl text-sm tabular-nums ${days.has(d) ? 'bg-accent font-semibold text-on-accent' : d === today ? 'font-semibold text-neutral-900 ring-1 ring-inset ring-accent-ink/60' : 'text-neutral-500'}`}
             >
               {parseISO(d).getDate()}
             </button>

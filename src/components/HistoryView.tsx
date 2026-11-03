@@ -11,6 +11,8 @@ import { LineChart } from './LineChart'
 import { BodyTab } from './history/BodyTab'
 import { WorkoutsTab } from './history/WorkoutsTab'
 import { Tip } from './Tip'
+import { Chevron } from './Chevron'
+import { chipBtn } from './ui'
 
 const fmtLong = (iso: string) =>
   new Date(iso + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
@@ -19,7 +21,8 @@ type HTab = 'workouts' | 'exercises' | 'body'
 
 export function HistoryView({ initialTab, onSettings }: { initialTab?: string; onSettings?: () => void }) {
   const [tab, setTab] = useState<HTab>(initialTab === 'body' || initialTab === 'exercises' ? initialTab : 'workouts')
-  const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-sm ${on ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`
+  // The shared chip (ui.ts): the accent when picked, a 44 px tap area.
+const chip = chipBtn
   const tabs = (
     <div data-tour="progress-tabs" className="mb-4 flex gap-2">
       {(['workouts', 'exercises', 'body'] as const).map((t) => <button key={t} onClick={() => setTab(t)} className={chip(tab === t)}>{t === 'workouts' ? 'History' : t === 'exercises' ? 'Exercises' : 'Body'}</button>)}
@@ -175,7 +178,7 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
 
   return (
     <section>
-      <button onClick={onBack} className="mb-2 text-sm text-neutral-500">‹ History</button>
+      <button onClick={onBack} className="-ml-2 mb-1 flex min-h-11 items-center gap-0.5 rounded-full pl-1 pr-3 text-sm font-medium text-neutral-500 hover:bg-neutral-200/60"><Chevron left className="h-4 w-4" />All exercises</button>
       <h1 className="text-2xl font-semibold tracking-tight">{exercise.name}</h1>
       {records.length > 0 && (
         <div className="mt-4 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">

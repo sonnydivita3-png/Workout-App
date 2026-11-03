@@ -6,7 +6,7 @@ import { useStore } from '../../store'
 import type { Measurement } from '../../types'
 import { LineChart } from '../LineChart'
 import { NumberInput } from '../NumberInput'
-import { Sheet } from '../Sheet'
+import { primaryBtn, Sheet } from '../Sheet'
 import { BodyweightSection } from './BodyweightSection'
 
 type Key = Exclude<keyof Measurement, 'id' | 'date'>
@@ -39,10 +39,10 @@ export function BodyTab() {
       <section className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
         <div className="mb-3 flex items-center justify-between">
           <p className="text-sm font-semibold text-neutral-700">Measurements</p>
-          <button onClick={() => { setDraft({}); setDate(today); setAdding(true) }} className="rounded-full bg-accent px-3 py-1 text-sm font-medium text-on-accent">+ Log</button>
+          <button onClick={() => { setDraft({}); setDate(today); setAdding(true) }} className="hit rounded-full bg-accent px-3 py-1.5 text-sm font-semibold text-on-accent">+ Log</button>
         </div>
-        <div className="mb-3 flex flex-wrap gap-1.5">
-          {FIELDS.map((f) => <button key={f.key} onClick={() => setKey(f.key)} className={`rounded-full px-3 py-1 text-xs ${key === f.key ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`}>{f.label}</button>)}
+        <div className="mb-3 flex flex-wrap gap-2">
+          {FIELDS.map((f) => <button key={f.key} onClick={() => setKey(f.key)} className={`hit rounded-full px-3 py-1.5 text-xs ${key === f.key ? 'bg-accent font-medium text-on-accent' : 'bg-neutral-100 text-neutral-600'}`}>{f.label}</button>)}
         </div>
         {points.length === 0 ? <p className="py-6 text-center text-sm text-neutral-400">No {field.label.toLowerCase()} logged yet.</p> : (
           <>
@@ -60,7 +60,7 @@ export function BodyTab() {
               {[...measurements].reverse().map((m) => (
                 <li key={m.id} className="flex items-center justify-between gap-2 py-1.5">
                   <span>{fmtLong(m.date)}: {FIELDS.filter((f) => m[f.key] != null).map((f) => `${f.label} ${show(m[f.key], f.pct)}${f.pct ? '%' : ''}`).join(', ')}</span>
-                  <button onClick={() => confirm('Delete this entry?') && deleteMeasurement(m.id)} className="text-red-600">Delete</button>
+                  <button onClick={() => confirm('Delete this entry?') && deleteMeasurement(m.id)} className="hit font-medium text-red-600">Delete</button>
                 </li>
               ))}
             </ul>
@@ -84,7 +84,7 @@ export function BodyTab() {
           <button
             disabled={!Object.values(draft).some((v) => v != null) || !date}
             onClick={() => { saveMeasurement({ date, ...Object.fromEntries(FIELDS.filter((f) => draft[f.key] != null).map((f) => [f.key, store(draft[f.key]!, f.pct)])) }); setAdding(false) }}
-            className="w-full rounded-2xl bg-accent py-3 text-sm font-medium text-on-accent disabled:opacity-30"
+            className={primaryBtn}
           >
             Save
           </button>
@@ -116,9 +116,9 @@ function Photos() {
     <section className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
       <div className="mb-1 flex items-center justify-between">
         <p className="text-sm font-semibold text-neutral-700">Progress photos</p>
-        <button onClick={() => file.current?.click()} className="rounded-full bg-accent px-3 py-1 text-sm font-medium text-on-accent">+ Photo</button>
+        <button onClick={() => file.current?.click()} className="hit rounded-full bg-accent px-3 py-1.5 text-sm font-semibold text-on-accent">+ Photo</button>
       </div>
-      <p className="mb-3 text-xs text-neutral-400">Saved only on this phone, never uploaded or shared, and not included in backups. Tap two to compare.</p>
+      <p className="mb-3 text-xs text-neutral-500">Saved only on this phone, never uploaded or shared, and not included in backups. Tap two to compare.</p>
       <input ref={file} type="file" accept="image/*" aria-label="Add a progress photo" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (!f) return; try { await addPhoto(f, today); await reload() } catch { setError('Couldn’t save that picture.') } }} />
       {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
       {compare && (

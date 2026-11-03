@@ -89,13 +89,13 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab, sub?: string) =>
     <div className="space-y-4">
       <header className="mb-2 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <Wordmark className="mb-1 text-base text-accent" />
-          <p className="text-sm text-neutral-400">{fmtLong(today)}</p>
+          <Wordmark className="mb-1 text-base text-accent-ink" />
+          <p className="text-sm text-neutral-500">{fmtLong(today)}</p>
           <h1 className="text-2xl font-semibold tracking-tight">{greeting}{s.name ? `, ${s.name}` : ''}</h1>
           {!s.name && (
             <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (nameDraft.trim()) s.setName(nameDraft.trim()) }}>
               <input value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} placeholder="Your first name" aria-label="What should we call you?" className="min-w-0 flex-1 rounded-xl bg-neutral-100 px-4 py-2 text-sm outline-none" />
-              <button className="rounded-xl bg-accent px-4 text-sm text-on-accent">Save</button>
+              <button className="rounded-xl bg-accent px-4 text-sm font-semibold text-on-accent">Save</button>
             </form>
           )}
         </div>
@@ -125,12 +125,12 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab, sub?: string) =>
       </section>
 
       {lastLogs.length > 0 && (
-        <Card title="Last workout" action={lastDate && <span className="text-sm text-neutral-400">{fmtLong(lastDate)}</span>}>
+        <Card title="Last workout" action={lastDate && <span className="text-sm text-neutral-500">{fmtLong(lastDate)}</span>}>
           <ul className="divide-y divide-neutral-100">
             {lastLogs.map((l) => (
               <li key={l.exerciseId} className="flex items-baseline justify-between gap-3 py-2">
                 <span className="min-w-0 line-clamp-2">{findExercise(custom, l.exerciseId)?.name ?? 'Exercise'}</span>
-                <span className="shrink-0 text-xs tabular-nums text-neutral-400">{summary(l, units)}</span>
+                <span className="shrink-0 text-xs tabular-nums text-neutral-500">{summary(l, units)}</span>
               </li>
             ))}
           </ul>
@@ -155,9 +155,9 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab, sub?: string) =>
       <BodyweightRow onTrend={() => onNavigate('history', 'body')} />
 
       <div data-tour="goals">
-      <Card title="Goals" action={<button onClick={() => setGoalSheet(true)} className="text-sm text-neutral-500">+ Add</button>}>
+      <Card title="Goals" action={<button onClick={() => setGoalSheet(true)} className="hit rounded-full bg-neutral-100 px-3 py-1 text-sm font-medium text-neutral-700">+ Add</button>}>
         {s.goals.length === 0 ? (
-          <p className="text-sm text-neutral-400">Set a target, like a lift, a race or workouts per week, and watch the bar fill.</p>
+          <p className="text-sm text-neutral-500">Set a target, like a lift, a race or workouts per week, and watch the bar fill.</p>
         ) : (
           <ul className="space-y-4">
             {s.goals.map((g) => <GoalRow key={g.id} goal={g} />)}
@@ -174,10 +174,10 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab, sub?: string) =>
 
 function Stat({ value, label, sub, good }: { value: string; label: string; sub?: string; good?: boolean }) {
   return (
-    <div className="rounded-2xl bg-surface px-2 py-3 ring-1 ring-neutral-200/70">
-      <div className="text-2xl font-semibold tabular-nums">{value}</div>
-      <div className="text-xs text-neutral-500">{label}</div>
-      {sub && <div className={`mt-1 text-xs leading-tight ${good ? 'text-green-600' : 'text-neutral-400'}`}>{sub}</div>}
+    <div className="rounded-2xl bg-surface px-2 py-3 shadow-sm ring-1 ring-neutral-200/70">
+      <div className="text-2xl font-bold tabular-nums">{value}</div>
+      <div className="text-xs font-medium text-neutral-600">{label}</div>
+      {sub && <div className={`mt-1 text-xs leading-tight ${good ? 'text-green-600' : 'text-neutral-500'}`}>{sub}</div>}
     </div>
   )
 }
@@ -192,7 +192,7 @@ function BodyweightRow({ onTrend }: { onTrend: () => void }) {
   const prev = bodyweight.at(-2)
   const change = latest && prev ? Math.round(showWeight(latest.lb - prev.lb, units)! * 10) / 10 : null
   return (
-    <section className="flex items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-3 ring-1 ring-neutral-200/70">
+    <section className="flex items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-3 shadow-sm ring-1 ring-neutral-200/70">
       <button onClick={onTrend} className="min-w-0 text-left">
         <span className="block text-sm text-neutral-500">Body weight</span>
         <span className="block text-lg font-semibold tabular-nums">
@@ -201,8 +201,8 @@ function BodyweightRow({ onTrend }: { onTrend: () => void }) {
         </span>
       </button>
       <div className="flex shrink-0 items-center gap-2">
-        {bodyweight.length > 1 && <button onClick={onTrend} className="rounded-full px-3 py-1.5 text-sm text-neutral-500">Trend ›</button>}
-        <button onClick={() => { setDraft(null); setLogging(true) }} className="rounded-full bg-neutral-100 px-4 py-1.5 text-sm font-medium text-neutral-700">Log</button>
+        {bodyweight.length > 1 && <button onClick={onTrend} className="hit rounded-full px-3 py-1.5 text-sm text-neutral-500">Trend ›</button>}
+        <button onClick={() => { setDraft(null); setLogging(true) }} className="hit rounded-full bg-neutral-100 px-4 py-1.5 text-sm font-medium text-neutral-700">Log</button>
       </div>
       {logging && (
         <Sheet title="Log body weight" onClose={() => setLogging(false)} closeLabel="Cancel">
@@ -231,15 +231,15 @@ function GoalRow({ goal }: { goal: Goal }) {
         <button
           onClick={() => confirm('Remove this goal?') && deleteGoal(goal.id)}
           aria-label="Remove goal"
-          className="shrink-0 text-lg leading-none text-neutral-300"
+          className="hit -mr-1 -mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-lg leading-none text-neutral-400 hover:bg-neutral-100"
         >
           ×
         </button>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-neutral-100">
-        <div className="h-full rounded-full bg-accent" style={{ width: `${pct * 100}%` }} />
+      <div className="h-2 overflow-hidden rounded-full bg-neutral-100">
+        <div className="h-full rounded-full bg-accent transition-[width] duration-500" style={{ width: `${pct * 100}%` }} />
       </div>
-      <div className="mt-1 text-xs text-neutral-400">{done ? 'Goal reached ✓' : detail}</div>
+      <div className={`mt-1 text-xs ${done ? 'font-medium text-green-600' : 'text-neutral-500'}`}>{done ? 'Goal reached ✓' : detail}</div>
     </li>
   )
 }
