@@ -25,3 +25,18 @@ test('two runs on one day: deleting one from its history keeps the other', async
   expect(logs.find((l: { date: string }) => l.date === twoRuns).cardio).toEqual({ distance: 3, minutes: 27 })
   expect(logs).toHaveLength(2)
 })
+
+test('a minus sign typed by mistake is dropped: no negative weights, reps or distances', async ({ page }) => {
+  await seed(page, { overrides: { [iso(0)]: [{ exerciseId: 'Barbell_Squat', sets: 1, reps: 5 }, { exerciseId: 'running', sets: 1, minutes: 30 }] } })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Start workout' }).click()
+  await page.getByRole('spinbutton', { name: 'Set 1 lb', exact: true }).fill('-135')
+  await page.getByRole('spinbutton', { name: 'Set 1 reps', exact: true }).fill('-5')
+  await page.getByRole('spinbutton', { name: 'Running distance' }).fill('-2')
+  await page.getByRole('spinbutton', { name: 'Running minutes' }).fill('20')
+  await expect(page.getByRole('spinbutton', { name: 'Set 1 lb', exact: true })).toHaveValue('135')
+  await expect(page.getByText('10:00 /mi')).toBeVisible()
+  const logs = (await state(page)).logs
+  expect(logs.find((l: { exerciseId: string }) => l.exerciseId === 'Barbell_Squat').sets[0]).toMatchObject({ weight: 135, reps: 5 })
+  expect(logs.find((l: { exerciseId: string }) => l.exerciseId === 'running').cardio).toMatchObject({ distance: 2, minutes: 20 })
+})
