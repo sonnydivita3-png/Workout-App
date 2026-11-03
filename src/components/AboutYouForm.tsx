@@ -32,6 +32,9 @@ export function AboutYouForm() {
   const year = Number(today.slice(0, 4))
   const badYear = aboutMe.birthYear != null && (aboutMe.birthYear < 1900 || aboutMe.birthYear > year - 10)
   const badHeight = aboutMe.heightIn != null && (aboutMe.heightIn < 36 || aboutMe.heightIn > 96)
+  // Only a believable weight is saved, so say why Continue stays off (not while it's still "1" on the way to 180).
+  const typedLb = storeWeight(weightIn, units)
+  const badWeight = typedLb != null && typedLb >= 10 && (typedLb < 50 || typedLb > 700)
 
   return (
     <div className="space-y-4">
@@ -69,7 +72,9 @@ export function AboutYouForm() {
           <div className="w-28"><NumberInput label={`Weight (${units.weight})`} value={weightIn} placeholder={units.weight} step={0.1} onChange={setWeight} /></div>
           <span className="text-sm text-neutral-500">{units.weight}</span>
         </div>
-        <p className="mt-1 text-xs text-neutral-400">Saved as today’s weigh-in; update it any time in Progress → Body.</p>
+        {badWeight
+          ? <p className="mt-1 text-xs text-amber-700">That weight looks off: {metric ? '23 to 317 kg' : '50 to 700 lb'}.</p>
+          : <p className="mt-1 text-xs text-neutral-400">Saved as today’s weigh-in; update it any time in Progress → Body.</p>}
       </div>
     </div>
   )

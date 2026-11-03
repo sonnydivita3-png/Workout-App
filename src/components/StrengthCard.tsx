@@ -67,8 +67,10 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: pl
   const units = useStore((s) => s.units)
   const trackRpe = useStore((s) => s.trackRpe)
   const mode = exercise.mode ?? 'weight'
-  // Done for time with nothing planned (e.g. curls switched to time): 30 seconds a set.
-  const targetSeconds = plannedSeconds ?? (mode === 'time' ? 30 : undefined)
+  // Done for time with nothing planned (e.g. curls switched to time): 30 seconds a set. Not when the plan gives an
+  // amount instead (a Hyrox station's "50 m" sled push or "100 reps" of wall balls): that's the target.
+  const amount = !!note && /\b\d+ ?(m|reps|cal)\b/.test(note)
+  const targetSeconds = plannedSeconds ?? (mode === 'time' && !amount ? 30 : undefined)
   // Timed sets with free weights, cables or machines log the weight too.
   const withWeight = mode === 'weight' || (mode === 'time' && timedWithWeight(exercise))
   // How they said they track this one (bodyweight or with weight), if they have.
@@ -291,7 +293,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: pl
       )}
 
       {readOnly ? (
-        <p className="text-sm text-neutral-500">{target || `${setCount} sets`}{warmupSets > 0 ? ` (+${warmupSets} warm-up)` : ''}. Tick the sets off on the day.</p>
+        <p className="text-sm text-neutral-500">{target || `${setCount} set${setCount === 1 ? '' : 's'}`}{warmupSets > 0 ? ` (+${warmupSets} warm-up)` : ''}. Tick {setCount === 1 ? 'it' : 'the sets'} off on the day.</p>
       ) : (
       <div className="space-y-2">
         <div className="grid gap-2 text-xs font-medium text-neutral-500" style={{ gridTemplateColumns: cols }}>
@@ -319,9 +321,16 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: pl
                 {mark && <span className={`ml-0.5 text-[10px] ${mark.c}`} aria-label={mark.l}>{mark.t}</span>}
               </button>
               {/* The target sits beside the boxes, not in them: a number in a box is always one you put there (or ✓ did). */}
-              <span title={s.warmup && rampFor(i) ? `Warm-up from your working weight, ${label.toLowerCase()}` : s.drop && dropFor(i) ? `About 20% lighter, ${label.toLowerCase()}` : `Last time, ${label.toLowerCase()}`} className="truncate text-center text-xs tabular-nums text-neutral-500">
-                <span className="sr-only">Last time: </span>{lastText(i)}
-              </span>
+              {(() => {
+                // Warm-ups and drop sets show a weight worked out from today's sets, not last time's: marked "≈" so the
+                // column doesn't read as if that's what was done.
+                const worked = !!((s.warmup && rampFor(i)) || (s.drop && dropFor(i)))
+                return (
+                  <span title={s.warmup && rampFor(i) ? `Warm-up from your working weight, ${label.toLowerCase()}` : s.drop && dropFor(i) ? `About 20% lighter, ${label.toLowerCase()}` : `Last time, ${label.toLowerCase()}`} className={`truncate text-center text-xs tabular-nums ${worked ? 'italic text-neutral-400' : 'text-neutral-500'}`}>
+                    <span className="sr-only">{worked ? 'Suggested: ' : 'Last time: '}</span>{worked ? '≈' : ''}{lastText(i)}
+                  </span>
+                )
+              })()}
               {withWeight && (
                 <NumberInput
                   label={`${label} ${units.weight}`}

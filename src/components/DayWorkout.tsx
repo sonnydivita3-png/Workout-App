@@ -128,7 +128,8 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
                     s.setSetCount(date, ex.id, n)
                   }}
                   dropSets={p.dropSets}
-                  onDropSets={(n) => s.setDayItems(date, planned.map((q, j) => (j === index ? { ...q, dropSets: n || undefined } : q)))}
+                  // Drop sets are for straight sets and supersets of lifts, not a Hyrox station, a timed circuit or a burpee.
+                  onDropSets={(g.block && !meta[gi].superset) || ex.group === 'Conditioning' ? undefined : (n) => s.setDayItems(date, planned.map((q, j) => (j === index ? { ...q, dropSets: n || undefined } : q)))}
                   onDeleteDrop={(i) => {
                     const cur = useStore.getState().logs.find((l) => l.date === date && l.exerciseId === ex.id)?.sets
                     if (cur) s.saveStrength(date, ex.id, cur.filter((_, j) => j !== i))

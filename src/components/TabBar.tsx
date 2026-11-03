@@ -26,11 +26,14 @@ export function TabBar({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void
             onClick={() => onChange(t.id)}
             aria-current={t.id === tab ? 'page' : undefined}
             data-tour={`tab-${t.id}`}
-            className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs ${t.id === tab ? 'font-medium text-neutral-900' : 'text-neutral-400'}`}
+            className={`flex flex-1 flex-col items-center gap-0.5 pb-2 pt-1.5 text-xs ${t.id === tab ? 'font-medium text-neutral-900' : 'text-neutral-400'}`}
           >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-              <path d={t.d} />
-            </svg>
+            {/* The tab you're on sits on a soft pill of the accent, like a phone's own tab bars. */}
+            <span className={`flex h-7 w-14 items-center justify-center rounded-full transition-colors duration-200 ${t.id === tab ? 'bg-accent/25' : ''}`}>
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={t.id === tab ? 2.1 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+                <path d={t.d} />
+              </svg>
+            </span>
             <span className="relative">
               {t.label}
               {t.id === 'social' && badge > 0 && <span aria-label={`${badge} waiting`} className="absolute -right-3 -top-4 min-w-4 rounded-full bg-red-500 px-1 text-center text-[10px] leading-4 text-white">{badge}</span>}

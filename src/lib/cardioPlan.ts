@@ -74,6 +74,14 @@ const MILE = 1609.344
 const roundHalf = (x: number) => Math.round(x * 2) / 2
 /** Down to the quarter mile: long runs, so rounding never adds to a step up. */
 const floorQuarter = (x: number) => Math.floor(x * 4 + 1e-9) / 4
+/**
+ * Long runs, rounded down as they'll be run: to the tenth of a mile while they're short, then the quarter. A 10% step
+ * on a 2-mile long run is 0.2 mi, which a quarter-mile floor rounded straight back to 2: the long run, and the easy
+ * runs capped by it, then never grew (a beginner's plan sat at 5 miles a week for months).
+ */
+const floorLong = (x: number) => (x < 6 ? Math.floor(x * 10 + 1e-9) / 10 : floorQuarter(x))
+/** Other runs: to the quarter mile while short (two 1.5 → 2 mi steps in one week were a 20% jump), then the half. */
+const roundEasy = (x: number) => (x < 4 ? Math.round(x * 4) / 4 : roundHalf(x))
 const round5 = (x: number) => Math.round(x / 5) * 5
 const daysBetween = (a: string, b: string) => Math.round((parseISO(b).getTime() - parseISO(a).getTime()) / 86400000)
 const lerp = (a: number, b: number, t: number) => a + (b - a) * Math.min(1, Math.max(0, t))
@@ -475,7 +483,7 @@ export function generateCardioPlan(input: CardioPlanInput): CardioPlan {
     const t = RUN_TAPER[event.taper] ?? { vol: [], long: [] }
     curve = buildCurve({
       weeks, taper: hasRace ? event.taper : 0, startVol: start, peakVol: peakWanted, startLong, peakLong: peakLongWanted,
-      volGrowth: 0.1, longStep: runKey === 'marathon' || runKey === 'half' ? 2.5 : 1.5, longGrowth: 0.1, roundLong: floorQuarter, taperVol: t.vol, taperLong: t.long,
+      volGrowth: 0.1, longStep: runKey === 'marathon' || runKey === 'half' ? 2.5 : 1.5, longGrowth: 0.1, roundLong: floorLong, taperVol: t.vol, taperLong: t.long,
     })
     if (curve.peakLong < peakLongWanted * 0.92) {
       warnings.push(`Your longest run reaches about ${dist(curve.peakLong, input.units)} instead of the usual ${dist(peakLongWanted, input.units)}: each long run grows at most 10% over your longest recent one, because bigger jumps raise injury risk. More weeks would get you further.`)
@@ -530,9 +538,9 @@ export function generateCardioPlan(input: CardioPlanInput): CardioPlan {
       const others = usable.filter(([, ro]) => ro !== 'long')
       const total = others.reduce((a, [, ro]) => a + weights[ro], 0) || 1
       const floor = level === 'beginner' ? 2 : 2.5
-      amounts.set('long', floorQuarter(Math.max(floor, long)))
+      amounts.set('long', floorLong(Math.max(floor, long)))
       for (const ro of new Set(others.map(([, x]) => x))) {
-        amounts.set(ro, Math.min(roundHalf(Math.max(floor - 0.5, (remaining * weights[ro]) / total)), roundHalf(amounts.get('long')! * 0.8)))
+        amounts.set(ro, Math.min(roundEasy(Math.max(floor - 0.5, (remaining * weights[ro]) / total)), roundEasy(amounts.get('long')! * 0.8)))
       }
     } else {
       const scale = input.currentWeekly && input.currentWeekly > 0 ? Math.min(1.6, Math.max(0.6, input.currentWeekly / bikeBaselineHours(level))) : 1

@@ -184,6 +184,18 @@ describe('event dates and timelines', () => {
     expect(late.days[0].date).toBe('2026-10-01')
     expect(late.days).toEqual(full.days.filter((d) => d.date >= '2026-10-01'))
   })
+  it('a low-mileage beginner still builds: short long runs grow in tenths of a mile, not stuck on a quarter-mile floor', () => {
+    // 5 miles a week now: the first long run is 2 miles, and 10% on that is 0.2 mi, which rounding used to swallow.
+    for (const raceDate of [undefined, '2027-09-19']) {
+      const p = plan({ eventId: '5k', level: 'beginner', trainWeekdays: [1, 3, 5], longDay: 5, weeks: 12, currentWeekly: 5, raceDate })
+      const build = p.weeks.filter((w) => w.phase !== 'race' && w.phase !== 'taper')
+      expect(Math.max(...build.map((w) => w.volume)), `race ${raceDate}`).toBeGreaterThan(build[0].volume * 1.6)
+      expect(p.peak.longMiles, `race ${raceDate}`).toBeGreaterThanOrEqual(3.5)
+      // Race week stays lighter than the biggest training week.
+      const raceWeek = p.weeks.find((w) => w.phase === 'race')!
+      expect(raceWeek.volume).toBeLessThan(Math.max(...build.map((w) => w.volume)))
+    }
+  })
   it('warns when the timeline is too short and lowers the peak instead of ramping unsafely', () => {
     const short = plan({ level: 'beginner', weeks: 8 })
     expect(short.warnings.join()).toMatch(/timeline is short/)
