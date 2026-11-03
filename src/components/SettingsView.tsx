@@ -21,6 +21,7 @@ import { LEGAL_TITLES, type LegalDoc } from '../lib/legal'
 import { isIos, isStandalone, useInstallPrompt } from '../lib/install'
 import { APP_VERSION, feedbackLink } from '../lib/feedback'
 import { CaloriesFaq } from './CaloriesFaq'
+import { sessionTimes } from '../lib/notify'
 import { VersionRow } from './VersionRow'
 import { AboutYouForm } from './AboutYouForm'
 
@@ -274,6 +275,23 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
             className="rounded-lg bg-neutral-100 px-3 py-1.5 outline-none"
           />
         </Row>
+      )}
+      {notifPrefs.daily && (
+        // Days split into a morning and an evening session (⋯ → Morning & evening on a day) get a reminder for each.
+        <div className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
+          <p>On two-session days</p>
+          <p className="mb-3 text-xs text-neutral-500">Days split into morning and evening get a reminder for each, instead of the one above.</p>
+          <div className="grid grid-cols-2 gap-3">
+            {([['amTime', 'Morning', sessionTimes(notifPrefs).am], ['pmTime', 'Evening', sessionTimes(notifPrefs).pm]] as const).map(([key, label, value]) => (
+              <label key={key} className="flex items-center justify-between gap-2 rounded-xl bg-neutral-50 px-3 py-2 text-sm">
+                <span>{label}</span>
+                <input type="time" value={value} aria-label={`${label} reminder time`}
+                  onChange={(e) => e.target.value && setNotifPrefs({ [key]: e.target.value })}
+                  className="min-w-0 rounded-lg bg-neutral-100 px-2 py-1.5 outline-none" />
+              </label>
+            ))}
+          </div>
+        </div>
       )}
       <Row title="Phone / system alerts">
         <Toggle on={notifPrefs.system && perm === 'granted'} onChange={enableSystem} label="System alerts" />

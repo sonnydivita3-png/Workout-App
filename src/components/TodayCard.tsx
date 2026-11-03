@@ -5,6 +5,7 @@ import { minutesFor } from '../lib/randomizer'
 import { hasData } from '../lib/stats'
 import { useToday } from '../lib/useToday'
 import { findExercise, selectLastLog, useStore } from '../store'
+import { isFinished, SESSIONS, splitItems } from '../lib/sessions'
 import { RandomizerSheet } from './RandomizerSheet'
 import type { Tab } from './TabBar'
 import { Chevron } from './Chevron'
@@ -23,23 +24,30 @@ export function TodayCard({ onNavigate }: { onNavigate: (t: Tab, part?: string) 
   const [randomize, setRandomize] = useState(false)
   const lookup = (id: string) => findExercise(s.custom, id)
 
-  const planned = workItems(dayPlanOf(s.plan, s.overrides, today))
+  const day = dayPlanOf(s.plan, s.overrides, today)
+  const all = workItems(day)
   const done = new Set(s.logs.filter((l) => l.date === today && hasData(l)).map((l) => l.exerciseId))
+  // A day split into two sessions shows the next one ("This evening"), until both are done or finished.
+  const split = splitItems(day)
+  const nextSession = split ? SESSIONS.find((x) => !isFinished(s.finishedDays, today, x) && workItems(split[x]).some((p) => !done.has(p.exerciseId))) : undefined
+  const later = split && nextSession === 'am' ? workItems(split.pm).filter((p) => !done.has(p.exerciseId)).length : 0
+  const planned = split && nextSession ? workItems(split[nextSession]) : all
   const upcoming = planned.filter((p) => !done.has(p.exerciseId))
   const rest = isRestDay(s.overrides, today)
   const previous = lastWorkout(s.logs, s.overrides, toISO(addDays(parseISO(today), -1)))
   const repeatItems = previous ? repeatPlan(previous.logs, lookup) : []
-  const minutes = Math.round(minutesFor(dayPlanOf(s.plan, s.overrides, today)))
+  const minutes = Math.round(minutesFor(split && nextSession ? split[nextSession] : day))
 
   const start = () => onNavigate('plan')
   const repeat = () => { s.addPlanned(today, repeatItems); start() }
 
   let body: React.ReactNode
-  if (planned.length > 0 && (upcoming.length === 0 || s.finishedDays.includes(today))) {
+  if (all.length > 0 && (upcoming.length === 0 || s.finishedDays.includes(today) || (split && !nextSession))) {
+    const left = all.filter((p) => !done.has(p.exerciseId)).length
     body = (
       <>
         <h2 className="text-lg font-semibold">Done for today ✓</h2>
-        <p className="mb-3 text-sm text-neutral-500">{upcoming.length === 0 ? `All ${planned.length} exercise${planned.length === 1 ? '' : 's'} logged.` : `${planned.length - upcoming.length} of ${planned.length} exercises logged.`} Nice work.</p>
+        <p className="mb-3 text-sm text-neutral-500">{left === 0 ? `All ${all.length} exercise${all.length === 1 ? '' : 's'} logged.` : `${all.length - left} of ${all.length} exercises logged.`} Nice work.</p>
         <div className="flex gap-2">
           <button onClick={start} className="hit rounded-full bg-neutral-100 px-4 py-1.5 text-sm font-medium text-neutral-700">Open workout</button>
           {s.finishedDays.includes(today) && <button onClick={() => s.unfinishDay(today)} className="hit rounded-full bg-neutral-100 px-4 py-1.5 text-sm font-medium text-neutral-700">Not done yet</button>}
@@ -50,9 +58,10 @@ export function TodayCard({ onNavigate }: { onNavigate: (t: Tab, part?: string) 
     body = (
       <>
         <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 className="text-lg font-semibold">Today’s workout</h2>
+          <h2 className="text-lg font-semibold">{nextSession === 'am' ? 'This morning' : nextSession === 'pm' ? 'This evening' : 'Today’s workout'}</h2>
           <p className="shrink-0 text-sm text-neutral-500">{planned.length} exercise{planned.length === 1 ? '' : 's'}{minutes > 0 ? ` · ~${minutes} min` : ''}</p>
         </div>
+        {later > 0 && <p className="-mt-2 mb-3 text-sm text-neutral-500">Then this evening: {later} exercise{later === 1 ? '' : 's'}.</p>}
         <ul className="mb-4 space-y-2">
           {upcoming.slice(0, 5).map((p) => {
             const ex = lookup(p.exerciseId)

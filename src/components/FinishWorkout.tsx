@@ -11,19 +11,26 @@ import { unfinished, workoutSummary } from '../lib/summary'
 import { formatMinutes, showDistance, showWeight } from '../lib/units'
 import { findExercise, useStore } from '../store'
 import { useToasts } from '../toastStore'
+import { sessionLabel, splitItems } from '../lib/sessions'
+import type { DaySession } from '../types'
 
 /**
  * "Finish workout": if some planned sets aren't logged, ask first (finish anyway, or keep going); then show how
- * the workout went against last time.
+ * the workout went against last time. On a day split in two, `session` finishes just the morning's or evening's.
  */
-export function FinishWorkout({ date, onBack, onDone }: { date: string; onBack: () => void; onDone: () => void }) {
+export function FinishWorkout({ date, onBack, onDone, session }: { date: string; onBack: () => void; onDone: () => void; session?: DaySession }) {
   const s = useStore()
   const lookup = (id: string) => findExercise(s.custom, id) ?? BUILTIN_BY_ID.get(id)
-  const items = dayPlanOf(s.plan, s.overrides, date)
+  const day = dayPlanOf(s.plan, s.overrides, date)
+  const items = session ? splitItems(day)?.[session] ?? day : day
   const [missing] = useState(() => unfinished(date, items, s.logs, lookup))
   const [confirmed, setConfirmed] = useState(missing.length === 0)
+  // This session's own bests (the morning's were told when it was finished).
+  const ids = new Set(items.map((p) => p.exerciseId))
+  const bestsHere = (logs: typeof s.logs) => newBests(date, logs, s.units, lookup).filter((b) => [...ids].some((id) => b.id.startsWith(`pr:${id}:`)))
   // The summary (and the congratulations) come when you finish: "Finish workout", or "Finish anyway".
-  const summarize = (logs: typeof s.logs) => celebrate(date, workoutSummary(date, items, logs, lookup, s.units), newBests(date, logs, s.units, lookup))
+  const summarize = (logs: typeof s.logs) => celebrate(date, workoutSummary(date, items, logs, lookup, s.units), bestsHere(logs))
+  const noun = session ? `${sessionLabel(session).toLowerCase()} session` : 'workout'
   const [summary, setSummary] = useState(() => (missing.length === 0 ? summarize(s.logs) : null))
   // Both steps behave like any sheet: focus moves in, Escape goes back to the workout, focus returns after.
   const panel = useRef<HTMLDivElement>(null)
@@ -36,9 +43,9 @@ export function FinishWorkout({ date, onBack, onDone }: { date: string; onBack: 
     const what = [sets ? `${sets} set${sets === 1 ? '' : 's'}` : '', cardio ? `${cardio} cardio session${cardio === 1 ? '' : 's'}` : ''].filter(Boolean).join(' and ')
     return (
       <div className={`${sheetBackdrop} z-50`} onClick={onBack}>
-        <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Finish workout?" onClick={(e) => e.stopPropagation()} className="sheet-panel w-full rounded-t-3xl bg-surface px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2 shadow-2xl outline-none ring-1 ring-neutral-200/60 sm:max-w-md sm:rounded-3xl sm:pt-5">
+        <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label={session ? `Finish the ${noun}?` : 'Finish workout?'} onClick={(e) => e.stopPropagation()} className="sheet-panel w-full rounded-t-3xl bg-surface px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2 shadow-2xl outline-none ring-1 ring-neutral-200/60 sm:max-w-md sm:rounded-3xl sm:pt-5">
           <SheetHandle />
-          <h2 className="mb-1 mt-1 text-xl font-semibold">Finish the workout?</h2>
+          <h2 className="mb-1 mt-1 text-xl font-semibold">Finish the {noun}?</h2>
           <p className="mb-3 text-sm text-neutral-500">{what} {sets + cardio === 1 ? 'isn’t' : 'aren’t'} logged yet:</p>
           <ul className="mb-5 divide-y divide-neutral-100 rounded-2xl bg-neutral-50 px-3 text-sm">
             {missing.map((m) => (
@@ -82,7 +89,7 @@ export function FinishWorkout({ date, onBack, onDone }: { date: string; onBack: 
     <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={headingId} className="fixed inset-0 z-50 overflow-y-auto bg-page outline-none">
       {/* The header sits low enough for the celebration banner to show above it. */}
       <div className="mx-auto max-w-md px-5 pb-10 pt-[max(6rem,calc(env(safe-area-inset-top)+5rem))]">
-        <p className="text-center text-sm font-medium text-neutral-500">{fmtLong(date)}</p>
+        <p className="text-center text-sm font-medium text-neutral-500">{fmtLong(date)}{session ? ` · ${sessionLabel(session)}` : ''}</p>
         <h1 id={headingId} className="mb-1 mt-1 text-balance text-center text-3xl leading-tight tracking-tight">
           {bests.length
             ? `${bests.length === 1 ? 'A new personal best' : `${bests.length} new personal bests`} 🏆`
@@ -128,7 +135,7 @@ export function FinishWorkout({ date, onBack, onDone }: { date: string; onBack: 
             </li>
           ))}
         </ul>
-        <button onClick={() => { s.finishDay(date); onDone() }} className={primaryBtn}>Done</button>
+        <button onClick={() => { s.finishDay(date, session); onDone() }} className={primaryBtn}>Done</button>
         <button onClick={onBack} className="mt-2 min-h-11 w-full text-sm font-medium text-neutral-500">Back to the workout</button>
       </div>
     </div>

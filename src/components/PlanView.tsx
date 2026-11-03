@@ -25,6 +25,12 @@ import { FinishWorkout } from './FinishWorkout'
 import { RestTimer } from './RestTimer'
 import { Tip } from './Tip'
 import { Chevron } from './Chevron'
+import { isFinished, sessionLabel, SESSIONS, splitItems } from '../lib/sessions'
+import { minutesFor } from '../lib/randomizer'
+import { bodyweightOn, restingPerHour } from '../lib/calories'
+import { perMinute, STYLE_MET, workoutCalories } from '../lib/calorieTarget'
+import { formatMinutes } from '../lib/units'
+import type { DaySession, PlannedExercise } from '../types'
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 // Ways to add to or change a day that's already planned: quieter than the workout itself.
@@ -52,7 +58,8 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
   const [benchSheet, setBenchSheet] = useState(false)
   const [dayMenu, setDayMenu] = useState<false | 'menu' | 'load'>(false)
   const [arranging, setArranging] = useState(false)
-  const [finishing, setFinishing] = useState(false)
+  // Finishing the day, or on a day split in two, one of its sessions.
+  const [finishing, setFinishing] = useState<boolean | DaySession>(false)
   const [generator, setGenerator] = useState<GeneratorMode | null>(null)
   // A strength plan to build for this run/bike plan (by id): from My plans, or right after adding the run plan.
   const [strengthFor, setStrengthFor] = useState<string | null>(null)
@@ -74,6 +81,15 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
   const work = workItems(planned)
   const rest = isRestDay(s.overrides, date)
   const finished = s.finishedDays.includes(date)
+  // Two sessions (a morning run, evening weights): each shows its own time and calories, and is finished on its own.
+  const split = splitItems(planned)
+  const lb = bodyweightOn(s.bodyweight, date)
+  const countTotal = s.trainingPrefs.calorieCount === 'total'
+  const kcalOf = (items: PlannedExercise[]) => lb
+    ? workoutCalories(items, (met) => perMinute(met, lb, date, s.aboutMe) + (countTotal ? restingPerHour(lb, date, s.aboutMe) / 60 : 0), { lift: STYLE_MET.standard, cond: STYLE_MET.circuit, cardioFactor: 1 })
+    : null
+  // The session to finish next gets the main button; the other waits its turn.
+  const nextSession = split ? SESSIONS.find((x) => !isFinished(s.finishedDays, date, x) && workItems(split[x]).length > 0) : undefined
   const shiftWeek = (n: number) => setAnchor((a) => new Date(a.getFullYear(), a.getMonth(), a.getDate() + 7 * n))
   // Mid-workout the phone shouldn't lock between sets.
   useWakeLock(date === today && work.length > 0 && !finished)
@@ -144,7 +160,7 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
             </div>
           </div>
         )}
-        {liftAndCardio(planned) && (
+        {liftAndCardio(planned) && !split && (
           // Lifting and cardio on the same day (made together, a finisher, or from two plans): either can go first.
           <div className="flex items-center justify-between gap-2 px-1 text-xs text-neutral-500">
             <span>Cardio</span>
@@ -156,7 +172,32 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
             </div>
           </div>
         )}
-        <DayWorkout date={date} items={planned} onSetDone={startRest} />
+        {split ? SESSIONS.map((ses, k) => {
+          const part = split[ses]
+          const done = isFinished(s.finishedDays, date, ses)
+          const minutes = Math.round(minutesFor(part))
+          const kcal = kcalOf(part)
+          const facts = [minutes > 0 ? `~${formatMinutes(minutes)}` : '', kcal ? `≈ ${kcal.toLocaleString()} ${countTotal ? 'total' : 'active'} cal` : ''].filter(Boolean).join(' · ')
+          return (
+            <section key={ses} aria-labelledby={`session-${ses}`} className={`space-y-3 ${k ? 'border-t border-neutral-200/70 pt-4' : ''}`}>
+              <div className="flex items-baseline justify-between gap-3 px-1">
+                <h3 id={`session-${ses}`} className="text-base font-semibold"><span aria-hidden>{ses === 'am' ? '☀️' : '🌙'} </span>{sessionLabel(ses)}</h3>
+                <p className="shrink-0 text-xs text-neutral-500">{done ? '✓ Done' : facts}</p>
+              </div>
+              <DayWorkout date={date} items={planned} only={ses} onSetDone={startRest} />
+              {workItems(part).length > 0 && date <= today && (done ? (
+                <div className="flex gap-2">
+                  <button onClick={() => setFinishing(ses)} className="min-h-12 flex-1 rounded-2xl bg-accent/15 py-3 text-sm font-semibold text-neutral-800 ring-1 ring-inset ring-accent/40">✓ {sessionLabel(ses)} complete · see summary</button>
+                  <button onClick={() => s.unfinishDay(date, ses)} className="min-h-12 rounded-2xl bg-neutral-100 px-4 py-3 text-sm font-medium text-neutral-600">Undo</button>
+                </div>
+              ) : nextSession === ses ? (
+                <button onClick={() => setFinishing(ses)} className="min-h-14 w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-on-accent shadow-sm">✓ Finish {sessionLabel(ses).toLowerCase()}</button>
+              ) : (
+                <button onClick={() => setFinishing(ses)} className="min-h-12 w-full rounded-2xl bg-neutral-100 py-3 text-sm font-medium text-neutral-700">✓ Finish {sessionLabel(ses).toLowerCase()}</button>
+              ))}
+            </section>
+          )
+        }) : <DayWorkout date={date} items={planned} onSetDone={startRest} />}
         {planned.length > 0 && (
           <div className="flex gap-2">
             <button onClick={() => setPicking(true)} className={dashed}>+ Add exercise</button>
@@ -164,7 +205,7 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
             {planned.length > 1 && <button onClick={() => setArranging(true)} className={dashed}>⇅ Reorder</button>}
           </div>
         )}
-        {work.length > 0 && date <= today && (
+        {!split && work.length > 0 && date <= today && (
           finished ? (
             <div className="flex gap-2">
               <button onClick={() => setFinishing(true)} className="min-h-12 flex-1 rounded-2xl bg-accent/15 py-3 text-sm font-semibold text-neutral-800 ring-1 ring-inset ring-accent/40">✓ Workout complete · see summary</button>
@@ -175,7 +216,7 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
           )
         )}
       </section>
-      {finishing && <FinishWorkout date={date} onBack={() => setFinishing(false)} onDone={() => { setFinishing(false); setRestTimer(null) }} />}
+      {finishing && <FinishWorkout date={date} session={typeof finishing === 'string' ? finishing : undefined} onBack={() => setFinishing(false)} onDone={() => { setFinishing(false); setRestTimer(null) }} />}
       {restTimer?.date === date && <RestTimer until={restTimer.until} onChange={(until) => setRestTimer({ date, until })} onClose={() => setRestTimer(null)} />}
 
       {addMenu && (

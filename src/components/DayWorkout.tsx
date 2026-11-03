@@ -10,7 +10,8 @@ import { hasData } from '../lib/stats'
 import { dayPlanOf } from '../lib/plan'
 import { addWorkingSets, removeWorkingSets, setRows, workingRows } from '../lib/setRows'
 import { useToday } from '../lib/useToday'
-import type { Exercise, PlannedExercise } from '../types'
+import type { DaySession, Exercise, PlannedExercise } from '../types'
+import { sessionsOf } from '../lib/sessions'
 import { CardioCard } from './CardioCard'
 import { ExerciseHistorySheet } from './ExerciseHistorySheet'
 import { ExercisePicker } from './ExercisePicker'
@@ -25,7 +26,7 @@ import { WarmupCard } from './WarmupCard'
 import { hyroxRoute, isHyroxBlock } from '../lib/hyrox'
 
 /** The exercises planned for a day, ready to log (the Workouts tab). `onSetDone` hears about each ticked set. */
-export function DayWorkout({ date, items: planned, onSetDone }: { date: string; items: PlannedExercise[]; onSetDone?: (restSeconds: number) => void }) {
+export function DayWorkout({ date, items: planned, onSetDone, only }: { date: string; items: PlannedExercise[]; onSetDone?: (restSeconds: number) => void; only?: DaySession }) {
   const s = useStore()
   const [circuitTimer, setCircuitTimer] = useState<{ title: string; segments: ReturnType<typeof circuitSegments> } | null>(null)
   // Swapping one exercise: first how (random or choose), then the picker if choosing.
@@ -58,6 +59,9 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
   const wasDeload = (d: string, id: string) => dayPlanOf(s.plan, s.overrides, d).some((q) => q.exerciseId === id && q.deload)
   const groups = groupByBlock(planned)
   const headings = shownLabels(groups.map((g) => g.label))
+  // On a day split in two, just one session's part (`only`); edits still go to the whole day.
+  const sessionOf = only ? sessionsOf(planned) : null
+  const hidden = (gi: number) => !!sessionOf && sessionOf[groups[gi].items[0].index] !== only
   // Supersets (not circuits, which have their own timer) rest once per round, as long as the longest planned rest.
   const meta = groups.map((g) => {
     const superset = !!g.block && g.items.length > 1 && canCombine(g) && (/(^|-)ss\d/.test(g.block) || /^Superset/.test(g.label ?? ''))
@@ -71,7 +75,7 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
   })
   return (
     <>
-        {groups.map((g, gi) => g.items[0].item.warmup ? (
+        {groups.map((g, gi) => hidden(gi) ? null : g.items[0].item.warmup ? (
           <WarmupCard key={`warmup-${gi}`} date={date} items={g.items.map((x) => x.item)} onRemove={() => g.items.forEach((x) => s.removeExercise(date, x.item.exerciseId))} />
         ) : g.items[0].item.wod ? (
           <TimedBlockCard key={g.block ?? gi} items={g.items.map((x) => x.item)} date={date} onRemove={() => g.items.forEach((x) => s.removeExercise(date, x.item.exerciseId))} />

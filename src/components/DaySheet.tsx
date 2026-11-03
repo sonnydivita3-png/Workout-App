@@ -4,8 +4,10 @@ import { dayPlanOf, isRestDay } from '../lib/plan'
 import { useStore } from '../store'
 import { primaryBtn, rowBtn, Sheet } from './Sheet'
 import { ShareSheet } from './social/ShareSheet'
+import { SessionsSheet } from './SessionsSheet'
+import { isSplit } from '../lib/sessions'
 
-type Mode = 'menu' | 'copy' | 'save' | 'load' | 'share'
+type Mode = 'menu' | 'copy' | 'save' | 'load' | 'share' | 'sessions'
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
@@ -27,6 +29,7 @@ export function DaySheet({ date, weekDates, onClose, initialMode = 'menu' }: { d
   const toggle = (i: number) => setTargets((t) => (t.includes(i) ? t.filter((x) => x !== i) : [...t, i]))
 
   if (mode === 'share') return <ShareSheet date={date} onClose={onClose} />
+  if (mode === 'sessions') return <SessionsSheet date={date} onClose={onClose} />
 
   if (mode === 'copy') {
     return (
@@ -109,6 +112,11 @@ export function DaySheet({ date, weekDates, onClose, initialMode = 'menu' }: { d
 
   return (
     <Sheet title={DAY_NAMES[day]} onClose={onClose}>
+      {/* Two-a-days: a run in the morning, weights in the evening (needs two things to split). */}
+      <button disabled={planned.filter((p) => !p.warmup).length < 2} onClick={() => setMode('sessions')} className={rowBtn}>
+        <span>Morning & evening</span>
+        <span className="text-xs text-neutral-400">{isSplit(planned) ? 'Two sessions · change' : 'Split into two sessions'}</span>
+      </button>
       <button disabled={empty} onClick={() => setMode('copy')} className={rowBtn}>
         <span>Copy this day to other days</span><span className="text-neutral-300">›</span>
       </button>
