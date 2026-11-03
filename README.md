@@ -14,9 +14,8 @@ npm run e2e      # browser tests (Playwright); set PW_CHROMIUM to a Chromium pat
 
 ## Features
 Built around one idea: beat what you did last time.
-- "Try this next" on every lift (double progression: hit the reps on every set, then add weight) and ▲/▼ per set vs last time
+- Last time's sets on every lift, with ▲/▼ per set as you log (add weight once every set felt solid), and the finish summary counts a rep gained on any set as beating last time
 - One place to do a workout (Home → Start workout, or the Workouts tab): ✓ per set logs the target (typed numbers win), Finish workout warns about unlogged sets and shows what improved, new bests and volume vs last time. No workout clock; an optional rest timer after each set (Settings → Workouts, off by default); timed workouts bring their own clocks; the screen stays on during today's workout
-- Plateau spotting: three sessions stuck at the same weight suggests a ~10% deload to build back past it
 - Warm-up sets (tap the set number), optional RPE, notes per exercise (last note shown next time), and a plate calculator
 - Home dashboard: greeting, today's upcoming exercises, last workout, body weight log + chart, weekly stats, goals
 - Workout randomizer with eight styles: standard, strength, supersets, HIIT circuit, PHA, Hyrox-style, CrossFit-style, bodyweight. Pick body parts (chest, back, shoulders, biceps, triceps, quads, hamstrings, glutes, calves, core; or Full / Upper / Lower body in one tap) and/or cardio plus a time; swap, choose, or remove exercises, step Back/Forward through versions, add to the day or save as a routine

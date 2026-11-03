@@ -8,6 +8,8 @@ export const fmtRest = (sec: number) => (sec < 60 ? `${sec}s` : `${Math.floor(se
 export function describeItem(p: PlannedExercise, ex: Exercise, units: Units = { weight: 'lb', distance: 'mi' }): string {
   const parts: string[] = []
   if (ex.kind === 'cardio') {
+    // A machine as a circuit station goes round with the rest: "3 rounds · 40s on / 20s off", like the other stations.
+    if (p.block && !p.warmup && !p.wod && p.sets > 1) parts.push(`${p.sets} rounds`)
     if (p.distance) parts.push(formatDistanceFor(p.distance, ex.id, units)!)
     if (p.minutes) parts.push(formatCardioTime(p.minutes)!)
     if (p.incline) parts.push(`${p.incline}% incline`)

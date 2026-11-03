@@ -98,6 +98,10 @@ const PRIMER_MIN = 15
 const PRIMER_MOVES = /squat|deadlift|press|bench/i
 /** Jump rope and double unders are the same skill: never both in one workout. */
 const ROPE = /rope|double under/i
+/** Jump rope or double unders already in the workout: in the piece being built, or an earlier part. */
+const hasRope = (used: Set<string>, moves: Exercise[]) => moves.some((x) => ROPE.test(x.name)) || [...used].some((id) => ROPE.test(BY_ID.get(id)?.name ?? ''))
+/** A cardio station for the next piece, unless it's the rope and the workout already skips rope. */
+const noSecondRope = (machine: Exercise | undefined, used: Set<string>) => (machine && ROPE.test(machine.name) && hasRope(used, []) ? undefined : machine)
 
 const crossfitPool = () => {
   const named = ['Pushups', 'Pullups', 'Bodyweight Squat', 'Sit-Up'].map(byName).filter((e): e is Exercise => !!e)
@@ -222,12 +226,12 @@ export function generateCrossfit(minutes: number, rng: Rng, avoid: Set<string>):
   const pool = softShuffle(crossfitPool(), avoid, rng)
   for (const [part, m] of parts) {
     const count = m <= 12 ? 3 : 4
-    const machine = machineFor(rng, used, avoid)
+    const machine = noSecondRope(machineFor(rng, used, avoid), used)
     if (machine) used.add(machine.id)
-    // Keep the mix varied: at most one core move and one erg per WOD.
+    // Keep the mix varied: at most one core move and one erg per WOD, and the rope once in the whole workout.
     const fits = () => (e: Exercise, ms: Exercise[]) =>
       !used.has(e.id) && !(e.group === 'Core' && ms.some((x) => x.group === 'Core')) && !(e.mode === 'time' && ms.some((x) => x.mode === 'time'))
-      && !(ROPE.test(e.name) && ms.some((x) => ROPE.test(x.name)))
+      && !(ROPE.test(e.name) && hasRope(used, ms))
     // New moves for each part (a day holds each exercise once, so its log stays its own). With little equipment the
     // usual list runs out: then any simple, compound move they can do.
     let moves = pickMoves(pool, machine ? [machine] : [], count, fits())
@@ -264,12 +268,27 @@ function timedPool(focus: string[]): Exercise[] {
   return [...new Map([...base.filter(inFocus), ...EXERCISES.filter((e) => e.suggest && simple(e)), ...mine].map((e) => [e.id, e])).values()]
 }
 
+/**
+ * Muscles that work alongside each one: a timed piece for one small muscle with little kit (biceps with no weights,
+ * calves anywhere) borrows from them rather than coming out empty or a few minutes long.
+ */
+const NEIGHBOURS: Record<string, string[]> = {
+  Chest: ['Shoulders', 'Triceps'], Back: ['Biceps', 'Shoulders'], Shoulders: ['Chest', 'Triceps'], Biceps: ['Back'], Triceps: ['Chest', 'Shoulders'],
+  Quads: ['Glutes', 'Hamstrings'], Hamstrings: ['Glutes', 'Quads'], Glutes: ['Hamstrings', 'Quads'], Calves: ['Quads', 'Glutes'], Core: ['Glutes', 'Quads'],
+}
+
 /** An AMRAP, EMOM or for-time workout that fits about `minutes`. Long sessions get a second and third part. */
 export function generateTimed(kind: WodKind, focus: string[], minutes: number, rng: Rng, avoid: Set<string>, cardio = false): PlannedExercise[] {
   // Everyday moves first (push-ups, goblet squats, swings…, and their own), the rest of the library only to fill gaps.
   const shuffled = softShuffle(timedPool(focus), avoid, rng)
   const everyday = (e: Exercise) => !!e.tags?.includes('crossfit') || isStaple(e) || !!e.custom
   const pool = [...shuffled.filter(everyday), ...shuffled.filter((e) => !everyday(e))]
+  // When the chosen parts run out: simple moves for them, then for the muscles next to them.
+  const nearby = [...new Set(focus.flatMap((g) => NEIGHBOURS[g] ?? []))].filter((g) => !focus.includes(g))
+  const wider = () => [...pool, ...softShuffle(widerPool(focus), avoid, rng)]
+  const widest = () => [...wider(), ...(nearby.length ? softShuffle([...timedPool(nearby), ...widerPool(nearby)], avoid, rng) : [])]
+  // Still next to nothing (biceps with no kit at all): simple full-body moves, so it's a workout rather than a warm-up.
+  const anything = () => [...widest(), ...softShuffle(widerPool([]), avoid, rng)]
   // A cardio machine joins full-body pieces, and any piece when Cardio was picked as a focus.
   const wantMachine = (used: Set<string>) => (cardio || focus.length === 0 ? machineFor(rng, used, avoid, cardio) : undefined)
   // At most one core move per piece, unless core is all they asked for.
@@ -280,8 +299,12 @@ export function generateTimed(kind: WodKind, focus: string[], minutes: number, r
     // Up to ten 4-minute Tabatas (about 49 minutes): more than that isn't a Tabata session any more.
     const want = Math.min(10, Math.max(2, Math.round(minutes / 5)))
     const machine = wantMachine(new Set())
-    let moves = pickMoves(pool, machine ? [machine] : [], want, (e, ms) => e.kind !== 'cardio' && oneCore(e, ms))
-    if (moves.length < want) moves = pickMoves([...pool, ...softShuffle(widerPool(focus), avoid, rng)], machine ? [machine] : [], want, (e, ms) => e.kind !== 'cardio' && oneCore(e, ms))
+    // Jump rope and double unders are the same skill: one of them at most.
+    const fitsTabata = (e: Exercise, ms: Exercise[]) => e.kind !== 'cardio' && oneCore(e, ms) && !(ROPE.test(e.name) && hasRope(new Set(), ms))
+    let moves = pickMoves(pool, machine ? [machine] : [], want, fitsTabata)
+    if (moves.length < want) moves = pickMoves(wider(), machine ? [machine] : [], want, fitsTabata)
+    if (moves.length < want) moves = pickMoves(widest(), machine ? [machine] : [], want, fitsTabata)
+    if (moves.length < want) moves = pickMoves(anything(), machine ? [machine] : [], want, fitsTabata)
     if (moves.length < 2) return []
     const wod = makeTabata(moves.length)
     return buildWodItems({ wod, moves: moves.map((e) => ({ exerciseId: e.id })), block: 'tabata', label: `Tabata · ${moves.length} movements · 20s on / 10s off × 8 each, 1 min rest between` })
@@ -295,13 +318,15 @@ export function generateTimed(kind: WodKind, focus: string[], minutes: number, r
   for (let part = 0; part < 4 && left >= (part === 0 ? 5 : 7); part++) {
     const m = part === 0 ? Math.min(left, minutes > 45 ? cap : Math.max(cap, 30)) : Math.min(cap, left - 2)
     const count = m <= 10 ? 3 : 4
-    const machine = wantMachine(used)
+    const machine = noSecondRope(wantMachine(used), used)
     const fits = () => (e: Exercise, ms: Exercise[]) =>
-      !used.has(e.id) && oneCore(e, ms) && !(e.mode === 'time' && ms.some((x) => x.mode === 'time'))
+      !used.has(e.id) && oneCore(e, ms) && !(e.mode === 'time' && ms.some((x) => x.mode === 'time')) && !(ROPE.test(e.name) && hasRope(used, ms))
     // New moves for each part (a day holds each exercise once). With a small pool (bodyweight, one muscle), the
     // part draws on any simple move for those body parts they can do.
     let moves = pickMoves(pool, machine ? [machine] : [], count, fits())
-    if (moves.length < Math.min(3, count)) moves = pickMoves([...pool, ...softShuffle(widerPool(focus), avoid, rng)], machine ? [machine] : [], count, fits())
+    if (moves.length < Math.min(3, count)) moves = pickMoves(wider(), machine ? [machine] : [], count, fits())
+    if (moves.length < Math.min(3, count)) moves = pickMoves(widest(), machine ? [machine] : [], count, fits())
+    if (moves.length < 2) moves = pickMoves(anything(), machine ? [machine] : [], count, fits())
     if (moves.length < 2) break
     moves.forEach((e) => used.add(e.id))
     out.push(...buildWod(m, moves, rng, part === 0 ? 'WOD' : `Part ${String.fromCharCode(65 + part)}`, KIND_TO_FORMAT[kind as Exclude<WodKind, 'tabata'>]))

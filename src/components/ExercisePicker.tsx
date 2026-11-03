@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useRef, useState } from 'react'
 import { BUILTIN_BY_ID, EXERCISES } from '../data/exercises'
 import { withChosenMode } from '../lib/exerciseModes'
 import { hasGear } from '../lib/equipment'
@@ -9,6 +9,8 @@ import type { Exercise } from '../types'
 import { CUSTOM_GROUPS, sameName } from '../lib/customExercises'
 import { closestExercises, matchesSearch, searchWords } from '../lib/exerciseSearch'
 import { CustomExerciseSheet } from './CustomExercise'
+import { SheetHandle, sheetBackdrop, sheetPanel } from './Sheet'
+import { useModal } from '../lib/useModal'
 
 interface Props {
   taken: Set<string>
@@ -84,6 +86,9 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
   const saved = useStore((s) => s.pickerEquipment) as Equip
   const equip: Equip = saved === 'Mine' && !owned ? 'Any' : saved
   const setEquip = useStore((s) => s.setPickerEquipment)
+  const titleId = useId()
+  const panel = useRef<HTMLDivElement>(null)
+  useModal(panel, onClose)
   const [q, setQ] = useState('')
   const [group, setGroup] = useState(GROUPS.includes(initialGroup) ? initialGroup : 'All')
   const [limit, setLimit] = useState(PAGE)
@@ -178,14 +183,12 @@ export function ExercisePicker({ taken, onPick, onClose, title = 'Add exercise',
 
   return (
     <>
-    <div className="fixed inset-0 z-20 flex items-end bg-black/30 sm:items-center sm:justify-center" onClick={onClose}>
-      <div
-        className="flex max-h-[85vh] w-full flex-col rounded-t-3xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:max-w-md sm:rounded-3xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-3 flex shrink-0 items-center justify-between">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <button onClick={onClose} className="text-sm text-neutral-500">Done</button>
+    <div className={sheetBackdrop} onClick={onClose}>
+      <div ref={panel} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className={sheetPanel} onClick={(e) => e.stopPropagation()}>
+        <SheetHandle />
+        <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
+          <h2 id={titleId} className="text-lg font-semibold">{title}</h2>
+          <button onClick={onClose} className="-mr-2 shrink-0 rounded-full px-2 py-1 text-sm text-neutral-500 hover:bg-neutral-100">Done</button>
         </div>
         {/* Search, then the muscle group and equipment filters: each one button that opens a panel showing every option at once. */}
         <input

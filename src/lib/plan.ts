@@ -100,13 +100,20 @@ export function dayLabel(items: PlannedExercise[], lookup: (id: string) => Exerc
     if (ids.length && ids.every((id) => /cycl|bik/.test(id))) return 'Ride'
     return exs.some((e) => e.group === 'Conditioning') ? 'HIIT' : 'Cardio'
   }
+  // Core goes with any day, so it only names a day that is all core.
+  const main = lifts.filter((e) => e.group !== 'Core')
+  if (main.length === 0) return 'Core'
+  // By area, so a leg day reads Legs rather than Quads (glutes are leg work too).
+  const area = (e: Exercise) => (e.group === 'Glutes' ? 'Legs' : areaOf(e.group))
   const counts = new Map<string, number>()
-  // By area, so a leg day reads Legs rather than Quads.
-  for (const e of lifts) counts.set(areaOf(e.group), (counts.get(areaOf(e.group)) ?? 0) + 1)
-  const groups = [...counts].sort((a, b) => b[1] - a[1])
-  // Three or more groups with none dominating reads as a full-body day.
-  if (groups.length >= 3 && groups[0][1] <= lifts.length / 2) return 'Full'
-  return groups[0][0]
+  for (const e of main) counts.set(area(e), (counts.get(area(e)) ?? 0) + 1)
+  const [top, n] = [...counts].sort((a, b) => b[1] - a[1])[0]
+  // One area that's most of the day names it (Legs, Chest, Arms…).
+  if (n >= main.length * 0.75) return top
+  const lower = counts.get('Legs') ?? 0
+  // Upper and lower body both in good measure: full body. Otherwise the bigger half (shoulders and arms is upper body).
+  if (lower > main.length * 0.25 && lower < main.length * 0.75) return 'Full'
+  return lower >= main.length * 0.75 ? 'Legs' : 'Upper'
 }
 
 /**

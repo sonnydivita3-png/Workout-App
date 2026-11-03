@@ -94,7 +94,7 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab, sub?: string) =>
           <h1 className="text-2xl font-semibold tracking-tight">{greeting}{s.name ? `, ${s.name}` : ''}</h1>
           {!s.name && (
             <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (nameDraft.trim()) s.setName(nameDraft.trim()) }}>
-              <input value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} placeholder="What should we call you?" className="min-w-0 flex-1 rounded-xl bg-neutral-100 px-4 py-2 text-sm outline-none" />
+              <input value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} placeholder="Your first name" aria-label="What should we call you?" className="min-w-0 flex-1 rounded-xl bg-neutral-100 px-4 py-2 text-sm outline-none" />
               <button className="rounded-xl bg-accent px-4 text-sm text-on-accent">Save</button>
             </form>
           )}

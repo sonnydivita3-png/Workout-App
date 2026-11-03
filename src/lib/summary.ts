@@ -1,6 +1,6 @@
 import type { Exercise, ExerciseLog, PlannedExercise, Units } from '../types'
 import { newCardioBests } from './cardioBests'
-import { sessionBasis, sessionScore, sessionVolume } from './progression'
+import { compareSet, sessionBasis, sessionScore, sessionVolume, workSets } from './progression'
 import { hasData } from './stats'
 import { isTicked, setRows, workingRows } from './setRows'
 
@@ -43,6 +43,23 @@ function did(l: ExerciseLog | undefined, ex: Exercise): boolean {
 }
 
 /**
+ * Same best set as last time: the working sets in order against last time's, as the exercise card marks them (▲ ▼).
+ * A rep gained on a later set is progress (that's how double progression gets to the next weight), so more sets
+ * beaten than fallen short is better.
+ */
+function setBySet(now: ExerciseLog | undefined, last: ExerciseLog | undefined, mode: Exercise['mode']): 'up' | 'same' | 'down' {
+  const before = workSets(last)
+  let up = 0
+  let down = 0
+  workSets(now).forEach((s, i) => {
+    const c = compareSet(s, before[i], mode)
+    if (c === 'up') up++
+    else if (c === 'down') down++
+  })
+  return up > down ? 'up' : down > up ? 'down' : 'same'
+}
+
+/**
  * How today went against your previous efforts, exercise by exercise. Lifts are compared with last time (progressive
  * overload). Cardio isn't: a shorter, easier run than last time is often the plan, so it's just "done", and it only
  * counts as a best when it sets a real record (see cardioBests).
@@ -78,7 +95,7 @@ export function workoutSummary(date: string, items: PlannedExercise[], logs: Exe
     if (!did(now, ex)) status = 'skipped'
     else if (!last) status = 'new'
     else if (!basis || basis !== sessionBasis(last, ex.mode, ex.kind) || score === 0 || lastScore === 0) status = 'done'
-    else status = score > lastScore + 0.01 ? 'up' : score < lastScore - 0.01 ? 'down' : 'same'
+    else status = score > lastScore + 0.01 ? 'up' : score < lastScore - 0.01 ? 'down' : setBySet(now, last, ex.mode)
     if (ex.kind === 'strength' && (ex.mode ?? 'weight') === 'weight' && status !== 'skipped') { liftVolume += volume; if (last) lastLiftVolume += lastVolume }
     results.push({ exerciseId: id, name: ex.name, status, pr: status === 'up' && score > best + 0.01, score, lastScore, volume, lastVolume })
   }

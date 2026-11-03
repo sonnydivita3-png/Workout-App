@@ -13,6 +13,16 @@ describe('workoutSummary', () => {
     expect(s.results.map((r) => [r.name.slice(0, 7), r.status, r.pr])).toEqual([['Bench P', 'up', true], ['Push-Up', 'down', false], ['Plank', 'skipped', false]])
     expect(s).toMatchObject({ beat: 1, compared: 2, prs: 1, liftVolume: 150 * 16, lastLiftVolume: 135 * 16 })
   })
+  it('same top set but a rep more on a later set is beating last time, as the card marks it (not "matched")', () => {
+    const sets = (...reps: number[]) => reps.map((r) => ({ weight: 255, reps: r }))
+    const log = (date: string, ...reps: number[]): ExerciseLog => ({ date, exerciseId: 'Barbell_Squat', sets: sets(...reps) })
+    const lookup = (id: string) => BUILTIN_BY_ID.get(id)
+    const run = (...today: number[]) => workoutSummary('2026-11-03', [{ exerciseId: 'Barbell_Squat', sets: 3 }], [log('2026-10-28', 6, 6, 5), log('2026-11-03', ...today)], lookup)
+    expect(run(6, 6, 6).results[0]).toMatchObject({ status: 'up', pr: false })
+    expect(run(6, 6, 6).beat).toBe(1)
+    expect(run(6, 6, 5).results[0].status).toBe('same')
+    expect(run(6, 5, 5).results[0].status).toBe('down')
+  })
   it('first time is "new", not a PR', () => {
     const s = workoutSummary('2026-09-20', [{ exerciseId: B, sets: 2 }], [lift('2026-09-20', 100, 5)], (id) => BUILTIN_BY_ID.get(id))
     expect(s.results[0]).toMatchObject({ status: 'new', pr: false })

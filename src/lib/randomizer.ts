@@ -184,9 +184,18 @@ export function generateWarmup(focus: string[], w: WarmupOptions, rng: Rng, avoi
  * Steady cardio for `minutes`: the kinds the person likes (all of them, sharing the time, if they split it),
  * otherwise anything they can do, with long sessions split over two.
  */
-function pickCardio(minutes: number, rng: Rng, avoid: Set<string> = new Set(), spec?: CardioSpec): PlannedExercise[] {
+/** Cardio that's only picked by name: nobody adds a swim, a hike or a trail run to a gym session unasked. */
+const BY_NAME_ONLY = new Set(['swimming', 'hiking', 'Trail_Running_Walking', 'Bicycling'])
+
+function pickCardio(minutes: number, rng: Rng, avoid: Set<string> = new Set(), spec?: CardioSpec, after?: PlannedExercise[]): PlannedExercise[] {
   const liked = likedCardio()
-  const pool = softShuffle(liked ?? POOL.filter((e) => e.kind === 'cardio' && hasGear(e)), avoid, rng)
+  // Never what the workout already has (one entry per exercise a day), when there's anything else.
+  const taken = new Set((after ?? []).map((p) => p.exerciseId))
+  const fresh = <T extends Exercise>(list: T[]) => (list.some((e) => !taken.has(e.id)) ? list.filter((e) => !taken.has(e.id)) : list)
+  const any = POOL.filter((e) => e.kind === 'cardio' && hasGear(e) && !BY_NAME_ONLY.has(e.id))
+  // After lifting, a machine in the gym (or a rope) rather than heading outside, unless there are none.
+  const indoors = any.filter((e) => e.equipment !== 'Outdoor')
+  const pool = softShuffle(fresh(liked ?? (after?.length && indoors.length ? indoors : any)), avoid, rng)
   // A chosen activity or session type (intervals, tempo…): one session, written out for that activity.
   if (spec?.exerciseId || (spec?.kind && spec.kind !== 'steady')) {
     // Any activity: one that suits the session (Tabata on a bike or rower, not a walk).
@@ -1096,10 +1105,14 @@ function generateFunctional(minutes: number, rng: Rng, avoid: Set<string>, opts:
     return { exerciseId: e.id, sets: 3, ...reps, rest: 60, block: `ss${n}`, blockLabel: `Superset ${n} · ${label} · alternate the two, rest about 60s after each pair` }
   }
   const pairs: PlannedExercise[][] = []
-  for (const { label, a, b } of FUNCTIONAL_PAIRS) {
-    const x = choose(a)
-    const y = choose(b)
-    if (x && y) pairs.push([item(x, pairs.length + 1, label), item(y, pairs.length + 1, label)])
+  // Each pattern once; long sessions go round the patterns again with other moves rather than stopping short.
+  for (const pass of [0, 1]) {
+    for (const { label, a, b } of FUNCTIONAL_PAIRS) {
+      if (pass === 1 && liftsMinutes(pairs.flat().map((p) => ({ ...p, sets: 4 })), pref) >= minutes) break
+      const x = choose(a)
+      const y = choose(b)
+      if (x && y) pairs.push([item(x, pairs.length + 1, label), item(y, pairs.length + 1, label)])
+    }
   }
   // As many pairs, and rounds of each, as fit the time.
   let best: PlannedExercise[] = pairs[0] ?? []
@@ -1282,9 +1295,24 @@ function generateMixed(focus: string[], minutes: number, styles: WorkoutStyle[],
   }
   if (!cardio) return out
   // One entry per exercise a day: the cardio wins over a warm-up on the same machine, not the other way round.
-  const fin = pickCardio(cardioMin, rng, new Set([...avoid, ...used]), lift.cardio)
-  const kept = out.filter((p) => !(p.warmup && fin.some((f) => f.exerciseId === p.exerciseId)))
-  return [...kept, ...fin.filter((f) => !kept.some((p) => p.exerciseId === f.exerciseId))]
+  // One entry per exercise a day: the cardio wins over a warm-up on the same machine, not the other way round.
+  return withCardio(out, cardioMin, rng, avoid, lift.cardio)
+}
+
+/**
+ * Cardio to finish a workout. One entry per exercise a day: it's something the workout doesn't have yet (its warm-up
+ * included); when their chosen activity is already in it (the rope as a circuit station, the bike as the warm-up), that
+ * warm-up goes and that station gets another move instead.
+ */
+function withCardio(items: PlannedExercise[], minutes: number, rng: Rng, avoid: Set<string>, spec?: CardioSpec): PlannedExercise[] {
+  const fin = pickCardio(minutes, rng, new Set([...avoid, ...items.map((p) => p.exerciseId)]), spec, items)
+  let main = items.filter((p) => !(p.warmup && fin.some((f) => f.exerciseId === p.exerciseId)))
+  for (const f of fin) {
+    const i = main.findIndex((p) => p.exerciseId === f.exerciseId)
+    // Swapped with the cardio in view, so the station doesn't come back as the same machine.
+    if (i >= 0) main = swapExercise([...main, ...fin], i, rng).slice(0, main.length)
+  }
+  return [...main, ...fin.filter((f) => !main.some((p) => p.exerciseId === f.exerciseId))]
 }
 
 /**
@@ -1400,7 +1428,7 @@ export function generateWorkout(focusIn: string[], minutes: number, opts: Genera
   if (style === 'functional' || style === 'posture') {
     const cardioMin = focus.includes('Cardio') ? Math.min(30, Math.max(10, roundTo5(minutes * 0.25))) : 0
     const main = style === 'functional' ? generateFunctional(minutes - cardioMin, rng, avoid, lift) : generatePosture(minutes - cardioMin, rng, avoid)
-    return cardioMin ? [...main, ...pickCardio(cardioMin, rng, avoid, opts.cardio)] : main
+    return cardioMin ? withCardio(main, cardioMin, rng, avoid, opts.cardio) : main
   }
   if (style === 'hyrox' || style === 'crossfit') return style === 'hyrox' ? generateHyrox(minutes, rng) : generateCrossfit(minutes, rng, avoid)
   if (style === 'amrap' || style === 'emom' || style === 'fortime' || style === 'tabata') return generateTimed(style, focus.filter((g) => g !== 'Cardio'), minutes, rng, avoid, focus.includes('Cardio'))
@@ -1421,16 +1449,16 @@ export function generateWorkout(focusIn: string[], minutes: number, opts: Genera
     case 'pha': items = generatePha(groups, liftMin, rng, avoid); break
     default: items = pickLifts(groups, liftMin, rng, avoid, STANDARD, lift)
   }
-  return cardio ? [...items, ...pickCardio(cardioMin, rng, avoid, opts.cardio)] : items
+  return cardio ? withCardio(items, cardioMin, rng, avoid, opts.cardio) : items
 }
 
 /** Easy cardio for whatever's left when a session comes up 10+ minutes short (marked as a finisher). */
 export function addFinisher(items: PlannedExercise[], minutes: number, rng: Rng = Math.random): PlannedExercise[] {
   const spare = minutes - minutesFor(items)
   if (spare < 10) return items
-  const used = new Set(items.map((p) => p.exerciseId))
-  const finisher = generateWorkout(['Cardio'], roundTo5(spare - 2), { style: 'standard', rng, avoid: used, cardio: { kind: 'steady' } })
-  return [...items, ...finisher.filter((p) => !used.has(p.exerciseId)).map((p) => ({ ...p, note: FINISHER }))]
+  const before = new Set(items.map((p) => p.exerciseId))
+  // A machine in the gym (or a rope), not one the workout already has.
+  return withCardio(items, roundTo5(spare - 2), rng, new Set(), { kind: 'steady' }).map((p) => (before.has(p.exerciseId) ? p : { ...p, note: FINISHER }))
 }
 export const FINISHER = 'Finisher, easy pace'
 

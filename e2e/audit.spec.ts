@@ -101,3 +101,37 @@ test('a lift shows what was done last time, never a suggested weight', async ({ 
   await expect(page.getByRole('spinbutton', { name: 'Set 2 lb' })).toHaveValue('185')
   await expect(page.getByRole('spinbutton', { name: 'Set 2 reps' })).toHaveValue('8')
 })
+
+test('sheets are dialogs: Escape closes the top one, and focus goes back to the button that opened it', async ({ page }) => {
+  await seed(page)
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  const add = page.getByRole('button', { name: '+ Add', exact: true })
+  await add.click()
+  const menu = page.getByRole('dialog', { name: /^Add to / })
+  await expect(menu).toBeVisible()
+  // A sheet opened from a sheet: Escape closes only the one on top.
+  await menu.getByRole('button', { name: /Add an exercise/ }).click()
+  await expect(page.getByRole('dialog', { name: 'Add exercise' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', { name: 'Add exercise' })).toHaveCount(0)
+  await add.click()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(add).toBeFocused()
+})
+
+test('finishing: the same top set with a rep more on a later set counts as beating last time', async ({ page }) => {
+  await seed(page, {
+    overrides: { [iso(0)]: [{ exerciseId: BENCH, sets: 3, reps: 6 }] },
+    logs: [{ date: iso(-4), exerciseId: BENCH, sets: [{ weight: 185, reps: 6 }, { weight: 185, reps: 6 }, { weight: 185, reps: 5 }] }],
+  })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Start workout' }).click()
+  // ✓ logs the target: 185 × 6 on every set, one rep more than last time on the third.
+  for (const n of [1, 2, 3]) await page.getByRole('button', { name: `Set ${n} done` }).click()
+  await expect(page.getByText(/▲ 1 beat last time/)).toBeVisible()
+  await page.getByRole('button', { name: '✓ Finish workout' }).click()
+  await expect(page.getByText('Beat last time on everything 🔥')).toBeVisible()
+  await expect(page.getByText('▲ better')).toBeVisible()
+})

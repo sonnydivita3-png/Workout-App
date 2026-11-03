@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { parseISO, weekdayIndex } from '../lib/dates'
 import {
-  bringsOwnWarmup, extraTimeOptions, generateWorkout, LIFT_GROUPS, minutesFor, replaceExercise, STYLE_GROUPS, styleInfo, swapExercise,
+  addFinisher, bringsOwnWarmup, extraTimeOptions, generateWorkout, LIFT_GROUPS, minutesFor, replaceExercise, STYLE_GROUPS, styleInfo, swapExercise,
   type ExtraTime, type ExtraTimeOption, type GenerateOptions, type WorkoutStyle,
 } from '../lib/randomizer'
 import { overloaded, type Overload } from '../lib/muscles'
@@ -363,7 +363,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
                 <button key={g} onClick={() => toggle(g)} aria-pressed={focus.includes(g)} className={`rounded-full px-2.5 py-1 text-sm ${focus.includes(g) ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-600'}`}>{g}</button>
               ))}
             </div>
-            <p className="mb-5 text-xs text-neutral-400">{same(LIFT_GROUPS) ? 'Full body: one exercise for each part, big lifts first.' : <>Add <b className="font-medium">Cardio</b> above to finish with a run, ride or row.</>}</p>
+            <p className="mb-5 text-xs text-neutral-400">{same(LIFT_GROUPS) ? 'Full body: one exercise for each part, big lifts first.' : hasKind('cardio') ? 'Cardio comes with it: pick the activity below.' : <>Add <b className="font-medium">Cardio</b> above to finish with a run, ride or row.</>}</p>
           </>
         ))}
 
@@ -559,6 +559,14 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
       <p className="mb-3 text-sm text-neutral-400">
         {styleLabel} · {focusLabel}{hasCardio ? ' + Cardio' : ''} · about {Math.round(total)} min{cal ? ` · ≈ ${workoutCalories(items, rate, mets).toLocaleString()} ${countWord} cal` : ''}
       </p>
+      {items.length > 0 && !cal && volume?.chosen !== 'shorter' && totalMin - total >= 10 && total < totalMin * 0.85 && (
+        // Little kit for the parts picked (bodyweight back, say), or a format with a natural length (Tabata, Hyrox):
+        // say so, rather than quietly handing over a shorter workout than asked for.
+        <div role="status" className="mb-3 rounded-2xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <p>This comes to about {Math.round(total)} of your {totalMin} minutes: that’s all that fits {hasKind('lift') || hasKind('cond') ? 'with these body parts, style and equipment' : 'here'}. Add a body part or another style for more, or:</p>
+          <button onClick={() => commit(withChoices(() => addFinisher(items, totalMin)))} className="mt-2 rounded-full bg-surface px-3 py-1.5 text-xs font-medium text-neutral-700 ring-1 ring-neutral-200">+ Easy cardio for the rest</button>
+        </div>
+      )}
       {volume && (
         <VolumeCheck
           over={volume.over} options={volume.options} chosen={volume.chosen} auto={volume.auto} limit={perMuscle}

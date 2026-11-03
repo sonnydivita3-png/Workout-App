@@ -5,6 +5,7 @@ import { useStore, type Accent } from '../store'
 import { Sheet } from './Sheet'
 import { SocialSettings } from './social/SocialSettings'
 import { CloudBackup } from './CloudBackup'
+import { Chevron } from './Chevron'
 import { AccountSection } from './AccountSection'
 import { EquipmentPicker } from './EquipmentPicker'
 import { FavoritesPicker } from './FavoritesPicker'
@@ -144,19 +145,21 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
     return (
       <section>
         <header className="mb-4 flex items-center gap-2">
-          {onBack && <button onClick={onBack} aria-label="Back" className="-ml-2 h-10 w-10 rounded-full text-xl text-neutral-500">‹</button>}
+          {onBack && <button onClick={onBack} aria-label="Back" className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full text-neutral-600 hover:bg-neutral-200/60"><Chevron left className="h-6 w-6" /></button>}
           <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         </header>
         <ul className="divide-y divide-neutral-100 overflow-hidden rounded-2xl bg-surface ring-1 ring-neutral-200/70">
           {PAGES.map((p) => (
             <li key={p.id}>
-              <button onClick={() => { setPage(p.id); window.scrollTo(0, 0) }} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
-                <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-neutral-500" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d={p.icon} /></svg>
+              <button onClick={() => { setPage(p.id); window.scrollTo(0, 0) }} className="flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-neutral-50">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-neutral-600">
+                  <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d={p.icon} /></svg>
+                </span>
                 <span className="min-w-0 flex-1">
                   <span className="block font-medium">{p.title}</span>
                   <span className="block truncate text-sm text-neutral-400">{summary[p.id]}</span>
                 </span>
-                <span className="text-neutral-300">›</span>
+                <Chevron className="h-4 w-4 shrink-0 text-neutral-400" />
               </button>
             </li>
           ))}
@@ -169,7 +172,7 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
   return (
     <section className="space-y-3">
       <header className="mb-4 flex items-center gap-2">
-        <button onClick={() => setPage(null)} aria-label="Back to settings" className="-ml-2 h-10 w-10 rounded-full text-xl text-neutral-500">‹</button>
+        <button onClick={() => setPage(null)} aria-label="Back to settings" className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full text-neutral-600 hover:bg-neutral-200/60"><Chevron left className="h-6 w-6" /></button>
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
       </header>
       {page === 'profile' && (<>

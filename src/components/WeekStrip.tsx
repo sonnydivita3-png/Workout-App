@@ -26,15 +26,18 @@ export function WeekStrip({ dates, selected, counts, labels, done, rest, today, 
             aria-label={`${d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}${rest?.[i] ? ', rest day' : labels?.[i] ? `, ${labels[i]}` : counts[i] ? `, ${counts[i]} exercises` : ''}${done?.[i] ? ', done' : ''}`}
             aria-pressed={active}
             className={`flex min-w-0 flex-col items-center rounded-xl py-2 transition ${
-              active ? 'bg-accent text-on-accent' : 'text-neutral-500 hover:bg-neutral-200/60'
+              active ? 'bg-accent text-on-accent shadow-sm' : `text-neutral-500 hover:bg-neutral-200/60 ${toISO(d) === today ? 'ring-1 ring-inset ring-accent/70' : ''}`
             }`}
           >
             <span className="text-xs uppercase tracking-wide">{DAY_LABELS[i]}</span>
-            <span className={`text-lg font-semibold ${toISO(d) === today && !active ? 'text-neutral-900' : ''}`}>
+            {/* Done: the date sits in a green circle, so the day's label keeps its room on a small phone. */}
+            <span className={`flex h-7 w-7 items-center justify-center rounded-full text-lg font-semibold ${
+              done?.[i] ? (active ? 'bg-on-accent/15' : 'bg-green-600/15 text-green-600') : toISO(d) === today && !active ? 'text-neutral-900' : ''
+            }`}>
               {d.getDate()}
             </span>
             <span className={`h-3.5 max-w-full truncate px-0.5 text-[10px] leading-3.5 ${active ? '' : rest?.[i] ? 'text-neutral-400' : 'text-neutral-500'}`}>
-              {done?.[i] ? '✓ ' : ''}{rest?.[i] ? 'Rest' : labels?.[i] || (counts[i] ? '•' : '')}
+              {rest?.[i] ? 'Rest' : labels?.[i] || (counts[i] ? '•' : '')}
             </span>
           </button>
         )

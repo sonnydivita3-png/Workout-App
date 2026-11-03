@@ -567,6 +567,53 @@ describe('timed and HIIT workouts with any equipment and focus', () => {
     }
     expect(minutesFor(gen('tabata', [], 90, 2))).toBeGreaterThanOrEqual(45)
   })
+  it('one small muscle with little kit still gets a real piece (it borrows the muscles next to it), never just a warm-up', () => {
+    for (const st of ['amrap', 'emom', 'fortime', 'tabata'] as const) {
+      for (const focus of [['Biceps'], ['Calves'], ['Triceps']]) {
+        for (const gear of [[], null]) {
+          const w = withGearFor(gear, () => gen(st, focus, 30, 5))
+          const tag = `${st} ${focus} ${JSON.stringify(gear)}`
+          expect(w.filter((p) => !p.warmup).length, tag).toBeGreaterThanOrEqual(st === 'tabata' ? 4 : 2)
+          expect(minutesFor(w), tag).toBeGreaterThanOrEqual(30 * 0.7)
+        }
+      }
+    }
+  })
+  it('jump rope and double unders are the same skill: never both in one workout', () => {
+    const rope = /rope|double.?under/i
+    for (const st of ['amrap', 'emom', 'fortime', 'tabata', 'crossfit'] as const) {
+      for (let seed = 1; seed <= 60; seed++) {
+        const w = generateWorkout([], seed % 2 ? 45 : 75, { style: st, rng: mulberry32(seed) }).filter((p) => !p.warmup)
+        expect(w.filter((p) => rope.test(BUILTIN_BY_ID.get(p.exerciseId)?.name ?? '')).length, `${st} ${seed}`).toBeLessThanOrEqual(1)
+      }
+    }
+  })
+  it('a circuit or PHA with cardio never has the same machine twice, and the cardio after lifting stays in the gym', () => {
+    const byName = new Set(['swimming', 'hiking', 'Trail_Running_Walking', 'Bicycling'])
+    for (const st of ['circuit', 'pha', 'standard', 'functional', 'posture'] as const) {
+      for (const gear of [null, ['Dumbbell', 'Machine'], ['Barbell', 'Dumbbell', 'Kettlebell', 'Bands', 'Other']]) {
+        for (let seed = 1; seed <= 25; seed++) {
+          const w = withGearFor(gear, () => generateWorkout(['Chest', 'Quads', 'Cardio'], 45, { style: st, rng: mulberry32(seed) }))
+          const tag = `${st} ${JSON.stringify(gear)} ${seed}`
+          expect(new Set(w.map((p) => p.exerciseId)).size, tag).toBe(w.length)
+          const cardio = w.filter((p) => !p.block && BUILTIN_BY_ID.get(p.exerciseId)?.kind === 'cardio')
+          expect(cardio.length, tag).toBeGreaterThan(0)
+          for (const c of cardio) expect(byName.has(c.exerciseId), `${tag}: ${c.exerciseId}`).toBe(false)
+          // Machines to hand: not a run outside straight after the gym.
+          if (gear?.includes('Machine') ?? true) for (const c of cardio) expect(BUILTIN_BY_ID.get(c.exerciseId)?.equipment, `${tag}: ${c.exerciseId}`).not.toBe('Outdoor')
+        }
+      }
+    }
+  })
+  it('a long functional session goes round the patterns again rather than stopping at about 50 minutes', () => {
+    for (const minutes of [75, 90]) {
+      for (let seed = 1; seed <= 5; seed++) {
+        const w = generateWorkout([], minutes, { style: 'functional', rng: mulberry32(seed) })
+        expect(minutesFor(w), `${minutes} ${seed}`).toBeGreaterThanOrEqual(minutes * 0.8)
+        expect(new Set(w.map((p) => p.exerciseId)).size).toBe(w.length)
+      }
+    }
+  })
   it('a chest and back AMRAP has no flyes; core on its own works', () => {
     for (let seed = 1; seed <= 20; seed++) {
       expect(gen('amrap', ['Chest', 'Back'], 30, seed).some((p) => /fly|flye/i.test(BUILTIN_BY_ID.get(p.exerciseId)?.name ?? ''))).toBe(false)

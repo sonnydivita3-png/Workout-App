@@ -109,6 +109,17 @@ describe('dayLabel', () => {
     expect(dayLabel([{ exerciseId: 'Barbell_Squat', sets: 3 }, { exerciseId: 'Lying_Leg_Curls', sets: 3 }], look)).toBe('Legs')
     expect(dayLabel([{ exerciseId: 'running', sets: 1, block: 'hyrox' }, { exerciseId: 'x-sled-push', sets: 1, block: 'hyrox' }], look)).toBe('Hyrox')
   })
+  it('a mixed upper-body day is Upper, not Full or just its biggest part', () => {
+    const day = (...ids: string[]) => dayLabel(ids.map((exerciseId) => ({ exerciseId, sets: 3 })), look)
+    // Shoulders, arms and core: no legs, so not a full-body day.
+    expect(day('Standing_Military_Press', 'Dumbbell_Bicep_Curl', 'Triceps_Pushdown', 'Plank')).toBe('Upper')
+    // Chest and back: one chest lift and two back ones is still a chest-and-back day.
+    expect(day('Barbell_Bench_Press_-_Medium_Grip', 'Wide-Grip_Lat_Pulldown', 'Seated_Cable_Rows')).toBe('Upper')
+    // A leg day with one upper-body accessory stays a leg day; core alone is a core day.
+    expect(day('Barbell_Squat', 'Romanian_Deadlift', 'Leg_Press', 'Standing_Military_Press')).toBe('Legs')
+    expect(day('Plank', 'Crunches')).toBe('Core')
+    expect(day('Barbell_Bench_Press_-_Medium_Grip', 'Incline_Dumbbell_Press', 'Plank')).toBe('Chest')
+  })
 })
 
 describe('workoutTitle', () => {

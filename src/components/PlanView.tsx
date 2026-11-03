@@ -23,8 +23,15 @@ import { ArrangeSheet } from './ArrangeSheet'
 import { FinishWorkout } from './FinishWorkout'
 import { RestTimer } from './RestTimer'
 import { Tip } from './Tip'
+import { Chevron } from './Chevron'
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+/** "Nov 2 – 8", or "Oct 26 – Nov 1" across a month end (in the phone's own date order). */
+function weekRange(a: Date, b: Date): string {
+  const f = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
+  try { return f.formatRange(a, b) } catch { return `${f.format(a)} – ${f.format(b)}` }
+}
 
 /**
  * The Workouts tab: this week, and the selected day's workout ready to log. There is one way to do a workout: tick
@@ -67,18 +74,17 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
     setRestTimer({ date, until: Date.now() + secs * 1000 })
   }
 
+  const thisWeek = dates.some((d) => toISO(d) === today)
   const dayTitle = `${DAY_NAMES[day]}${date === today ? ' · Today' : `, ${dates[day].toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`}`
 
   return (
     <>
-      <header className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {dates[0].toLocaleDateString(undefined, { month: 'long', day: 'numeric' })} –{' '}
-          {dates[6].toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-        </h1>
-        <div className="flex items-center gap-1 text-neutral-500">
-          <button onClick={() => shiftWeek(-1)} aria-label="Previous week" className="h-8 w-8 rounded-full hover:bg-neutral-200/60">‹</button>
-          <button onClick={() => shiftWeek(1)} aria-label="Next week" className="h-8 w-8 rounded-full hover:bg-neutral-200/60">›</button>
+      <header className="mb-4 flex items-center justify-between gap-2">
+        <h1 className="min-w-0 text-2xl font-semibold tracking-tight">{weekRange(dates[0], dates[6])}</h1>
+        <div className="flex shrink-0 items-center gap-1 text-neutral-500">
+          {!thisWeek && <button onClick={() => { setAnchor(new Date()); setDay(weekdayIndex(new Date())) }} className="mr-1 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">Today</button>}
+          <button onClick={() => shiftWeek(-1)} aria-label="Previous week" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-neutral-200/60"><Chevron left /></button>
+          <button onClick={() => shiftWeek(1)} aria-label="Next week" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-neutral-200/60"><Chevron /></button>
           {onSettings && <SettingsGear onClick={onSettings} />}
         </div>
       </header>
