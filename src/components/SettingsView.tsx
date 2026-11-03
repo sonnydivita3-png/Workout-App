@@ -24,7 +24,8 @@ import { CaloriesFaq } from './CaloriesFaq'
 import { VersionRow } from './VersionRow'
 import { AboutYouForm } from './AboutYouForm'
 
-const ACCENTS: [Accent, string][] = [['lime', '#c8ff3e'], ['pink', '#ff5cae'], ['violet', '#a78bfa'], ['orange', '#ff9f45'], ['blue', '#5eb1ff']]
+// Each vibe as it looks in the dark theme, then the light (the same values as index.css).
+const ACCENTS: [Accent, string, string][] = [['lime', '#c8ff3e', '#9be31a'], ['pink', '#ff5cae', '#db2777'], ['violet', '#a78bfa', '#7c3aed'], ['orange', '#ff9f45', '#c2410c'], ['blue', '#5eb1ff', '#2563eb']]
 
 function Segmented<T extends string>({ value, options, onChange }: { value: T; options: T[]; onChange: (v: T) => void }) {
   return (
@@ -243,16 +244,17 @@ export function SettingsView({ initialPage, onBack }: { initialPage?: string; on
         <Segmented value={theme} options={['dark', 'light', 'auto']} onChange={setTheme} />
       </Row>
       <Row title="Vibe">
-        <div className="flex gap-2" role="radiogroup" aria-label="Accent colour">
-          {ACCENTS.map(([id, color]) => (
+        <div className="flex gap-3" role="radiogroup" aria-label="Accent colour">
+          {/* Shown in the tone the vibe takes in the theme in use. */}
+          {ACCENTS.map(([id, dark, light]) => (
             <button
               key={id}
               role="radio"
               aria-checked={accent === id}
               aria-label={id}
               onClick={() => setAccent(id)}
-              style={{ backgroundColor: color }}
-              className={`h-7 w-7 rounded-full ${accent === id ? 'ring-2 ring-neutral-900 ring-offset-2 ring-offset-surface' : ''}`}
+              style={{ backgroundColor: (theme === 'auto' ? window.matchMedia('(prefers-color-scheme: dark)').matches : theme === 'dark') ? dark : light }}
+              className={`hit h-9 w-9 rounded-full ${accent === id ? 'ring-2 ring-neutral-900 ring-offset-2 ring-offset-surface' : ''}`}
             />
           ))}
         </div>

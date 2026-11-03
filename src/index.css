@@ -94,8 +94,9 @@ button:not(:disabled):active { transform: scale(0.96); }
 :focus-visible:not([tabindex="-1"]) { outline: 2px solid var(--color-accent-ink); outline-offset: 2px; }
 input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--color-accent-ink); outline-offset: 0; }
 /* A primary button that can't be used yet goes quiet grey. A faded accent read as muddy olive on dark and washed-out
-   lime on light, and looked like a different kind of button rather than "not yet". */
-button.bg-accent:disabled { background-color: var(--color-neutral-100); color: var(--color-neutral-400); opacity: 1; box-shadow: none; }
+   lime on light, and looked like a different kind of button rather than "not yet". Its label is fainter than a
+   secondary button's (about 2.5:1), so the two can't be mistaken for each other. */
+button.bg-accent:disabled { background-color: var(--color-neutral-100); color: color-mix(in srgb, var(--color-neutral-900) 40%, var(--color-neutral-100)); opacity: 1; box-shadow: none; }
 /* Small controls keep their size but get a hit area of at least 44 × 44 px around them (Apple's minimum, WCAG 2.5.5),
    for one-handed use mid-workout. */
 .hit { position: relative; }
