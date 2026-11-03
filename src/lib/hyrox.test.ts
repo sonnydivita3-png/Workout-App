@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { generateHyrox } from './functionalStyles'
-import { hyroxRoute, isHyroxBlock } from './hyrox'
+import { hyroxRoute, isHyroxBlock, runsAs } from './hyrox'
 import { mulberry32 } from './randomUtil'
 
 describe('the Hyrox route', () => {
@@ -19,5 +19,13 @@ describe('the Hyrox route', () => {
     expect(isHyroxBlock('hyrox')).toBe(true)
     expect(isHyroxBlock('hyrox-hyrox')).toBe(true)
     expect(isHyroxBlock('ss1')).toBe(false)
+  })
+})
+
+describe('how the runs are done', () => {
+  it('says where, not a list of two kinds of run', () => {
+    expect(runsAs('Running')).toBe('running')
+    expect(runsAs('Running, Treadmill')).toBe('running on a treadmill')
+    expect(runsAs('Jogging, Treadmill')).toBe('jogging on a treadmill')
   })
 })

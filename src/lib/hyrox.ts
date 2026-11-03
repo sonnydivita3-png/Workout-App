@@ -15,3 +15,12 @@ export function hyroxRoute<T extends { item: PlannedExercise }>(entries: T[]): {
   const m = /(\d[\d,]*)\s*m run/i.exec(run?.item.note ?? run?.item.blockLabel ?? '')
   return { run, runM: m ? Number(m[1].replace(/,/g, '')) : null, stations: entries.filter((e) => e !== run) }
 }
+
+/**
+ * How a Hyrox's runs are done, for the line under it: "running", or "running on a treadmill" when they moved there
+ * (the exercise is called "Running, Treadmill", which read as two kinds of run).
+ */
+export function runsAs(name: string): string {
+  const [what, where] = name.split(/,\s*/)
+  return where ? `${what.toLowerCase()} on a ${where.toLowerCase()}` : name.toLowerCase()
+}

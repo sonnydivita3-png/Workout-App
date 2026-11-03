@@ -24,7 +24,7 @@ import { setupFromIds, type CardioSetup } from '../lib/cardioSetup'
 import { BY_ID } from '../lib/randomUtil'
 import { EFFORTS, type Effort, perMinute, STYLE_MET, workoutCalories } from '../lib/calorieTarget'
 import { bodyweightOn } from '../lib/calories'
-import { formatMinutes, formatPace, showSpeed, showWeight, speedUnit, storeWeight } from '../lib/units'
+import { distanceFactor, formatMinutes, formatPace, showSpeed, showWeight, speedUnit, storeWeight } from '../lib/units'
 import { useToday } from '../lib/useToday'
 import { cardioNameOf, COND_GROUPS, LIFT_STYLES, makeWorkout, minPart, planRequest, requestOptions, sessionLabelOf, topUpCalories, withRequestChoices, FAST, type Kind, type WorkoutRequest } from '../lib/workoutRequest'
 import { NumberInput } from './NumberInput'
@@ -56,6 +56,8 @@ interface Volume { over: Overload[]; options: ExtraTimeOption[]; base: PlannedEx
 
 export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const { plan: weekPlan, overrides, addPlanned, saveRoutine, genPrefs, setGenPrefs, equipment, trainingPrefs, setTrainingPrefs, bodyweight, aboutMe, units, logBodyweight, logs, custom } = useStore()
+  // A speed as shown (to a tenth), back in mph: the pace beside it is that speed's (6.5 mph is 9:14 a mile, not 9:10).
+  const shownMph = (mph: number) => showSpeed(mph, units) / distanceFactor(units)
   const today = useToday()
   // Time, or a calorie target the time is worked out for.
   const [goalPicked, setGoal] = useState<'time' | 'calories'>('time')
@@ -390,7 +392,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
                 {!timed && cardioFlex && cal.minutes.cardio != null && (
                   <p className="mt-1 text-xs text-neutral-600">
                     {cardioName}: {formatMinutes(cal.minutes.cardio)} at {withSpeed && paceMph
-                      ? <><b>{showSpeed(paceMph, units)} {speedUnit(units)}{FAST[one!] && FAST[one!] < 10 ? ` (${formatPace(paceMph, 60, units)})` : ''}</b>{incline ? ` at ${incline}% incline` : ''}</>
+                      ? <><b>{showSpeed(paceMph, units)} {speedUnit(units)}{FAST[one!] && FAST[one!] < 10 ? ` (${formatPace(shownMph(paceMph), 60, units)})` : ''}</b>{incline ? ` at ${incline}% incline` : ''}</>
                       : <>a <b>{withSpeed ? 'usual easy' : effortPick}</b> {withSpeed ? 'pace' : 'effort'}{incline ? ` at ${incline}% incline` : ''}</>}.
                   </p>
                 )}
@@ -399,7 +401,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
                 {timed && needMet != null && cardioFlex && (
                   <p className="mt-1 text-xs text-neutral-600">
                     {speed
-                      ? <>{cardioName}: {formatMinutes(timed.minutes.cardio)} at about <b>{showSpeed(speed, units)} {speedUnit(units)}</b>{one && FAST[one] && FAST[one] < 10 ? ` (${formatPace(speed, 60, units)})` : ''}{incline ? ` at ${incline}% incline` : ''}{recent ? `; your recent average is ${showSpeed(recent, units)} ${speedUnit(units)}` : ''}.</>
+                      ? <>{cardioName}: {formatMinutes(timed.minutes.cardio)} at about <b>{showSpeed(speed, units)} {speedUnit(units)}</b>{one && FAST[one] && FAST[one] < 10 ? ` (${formatPace(shownMph(speed), 60, units)})` : ''}{incline ? ` at ${incline}% incline` : ''}{recent ? `; your recent average is ${showSpeed(recent, units)} ${speedUnit(units)}` : ''}.</>
                       : <>{cardioName}: {formatMinutes(timed.minutes.cardio)} at a <b>{effort}</b> effort{needMet / cardioMetHere > 1.1 ? ` (about ${Math.round((needMet / cardioMetHere - 1) * 100)}% harder than a usual pace)` : ''}.</>}
                   </p>
                 )}
