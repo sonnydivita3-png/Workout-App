@@ -50,7 +50,8 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
     onChange(withRuns(c, runs.map((r, i) => (i === at ? next : r))))
   }
   const addRun = () => onChange(withRuns(c, [...runs, { distance: null, minutes: null }]))
-  const removeRun = (i: number) => onChange(withRuns(c, runs.filter((_, j) => j !== i)))
+  // A logged run's numbers go with it, so ask first (like removing an exercise with sets logged).
+  const removeRun = (i: number) => { if (confirm(`Remove ${noun} ${i + 1}? Its time and distance are deleted.`)) onChange(withRuns(c, runs.filter((_, j) => j !== i))) }
   const prev = last?.cardio
   // Rowers and swims default to meters, everything else to the miles/km setting; the chips above switch this card's own.
   const unit = distanceUnitFor(exercise.id, units)
@@ -137,7 +138,7 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
       {runs.length > 1 && (
         <div className="mb-1 flex items-center justify-between text-xs font-medium text-neutral-500">
           <span>{noun[0].toUpperCase() + noun.slice(1)} {at + 1}</span>
-          <button onClick={() => removeRun(at)} aria-label={`Remove ${noun} ${at + 1}`} className="text-neutral-400 underline-offset-2 hover:underline">Remove</button>
+          <button onClick={() => removeRun(at)} aria-label={`Remove ${noun} ${at + 1}`} className="hit font-medium text-neutral-500 underline-offset-2 hover:underline">Remove</button>
         </div>
       )}
       <div role="group" aria-label={`${exercise.name} units`} className="mb-3 inline-flex rounded-full bg-neutral-100 p-0.5">

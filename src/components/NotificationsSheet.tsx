@@ -1,6 +1,7 @@
 import { useStore } from '../store'
 import type { NotificationType } from '../types'
 import { Sheet } from './Sheet'
+import { EmptyState } from './EmptyState'
 
 const DOT: Record<NotificationType, string> = {
   'goal-reached': 'bg-emerald-500',
@@ -25,9 +26,7 @@ export function NotificationsSheet({ onClose }: { onClose: () => void }) {
   return (
     <Sheet title="Notifications" onClose={close}>
       {notifications.length === 0 ? (
-        <p className="py-8 text-center text-neutral-400">
-          Nothing yet. You’ll see goal progress, personal bests, and workout reminders here.
-        </p>
+        <EmptyState icon="🔔" title="No notifications yet">Goal progress, personal bests and workout reminders show up here.</EmptyState>
       ) : (
         <>
           <ul className="divide-y divide-neutral-100">

@@ -12,6 +12,7 @@ import { BodyTab } from './history/BodyTab'
 import { WorkoutsTab } from './history/WorkoutsTab'
 import { Tip } from './Tip'
 import { Chevron } from './Chevron'
+import { EmptyState } from './EmptyState'
 import { chipBtn } from './ui'
 
 const fmtLong = (iso: string) =>
@@ -67,7 +68,7 @@ function ExercisesTab() {
   return (
     <section>
       {rows.length === 0 && timedLogs.length === 0 ? (
-        <p className="py-16 text-center text-neutral-400">Nothing logged yet. Log a workout and your glow-up shows up here 📈</p>
+        <EmptyState icon="📈" title="No exercises yet" className="py-16">Log a workout and each exercise gets a page here, with its charts and personal bests.</EmptyState>
       ) : (
         <>
         {timedLogs.length > 0 && (

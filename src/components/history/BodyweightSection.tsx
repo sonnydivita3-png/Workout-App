@@ -40,7 +40,7 @@ export function BodyweightSection() {
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
           <div className="text-2xl font-semibold tabular-nums">{latest ? format(showWeight(latest.lb, units)!) : '—'}</div>
-          <div className="text-xs text-neutral-400">
+          <div className="text-xs text-neutral-500">
             {latest ? fmtShort(latest.date) : 'Log your first weigh-in'}
             {change != null && ` · ${change > 0 ? '+' : ''}${Math.round(change * 10) / 10} ${units.weight} since ${fmtShort(first.date)}`}
           </div>
@@ -60,20 +60,21 @@ export function BodyweightSection() {
           max={today}
           onChange={(e) => setDate(e.target.value || today)}
           aria-label="Weigh-in date"
-          className="min-w-0 flex-1 rounded-lg bg-neutral-100 px-2 py-2 text-sm outline-none"
+          className="h-11 min-w-0 flex-1 rounded-xl bg-neutral-100 px-3 text-sm outline-none"
         />
         <div className="w-20"><NumberInput value={draft} step={0.1} placeholder={units.weight} onChange={setDraft} /></div>
-        <button disabled={!draft} className="rounded-xl bg-accent px-4 py-2 text-sm text-on-accent disabled:opacity-30">Log</button>
+        <button disabled={!draft} className="h-11 rounded-xl bg-accent px-4 text-sm font-semibold text-on-accent">Log</button>
       </form>
 
       {points.length > 0 ? (
         <>
-          <div className="mb-2 flex gap-1.5">
+          <div className="mb-2 flex gap-2">
             {RANGES.map((r) => (
               <button
                 key={r.id}
                 onClick={() => setRange(r.id)}
-                className={`rounded-full px-3 py-1 text-xs ${r.id === range ? 'bg-accent text-on-accent' : 'bg-neutral-100 text-neutral-500'}`}
+                aria-pressed={r.id === range}
+                className={`hit rounded-full px-3 py-1.5 text-xs ${r.id === range ? 'bg-accent font-medium text-on-accent' : 'bg-neutral-100 text-neutral-600'}`}
               >
                 {r.label}
               </button>
@@ -85,15 +86,15 @@ export function BodyweightSection() {
             label="Body weight"
             refLine={target != null ? { y: target, label: `Goal ${target}` } : undefined}
           />
-          {points.length === 1 && <p className="mt-1 text-xs text-neutral-400">Log another weigh-in to see your trend.</p>}
+          {points.length === 1 && <p className="mt-1 text-xs text-neutral-500">Log another weigh-in to see your trend.</p>}
         </>
       ) : (
-        bodyweight.length > 0 && <p className="text-sm text-neutral-400">No weigh-ins in this range.</p>
+        bodyweight.length > 0 && <p className="text-sm text-neutral-500">No weigh-ins in this range.</p>
       )}
 
       {bodyweight.length > 0 && (
         <div className="mt-3 border-t border-neutral-100 pt-2">
-          <button onClick={() => setShowEntries(!showEntries)} className="text-xs text-neutral-400">
+          <button onClick={() => setShowEntries(!showEntries)} aria-expanded={showEntries} className="hit text-xs font-medium text-neutral-500">
             {showEntries ? 'Hide entries' : `All entries (${bodyweight.length})`}
           </button>
           {showEntries && (
@@ -103,7 +104,7 @@ export function BodyweightSection() {
                   <span className="text-neutral-500">{fmtShort(b.date)}</span>
                   <span className="flex items-center gap-3 tabular-nums">
                     {format(showWeight(b.lb, units)!)}
-                    <button onClick={() => deleteBodyweight(b.date)} aria-label={`Delete ${b.date}`} className="text-lg leading-none text-neutral-300">×</button>
+                    <button onClick={() => confirm(`Delete the weigh-in on ${fmtShort(b.date)}?`) && deleteBodyweight(b.date)} aria-label={`Delete ${b.date}`} className="hit flex h-7 w-7 items-center justify-center rounded-full text-lg leading-none text-neutral-400 hover:bg-neutral-100">×</button>
                   </span>
                 </li>
               ))}

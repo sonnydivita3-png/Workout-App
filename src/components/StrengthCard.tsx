@@ -57,7 +57,8 @@ interface Props {
 }
 
 const TRACK: [ExerciseMode, string][] = [['weight', 'Track with weight'], ['reps', 'Track as bodyweight (reps only)'], ['time', 'Track by time (seconds)']]
-const MARK = { up: { t: '▲', c: 'text-green-600', l: 'beat last time' }, same: { t: '=', c: 'text-neutral-400', l: 'matched last time' }, down: { t: '▼', c: 'text-red-600', l: 'below last time' } } as const
+// The deeper shades: these sit on the set number's box, which takes a tint once the set is done.
+const MARK = { up: { t: '▲', c: 'text-green-800', l: 'beat last time' }, same: { t: '=', c: 'text-neutral-500', l: 'matched last time' }, down: { t: '▼', c: 'text-red-700', l: 'below last time' } } as const
 
 /**
  * One exercise to log: a target from last time, then a row per set. ✓ logs a set (filling in the target if nothing
@@ -325,7 +326,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: pl
                 onClick={() => setSetOpts(i)}
                 aria-label={`${label} options`}
                 title="Drop set, warm-up or delete"
-                className={`hit h-11 rounded-xl text-sm tabular-nums ${s.warmup ? 'font-semibold text-amber-700' : 'font-medium text-neutral-600'} ${ticked(s) ? 'bg-accent/15' : 'bg-neutral-50'}`}
+                className={`hit h-11 rounded-xl text-sm tabular-nums ${s.warmup ? 'font-semibold text-amber-800' : 'font-medium text-neutral-600'} ${ticked(s) ? 'bg-accent/15' : 'bg-neutral-50'}`}
               >
                 {s.warmup ? 'W' : s.drop ? 'D' : n}
                 {mark && <span className={`ml-0.5 text-[10px] ${mark.c}`} aria-label={mark.l}>{mark.t}</span>}

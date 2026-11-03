@@ -15,6 +15,7 @@ import { formatResult } from '../../lib/wod'
 import { findExercise, useStore } from '../../store'
 import { Sheet } from '../Sheet'
 import { Chevron } from '../Chevron'
+import { EmptyState } from '../EmptyState'
 import { sessionNoun } from '../../lib/cardioBests'
 
 const WD = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
@@ -54,6 +55,12 @@ export function WorkoutsTab() {
 
   return (
     <div className="space-y-4">
+      {/* Nothing yet: say so first, where it's seen, rather than under an empty calendar and charts. */}
+      {dates.length === 0 && (
+        <section className="rounded-2xl bg-surface shadow-sm ring-1 ring-neutral-200/70">
+          <EmptyState icon="🗓️" title="No workouts yet" className="py-8">Tick off your sets on the Workouts tab and tap Finish workout. Each session shows up here, compared with the time before.</EmptyState>
+        </section>
+      )}
       <section className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
         <div className="mb-2 flex items-center justify-between">
           <button onClick={() => shift(-1)} aria-label="Previous month" className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100"><Chevron left className="h-5 w-5" /></button>
@@ -104,7 +111,7 @@ export function WorkoutsTab() {
 
       <ConditioningSection />
 
-      {dates.length === 0 ? <p className="py-10 text-center text-neutral-400">Nothing logged yet. Your workouts show up here.</p> : (
+      {dates.length === 0 ? null : (
         <ul className="space-y-2">
           {dates.slice(0, 60).map((d) => {
             const s = workoutSummary(d, days.get(d)!.map((exerciseId) => ({ exerciseId, sets: 1 })), logs, lookup, units)
