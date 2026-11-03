@@ -17,7 +17,7 @@ import type { ExtraTimeChoice } from './lib/volumePrefs'
 import { setOwnedGear } from './lib/equipment'
 import { setChosenGear, setChosenModes, withChosenMode } from './lib/exerciseModes'
 import { setFavorites } from './lib/favorites'
-import { freshBlocks } from './lib/arrange'
+import { freshBlocks, withoutExercise } from './lib/arrange'
 import { setCustomExercises } from './lib/randomUtil'
 import { placeWarmups } from './lib/warmups'
 import { workSets } from './lib/progression'
@@ -407,7 +407,7 @@ export const useStore = create<State>()(
           const sets = kind !== 'strength' ? 1 : before ? Math.min(before, 10) : 3
           return editDay(s, date, (d) => (d.some((p) => p.exerciseId === exerciseId) ? d : [...d, { exerciseId, sets }]))
         }),
-      removeExercise: (date, exerciseId) => set((s) => editDay(s, date, (d) => d.filter((p) => p.exerciseId !== exerciseId))),
+      removeExercise: (date, exerciseId) => set((s) => editDay(s, date, (d) => withoutExercise(d, exerciseId))),
       setSetCount: (date, exerciseId, sets) =>
         set((s) => editDay(s, date, (d) => d.map((p) => (p.exerciseId === exerciseId ? { ...p, sets } : p)))),
       saveStrength: (date, exerciseId, sets) =>

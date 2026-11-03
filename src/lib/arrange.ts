@@ -89,6 +89,19 @@ export function removeFromGroup(items: PlannedExercise[], u: number, m: number):
 }
 
 /**
+ * The day without one exercise (removed from its card). A superset it leaves with one exercise dissolves, and a giant
+ * set left smaller is named for its size, as when taking one out in Reorder.
+ */
+export function withoutExercise(items: PlannedExercise[], exerciseId: string): PlannedExercise[] {
+  const units = unitsOf(items)
+  const u = units.findIndex((x) => x.items.some((y) => y.item.exerciseId === exerciseId))
+  const left = units[u]?.items.filter((y) => y.item.exerciseId !== exerciseId) ?? []
+  if (u < 0 || !isSuperset(units[u]) || left.length === 0) return items.filter((p) => p.exerciseId !== exerciseId)
+  const kept = left.length === 1 ? [single(left[0].item)] : relabel({ ...units[u], items: left }).items.map((y) => y.item)
+  return units.flatMap((x, i) => (i === u ? kept : x.items.map((y) => y.item)))
+}
+
+/**
  * Items joining a day (a routine, a friend's workout, one made for you) keep their blocks apart from the day's own: a
  * block id the day already uses ("ss1" next to its "ss1", a second Tabata) gets a new one, so two supersets don't read
  * as one giant set and two timed blocks don't share one result. Blocks named by their end (…hyrox, …pha) get the

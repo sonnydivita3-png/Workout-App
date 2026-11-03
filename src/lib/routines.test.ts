@@ -46,3 +46,20 @@ describe('a routine with a superset loaded onto a day with one', () => {
     expect(groupByBlock(useStore.getState().overrides['2026-11-09']).map((g) => g.items.length)).toEqual([2, 2])
   })
 })
+
+describe('removing an exercise from a superset on the day', () => {
+  const label = 'Superset 1 · Chest & back · alternate the two, rest about 60s after each pair'
+  const ss = (exerciseId: string): PlannedExercise => ({ exerciseId, sets: 3, reps: 10, rest: 60, block: 'ss1', blockLabel: label, est: 6 })
+  it('leaves the other one on its own, not under a superset heading', () => {
+    useStore.setState({ overrides: { '2026-11-09': [ss(BP), ss('Bent_Over_Barbell_Row'), { exerciseId: 'Barbell_Squat', sets: 3, reps: 5 }] } })
+    useStore.getState().removeExercise('2026-11-09', 'Bent_Over_Barbell_Row')
+    expect(useStore.getState().overrides['2026-11-09']).toEqual([{ exerciseId: BP, sets: 3, reps: 10, rest: 60 }, { exerciseId: 'Barbell_Squat', sets: 3, reps: 5 }])
+  })
+  it('a giant set of three left with two is a superset of two', () => {
+    useStore.setState({ overrides: { '2026-11-09': [ss(BP), ss('Bent_Over_Barbell_Row'), ss('Dumbbell_Bicep_Curl')] } })
+    useStore.getState().removeExercise('2026-11-09', 'Dumbbell_Bicep_Curl')
+    const day = useStore.getState().overrides['2026-11-09']
+    expect(day.map((p) => [p.exerciseId, p.block])).toEqual([[BP, 'ss1'], ['Bent_Over_Barbell_Row', 'ss1']])
+    expect(day[0].blockLabel).toBe('Superset')
+  })
+})
