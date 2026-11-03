@@ -1,5 +1,6 @@
 import type { ExerciseLog, ExerciseMode } from '../types'
 import { addDays, mondayOf, parseISO, toISO } from './dates'
+import { runsOf } from './cardioRuns'
 
 export interface StrengthSession {
   date: string
@@ -41,10 +42,8 @@ export function strengthSessions(logs: ExerciseLog[], exerciseId: string): Stren
 export function cardioSessions(logs: ExerciseLog[], exerciseId: string): CardioSession[] {
   return logs
     .filter((l) => l.exerciseId === exerciseId && l.cardio && (l.cardio.distance || l.cardio.minutes))
-    .map((l) => {
-      const { distance, minutes } = l.cardio!
-      return { date: l.date, distance, minutes, pace: distance && minutes ? minutes / distance : null }
-    })
+    // Two runs on one day are two sessions (for paces and records), not one long one.
+    .flatMap((l) => runsOf(l.cardio).filter((r) => r.distance || r.minutes).map(({ distance, minutes }) => ({ date: l.date, distance, minutes, pace: distance && minutes ? minutes / distance : null })))
     .sort((a, b) => a.date.localeCompare(b.date))
 }
 

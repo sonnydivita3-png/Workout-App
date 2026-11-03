@@ -1,5 +1,7 @@
 import { expandParts, partFromName } from './bodyParts'
 import { cleanAcceptance } from './legal'
+import { withRuns } from './cardioRuns'
+import type { CardioEntry } from '../types'
 import { WEIGHT_GEAR } from './exerciseModes'
 
 /**
@@ -32,7 +34,11 @@ function cleanLog(l: Obj): Obj {
   }
   if (isObj(l.cardio)) {
     const c = l.cardio
-    out.cardio = { ...c, distance: num(c.distance), minutes: num(c.minutes), ...('calories' in c ? { calories: num(c.calories) } : {}), ...('incline' in c ? { incline: num(c.incline) } : {}) }
+    const clean = (r: Obj) => ({ distance: num(r.distance), minutes: num(r.minutes), ...('calories' in r ? { calories: num(r.calories) } : {}), ...('incline' in r ? { incline: num(r.incline) } : {}) })
+    const { parts, ...rest } = c
+    // Several runs on the day: each checked, and the totals rebuilt from them (at most 20; one run is a plain log).
+    const runs = Array.isArray(parts) ? parts.filter(isObj).slice(0, 20).map(clean) : []
+    out.cardio = runs.length > 1 ? withRuns({ ...rest, ...clean(rest) } as CardioEntry, runs) : { ...rest, ...clean(rest) }
   }
   return out
 }

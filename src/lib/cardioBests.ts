@@ -1,4 +1,5 @@
-import type { Exercise, ExerciseLog, Units } from '../types'
+import type { CardioRun, Exercise, ExerciseLog, Units } from '../types'
+import { runsOf } from './cardioRuns'
 import { sportOf } from './cardio'
 import { familyOf } from './cardioSession'
 import { distanceUnitFor, formatCardioTime, formatDistanceFor } from './units'
@@ -55,6 +56,8 @@ function familyFor(exerciseId: string, ex?: Exercise): Family {
 
 const NOUN: Record<Family, string> = { run: 'run', walk: 'walk', hike: 'hike', bike: 'ride', erg: 'session', swim: 'swim', other: 'session' }
 const nounFor = (exerciseId: string, fam: Family) => (fam === 'erg' && /row/i.test(exerciseId) ? 'row' : NOUN[fam])
+/** What one session of this cardio is called: a run, a ride, a row, a swim… */
+export const sessionNoun = (exerciseId: string, ex?: Exercise) => nounFor(exerciseId, familyFor(exerciseId, ex))
 
 function standardsFor(exerciseId: string, units: Units, ex?: Exercise): Standard[] {
   const unit = distanceUnitFor(exerciseId, units)
@@ -84,7 +87,7 @@ interface Session { date: string; distance: number; minutes: number }
 function sessionsOf(logs: ExerciseLog[], exerciseId: string): Session[] {
   return logs
     .filter((l) => l.exerciseId === exerciseId && (l.cardio?.distance || l.cardio?.minutes))
-    .map((l) => ({ date: l.date, distance: l.cardio!.distance ?? 0, minutes: l.cardio!.minutes ?? 0 }))
+    .flatMap((l) => runsOf(l.cardio).filter((r) => r.distance || r.minutes).map((r) => ({ date: l.date, distance: r.distance ?? 0, minutes: r.minutes ?? 0 })))
     .sort((a, b) => a.date.localeCompare(b.date))
 }
 
@@ -107,11 +110,19 @@ export interface CardioBest {
 export function newCardioBests(
   logs: ExerciseLog[],
   exerciseId: string,
-  entry: { distance: number | null; minutes: number | null } | undefined,
+  entry: { distance: number | null; minutes: number | null; parts?: CardioRun[] } | undefined,
   date: string,
   units: Units,
   ex?: Exercise,
 ): CardioBest[] {
+  // Two runs on one day: each is judged on its own (two 2.5 km runs aren't a 5K), the better one per record.
+  if (entry?.parts && entry.parts.length > 1) {
+    const seen = new Map<string, CardioBest>()
+    for (const r of [...entry.parts].sort((a, b) => (b.distance ?? 0) - (a.distance ?? 0) || (a.minutes ?? 0) - (b.minutes ?? 0))) {
+      for (const best of newCardioBests(logs, exerciseId, r, date, units, ex)) if (!seen.has(best.key)) seen.set(best.key, best)
+    }
+    return [...seen.values()]
+  }
   const d = entry?.distance ?? 0
   const m = entry?.minutes ?? 0
   if (!d && !m) return []

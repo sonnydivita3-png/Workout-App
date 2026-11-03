@@ -14,6 +14,7 @@ import { useToday } from '../../lib/useToday'
 import { formatResult } from '../../lib/wod'
 import { findExercise, useStore } from '../../store'
 import { Sheet } from '../Sheet'
+import { sessionNoun } from '../../lib/cardioBests'
 
 const WD = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
@@ -150,7 +151,7 @@ function DaySheet({ date, onClose, lookupUnits: units }: { date: string; onClose
           const ex = lookup(l.exerciseId)
           const r = status.get(l.exerciseId)
           const detail = l.cardio
-            ? cardioLine(l.cardio, l.exerciseId, units)
+            ? `${cardioLine(l.cardio, l.exerciseId, units)}${(l.cardio.parts?.length ?? 0) > 1 ? ` (${l.cardio.parts!.length} ${sessionNoun(l.exerciseId)}s)` : ''}`
             : [...workSets(l), ...dropSetsOf(l)].map((x) => `${x.drop ? 'drop ' : ''}${x.seconds ? formatSeconds(x.seconds) : x.weight ? `${showWeight(x.weight, units)}×${x.reps ?? '–'}` : `${x.reps} reps`}`).join(', ')
           return (
             <li key={l.exerciseId} className="py-2.5">

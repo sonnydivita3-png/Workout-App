@@ -1,5 +1,6 @@
 import type { AboutMe, BodyweightEntry, CardioEntry, ExerciseLog } from '../types'
 import { toISO } from './dates'
+import { runsOf } from './cardioRuns'
 
 /**
  * Cardio calories, the standard way: MET (how hard the activity is, from the Compendium of Physical Activities)
@@ -186,7 +187,18 @@ export function caloriesBetween(logs: ExerciseLog[], bodyweight: BodyweightEntry
 /** Calories for a cardio log: what they entered (e.g. from a watch), else the estimate. */
 export function caloriesOf(l: ExerciseLog, bodyweight: BodyweightEntry[], me?: AboutMe | null): { kcal: number; estimated: boolean } | null {
   if (!l.cardio) return null
-  if (l.cardio.calories != null && l.cardio.calories > 0) return { kcal: l.cardio.calories, estimated: false }
-  const est = estimateCalories(l.exerciseId, l.cardio, bodyweightOn(bodyweight, l.date), me, l.date)
-  return est == null ? null : { kcal: est, estimated: true }
+  return runCalories(l.exerciseId, l.cardio, bodyweightOn(bodyweight, l.date), me, l.date)
+}
+
+/** Calories for a cardio entry: each run's own number if typed in, else its estimate (two runs: their sum). */
+export function runCalories(exerciseId: string, c: CardioEntry, lb: number | null, me: AboutMe | null | undefined, date: string): { kcal: number; estimated: boolean } | null {
+  let kcal = 0
+  let estimated = false
+  let any = false
+  for (const r of runsOf(c)) {
+    if (r.calories != null && r.calories > 0) { kcal += r.calories; any = true; continue }
+    const est = estimateCalories(exerciseId, r, lb, me, date)
+    if (est != null) { kcal += est; estimated = true; any = true }
+  }
+  return any ? { kcal, estimated } : null
 }

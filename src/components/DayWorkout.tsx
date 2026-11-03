@@ -20,6 +20,7 @@ import { StrengthCard } from './StrengthCard'
 import { TimedBlockCard } from './TimedBlockCard'
 import { HyroxFinish } from './HyroxFinish'
 import { WarmupCard } from './WarmupCard'
+import { hyroxRoute, isHyroxBlock } from '../lib/hyrox'
 
 /** The exercises planned for a day, ready to log (the Workouts tab). `onSetDone` hears about each ticked set. */
 export function DayWorkout({ date, items: planned, onSetDone }: { date: string; items: PlannedExercise[]; onSetDone?: (restSeconds: number) => void }) {
@@ -81,6 +82,10 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
                 )}
               </div>
             )}
+            {isHyroxBlock(g.block) && (() => {
+              const { runM, stations } = hyroxRoute(g.items)
+              return <p className="px-2 text-xs text-neutral-500">Once through: run{runM ? ` ${runM} m` : ''}, then the next station, {stations.length} times. Log the runs together on the run card.</p>
+            })()}
             {meta[gi].superset && meta[gi].roundRest > 0 && <p className="px-2 text-xs text-neutral-500">Do one set of each, back to back, then rest {fmtRest(meta[gi].roundRest)}.</p>}
             {(() => {
               const c = parseCircuit(g.label, g.items.map((x) => x.item))
@@ -91,6 +96,10 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
             {g.items.map(({ item: p, index }, mi) => {
               const ex = findExercise(s.custom, p.exerciseId)
               if (!ex) return null
+              // Hyrox: each station says where it comes in, with the run before it.
+              const route = isHyroxBlock(g.block) ? hyroxRoute(g.items) : null
+              const n = route ? route.stations.findIndex((e) => e.index === index) : -1
+              const note = route && n >= 0 ? [`Station ${n + 1} of ${route.stations.length}`, route.runM ? `run ${route.runM} m first` : 'run first', p.note].filter(Boolean).join(' · ') : p.note
               const current = s.logs.find((l) => l.date === date && l.exerciseId === ex.id)
               const last = selectLastLog(s.logs.filter((l) => l.exerciseId !== ex.id || !wasDeload(l.date, ex.id)), ex.id, date)
               return ex.kind === 'strength' ? (
@@ -103,7 +112,7 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
                   warmupSets={p.warmupSets}
                   rest={p.block ? undefined : p.rest}
                   restNote={meta[gi].superset ? (mi === g.items.length - 1 ? `then rest ${fmtRest(meta[gi].roundRest)}` : 'straight into the next') : meta[gi].circuit ? 'timed circuit' : undefined}
-                  note={p.note}
+                  note={note}
                   current={current}
                   last={last}
                   onSetCount={(n) => {
@@ -159,7 +168,7 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
                   targetMinutes={p.minutes}
                   targetDistance={p.distance}
                   targetIncline={p.incline}
-                  note={p.note}
+                  note={note}
                   onChange={(c) => s.saveCardio(date, ex.id, c)}
                   date={date}
                   onRemove={() => remove(ex)}
@@ -168,7 +177,7 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
                 />
               )
             })}
-            {g.block === 'hyrox' && <HyroxFinish items={g.items.map((x) => x.item)} date={date} label={g.label ?? 'Hyrox-style'} />}
+            {isHyroxBlock(g.block) && <HyroxFinish items={g.items.map((x) => x.item)} date={date} label={g.label ?? 'Hyrox-style'} />}
           </div>
         ))}
       {swap?.step === 'how' && (
