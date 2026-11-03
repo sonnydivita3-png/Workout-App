@@ -84,7 +84,7 @@ export function WorkoutsTab() {
       </section>
 
       <section className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
-        <p className="mb-1 text-sm font-semibold text-neutral-700">Hard sets per muscle · this week</p>
+        <h2 className="mb-1 text-sm font-semibold">Hard sets per muscle · this week</h2>
         <p className="mb-3 text-xs text-neutral-400">
           {onTarget} of {MUSCLE_GROUPS.length} on target. {setTarget ? `Your target: ${baseTarget(goal, setTarget)} a week` : goal.length ? `Target for ${goalLabel}: ${baseTarget(goal)} a week` : `Target: ${baseTarget(null)} a week (set your goal in Settings to tailor it)`}, less for smaller muscles. Grey is last week.
         </p>

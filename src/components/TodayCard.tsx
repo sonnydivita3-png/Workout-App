@@ -38,7 +38,7 @@ export function TodayCard({ onNavigate }: { onNavigate: (t: Tab, part?: string) 
   if (planned.length > 0 && (upcoming.length === 0 || s.finishedDays.includes(today))) {
     body = (
       <>
-        <p className="text-lg font-semibold">Done for today ✓</p>
+        <h2 className="text-lg font-semibold">Done for today ✓</h2>
         <p className="mb-3 text-sm text-neutral-500">{upcoming.length === 0 ? `All ${planned.length} exercise${planned.length === 1 ? '' : 's'} logged.` : `${planned.length - upcoming.length} of ${planned.length} exercises logged.`} Nice work.</p>
         <div className="flex gap-2">
           <button onClick={start} className="hit rounded-full bg-neutral-100 px-4 py-1.5 text-sm font-medium text-neutral-700">Open workout</button>
@@ -50,7 +50,7 @@ export function TodayCard({ onNavigate }: { onNavigate: (t: Tab, part?: string) 
     body = (
       <>
         <div className="mb-3 flex items-baseline justify-between gap-3">
-          <p className="text-lg font-semibold">Today’s workout</p>
+          <h2 className="text-lg font-semibold">Today’s workout</h2>
           <p className="shrink-0 text-sm text-neutral-500">{planned.length} exercise{planned.length === 1 ? '' : 's'}{minutes > 0 ? ` · ~${minutes} min` : ''}</p>
         </div>
         <ul className="mb-4 space-y-2">
@@ -74,7 +74,7 @@ export function TodayCard({ onNavigate }: { onNavigate: (t: Tab, part?: string) 
   } else {
     body = (
       <>
-        <p className="text-lg font-semibold">{rest ? 'Rest day' : 'Nothing planned today'}</p>
+        <h2 className="text-lg font-semibold">{rest ? 'Rest day' : 'Nothing planned today'}</h2>
         <p className="mb-3 text-sm text-neutral-500">{rest ? 'Recovery is part of the plan. Feel like training anyway?' : 'Pick a way to train:'}</p>
         <div className="space-y-2">
           {repeatItems.length > 0 && previous && (

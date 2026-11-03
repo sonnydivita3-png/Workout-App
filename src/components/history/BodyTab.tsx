@@ -38,7 +38,7 @@ export function BodyTab() {
       <BodyweightSection />
       <section className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
         <div className="mb-3 flex items-center justify-between">
-          <p className="text-sm font-semibold text-neutral-700">Measurements</p>
+          <h2 className="text-sm font-semibold">Measurements</h2>
           <button onClick={() => { setDraft({}); setDate(today); setAdding(true) }} className="hit rounded-full bg-accent px-3 py-1.5 text-sm font-semibold text-on-accent">+ Log</button>
         </div>
         <div className="mb-3 flex flex-wrap gap-2">
@@ -115,7 +115,7 @@ function Photos() {
   return (
     <section className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
       <div className="mb-1 flex items-center justify-between">
-        <p className="text-sm font-semibold text-neutral-700">Progress photos</p>
+        <h2 className="text-sm font-semibold">Progress photos</h2>
         <button onClick={() => file.current?.click()} className="hit rounded-full bg-accent px-3 py-1.5 text-sm font-semibold text-on-accent">+ Photo</button>
       </div>
       <p className="mb-3 text-xs text-neutral-500">Saved only on this phone, never uploaded or shared, and not included in backups. Tap two to compare.</p>
