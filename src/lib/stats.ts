@@ -16,6 +16,8 @@ export interface CardioSession {
   distance: number | null
   minutes: number | null
   pace: number | null // minutes per mile
+  /** One of several runs logged on the day: its place among them (0, 1…). */
+  part?: number
 }
 
 /** Epley estimated one-rep max. */
@@ -46,7 +48,10 @@ export function cardioSessions(logs: ExerciseLog[], exerciseId: string): CardioS
   return logs
     .filter((l) => l.exerciseId === exerciseId && l.cardio && (l.cardio.distance || l.cardio.minutes))
     // Two runs on one day are two sessions (for paces and records), not one long one.
-    .flatMap((l) => runsOf(l.cardio).filter((r) => r.distance || r.minutes).map(({ distance, minutes }) => ({ date: l.date, distance, minutes, pace: distance && minutes ? minutes / distance : null })))
+    .flatMap((l) => {
+      const runs = runsOf(l.cardio)
+      return runs.flatMap(({ distance, minutes }, i) => (distance || minutes ? [{ date: l.date, distance, minutes, pace: distance && minutes ? minutes / distance : null, ...(runs.length > 1 ? { part: i } : {}) }] : []))
+    })
     .sort((a, b) => a.date.localeCompare(b.date))
 }
 

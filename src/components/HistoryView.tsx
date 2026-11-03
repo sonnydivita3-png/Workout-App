@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { SettingsGear } from './SettingsGear'
 import { cardioLine, distanceUnitFor, paceBasis, formatSeconds, showDistanceIn, showWeight } from '../lib/units'
-import { cardioRecords } from '../lib/cardioBests'
+import { cardioRecords, sessionNoun } from '../lib/cardioBests'
+import { withRuns } from '../lib/cardioRuns'
 import { cardioSessions, hasData, isPR, setSessions, strengthSessions } from '../lib/stats'
 import { findExercise, useStore } from '../store'
 import type { Exercise, StrengthSet } from '../types'
@@ -112,7 +113,7 @@ function ExercisesTab() {
 type Metric = 'e1rm' | 'top' | 'volume' | 'pace' | 'distance' | 'time' | 'best' | 'total'
 
 function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }) {
-  const { logs, units, deleteLogs } = useStore()
+  const { logs, units, deleteLogs, saveCardio } = useStore()
   const isStrength = exercise.kind === 'strength'
   const strength = useMemo(() => (exercise.mode ?? 'weight') === 'weight' ? strengthSessions(logs, exercise.id) : [], [logs, exercise.id, exercise.mode])
   // A weighted lift only ever done with bodyweight (dips, pull-ups, an ab roller) charts reps, like a bodyweight move.
@@ -130,6 +131,15 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
     [logs, exercise.id],
   )
   const setLabel = (x: StrengthSet) => (exercise.mode === 'reps' ? `${x.reps} reps` : formatSet(x, exercise.mode ?? 'weight', units).replace('×', ' × '))
+  // One of two runs on a day is deleted on its own; the other stays.
+  const noun = sessionNoun(exercise.id, exercise)
+  const removeSession = (date: string, part?: number) => {
+    const c = logs.find((l) => l.exerciseId === exercise.id && l.date === date)?.cardio
+    const what = part == null ? `${exercise.name} on ${fmtLong(date)}` : `this ${noun} on ${fmtLong(date)}`
+    if (!confirm(`Delete ${what}? This can’t be undone.`)) return
+    if (part != null && c?.parts && c.parts.length > 1) saveCardio(date, exercise.id, withRuns(c, c.parts.filter((_, i) => i !== part)))
+    else deleteLogs(exercise.id, date)
+  }
 
   const metrics: { id: Metric; label: string }[] = isStrength
     ? mode === 'weight'
@@ -228,12 +238,12 @@ function Detail({ exercise, onBack }: { exercise: Exercise; onBack: () => void }
       <h2 className="mb-2 mt-6 text-sm font-semibold text-neutral-700">Sessions</h2>
       <ul className="space-y-2">
         {(isStrength ? lifts : [...cardio].reverse()).map((s) => (
-          <li key={s.date} className="rounded-2xl bg-surface p-4 text-sm shadow-sm ring-1 ring-neutral-200/70">
+          <li key={'part' in s ? `${s.date}-${s.part}` : s.date} className="rounded-2xl bg-surface p-4 text-sm shadow-sm ring-1 ring-neutral-200/70">
             <div className="mb-1 flex items-center justify-between">
               <span className="font-medium">{fmtLong(s.date)}</span>
               <button
-                onClick={() => confirm(`Delete ${exercise.name} on ${fmtLong(s.date)}? This can’t be undone.`) && deleteLogs(exercise.id, s.date)}
-                aria-label={`Delete ${fmtLong(s.date)}`}
+                onClick={() => removeSession(s.date, 'part' in s ? s.part : undefined)}
+                aria-label={`Delete ${fmtLong(s.date)}${'part' in s && s.part != null ? `, ${noun} ${s.part + 1}` : ''}`}
                 className="text-xs text-red-600"
               >
                 Delete
