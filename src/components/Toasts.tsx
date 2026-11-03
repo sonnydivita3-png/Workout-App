@@ -11,11 +11,13 @@ function ToastItem({ toast, onOpen }: { toast: Toast; onOpen?: (to: NonNullable<
   return (
     <button
       onClick={() => { dismiss(toast.id); if (go) onOpen!(go) }}
-      className="pop-in w-full rounded-2xl bg-surface px-4 py-3 text-left text-neutral-900 shadow-lg ring-1 ring-accent"
+      className="pop-in flex w-full items-center gap-3 rounded-2xl bg-surface px-4 py-2.5 text-left text-neutral-900 shadow-lg ring-1 ring-accent"
     >
-      <span className="block text-sm font-medium">{toast.title}</span>
-      <span className="block text-xs text-neutral-500">{toast.body}</span>
-      {go && <span className="mt-0.5 block text-xs font-medium text-neutral-600">Tap to open ›</span>}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold">{toast.title}</span>
+        <span className="line-clamp-2 block text-xs text-neutral-500">{toast.body}</span>
+      </span>
+      {go && <span className="shrink-0 text-xs font-medium text-neutral-600">Tap to open ›</span>}
     </button>
   )
 }
@@ -64,7 +66,9 @@ export function Toasts({ onOpen }: { onOpen?: (to: NonNullable<Toast['open']>) =
     <>
       {shown > 0 && <Confetti key={shown} />}
       {toasts.length > 0 && (
-        <div role="status" className="pointer-events-none fixed inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] z-50 mx-auto max-w-md space-y-2 px-4">
+        // At the top, where nothing is being logged and a thumb doesn't tap by accident (the ✓ column and the main
+        // buttons are lower down); a finished exercise scrolls to just below them.
+        <div role="status" className="pointer-events-none fixed inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] z-50 mx-auto max-w-md space-y-1.5 px-4">
           {toasts.map((t) => (
             <div key={t.id} className="pointer-events-auto"><ToastItem toast={t} onOpen={onOpen} /></div>
           ))}

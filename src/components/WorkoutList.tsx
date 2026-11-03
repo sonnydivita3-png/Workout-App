@@ -3,6 +3,7 @@ import { hyroxRoute, isHyroxBlock, runsAs } from '../lib/hyrox'
 import { formatCardioTime } from '../lib/units'
 import { findExercise, useStore } from '../store'
 import type { PlannedExercise } from '../types'
+import { shownLabels } from './blockLabels'
 
 interface Props {
   items: PlannedExercise[]
@@ -17,9 +18,11 @@ export function WorkoutList({ items, onSwap, onChoose, onRemove }: Props) {
   const units = useStore((s) => s.units)
   const editable = !!(onSwap || onChoose || onRemove)
 
+  const groups = groupByBlock(items)
+  const headings = shownLabels(groups.map((g) => g.label))
   return (
     <div className="space-y-3">
-      {groupByBlock(items).map((g, gi) => isHyroxBlock(g.block) ? (
+      {groups.map((g, gi) => isHyroxBlock(g.block) ? (
         // Hyrox: the route, a line per station with the run before it, once through.
         (() => {
           const { run, runM, stations } = hyroxRoute(g.items)
@@ -58,7 +61,7 @@ export function WorkoutList({ items, onSwap, onChoose, onRemove }: Props) {
         })()
       ) : (
         <div key={gi} className={g.block ? 'rounded-2xl bg-neutral-50 px-3 py-2' : ''}>
-          {g.block && g.label && <p className="pb-1 pt-0.5 text-xs font-semibold text-neutral-600">{g.label}</p>}
+          {g.block && g.label && <p className="pb-1 pt-0.5 text-xs font-semibold text-neutral-600">{headings[gi]}</p>}
           <ul className="divide-y divide-neutral-100">
             {g.items.map(({ item: p, index }) => {
               const ex = findExercise(custom, p.exerciseId)

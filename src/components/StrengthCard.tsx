@@ -12,6 +12,7 @@ import type { Exercise, ExerciseLog, ExerciseMode, StrengthSet } from '../types'
 import { HoldTimerSheet } from './IntervalTimerSheet'
 import { NumberInput } from './NumberInput'
 import { rowBtn, Sheet } from './Sheet'
+import { scrollToTop } from './ui'
 
 interface Props {
   exercise: Exercise
@@ -196,7 +197,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: pl
     const next = { ...s, weight: s.weight ?? t.weight ?? null, reps: s.reps ?? t.reps ?? null, ...(mode === 'time' ? { seconds: s.seconds ?? t.seconds ?? null } : {}) }
     update(i, { ...next, done: true, auto: !filled(s) })
     // That was the last one: the card folds up; bring it to the top so the next exercise is right below.
-    if (!readOnly && sets.every((x, j) => x.warmup || j === i || ticked(x))) setTimeout(() => card.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60)
+    if (!readOnly && sets.every((x, j) => x.warmup || j === i || ticked(x))) setTimeout(() => scrollToTop(card.current), 60)
     try { navigator.vibrate?.(15) } catch { /* not supported */ }
     const round = sets.slice(0, i + 1).filter((x) => !x.warmup && !x.drop).length
     // No rest before a drop set, nor after one (that's the point of them).

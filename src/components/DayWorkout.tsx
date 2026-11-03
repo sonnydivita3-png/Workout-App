@@ -20,6 +20,7 @@ import { StrengthCard } from './StrengthCard'
 import { TimedBlockCard } from './TimedBlockCard'
 import { HyroxFinish } from './HyroxFinish'
 import { Chevron } from './Chevron'
+import { shownLabels } from './blockLabels'
 import { WarmupCard } from './WarmupCard'
 import { hyroxRoute, isHyroxBlock } from '../lib/hyrox'
 
@@ -56,6 +57,7 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
   // A planned deload week is lighter on purpose: targets afterwards build from the last full week instead.
   const wasDeload = (d: string, id: string) => dayPlanOf(s.plan, s.overrides, d).some((q) => q.exerciseId === id && q.deload)
   const groups = groupByBlock(planned)
+  const headings = shownLabels(groups.map((g) => g.label))
   // Supersets (not circuits, which have their own timer) rest once per round, as long as the longest planned rest.
   const meta = groups.map((g) => {
     const superset = !!g.block && g.items.length > 1 && canCombine(g) && (/(^|-)ss\d/.test(g.block) || /^Superset/.test(g.label ?? ''))
@@ -77,7 +79,7 @@ export function DayWorkout({ date, items: planned, onSetDone }: { date: string; 
           <div key={gi} className={g.block ? 'space-y-2 rounded-3xl bg-neutral-200/50 p-2' : 'contents'}>
             {g.block && g.label && (
               <div className="flex items-center justify-between px-2 pt-1">
-                <p className="text-xs font-semibold text-neutral-600">{g.label}</p>
+                <p className="text-xs font-semibold text-neutral-600">{headings[gi]}</p>
                 {canCombine(g) && g.items.length > 1 && (
                   <button onClick={() => s.setDayItems(date, ungroup(planned, gi))} className="hit shrink-0 text-xs font-medium text-neutral-500 underline underline-offset-2">Split</button>
                 )}

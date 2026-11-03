@@ -9,6 +9,7 @@ import { useStore } from '../store'
 import type { CardioEntry, CardioRun, Exercise, ExerciseLog } from '../types'
 import { NumberInput } from './NumberInput'
 import { rowBtn, Sheet } from './Sheet'
+import { scrollToTop } from './ui'
 
 interface Props {
   exercise: Exercise
@@ -94,7 +95,7 @@ export function CardioCard({ exercise, current, last, targetMinutes, targetDista
   const curLogged = cur.distance != null || cur.minutes != null
   const markDone = () => {
     save({ ...c, done: !done })
-    if (!done) setTimeout(() => card.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60)
+    if (!done) setTimeout(() => scrollToTop(card.current), 60)
   }
   // The whole day's: every run's distance and time, and each run's calories (typed in, else estimated).
   const all = runs.length > 1 ? runCalories(exercise.id, c, lb, aboutMe, day) : own ? { kcal: cur.calories!, estimated: false } : est != null ? { kcal: est, estimated: true } : null
