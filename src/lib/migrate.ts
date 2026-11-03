@@ -44,6 +44,19 @@ function cleanLog(l: Obj): Obj {
 }
 const isPlanned = (p: unknown): p is Obj => isObj(p) && typeof p.exerciseId === 'string'
 const hasId = (x: unknown): x is Obj => isObj(x) && typeof x.id === 'string'
+/**
+ * What the screens read from a saved plan, timed result, routine or benchmark besides its id: its dated entries, its
+ * format and movements, its exercises. One without them is dropped (it crashed the tab showing it, at every launch);
+ * the rest is cleaned to what can be read.
+ */
+const SHAPES: Record<string, (x: Obj) => Obj | null> = {
+  programs: (x) => (Array.isArray(x.entries) ? { ...x, entries: x.entries.filter((e) => isObj(e) && typeof e.date === 'string') } : null),
+  timedLogs: (x) => (typeof x.date === 'string' && ISO.test(x.date) && isObj(x.wod) && typeof x.wod.kind === 'string' && Array.isArray(x.movements)
+    ? { ...x, movements: x.movements.filter((m) => typeof m === 'string') } : null),
+  routines: (x) => (Array.isArray(x.items) ? { ...x, items: x.items.filter(isPlanned) } : null),
+  benchmarks: (x) => (Array.isArray(x.items) ? { ...x, items: x.items.filter(isPlanned) } : null),
+}
+const shaped = (k: string, list: Obj[]) => (SHAPES[k] ? list.map(SHAPES[k]).filter((x): x is Obj => !!x) : list)
 
 // Exercises that were logged as timed sets in older versions and are cardio (time and distance) now.
 const NOW_CARDIO = new Set(['x-skierg', 'x-row-erg'])
@@ -76,7 +89,7 @@ export function repairState<T extends Obj>(saved: unknown, defaults: T): T {
   if (isObj(saved.overrides)) for (const [d, items] of Object.entries(saved.overrides)) if (ISO.test(d) && Array.isArray(items)) overrides[d] = items.filter(isPlanned)
   out.overrides = overrides
   out.logs = arr(saved.logs, isLog).map(toCardioLog).map(cleanLog)
-  for (const k of ['custom', 'routines', 'goals', 'notifications', 'programs', 'timedLogs', 'measurements', 'benchmarks']) if (k in defaults) out[k] = arr(saved[k], hasId)
+  for (const k of ['custom', 'routines', 'goals', 'notifications', 'programs', 'timedLogs', 'measurements', 'benchmarks']) if (k in defaults) out[k] = shaped(k, arr(saved[k], hasId))
   // Legs and Arms became body parts (Quads, Hamstrings, Calves; Biceps, Triceps): file older exercises and choices.
   if (Array.isArray(out.custom)) out.custom = (out.custom as Obj[]).map((e) => (typeof e.group === 'string' && typeof e.name === 'string' ? { ...e, group: partFromName(e.group, e.name) } : e))
   if (isObj(out.genPrefs) && Array.isArray(out.genPrefs.focus)) out.genPrefs = { ...out.genPrefs, focus: expandParts(out.genPrefs.focus.filter((f): f is string => typeof f === 'string')) }
@@ -97,6 +110,8 @@ export function repairState<T extends Obj>(saved: unknown, defaults: T): T {
     out.exerciseGear = gear
   }
   if ('favorites' in defaults) out.favorites = [...new Set(arr(saved.favorites, (f): f is string => typeof f === 'string'))]
+  // Their equipment: names, or null for a full gym (anything else stopped the app from starting).
+  if ('equipment' in defaults) out.equipment = Array.isArray(saved.equipment) ? saved.equipment.filter((g) => typeof g === 'string') : null
   // Keep anything the app no longer knows about (e.g. from a newer version) so it isn't lost.
   for (const [k, v] of Object.entries(saved)) if (!UNSAFE.has(k) && !(k in out) && typeof v !== 'function') out[k] = v
   return out as T
