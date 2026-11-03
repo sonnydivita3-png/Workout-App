@@ -1,5 +1,6 @@
 import type { ExerciseLog, PlannedExercise } from '../types'
 import { groupByBlock } from './describe'
+import { isTicked } from './setRows'
 
 /**
  * Rearranging a day: its exercises form "units" (a single exercise, or a group sharing a block such as a superset,
@@ -89,12 +90,12 @@ export function removeFromGroup(items: PlannedExercise[], u: number, m: number):
 
 /**
  * Supersets are done back to back, resting only after each round. A round is complete once every exercise in the
- * group that has that many sets has logged that working set (warm-up sets don't count).
+ * group that has that many sets has ticked that working set (warm-ups and drop sets don't count).
  */
 export function roundDone(members: { exerciseId: string; sets: number }[], logs: ExerciseLog[], date: string, round: number): boolean {
   return members.every((m) => {
     if (m.sets < round) return true
     const sets = logs.find((l) => l.date === date && l.exerciseId === m.exerciseId)?.sets ?? []
-    return sets.filter((s) => !s.warmup && (s.weight || s.reps || s.seconds)).length >= round
+    return sets.filter((s) => !s.warmup && !s.drop && isTicked(s)).length >= round
   })
 }

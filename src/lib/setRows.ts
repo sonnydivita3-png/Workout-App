@@ -7,6 +7,12 @@ export const hasNumbers = (s: StrengthSet) => !!(s.weight || s.reps || s.seconds
 export const isTicked = (s: StrengthSet) => s.done ?? hasNumbers(s)
 
 /**
+ * A set that counts as logged (history, records, volume, last time): it has numbers and is ticked. Numbers typed in
+ * but not ticked yet don't count, as "Finish workout" says; older sets without a tick count by their numbers.
+ */
+export const isLogged = (s: StrengthSet) => hasNumbers(s) && s.done !== false
+
+/**
  * The rows an exercise card shows: planned warm-ups, then working sets, then drop sets. A logged set keeps its own
  * flags, so a set you turned into a warm-up (or back into a working set) counts as that everywhere: on the card, in
  * "Finish workout" and in your history.

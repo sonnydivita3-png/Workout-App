@@ -36,6 +36,23 @@ describe('PRs and what counts as logged', () => {
   })
 })
 
+describe('sets typed in but not ticked', () => {
+  // Typing doesn't log a set, ✓ does ("Finish workout" lists these as not logged yet); older sets without a tick count.
+  const typed = { weight: 225, reps: 5, done: false, auto: false }
+  it('are not a workout, a session, a best or volume until ticked', () => {
+    const logs = [lift('2026-10-26', [{ weight: 185, reps: 5, done: true }]), lift('2026-10-28', [typed])]
+    expect(hasData(logs[1])).toBe(false)
+    expect(strengthSessions(logs, 'bench').map((s) => s.date)).toEqual(['2026-10-26'])
+    expect(bestLift(logs, 'bench')).toBe(185)
+    expect(weekStats(logs, '2026-10-28')).toMatchObject({ workouts: 1, volume: 925 })
+    expect(bestLift([lift('2026-10-28', [{ weight: null, reps: 30, done: false }], 'push')], 'push', 'reps')).toBe(0)
+  })
+  it('count once ticked, and sets from before ticks existed count by their numbers', () => {
+    expect(hasData(lift('2026-10-28', [{ ...typed, done: true }]))).toBe(true)
+    expect(bestLift([lift('2026-10-28', [{ weight: 225, reps: 5 }])], 'bench')).toBe(225)
+  })
+})
+
 describe('the week', () => {
   const day = (date: string) => lift(date, [{ weight: 100, reps: 10 }])
   it('a streak counts weeks in a row with a workout; the current week only adds once it has one', () => {

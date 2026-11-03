@@ -28,6 +28,13 @@ describe('personal bests', () => {
     expect(n[0]).toMatchObject({ type: 'pr', id: `pr:${BP}:${today}:weight` })
     expect(n[0].body).toContain('140')
   })
+  it('never for a heavier set that was typed in but not ticked', () => {
+    const untried: ExerciseLog[] = [
+      { date: '2026-09-22', exerciseId: BP, sets: sets(135) },
+      { date: today, exerciseId: BP, sets: [{ weight: 135, reps: 5, done: true }, { weight: 150, reps: 5, done: false }] },
+    ]
+    expect(run({ logs: untried })).toEqual([])
+  })
   it('ignores ties, lower weights, and a first-ever session', () => {
     expect(run({ logs: logs(135) })).toHaveLength(0)
     expect(run({ logs: logs(120) })).toHaveLength(0)

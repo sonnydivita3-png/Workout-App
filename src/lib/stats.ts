@@ -1,6 +1,7 @@
 import type { ExerciseLog, ExerciseMode } from '../types'
 import { addDays, mondayOf, parseISO, toISO } from './dates'
 import { runsOf } from './cardioRuns'
+import { isLogged } from './setRows'
 
 export interface StrengthSession {
   date: string
@@ -24,7 +25,7 @@ export function strengthSessions(logs: ExerciseLog[], exerciseId: string): Stren
   return logs
     .filter((l) => l.exerciseId === exerciseId && l.sets)
     .map((l) => {
-      const sets = l.sets!.filter((s): s is { weight: number; reps: number } => !s.warmup && !!s.weight && !!s.reps)
+      const sets = l.sets!.filter((s): s is { weight: number; reps: number } => !s.warmup && !!s.weight && !!s.reps && isLogged(s))
       return {
         date: l.date,
         sets,
@@ -54,8 +55,9 @@ export function isPR(values: number[]): boolean {
   return last > 0 && last > Math.max(...values.slice(0, -1))
 }
 
+/** Something was logged: a set with numbers that's ticked (see isLogged), or cardio with a distance or time. */
 export const hasData = (l: ExerciseLog) =>
-  !!l.sets?.some((s) => s.weight || s.reps || s.seconds) || !!(l.cardio?.distance || l.cardio?.minutes)
+  !!l.sets?.some(isLogged) || !!(l.cardio?.distance || l.cardio?.minutes)
 
 /** Dates (YYYY-MM-DD) with at least one logged exercise. */
 export const workoutDates = (logs: ExerciseLog[]) => new Set(logs.filter(hasData).map((l) => l.date))
@@ -82,7 +84,7 @@ export function weekStats(logs: ExerciseLog[], today: string): WeekStats {
     const [from, to] = range(offset)
     return logs
       .filter((l) => inRange(l.date, from, to) && l.date <= until)
-      .reduce((a, l) => a + (l.sets ?? []).reduce((b, s) => b + (s.warmup ? 0 : (s.weight ?? 0) * (s.reps ?? 0)), 0), 0)
+      .reduce((a, l) => a + (l.sets ?? []).reduce((b, s) => b + (s.warmup || !isLogged(s) ? 0 : (s.weight ?? 0) * (s.reps ?? 0)), 0), 0)
   }
   const count = (offset: number, until = today) => {
     const [from, to] = range(offset)
@@ -110,7 +112,7 @@ export function setSessions(logs: ExerciseLog[], exerciseId: string, mode: 'reps
   return logs
     .filter((l) => l.exerciseId === exerciseId && l.sets)
     .map((l) => {
-      const values = l.sets!.filter((s) => !s.warmup).map((s) => (mode === 'time' ? s.seconds : s.reps)).filter((v): v is number => !!v)
+      const values = l.sets!.filter((s) => !s.warmup && isLogged(s)).map((s) => (mode === 'time' ? s.seconds : s.reps)).filter((v): v is number => !!v)
       return { date: l.date, values, best: Math.max(0, ...values), total: values.reduce((a, v) => a + v, 0) }
     })
     .filter((s) => s.values.length > 0)

@@ -5,6 +5,7 @@ import type { WorkoutStyle } from './randomizer'
 import { BY_ID, isIsolation } from './randomUtil'
 import { liftMinutes } from './timing'
 import { runsOf } from './cardioRuns'
+import { isLogged } from './setRows'
 
 // ---------------------------------------------------------------------------------------------
 // A workout built to burn about so many calories. Each part burns (MET − resting) × bodyweight × time, the same net
@@ -309,7 +310,7 @@ export function finishedCalories(
       }
       continue
     }
-    const done = (log.sets ?? []).filter((s) => !s.warmup && !s.drop && (s.weight || s.reps || s.seconds)).length
+    const done = (log.sets ?? []).filter((s) => !s.warmup && !s.drop && isLogged(s)).length
     if (done === 0) continue
     // A timed block (AMRAP, EMOM, circuit) counts its time once it's logged; a lift, the share of its sets done.
     const timed = !!p.block && !p.block.includes('ss')

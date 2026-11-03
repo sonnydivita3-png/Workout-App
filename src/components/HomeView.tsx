@@ -3,6 +3,7 @@ import { fmtLong } from '../lib/dates'
 import { goalDetail, goalPct, goalTitle } from '../lib/goals'
 import { lastWorkout } from '../lib/plan'
 import { weekStats } from '../lib/stats'
+import { isLogged } from '../lib/setRows'
 import { caloriesBetween } from '../lib/calories'
 import { weekOf } from '../lib/conditioning'
 import { addDays, parseISO, toISO } from '../lib/dates'
@@ -37,7 +38,7 @@ function summary(l: ExerciseLog, u: Units): string {
   if (l.cardio) {
     return cardioLine(l.cardio, l.exerciseId, u)
   }
-  const all = (l.sets ?? []).filter((s) => !s.warmup)
+  const all = (l.sets ?? []).filter((s) => !s.warmup && isLogged(s))
   const sets = all.filter((s) => s.weight && s.reps)
   if (sets.length > 0) {
     const top = sets.reduce((a, s) => (s.weight! > a.weight! ? s : a))

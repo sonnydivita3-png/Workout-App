@@ -5,6 +5,7 @@ import { cardioTypeOf } from './cardioPrefs'
 import { addDays, mondayOf, parseISO, toISO } from './dates'
 import { dayPlanOf } from './plan'
 import { tabataOf, wodSignature } from './wod'
+import { isLogged } from './setRows'
 
 /** Monday–Sunday of the week `weeksAgo` before the one holding `date`. */
 export function weekOf(date: string, weeksAgo = 0): [string, string] {
@@ -80,7 +81,7 @@ export function conditioningWeek(
   for (const t of timedLogs) if (inRange(t.date, range)) add(t.hyrox ? 'Hyrox' : KIND_LABEL[t.wod.kind], timedMinutes(t))
   for (let d = range[0]; d <= range[1]; d = toISO(addDays(parseISO(d), 1))) {
     const circuit = dayPlanOf(plan, overrides, d).filter((p) => p.block === 'pha' || /^circuit/.test(p.block ?? ''))
-    const done = circuit.filter((p) => logs.some((l) => l.date === d && l.exerciseId === p.exerciseId && (l.sets?.some((s) => s.reps || s.seconds || s.weight) || l.cardio)))
+    const done = circuit.filter((p) => logs.some((l) => l.date === d && l.exerciseId === p.exerciseId && (l.sets?.some(isLogged) || l.cardio)))
     if (done.length) add('Circuits', circuit.reduce((a, p) => a + (p.est ?? 0), 0))
   }
   const byKind = [...by].map(([label, minutes]) => ({ label, minutes })).sort((a, b) => b.minutes - a.minutes)

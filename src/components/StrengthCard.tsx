@@ -5,7 +5,7 @@ import { compareSet, dropSetsOf, FIRST_TIME, formatSet, platesFor, weightStep, w
 import { restFor, warmupRamp } from '../lib/timing'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import { needsGear, timedWithWeight } from '../lib/exerciseModes'
-import { hasNumbers, insertDropSet, isTicked, rowNumber, setRows, workingRows } from '../lib/setRows'
+import { hasNumbers, insertDropSet, isLogged, isTicked, rowNumber, setRows, workingRows } from '../lib/setRows'
 import { formatSeconds, showWeight, storeWeight } from '../lib/units'
 import { useStore } from '../store'
 import type { Exercise, ExerciseLog, ExerciseMode, StrengthSet } from '../types'
@@ -97,7 +97,7 @@ export function StrengthCard({ exercise, setCount, targetReps, targetSeconds: pl
   // No suggested weights (a guess can be too heavy and get someone hurt): each working set shows the same set from last
   // time, and ✓ repeats its weight with the reps or time planned for today. Warm-ups and drop sets are worked out from
   // their own weight (always lighter): see rampFor and dropFor.
-  const lastRows = { warmup: (last?.sets ?? []).filter((x) => x.warmup && hasNumbers(x)), work: lastWork, drop: dropSetsOf(last) }
+  const lastRows = { warmup: (last?.sets ?? []).filter((x) => x.warmup && isLogged(x)), work: lastWork, drop: dropSetsOf(last) }
   const kindOf = (x: StrengthSet) => (x.warmup ? 'warmup' : x.drop ? 'drop' : 'work') as keyof typeof lastRows
   const lastFor = (i: number): StrengthSet | undefined => {
     const kind = kindOf(sets[i])

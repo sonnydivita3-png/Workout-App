@@ -65,4 +65,9 @@ describe('superset rounds', () => {
     expect(roundDone(members, [log('a', 2, 2), log('b', 1)], 'd', 2)).toBe(false) // warm-ups don't count
     expect(roundDone(members, [log('a', 3), log('b', 2)], 'd', 3)).toBe(true) // b has only 2 sets
   })
+  it("a partner's set typed in but not ticked yet isn't done", () => {
+    const typed = { date: 'd', exerciseId: 'b', sets: [{ weight: 100, reps: 8, done: false }] }
+    expect(roundDone(members, [log('a', 1), typed], 'd', 1)).toBe(false)
+    expect(roundDone(members, [log('a', 1), { ...typed, sets: [{ weight: 100, reps: 8, done: true }] }], 'd', 1)).toBe(true)
+  })
 })

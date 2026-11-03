@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_BY_ID } from '../data/exercises'
 import type { ExerciseLog } from '../types'
-import { compareSet, formatSet, plateau, platesFor, sessionBasis, sessionScore } from './progression'
+import { compareSet, formatSet, plateau, platesFor, sessionBasis, sessionScore, workSets } from './progression'
 
 const lb = { weight: 'lb', distance: 'mi' } as const
 const bench = BUILTIN_BY_ID.get('Barbell_Bench_Press_-_Medium_Grip')!
@@ -21,6 +21,13 @@ describe('comparisons and plates', () => {
     expect(platesFor(185, lb).perSide).toEqual([45, 25])
     expect(platesFor(100, { weight: 'kg', distance: 'km' }).perSide).toEqual([25, 15])
     expect(platesFor(47, lb).left).toBe(2)
+  })
+})
+
+describe('the sets done last time', () => {
+  it('are the ticked working sets: not warm-ups, drop sets, or numbers typed in but never ticked', () => {
+    const l = log([{ weight: 95, reps: 8, warmup: true, done: true }, { weight: 185, reps: 5, done: true }, { weight: 150, reps: 8, drop: true, done: true }, { weight: 185, reps: 5, done: false }, { weight: 185, reps: 4 }])
+    expect(workSets(l)).toEqual([{ weight: 185, reps: 5, done: true }, { weight: 185, reps: 4 }])
   })
 })
 
