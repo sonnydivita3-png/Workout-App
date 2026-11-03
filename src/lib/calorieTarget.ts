@@ -78,7 +78,7 @@ const round5 = (m: number) => Math.max(5, Math.round(m / 5) * 5)
 
 /**
  * Minutes for each part to burn about `target` calories. With a `flexible` part (the cardio), the others keep their
- * minutes and it makes up the rest (at least 5 minutes). Without one, the warm-up keeps its minutes and the other parts
+ * minutes and it makes up the rest (at least 10 minutes). Without one, the warm-up keeps its minutes and the other parts
  * keep their shares of the time and grow (or shrink) together. `steady` parts keep their minutes too (a Tabata is a set
  * amount of work). Minutes round to 5.
  */
@@ -91,7 +91,8 @@ export function planForCalories(target: number, parts: CaloriePart[], rate: (met
   const grow = parts.filter((p) => !fixed.includes(p))
   if (flexible) {
     const f = grow.find((p) => p.key === flexible)
-    if (f) minutes[f.key] = round5(rest / Math.max(0.1, rate(f.met)))
+    // At least 10 minutes: the shortest cardio session (an easy start and finish around the work).
+    if (f) minutes[f.key] = Math.max(10, round5(rest / Math.max(0.1, rate(f.met))))
   } else if (grow.length) {
     const share = grow.reduce((a, p) => a + p.minutes, 0) || grow.length
     const perShare = grow.reduce((a, p) => a + ((p.minutes || 1) / share) * rate(p.met), 0)
@@ -237,16 +238,32 @@ const pieceMet = (p: PlannedExercise, factor: number) =>
 /** lift: for a lifting exercise the app doesn't know (see liftMet); cond: timed and circuit blocks. */
 export interface WorkoutMets { lift: number; cond: number; cardioFactor: number }
 
+/** The average MET of a workout over its minutes (each item as workoutCalories counts it, warm-up left out). */
+export function workoutMet(items: PlannedExercise[], mets: WorkoutMets): number | null {
+  let minutes = 0
+  let work = 0
+  for (const p of items) {
+    if (p.warmup) continue
+    const m = minutesOf(p)
+    const met = isCardioPiece(p) ? pieceMet(p, mets.cardioFactor) : p.block && !p.block.includes('ss') ? mets.cond : liftMet(BY_ID.get(p.exerciseId), p, mets.lift)
+    minutes += m
+    work += m * met
+  }
+  return minutes > 0 ? work / minutes : null
+}
+
 /** Estimated net calories for a workout: warm-up, each lift (see liftMet), timed blocks, and each cardio piece. */
 export function workoutCalories(items: PlannedExercise[], rate: (met: number) => number, mets: WorkoutMets): number {
   return Math.round(items.reduce((a, p) => {
     const met = isCardioPiece(p) ? pieceMet(p, mets.cardioFactor) : p.warmup ? WARMUP_MET : p.block && !p.block.includes('ss') ? mets.cond : liftMet(BY_ID.get(p.exerciseId), p, mets.lift)
-    return a + minutesOf(p) * rate(met)
+    // A run added to a Hyrox's run card burns like a run, not like the Hyrox around it.
+    const own = p.extra && !isCardioPiece(p) ? Math.min(p.extra, minutesOf(p)) : 0
+    return a + (minutesOf(p) - own) * rate(met) + (own ? own * rate(pieceMet({ ...p, minutes: own, distance: undefined }, mets.cardioFactor)) : 0)
   }, 0))
 }
 
 /**
- * The cardio pieces lengthened or shortened together (each at least 5 minutes, rounded to 5) so the whole workout
+ * The cardio pieces lengthened or shortened together (each at least 10 minutes, rounded to 5) so the whole workout
  * comes to about `target`. A planned distance scales with its time. Without cardio pieces, the workout is unchanged.
  */
 export function fitCardio(items: PlannedExercise[], target: number, rate: (met: number) => number, mets: WorkoutMets): PlannedExercise[] {
@@ -257,7 +274,8 @@ export function fitCardio(items: PlannedExercise[], target: number, rate: (met: 
   const scale = Math.max(0, target - rest) / Math.max(1, now)
   return items.map((p) => {
     if (!pieces.includes(p)) return p
-    const minutes = round5(p.minutes! * scale)
+    // At least 10 minutes: the shortest cardio session (an easy start and finish around the work).
+    const minutes = Math.max(10, round5(p.minutes! * scale))
     return { ...p, minutes, est: minutes, ...(p.distance ? { distance: Math.round(p.distance * (minutes / p.minutes!) * 10) / 10 } : {}) }
   })
 }

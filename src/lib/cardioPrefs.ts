@@ -79,6 +79,9 @@ export function wodCardio(): Exercise[] {
   return mine.length ? mine : usable(fits.filter((c) => DEFAULT_WOD.includes(c.id)))
 }
 
+/** The classic machines for a station that they can use, whatever they like (when the one they like is taken). */
+export const classicWodCardio = (): Exercise[] => usable(CARDIO_TYPES.filter((c) => c.wod && DEFAULT_WOD.includes(c.id)))
+
 /** "12 cal", "200 m", "60 reps" or "45s" for one station; `scale` stretches it (e.g. longer rounds). */
 export function wodAmount(exerciseId: string, scale = 1): string {
   const w = cardioTypeOf(exerciseId)?.wod ?? { amount: 60, unit: 's' as const }

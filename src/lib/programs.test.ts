@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { ExerciseLog, PlanOverrides, Program } from '../types'
 import { useStore } from '../store'
 import type { CardioDay } from './cardioPlan'
-import { activePrograms, clearRange, removeProgramDays, sharedDays } from './programs'
+import { activePrograms, addSession, clearRange, layerDays, removeProgramDays, sharedDays } from './programs'
+import { mergeIntoDay } from './randomizer'
 
 const run = { exerciseId: 'running', sets: 1 }
 const lift = { exerciseId: 'Barbell_Deadlift', sets: 3 }
@@ -176,5 +177,37 @@ describe('deleteLogs', () => {
     expect(useStore.getState().logs.map((l) => l.date + l.exerciseId)).toEqual(['2026-09-02a', '2026-09-02b'])
     useStore.getState().deleteLogs('a')
     expect(useStore.getState().logs.map((l) => l.exerciseId)).toEqual(['b'])
+  })
+})
+
+describe('a Hyrox and a run on the same day, however they get there: both stay, one entry per exercise', () => {
+  const hyrox = [
+    { exerciseId: 'running', sets: 1, minutes: 25, note: '550 m run before each of the 7 stations', block: 'hyrox', blockLabel: 'Hyrox-style · 7 × (550 m run + station)' },
+    { exerciseId: 'x-skierg', sets: 1, note: '525 m', block: 'hyrox', blockLabel: 'Hyrox-style · 7 × (550 m run + station)' },
+    { exerciseId: 'x-wall-balls', sets: 1, note: '55 reps', block: 'hyrox', blockLabel: 'Hyrox-style · 7 × (550 m run + station)' },
+  ]
+  const planRun = { exerciseId: 'running', sets: 1, minutes: 40, note: 'Easy run', plan: 'p' }
+  const unique = (xs: { exerciseId: string }[]) => new Set(xs.map((x) => x.exerciseId)).size === xs.length
+  it('a generated Hyrox added to a day with a run: the Hyrox runs go on the treadmill', () => {
+    const day = mergeIntoDay([planRun], hyrox)
+    expect(unique(day)).toBe(true)
+    expect(day.find((x) => x.exerciseId === 'running')).toMatchObject({ minutes: 40, plan: 'p' })
+    expect(day.find((x) => /run before each/.test(x.note ?? ''))?.exerciseId).toBe('Running_Treadmill')
+  })
+  it('a run plan laid on a day with a Hyrox (added by hand, or from a week plan): no second "Running", nothing lost', () => {
+    for (const tag of [{}, { plan: 'lift' }]) {
+      const lifting: Program = { id: 'lift', kind: 'program', title: 'Month', createdAt: '', entries: [{ date: '2026-10-01', exerciseIds: ['running'] }] }
+      const day = addSession(hyrox.map((x) => ({ ...x, ...tag })), planRun, [lifting], (id) => id === 'running' || id === 'x-skierg')
+      expect(unique(day), JSON.stringify(tag)).toBe(true)
+      expect(day.some((x) => /run before each/.test(x.note ?? ''))).toBe(true)
+      expect(day.some((x) => x.plan === 'p')).toBe(true)
+    }
+  })
+  it('a week plan with a Hyrox day laid over a run plan: the run plan keeps its run, the Hyrox moves to the treadmill', () => {
+    const runPlan: Program = { id: 'p', kind: 'cardio', title: '10K', sport: 'run', createdAt: '', entries: [{ date: '2026-10-01', exerciseId: 'running' }] }
+    const self: Program = { id: 'w', kind: 'program', title: 'Week', createdAt: '', entries: [{ date: '2026-10-01', exerciseIds: ['running', 'x-skierg', 'x-wall-balls'] }] }
+    const next = layerDays({ '2026-10-01': hyrox }, { '2026-10-01': [planRun] }, [runPlan], self)
+    expect(unique(next['2026-10-01'])).toBe(true)
+    expect(next['2026-10-01'].filter((x) => x.exerciseId === 'running')).toEqual([planRun])
   })
 })

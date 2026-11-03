@@ -11,7 +11,7 @@ import { repairState, SCHEMA_VERSION } from './lib/migrate'
 import { TERMS_VERSION, type LegalAcceptance } from './lib/legal'
 import { SYNC_KEYS } from './lib/sync'
 import type { RestPref } from './lib/timing'
-import type { WorkoutStyle } from './lib/randomizer'
+import { mergeIntoDay, type WorkoutStyle } from './lib/randomizer'
 import type { ExtraTimeChoice } from './lib/volumePrefs'
 
 import { setOwnedGear } from './lib/equipment'
@@ -287,10 +287,8 @@ function editDay(s: Pick<Data, 'plan' | 'overrides' | 'custom'>, date: string, f
   return { overrides: { ...s.overrides, [date]: next } }
 }
 
-const appendMissing = (d: PlannedExercise[], items: PlannedExercise[]) => [
-  ...d,
-  ...items.filter((p) => !d.some((q) => q.exerciseId === p.exerciseId)).map((p) => ({ ...p })),
-]
+// One entry per exercise a day; a block clashing with an entry moves over rather than either going (see mergeIntoDay).
+const appendMissing = (d: PlannedExercise[], items: PlannedExercise[]) => mergeIntoDay(d, items)
 
 /** Editing sets shouldn't wipe the note on that exercise. */
 const keepNote = (logs: ExerciseLog[], date: string, exerciseId: string) => {

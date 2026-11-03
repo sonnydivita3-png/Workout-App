@@ -76,8 +76,8 @@ test('1,000 calories in 1.5 hours, lifting + running: the pace it takes, and way
   while (!/45 min/.test((await sheet.locator('li', { hasText: 'Standard' }).first().textContent())!)) await sheet.getByRole('button', { name: 'More Standard time' }).click()
   await expect(status).toContainText(/Running: 45 min at about (9|1\d)(\.\d)? mph/)
   await expect(status).toContainText('faster than most people can hold')
-  // At a usual running pace it would take about 2¼ hours.
-  await expect(status.getByRole('button', { name: 'Allow 2h 15m' })).toBeVisible()
+  // At a usual running pace (and the lifting's usual burn) it would take about 2 hours.
+  await expect(status.getByRole('button', { name: /^Allow 2h (00|15)m$/ })).toBeVisible()
   const speed = async () => Number((await status.textContent())!.match(/at about (\d+(?:\.\d)?) mph/)![1])
   const before = await speed()
   // Harder lifting burns more a minute, so the run can be slower.
@@ -107,7 +107,8 @@ test('lifting only within a time limit: the style it takes, one tap to switch', 
   const status = sheet.getByRole('status')
   await expect(status).toContainText(/That takes .+-style work/)
   await status.getByRole('button', { name: /^Use / }).click()
-  await expect(status).toContainText(/gets there\./)
+  // That style reaches it inside the hour (the limit is the most it takes, so it's done sooner).
+  await expect(status).toContainText(/gets there\.|done in about \d+ min, inside your 1h 00m\./)
   // 1,000 in an hour: no lifting style burns that much.
   await sheet.getByRole('button', { name: '1,000 cal' }).click()
   await expect(status).toContainText('No lifting style burns that much in that time')

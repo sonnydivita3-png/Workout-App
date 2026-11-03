@@ -537,10 +537,15 @@ export function generateCardioPlan(input: CardioPlanInput): CardioPlan {
       const weights: Record<Role, number> = { long: 0, quality: 1.15, medium: 1.6, quality2: 1.0, easy: 1.0 }
       const others = usable.filter(([, ro]) => ro !== 'long')
       const total = others.reduce((a, [, ro]) => a + weights[ro], 0) || 1
-      const floor = level === 'beginner' ? 2 : 2.5
+      // The shortest runs worth lacing up for, but no more than their week allows: someone on 5 miles a week who runs
+      // four days starts near 5 miles, not at four runs' minimums (8.5 miles, a 70% jump in the first week).
+      const most = level === 'beginner' ? 2 : 2.5
+      const per = m.vol / Math.max(1, usable.length)
+      const floor = Math.min(most, Math.max(1.5, floorLong(m.vol * 0.35)))
+      const easyFloor = Math.min(most - 0.5, Math.max(1, roundEasy(per * 0.8)))
       amounts.set('long', floorLong(Math.max(floor, long)))
       for (const ro of new Set(others.map(([, x]) => x))) {
-        amounts.set(ro, Math.min(roundEasy(Math.max(floor - 0.5, (remaining * weights[ro]) / total)), roundEasy(amounts.get('long')! * 0.8)))
+        amounts.set(ro, Math.min(roundEasy(Math.max(easyFloor, (remaining * weights[ro]) / total)), roundEasy(amounts.get('long')! * 0.8)))
       }
     } else {
       const scale = input.currentWeekly && input.currentWeekly > 0 ? Math.min(1.6, Math.max(0.6, input.currentWeekly / bikeBaselineHours(level))) : 1
@@ -612,6 +617,12 @@ export function generateCardioPlan(input: CardioPlanInput): CardioPlan {
   }
   const longs = out.filter((d) => d.role === 'long' && d.miles)
   peak = { volume: Math.max(0, ...weeksOut.filter((x) => x.phase !== 'race').map((x) => x.volume)), longMiles: Math.max(0, ...longs.map((d) => d.miles!)) }
+  // More days than their miles fill: each run has a shortest worth doing, so the first week can start above what they
+  // run now. Say so, with the gentler ways in.
+  const firstWeek = weeksOut.find((w) => w.sessions > 0)
+  if (sport === 'run' && input.currentWeekly && firstWeek && firstWeek.volume > input.currentWeekly * 1.25 + 0.25) {
+    warnings.push(`With ${days.length} runs a week, week 1 is about ${dist(firstWeek.volume, input.units)}, more than the ${dist(input.currentWeekly, input.units)} you run now. Fewer running days${level === 'beginner' ? ', or Couch to 5K,' : ''} would start gentler.`)
+  }
   return { event, days: out, weeks: weeksOut, warnings, paces, raceDate, peak }
 }
 

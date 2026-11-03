@@ -8,7 +8,7 @@ import { liftMinutes, REST_SCALE, restFor, transitionMin, WARMUP_SET_MIN, workSe
 import { addDropSets, dropGroups, dropSafety, placeWarmups } from './warmups'
 import { buildCircuitItems, circuitLabel, type CircuitTiming } from './wod'
 import { cardioSession, sessionsFor, type CardioSessionKind, type TabataFormat } from './cardioSession'
-import { cardioSplit, likedCardio, wodAmount, wodCardio } from './cardioPrefs'
+import { cardioSplit, classicWodCardio, likedCardio, wodAmount, wodCardio } from './cardioPrefs'
 import { expandParts, FULL_BODY_ORDER, isFullBody, LOWER_PARTS, UPPER_PARTS, BODY_PARTS } from './bodyParts'
 import { byPreference, liked, preferenceBonus, tooAdvanced, unwanted } from './movePrefs'
 import { favoriteIds, isFavorite } from './favorites'
@@ -390,7 +390,8 @@ function supersetMinutes(a: PlannedExercise, b: PlannedExercise, pref: RestPref)
   const rounds = Math.max(a.sets, b.sets)
   const rest = Math.round(PAIR_REST * REST_SCALE[pref])
   const secs = rounds * (workSeconds(a) + workSeconds(b) + 20) + (rounds - 1) * rest
-  return secs / 60 + (a.warmupSets ?? 0) * WARMUP_SET_MIN + transitionMin(BY_ID.get(a.exerciseId)) + transitionMin(BY_ID.get(b.exerciseId))
+  // (Both lifts of a pair can have warm-up sets: a bench press with a barbell row.)
+  return secs / 60 + ((a.warmupSets ?? 0) + (b.warmupSets ?? 0)) * WARMUP_SET_MIN + transitionMin(BY_ID.get(a.exerciseId)) + transitionMin(BY_ID.get(b.exerciseId))
 }
 
 /** Each part's classic movements, tried in order on full-body days (the first that fits the equipment wins). */
@@ -452,7 +453,10 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
   const taken = new Set<string>()
   const items: PlannedExercise[] = []
   const perPart = new Map<string, number>()
-  const cost = () => liftsMinutes(items, pref)
+  // Warm-up sets (when asked for) count from the start: they go on the first two weight lifts once those are in, and
+  // adding them after the time was filled ran a 30-minute session to 36.
+  const warmTop = cfg.mains ? 3 : 2
+  const cost = () => liftsMinutes(opts.warmupSets ? placeWarmups(items, (id) => BY_ID.get(id), warmTop) : items, pref)
   const make = (e: Exercise, sets: number, main = false): PlannedExercise => {
     const t = repsIn(opts.repRange, e, main) ?? (main && cfg.mainTargets ? cfg.mainTargets : cfg.targets)(e, rng)
     return { exerciseId: e.id, sets, ...t, rest: restFor(e, t.reps, t.seconds, pref) }
@@ -558,7 +562,7 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
   const warmups = () => {
     if (!opts.warmupSets) return
     // The first two weight lifts get them (never bodyweight or core), as on any day you edit later.
-    const placed = placeWarmups(items.map(({ warmupSets: _w, ...p }) => (void _w, p)), (id) => BY_ID.get(id), cfg.mains ? 3 : 2)
+    const placed = placeWarmups(items.map(({ warmupSets: _w, ...p }) => (void _w, p)), (id) => BY_ID.get(id), warmTop)
     items.splice(0, items.length, ...placed)
   }
   warmups()
@@ -691,19 +695,23 @@ function pickSupersets(groups: string[], minutes: number, rng: Rng, avoid: Set<s
     return [...sets].every(([g, n]) => !opts.setCap || n <= opts.setCap(g)) && [...count].every(([, n]) => !opts.maxPerPart || n <= opts.maxPerPart)
   }
   const pairs = entriesOf(makeSupersets(pool, extras, extra, BODY_PARTS.every((p) => groups.includes(p))))
+  // Warm-up sets (when asked for) are part of the time: chosen with them in, not added after (which ran a 30-minute
+  // session to 35).
+  const lookup = (id: string) => BY_ID.get(id)
+  const timeOf = (list: PlannedExercise[]) => liftsMinutes(opts.warmupSets ? placeWarmups(bigLiftsFirst(list), lookup, 2) : list, pref)
   let best: PlannedExercise[] = []
   let bestScore = Infinity
   for (let k = 1; k <= pairs.length; k++) {
     for (const rounds of [3, 4, 5]) {
       const trial = pairs.slice(0, k).flat().map((p) => ({ ...p, sets: rounds }))
-      const t = liftsMinutes(trial, pref)
+      const t = timeOf(trial)
       const score = t > minutes * 1.08 || !withinCap(trial) ? Infinity : Math.abs(t - minutes)
       if (score < bestScore) { best = trial; bestScore = score }
     }
   }
   if (best.length === 0 && pairs[0]) best = pairs[0].map((p) => ({ ...p, sets: 3 }))
   // Still short: finish with one straight-set exercise from the leftovers.
-  if (liftsMinutes(best, pref) < minutes * 0.9) {
+  if (timeOf(best) < minutes * 0.9) {
     // Not one already in (nor a second of a movement or, when every part is in, a second of a body part).
     const oneEach = BODY_PARTS.every((p) => groups.includes(p))
     const of = (p: PlannedExercise) => BY_ID.get(p.exerciseId)
@@ -714,13 +722,13 @@ function pickSupersets(groups: string[], minutes: number, rng: Rng, avoid: Set<s
     const options = leftovers.flatMap((p) => [3, 2].map((sets) => ({ ...p, sets, block: undefined, blockLabel: undefined })))
     let pick: PlannedExercise | undefined
     for (const extra of options) {
-      const t = liftsMinutes([...best, extra], pref)
-      if (t <= minutes * 1.08 && withinCap([...best, extra]) && (!pick || Math.abs(t - minutes) < Math.abs(liftsMinutes([...best, pick], pref) - minutes))) pick = extra
+      const t = timeOf([...best, extra])
+      if (t <= minutes * 1.08 && withinCap([...best, extra]) && (!pick || Math.abs(t - minutes) < Math.abs(timeOf([...best, pick]) - minutes))) pick = extra
     }
     if (pick) best = [...best, pick]
   }
   best = bigLiftsFirst(best)
-  if (opts.warmupSets) best = placeWarmups(best, (id) => BY_ID.get(id), 2)
+  if (opts.warmupSets) best = placeWarmups(best, lookup, 2)
   // Spread each pair's time over its two exercises for the per-item estimate.
   for (let i = 0; i < best.length; ) {
     const a = best[i]
@@ -1307,12 +1315,87 @@ function generateMixed(focus: string[], minutes: number, styles: WorkoutStyle[],
 function withCardio(items: PlannedExercise[], minutes: number, rng: Rng, avoid: Set<string>, spec?: CardioSpec): PlannedExercise[] {
   const fin = pickCardio(minutes, rng, new Set([...avoid, ...items.map((p) => p.exerciseId)]), spec, items)
   let main = items.filter((p) => !(p.warmup && fin.some((f) => f.exerciseId === p.exerciseId)))
+  const merged = new Set<PlannedExercise>()
   for (const f of fin) {
     const i = main.findIndex((p) => p.exerciseId === f.exerciseId)
-    // Swapped with the cardio in view, so the station doesn't come back as the same machine.
-    if (i >= 0) main = swapExercise([...main, ...fin], i, rng).slice(0, main.length)
+    if (i < 0) continue
+    const made = makeRoomFor(main, i, [...main, ...fin], rng)
+    if (made) { main = made; continue }
+    // Nothing else to run on (no treadmill): one card for all the running, the Hyrox runs and the run after.
+    main = main.map((p, j) => (j === i ? mergeRun(p, f) : p))
+    merged.add(f)
   }
-  return [...main, ...fin.filter((f) => !main.some((p) => p.exerciseId === f.exerciseId))]
+  return [...main, ...fin.filter((f) => !merged.has(f) && !main.some((p) => p.exerciseId === f.exerciseId))]
+}
+
+/** Other ways to run: Hyrox runs move to one when the run they asked for after it is the same kind. */
+const RUN_SWAP: Record<string, string[]> = {
+  running: ['Running_Treadmill', 'Jogging_Treadmill'],
+  Running_Treadmill: ['Jogging_Treadmill', 'running'],
+  Jogging_Treadmill: ['Running_Treadmill', 'running'],
+  Walking_Treadmill: ['walking'],
+  walking: ['Walking_Treadmill'],
+}
+/** Bodyweight moves that take a cardio machine's place in a timed piece when there's no other machine to use. */
+const NO_MACHINE = ['x-burpee', 'x-jumping-jacks', 'Mountain_Climbers', 'x-high-knees', 'x-squat-thrust']
+
+/**
+ * Item `i` uses the cardio the workout ends with: change it so that cardio can be its own part, as asked. A Hyrox
+ * run moves to another way of running (outside ↔ treadmill), a machine station to another machine (one they like, else
+ * a classic one), else a bodyweight move. Null when there's no way to (they only run outside, and so does the Hyrox).
+ */
+function makeRoomFor(items: PlannedExercise[], i: number, all: PlannedExercise[], rng: Rng): PlannedExercise[] | null {
+  const p = items[i]
+  const used = new Set(all.map((q) => q.exerciseId))
+  const ok = (id: string) => { const e = BY_ID.get(id); return !!e && !used.has(id) && (hasGear(e) || (likedCardio() ?? []).some((x) => x.id === id)) }
+  if (/(^|-)hyrox$/.test(p.block ?? '')) {
+    const alt = (RUN_SWAP[p.exerciseId] ?? []).find(ok)
+    return alt ? items.map((q, j) => (j === i ? { ...q, exerciseId: alt } : q)) : null
+  }
+  if (!p.block) return null
+  const machine = [...wodCardio(), ...classicWodCardio()].find((e) => ok(e.id))
+  if (machine) return items.map((q, j) => (j === i ? { ...q, exerciseId: machine.id, ...(q.wod ? { note: wodAmount(machine.id, q.wod.kind === 'fortime' ? 1.25 : 1) } : {}) } : q))
+  const move = NO_MACHINE.map((id) => BY_ID.get(id)).find((e): e is Exercise => !!e && !used.has(e.id))
+  return move ? items.map((q, j) => (j === i ? plannedFor(move, q, rng) : q)) : null
+}
+
+/**
+ * A block in `items` (a Hyrox's runs, a WOD's rower) that uses `exerciseId` moves to something else, so `exerciseId`
+ * can be an entry of its own (one entry per exercise a day). `taken`: ids the day will also have. Null when no block
+ * uses it or it can't move (they only run outside, and so does the Hyrox).
+ */
+export function makeRoom(items: PlannedExercise[], exerciseId: string, taken: string[] = [], rng: Rng = Math.random): PlannedExercise[] | null {
+  const i = items.findIndex((p) => p.exerciseId === exerciseId && !!p.block && !p.warmup)
+  return i < 0 ? null : makeRoomFor(items, i, [...items, ...taken.map((id) => ({ exerciseId: id, sets: 1 }))], rng)
+}
+
+/**
+ * Exercises joining a day that already has some (a generated workout added, a plan's days laid on another plan's), one
+ * entry per exercise: when a block on either side uses an exercise the other has on its own (a Hyrox's runs and a run),
+ * the block moves to another (the treadmill, another machine) and both stay. Failing that, or for the same lift twice,
+ * what the day already has stays and the newcomer is left out.
+ */
+export function mergeIntoDay(day: PlannedExercise[], incoming: PlannedExercise[]): PlannedExercise[] {
+  let out = [...day]
+  let add = incoming.map((p) => ({ ...p }))
+  for (const id of new Set(add.map((p) => p.exerciseId))) {
+    if (!out.some((q) => q.exerciseId === id)) continue
+    const theirs = out.find((q) => q.exerciseId === id)!
+    const mine = add.find((q) => q.exerciseId === id)!
+    // The day's block moves over for the newcomer, or the newcomer's block moves over for the day's.
+    const moved = theirs.block && !theirs.warmup ? makeRoom(out, id, add.map((q) => q.exerciseId)) : null
+    if (moved) { out = moved; continue }
+    const movedMine = mine.block && !mine.warmup ? makeRoom(add, id, out.map((q) => q.exerciseId)) : null
+    if (movedMine) add = movedMine
+  }
+  return [...out, ...add.filter((p) => !out.some((q) => q.exerciseId === p.exerciseId))]
+}
+
+/** The run they asked for, added to the Hyrox runs' card (its time, and what it is, in the note). */
+function mergeRun(p: PlannedExercise, f: PlannedExercise): PlannedExercise {
+  const extra = (p.extra ?? 0) + (f.minutes ?? 0)
+  const what = f.note && !/^Steady/i.test(f.note) ? `: ${f.note}` : ''
+  return { ...p, minutes: (p.minutes ?? 0) + (f.minutes ?? 0), est: (p.est ?? p.minutes ?? 0) + (f.minutes ?? 0), extra, note: `${p.note ?? ''}, plus ${extra} min on its own${what}` }
 }
 
 /**

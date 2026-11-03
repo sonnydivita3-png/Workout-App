@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { parseISO, weekdayIndex } from '../lib/dates'
 import {
-  addFinisher, bringsOwnWarmup, extraTimeOptions, generateWorkout, LIFT_GROUPS, minutesFor, replaceExercise, STYLE_GROUPS, styleInfo, swapExercise,
+  addFinisher, bringsOwnWarmup, extraTimeOptions, LIFT_GROUPS, minutesFor, replaceExercise, styleInfo, swapExercise,
   type ExtraTime, type ExtraTimeOption, type GenerateOptions, type WorkoutStyle,
 } from '../lib/randomizer'
 import { overloaded, type Overload } from '../lib/muscles'
@@ -17,36 +17,27 @@ import { WarmupRestControls } from './WarmupRestControls'
 import { WorkoutList } from './WorkoutList'
 import { GearChoice } from './GearChoice'
 import { MoveChoice } from './TrainingPrefsPicker'
-import { withGearFor } from '../lib/equipment'
-import { withCardioFor } from '../lib/cardioPrefs'
 import { CardioChoice, type CardioPick } from './CardioChoice'
 import { lastDropGroups, phaThisWeek, placeCardio } from '../lib/plan'
 import { CardioActivityPicker } from './CardioActivityPicker'
-import { cardioIds, exerciseFor, inclineOf, INCLINES, sessionOf, setupFromIds, type CardioSetup } from '../lib/cardioSetup'
-import { CARDIO_SESSIONS, tabataMinutes, type CardioSessionKind } from '../lib/cardioSession'
-import { BUILTIN_BY_ID } from '../data/exercises'
+import { setupFromIds, type CardioSetup } from '../lib/cardioSetup'
 import { BY_ID } from '../lib/randomUtil'
-import { cardioMet, EFFORTS, effortLabel, fitCardio, setCardioPace, type Effort, metForRate, perMinute, planForCalories, planWithin, recentSpeed, SESSION_FACTOR, setCardioEffort, setIncline, STYLE_MET, styleFor, WARMUP_MET, workoutCalories } from '../lib/calorieTarget'
-import { bodyweightOn, inclinable, metFor, restingPerHour, speedForMet, topSpeed } from '../lib/calories'
-import { distanceFactor, formatMinutes, formatPace, showSpeed, showWeight, speedUnit, storeWeight } from '../lib/units'
+import { EFFORTS, type Effort, perMinute, STYLE_MET, workoutCalories } from '../lib/calorieTarget'
+import { bodyweightOn } from '../lib/calories'
+import { formatMinutes, formatPace, showSpeed, showWeight, speedUnit, storeWeight } from '../lib/units'
 import { useToday } from '../lib/useToday'
+import { cardioNameOf, COND_GROUPS, LIFT_STYLES, makeWorkout, minPart, planRequest, requestOptions, sessionLabelOf, topUpCalories, withRequestChoices, FAST, type Kind, type WorkoutRequest } from '../lib/workoutRequest'
 import { NumberInput } from './NumberInput'
 
 const MAX_HISTORY = 50
 const DURATIONS = [20, 30, 45, 60, 75, 90]
 const CALORIES = [300, 500, 750, 1000]
 const LIMITS = [45, 60, 75, 90, 120]
-/** Speeds most people can't hold for long, when there are no logs of theirs to go by (mph). */
-const FAST: Record<string, number> = { running: 9, Running_Treadmill: 9, cycling: 18, Bicycling: 18, walking: 4.5, Walking_Treadmill: 4.5 }
 // Styles that use cardio machines as stations.
 // Styles that choose their own lifts, so exercise-type preferences apply (timed formats use a set list of movements).
 const PICKS_LIFTS: WorkoutStyle[] = ['standard', 'strength', 'supersets', 'bodyweight', 'circuit', 'pha', 'functional', 'posture']
 const CONDITIONING: WorkoutStyle[] = ['crossfit', 'amrap', 'emom', 'fortime', 'tabata', 'circuit']
-type Kind = 'lift' | 'cond' | 'cardio'
 const KINDS: { id: Kind; label: string }[] = [{ id: 'lift', label: 'Lifting' }, { id: 'cond', label: 'Conditioning' }, { id: 'cardio', label: 'Cardio' }]
-const LIFT_STYLES: WorkoutStyle[] = ['standard', 'strength', 'supersets', 'bodyweight', 'functional', 'posture']
-/** HIIT, Timed, Hyrox / CrossFit, each with its variations. */
-const COND_GROUPS = STYLE_GROUPS.filter((g) => g.styles.every((st) => !LIFT_STYLES.includes(st)))
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 const chip = (on: boolean, disabled = false) =>
@@ -64,7 +55,7 @@ interface Props {
 interface Volume { over: Overload[]; options: ExtraTimeOption[]; base: PlannedExercise[]; opts: GenerateOptions; chosen: ExtraTime | 'more' | null; auto: boolean }
 
 export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
-  const { plan, overrides, addPlanned, saveRoutine, genPrefs, setGenPrefs, equipment, trainingPrefs, setTrainingPrefs, bodyweight, aboutMe, units, logBodyweight, logs, custom } = useStore()
+  const { plan: weekPlan, overrides, addPlanned, saveRoutine, genPrefs, setGenPrefs, equipment, trainingPrefs, setTrainingPrefs, bodyweight, aboutMe, units, logBodyweight, logs, custom } = useStore()
   const today = useToday()
   // Time, or a calorie target the time is worked out for.
   const [goalPicked, setGoal] = useState<'time' | 'calories'>('time')
@@ -112,34 +103,31 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const [saved, setSaved] = useState(false)
   const items = history.list[history.at] ?? null
 
-  const hasKind = (k: Kind) => kinds.includes(k)
+  // Everything worked out from what they picked (lib/workoutRequest.ts: the same code makes the workouts tests check).
+  const knownLb = bodyweightOn(bodyweight, today)
+  const lb = knownLb ?? storeWeight(weightIn, units)
+  const countTotal = trainingPrefs.calorieCount === 'total'
+  const req: WorkoutRequest = {
+    kinds, liftStyle, condStyle, focus, cardio, minutes, split, warm, stackOrder: trainingPrefs.stackOrder, goal: goalPicked, kcal, timeLimit,
+    paceIn, effort: effortPick, lb, me: aboutMe, today, units, countTotal, profileCardio: trainingPrefs.cardio, logs, gear, stations: cardioPick,
+  }
+  const plan = planRequest(req)
+  const {
+    has: hasKind, styles, focusIgnored, needsParts, canGenerate, cardioOnly, one, sessionKind, fixedCardio, cardioFlex, goal, body, genFocus, hasCardio,
+    cardioStart, parts, showSplit, partMin, total0, withSpeed, recentHere, paceMph, rate, cal, timed, needMet, speed, effort, liftNeed, tooHard,
+    steeper, usualMinutes, mets, minFor, totalMin, computed, cardioMetHere, incline, lifting, restPerMin, inLimit,
+  } = plan
+  const recent = recentHere
+  const ownStyle = styles[0]
+  const countWord = countTotal ? 'total' : 'active'
+  const withChoices = <T,>(fn: () => T) => withRequestChoices(req, plan, fn)
   const toggleKind = (k: Kind) => {
     setPickedKind(true)
     setKinds((cur) => (!pickedKind ? [k] : cur.includes(k) ? (cur.length > 1 ? cur.filter((x) => x !== k) : cur) : [...cur, k]))
   }
-  const styles: WorkoutStyle[] = [...(hasKind('lift') ? [liftStyle] : []), ...(hasKind('cond') ? [condStyle] : [])]
-  const cardioIdsPicked = cardioIds(cardio)
-  // Stations in timed pieces use the cardio picked for this workout, else the conditioning choice, else the profile.
-  const stationIds = hasKind('cardio') ? cardioIdsPicked : cardioPick.cardio
-  const withChoices = <T,>(fn: () => T) => withGearFor(gear, () => withCardioFor(stationIds, hasKind('cardio') ? cardio.split : cardioPick.split, fn))
-
   const infos = styles.map(styleInfo)
-  const focusIgnored = infos.length > 0 && infos.every((i) => i.focus === 'ignored')
-  const needsParts = infos.some((i) => i.focus === 'required')
-  const canGenerate = kinds.length > 0 && (!needsParts || focus.length > 0)
-  const cardioOnly = styles.length === 0
-  const one = cardioIdsPicked.length === 1 ? exerciseFor(cardioIdsPicked[0]) : undefined
-  // What the cardio picker shows as picked (a Tabata saved for an outside run isn't one on the treadmill).
-  const sessionKind: CardioSessionKind = sessionOf(cardio)
-  const sessionLabel = CARDIO_SESSIONS.find((x) => x.id === sessionKind)!.label
-  // Tabata is a set amount of work with its warm-up and cool-down on top: its own length, not the time picked (and no
-  // calorie target, which would mean stretching it).
-  const fixedCardio = hasKind('cardio') && sessionKind === 'tabata' ? Math.round(tabataMinutes(cardio.tabata, cardio.rounds)) : null
-  // With a calorie target, Tabata stays as it is (like the warm-up) and the rest of the workout makes up the burn. On
-  // its own there's nothing to make it up, so it's planned by time.
-  const cardioFlex = hasKind('cardio') && !fixedCardio
-  const goal = fixedCardio && cardioOnly ? 'time' : goalPicked
-  const cardioName = one ? (BUILTIN_BY_ID.get(one)?.name ?? 'Cardio') : 'Cardio'
+  const sessionLabel = sessionLabelOf(sessionKind)
+  const cardioName = cardioNameOf(plan)
   const styleLabel = cardioOnly ? `${cardioName} · ${sessionLabel}` : infos.map((i) => i.label).join(' + ')
 
   const commit = (made: PlannedExercise[]) => {
@@ -160,7 +148,6 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   }
 
   const toggle = (g: string) => setFocus((f) => (f.includes(g) ? f.filter((x) => x !== g) : [...f, g]))
-  const body = cardioOnly || focusIgnored ? [] : focus
   // One tap for the usual splits; each part can still be picked on its own.
   const same = (parts: string[]) => focus.length === parts.length && parts.every((g) => focus.includes(g))
   const presets: [string, string[]][] = [
@@ -170,26 +157,6 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const setBody = (parts: string[]) => setFocus(same(parts) ? [] : parts)
   const presetName = presets.find(([, parts]) => same(parts))?.[0]
   const focusLabel = cardioOnly ? (one && cardio.where === 'in' ? 'Indoors' : one ? 'Outside' : 'Cardio') : focusIgnored || body.length === 0 ? 'Full body' : presetName ?? (isFullBody(body) ? 'Full body' : body.join(' + '))
-  // What the generator gets: body parts, plus Cardio when there's a cardio part.
-  const genFocus = [...body, ...(hasKind('cardio') ? ['Cardio'] : [])]
-  // Mixing parts (several styles, or lifting + cardio): let each part have its own time.
-  const hasCardio = hasKind('cardio') && !cardioOnly
-  // Warm-up cardio and mobility take their own minutes (5 each by default); warm-up sets live inside the lifting.
-  const warmDefault = (warm.includes('cardio') ? 5 : 0) + (warm.includes('mobility') ? 5 : 0)
-  // Cardio with lifting: first or last, as picked (their usual order from plans until then).
-  const cardioStart = hasCardio && (cardio.first ?? trainingPrefs.stackOrder === 'cardio')
-  const parts: string[] = [...(warmDefault ? ['warmup'] : []), ...(cardioStart ? ['cardio'] : []), ...styles, ...(hasCardio && !cardioStart ? ['cardio'] : [])]
-  const showSplit = parts.length > 1 && !cardioOnly
-  const workParts = parts.length - (warmDefault ? 1 : 0)
-  const evenShare = Math.max(5, Math.round((minutes - warmDefault) / Math.max(1, workParts) / 5) * 5)
-  const partMin = (k: string) => (k === 'cardio' && fixedCardio ? fixedCardio : split[k] ?? (k === 'warmup' ? warmDefault : evenShare))
-  const warmSplit = () => {
-    const w = warmDefault ? partMin('warmup') : 0
-    if (warm.includes('cardio') && warm.includes('mobility')) { const c = Math.round(w * 0.55); return { cardio: c, mobility: w - c } }
-    return warm.includes('cardio') ? { cardio: w } : warm.includes('mobility') ? { mobility: w } : {}
-  }
-  const lifting = styles.some((st) => ['standard', 'strength', 'bodyweight', 'supersets'].includes(st))
-  const total0 = showSplit ? parts.reduce((a, k) => a + partMin(k), 0) : fixedCardio ?? minutes
   const bump = (k: string, d: number) => {
     // Taking the warm-up below 2 min drops the easy cardio and mobility (warm-up sets stay with the lifting).
     if (k === 'warmup' && partMin(k) + d < 2) {
@@ -197,51 +164,8 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
       setSplit(({ warmup: _w, ...r }) => (void _w, r))
       return
     }
-    setSplit((cur) => ({ ...cur, [k]: Math.min(120, Math.max(k === 'warmup' ? 2 : 5, (cur[k] ?? partMin(k)) + d)) }))
+    setSplit((cur) => ({ ...cur, [k]: Math.min(120, Math.max(minPart(k), (cur[k] ?? partMin(k)) + d)) }))
   }
-  // A calorie target: lifting and conditioning keep the minutes they set, the cardio makes up the rest (without cardio,
-  // the parts grow together). Needs their weight; the estimate is the same net one as for logged cardio.
-  const knownLb = bodyweightOn(bodyweight, today)
-  const lb = knownLb ?? storeWeight(weightIn, units)
-  // "Any" cardio: what they usually do (their profile), the activities the workout will likely use. Cardio type ids
-  // ('treadmill') become exercise ids ('Running_Treadmill') for the calorie numbers.
-  const exerciseIds = (types: string[]) => types.map(exerciseFor).filter((id): id is string => !!id)
-  // On a treadmill, its incline: the climb burns more at the same speed.
-  const incline = inclineOf(cardio)
-  const cardioMetHere = cardioMet(exerciseIds(cardioIdsPicked.length ? cardioIdsPicked : trainingPrefs.cardio), sessionKind, incline)
-  const withSpeed = !!one && topSpeed(one) != null
-  const recentHere = one ? recentSpeed(logs, [one]) : null
-  const paceMph = withSpeed ? (paceIn != null ? paceIn / distanceFactor(units) : recentHere) : null
-  const paceMet = withSpeed && paceMph ? metFor(one!, { distance: paceMph, minutes: 60, incline }) * SESSION_FACTOR[sessionKind] : cardioMetHere * EFFORTS[effortPick]
-  const calParts = cardioOnly
-    ? [{ key: 'cardio', met: paceMet, minutes }]
-    : parts.map((k) => ({ key: k, met: k === 'warmup' ? WARMUP_MET : k === 'cardio' ? paceMet : STYLE_MET[k as WorkoutStyle], minutes: partMin(k) }))
-  // Active calories (on top of resting, like a watch's active number) or total (resting included, like a gym machine).
-  const countTotal = trainingPrefs.calorieCount === 'total'
-  const restPerMin = lb ? restingPerHour(lb, today, aboutMe) / 60 : 0
-  const rate = (met: number) => perMinute(met, lb ?? 0, today, aboutMe) + (countTotal ? restPerMin : 0)
-  const metOf = (r: number) => metForRate(r - (countTotal ? restPerMin : 0), lb ?? 0, today, aboutMe)
-  const countWord = countTotal ? 'total' : 'active'
-  const flexible = cardioFlex ? 'cardio' : undefined
-  const steady = fixedCardio ? ['cardio'] : []
-  const untimed = goal === 'calories' && lb && kcal ? planForCalories(kcal, calParts, rate, flexible, steady) : null
-  const timed = goal === 'calories' && lb && kcal && timeLimit ? planWithin(kcal, timeLimit, calParts, rate, metOf, flexible, steady) : null
-  const cal = timed ?? untimed
-  // Within a time limit: how hard it has to be. Runs, walks and rides get a speed (compared with their recent ones);
-  // other cardio an effort; lifting on its own, the style that burns enough.
-  const needMet = timed?.needMet ?? null
-  const speed = needMet && one && cardioFlex ? speedForMet(one, needMet / SESSION_FACTOR[sessionKind], incline) : null
-  const recent = recentHere
-  const effort = needMet && cardioFlex ? effortLabel(needMet / cardioMetHere) : null
-  const liftNeed = needMet && !cardioFlex ? styleFor(needMet) : null
-  const ownStyle = styles[0]
-  const tooHard = !!timed && (needMet == null || (cardioFlex
-    ? speed ? speed >= (topSpeed(one!) ?? Infinity) - 0.01 || speed > (recent ? recent * 1.15 : FAST[one!] ?? Infinity) : effort === 'too hard' || effort === 'very hard'
-    : !liftNeed))
-  // On a treadmill, the incline that brings the speed it takes back within reach.
-  const steeper = tooHard && speed && needMet && inclinable(one)
-    ? INCLINES.find((g) => g > incline && speedForMet(one!, needMet / SESSION_FACTOR[sessionKind], g)! <= (recent ? recent * 1.15 : FAST[one!] ?? Infinity) && speedForMet(one!, needMet / SESSION_FACTOR[sessionKind], g)! < (topSpeed(one!) ?? Infinity) - 0.01)
-    : undefined
   // A harder style: lifting styles stay lifting; HIIT ones (PHA, circuits) make it a conditioning workout instead.
   const switchStyle = (st: WorkoutStyle) => {
     setPickedKind(true)
@@ -251,13 +175,6 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
     setCondStyle(st)
     setKinds((k) => [...k.filter((x) => x !== 'lift' && x !== 'cond'), 'cond'])
   }
-  // What it takes at a usual effort, to offer as the time instead.
-  const usualMinutes = untimed ? Math.ceil(untimed.totalMinutes / 15) * 15 : null
-  // The workout as made: its own cardio activities, and its cardio fitted to the target.
-  const mets = { lift: STYLE_MET[liftStyle], cond: STYLE_MET[condStyle], cardioFactor: SESSION_FACTOR[sessionKind] }
-  const minFor = (k: string) => cal?.minutes[k] ?? partMin(k)
-  const totalMin = cal ? cal.totalMinutes : total0
-  const computed = (k: string) => (k === 'cardio' && !!fixedCardio) || (!!cal && k !== 'warmup' && (cardioFlex ? k === 'cardio' : k !== 'cardio' || !hasKind('cardio')))
   const partLabel = (k: string) => (k === 'cardio' ? 'Cardio' : k === 'warmup' ? 'Warm-up' : styleInfo(k as WorkoutStyle).label)
   const warmWhat = [warm.includes('cardio') && 'easy cardio', warm.includes('mobility') && 'mobility'].filter(Boolean).join(' + ')
   const defaultName = `${styleLabel} · ${focusLabel} · ${totalMin} min`
@@ -265,27 +182,14 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   const generate = (avoid?: PlannedExercise[]) => {
     if (!avoid) setGenPrefs({ focus: genFocus, styles: [liftStyle, condStyle], kinds, minutes, cardioSetup: cardio })
     if (cal && !knownLb && lb) logBodyweight(today, lb)
-    const cardioSpec = hasKind('cardio') ? { exerciseId: one, kind: sessionKind, tabata: cardio.tabata, rounds: cardio.rounds } : undefined
-    // Cardio on its own: its session has its own warm-up and cool-down, so no warm-up cardio or mobility before it.
-    const warmup = cardioOnly ? {} : { ...warmSplit(), sets: warm.includes('sets') && lifting }
-    const opts: GenerateOptions = {
-      style: styles[0], styles, rest, warmup, cardio: cardioSpec,
-      dropSets: !!genPrefs.drops && lifting,
+    const opts = requestOptions(req, plan, {
+      rest, drops: !!genPrefs.drops,
       // Drop sets go on other muscles than last time's.
-      avoidDropGroups: genPrefs.drops && lifting ? lastDropGroups(plan, overrides, logs, date, (id) => findExercise(custom, id)) : undefined,
-      ...(showSplit ? { minutesByStyle: Object.fromEntries(styles.map((st) => [st, minFor(st)])), ...(hasCardio ? { cardioMinutes: minFor('cardio') } : {}) } : {}),
+      avoidDropGroups: genPrefs.drops && plan.lifting ? lastDropGroups(weekPlan, overrides, logs, date, (id) => findExercise(custom, id)) : undefined,
       // A reroll avoids what was just made; a PHA also avoids this week's other PHA stations, so they vary.
-      avoid: new Set([...(avoid?.map((p) => p.exerciseId) ?? []), ...(styles.includes('pha') ? phaThisWeek(plan, overrides, date) : [])]),
-    }
-    const made = setIncline(withChoices(() => generateWorkout(genFocus, totalMin, opts)), hasKind('cardio') ? incline : 0)
-    // A time limit: the cardio goes as hard as it has to; otherwise its time stretches to land on the target.
-    // Otherwise it goes at their pace, and its time stretches to land on the target.
-    check(
-      timed && needMet && cardioFlex ? setCardioEffort(made, needMet, SESSION_FACTOR[sessionKind])
-        : cal && kcal && !fixedCardio ? fitCardio(cardioFlex ? setCardioPace(made, { exerciseId: one, mph: paceMph, effort: effortPick }) : made, kcal, rate, mets)
-          : made,
-      opts, perMuscle,
-    )
+      avoid: new Set([...(avoid?.map((p) => p.exerciseId) ?? []), ...(styles.includes('pha') ? phaThisWeek(weekPlan, overrides, date) : [])]),
+    })
+    check(withChoices(() => makeWorkout(req, plan, opts)), opts, perMuscle)
   }
   // Filling the time gave one muscle more than their limit (or past about 15 hard sets): offer other ways to use it,
   // or do what they chose before.
@@ -490,6 +394,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
                       : <>a <b>{withSpeed ? 'usual easy' : effortPick}</b> {withSpeed ? 'pace' : 'effort'}{incline ? ` at ${incline}% incline` : ''}</>}.
                   </p>
                 )}
+                {inLimit && <p className="mt-1 text-xs text-neutral-600">At {cardioFlex ? 'your pace' : 'a usual effort'} that’s done in about {formatMinutes(cal.totalMinutes)}, inside your {formatMinutes(timeLimit!)}.</p>}
                 {timed && needMet == null && <p className="mt-1 text-xs text-amber-700">No time left for the {cardioFlex ? 'cardio' : 'workout'}: less lifting or more time.</p>}
                 {timed && needMet != null && cardioFlex && (
                   <p className="mt-1 text-xs text-neutral-600">
@@ -534,6 +439,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
   }
 
   const total = minutesFor(items)
+  const madeKcal = cal ? workoutCalories(items, rate, mets) : 0
 
   return (
     <Sheet key="result" title="Your workout" onClose={onClose} closeLabel="Close">
@@ -557,8 +463,16 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
         </button>
       </div>
       <p className="mb-3 text-sm text-neutral-400">
-        {styleLabel} · {focusLabel}{hasCardio ? ' + Cardio' : ''} · about {Math.round(total)} min{cal ? ` · ≈ ${workoutCalories(items, rate, mets).toLocaleString()} ${countWord} cal` : ''}
+        {styleLabel} · {focusLabel}{hasCardio ? ' + Cardio' : ''} · about {Math.round(total)} min{cal ? ` · ≈ ${madeKcal.toLocaleString()} ${countWord} cal` : ''}
       </p>
+      {items.length > 0 && cal && kcal && madeKcal < kcal * 0.9 && !(timeLimit && total >= timeLimit - 5) && (
+        // A Tabata or a Hyrox has its own length, and a bodyweight day runs out of moves: say what it comes to, and offer
+        // the rest as easy cardio.
+        <div role="status" className="mb-3 rounded-2xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <p>This comes to about {madeKcal.toLocaleString()} of your {kcal.toLocaleString()} cal: that’s all {styleLabel} fits here.</p>
+          <button onClick={() => commit(withChoices(() => topUpCalories(items, req, plan)))} className="mt-2 rounded-full bg-surface px-3 py-1.5 text-xs font-medium text-neutral-700 ring-1 ring-neutral-200">+ Easy cardio for the rest</button>
+        </div>
+      )}
       {items.length > 0 && !cal && volume?.chosen !== 'shorter' && totalMin - total >= 10 && total < totalMin * 0.85 && (
         // Little kit for the parts picked (bodyweight back, say), or a format with a natural length (Tabata, Hyrox):
         // say so, rather than quietly handing over a shorter workout than asked for.
