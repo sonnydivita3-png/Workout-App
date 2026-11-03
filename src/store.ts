@@ -291,6 +291,12 @@ function editDay(s: Pick<Data, 'plan' | 'overrides' | 'custom'>, date: string, f
 // One entry per exercise a day; a block clashing with an entry moves over rather than either going (see mergeIntoDay).
 const appendMissing = (d: PlannedExercise[], items: PlannedExercise[]) => mergeIntoDay(d, items)
 
+/**
+ * A plan's workout made your own, as a routine or your usual week: not that plan's deload week (lighter targets, and
+ * left out of "last time"), not tied to the plan for stopping it, and no answer about sets kept from that one date.
+ */
+const asOwn = ({ deload: _deload, plan: _plan, keepSets: _keep, ...p }: PlannedExercise): PlannedExercise => p
+
 /** Editing sets shouldn't wipe the note on that exercise. */
 const keepNote = (logs: ExerciseLog[], date: string, exerciseId: string) => {
   const note = logs.find((l) => l.date === date && l.exerciseId === exerciseId)?.note
@@ -523,7 +529,7 @@ export const useStore = create<State>()(
         }),
       setUsualDay: (date) =>
         set((s) => {
-          const items = dayPlanOf(s.plan, s.overrides, date).map((p) => ({ ...p }))
+          const items = dayPlanOf(s.plan, s.overrides, date).map(asOwn)
           const day = weekdayIndex(parseISO(date))
           const { [date]: _gone, ...rest } = s.overrides
           return { plan: s.plan.map((d, i) => (i === day ? items : d)), overrides: rest }
@@ -632,7 +638,7 @@ export const useStore = create<State>()(
         }),
       saveRoutine: (name, items) =>
         set((s) => ({
-          routines: [...s.routines, { id: `r-${Date.now().toString(36)}`, name: name.trim(), items: items.map((p) => ({ ...p })) }],
+          routines: [...s.routines, { id: `r-${Date.now().toString(36)}`, name: name.trim(), items: items.map(asOwn) }],
         })),
       saveBenchmark: (name, items) =>
         set((s) => ({ benchmarks: [...s.benchmarks, { id: `b-${Date.now().toString(36)}`, name: name.trim(), items: items.map((p) => ({ ...p })) }] })),
@@ -648,7 +654,7 @@ export const useStore = create<State>()(
       loadRoutine: (date, id) =>
         set((s) => {
           const r = s.routines.find((x) => x.id === id)
-          return r ? editDay(s, date, (d) => appendMissing(d, r.items)) : s
+          return r ? editDay(s, date, (d) => appendMissing(d, r.items.map(asOwn))) : s
         }),
       addGoal: (goal) => {
         const id = `g-${Date.now().toString(36)}`
