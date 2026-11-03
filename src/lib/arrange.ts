@@ -89,6 +89,26 @@ export function removeFromGroup(items: PlannedExercise[], u: number, m: number):
 }
 
 /**
+ * Items joining a day (a routine, a friend's workout, one made for you) keep their blocks apart from the day's own: a
+ * block id the day already uses ("ss1" next to its "ss1", a second Tabata) gets a new one, so two supersets don't read
+ * as one giant set and two timed blocks don't share one result. Blocks named by their end (…hyrox, …pha) get the
+ * number in front, the rest after it, so they still read as what they are.
+ */
+export function freshBlocks(day: PlannedExercise[], items: PlannedExercise[]): PlannedExercise[] {
+  const used = new Set([...day, ...items].map((p) => p.block).filter((b): b is string => !!b))
+  const renamed = new Map<string, string>()
+  for (const b of new Set(items.map((p) => p.block).filter((b): b is string => !!b))) {
+    if (!day.some((p) => p.block === b)) continue
+    const at = (n: number) => (/(^|-)(hyrox|pha)$/.test(b) ? `${n}-${b}` : `${b}-${n}`)
+    let n = 2
+    while (used.has(at(n))) n++
+    used.add(at(n))
+    renamed.set(b, at(n))
+  }
+  return renamed.size ? items.map((p) => (p.block && renamed.has(p.block) ? { ...p, block: renamed.get(p.block) } : p)) : items
+}
+
+/**
  * Supersets are done back to back, resting only after each round. A round is complete once every exercise in the
  * group that has that many sets has ticked that working set (warm-ups and drop sets don't count).
  */

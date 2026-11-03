@@ -17,6 +17,7 @@ import type { ExtraTimeChoice } from './lib/volumePrefs'
 import { setOwnedGear } from './lib/equipment'
 import { setChosenGear, setChosenModes, withChosenMode } from './lib/exerciseModes'
 import { setFavorites } from './lib/favorites'
+import { freshBlocks } from './lib/arrange'
 import { setCustomExercises } from './lib/randomUtil'
 import { placeWarmups } from './lib/warmups'
 import { workSets } from './lib/progression'
@@ -289,7 +290,8 @@ function editDay(s: Pick<Data, 'plan' | 'overrides' | 'custom'>, date: string, f
 }
 
 // One entry per exercise a day; a block clashing with an entry moves over rather than either going (see mergeIntoDay).
-const appendMissing = (d: PlannedExercise[], items: PlannedExercise[]) => mergeIntoDay(d, items)
+// Blocks keep apart from the day's own (see freshBlocks).
+const appendMissing = (d: PlannedExercise[], items: PlannedExercise[]) => mergeIntoDay(d, freshBlocks(d, items))
 
 /**
  * A plan's workout made your own, as a routine or your usual week: not that plan's deload week (lighter targets, and

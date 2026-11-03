@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PlannedExercise } from '../types'
-import { combine, moveInGroup, moveUnit, removeFromGroup, roundDone, ungroup, unitsOf } from './arrange'
+import { combine, freshBlocks, moveInGroup, moveUnit, removeFromGroup, roundDone, ungroup, unitsOf } from './arrange'
 
 const p = (id: string, extra: Partial<PlannedExercise> = {}): PlannedExercise => ({ exerciseId: id, sets: 3, ...extra })
 const ids = (items: PlannedExercise[]) => items.map((x) => x.exerciseId).join(',')
@@ -69,5 +69,19 @@ describe('superset rounds', () => {
     const typed = { date: 'd', exerciseId: 'b', sets: [{ weight: 100, reps: 8, done: false }] }
     expect(roundDone(members, [log('a', 1), typed], 'd', 1)).toBe(false)
     expect(roundDone(members, [log('a', 1), { ...typed, sets: [{ weight: 100, reps: 8, done: true }] }], 'd', 1)).toBe(true)
+  })
+})
+
+describe('blocks joining a day', () => {
+  const item = (exerciseId: string, block?: string): PlannedExercise => ({ exerciseId, sets: 3, ...(block ? { block } : {}) })
+  it('get a new id when the day already uses theirs, so two supersets or two Tabatas stay apart', () => {
+    const day = [item('a', 'ss1'), item('b', 'ss1'), item('t', 'tabata'), item('h', 'hyrox'), item('p', 'standard-pha')]
+    const added = freshBlocks(day, [item('c', 'ss1'), item('d', 'ss1'), item('e', 'ss2'), item('u', 'tabata'), item('i', 'hyrox'), item('q', 'standard-pha'), item('x')])
+    expect(added.map((p) => p.block)).toEqual(['ss1-2', 'ss1-2', 'ss2', 'tabata-2', '2-hyrox', '2-standard-pha', undefined])
+    // Still read as a superset, a Hyrox and a PHA block.
+    expect(added[0].block).toMatch(/^ss\d/)
+    expect(added[4].block).toMatch(/(^|-)hyrox$/)
+    expect(added[5].block?.endsWith('-pha')).toBe(true)
+    expect(freshBlocks([item('a')], added.slice(0, 2))).toEqual(added.slice(0, 2))
   })
 })
