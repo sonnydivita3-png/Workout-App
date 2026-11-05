@@ -3,7 +3,6 @@ import { cleanAcceptance } from './legal'
 import { withRuns } from './cardioRuns'
 import type { CardioEntry } from '../types'
 import { WEIGHT_GEAR } from './exerciseModes'
-import { cleanCoach } from './coach'
 
 /**
  * Saved data is read back on every launch. Older versions of the app saved fewer fields, and a crash mid-save or a
@@ -125,7 +124,6 @@ export function repairState<T extends Obj>(saved: unknown, defaults: T): T {
     out.exerciseGear = gear
   }
   // The trainer's plan: a damaged one is no plan, rather than a broken Home screen.
-  if ('coach' in defaults) out.coach = cleanCoach(saved.coach)
   if ('favorites' in defaults) out.favorites = [...new Set(arr(saved.favorites, (f): f is string => typeof f === 'string'))]
   // Their equipment: names, or null for a full gym (anything else stopped the app from starting).
   if ('equipment' in defaults) out.equipment = Array.isArray(saved.equipment) ? saved.equipment.filter((g) => typeof g === 'string') : null

@@ -26,7 +26,6 @@ import { setCardioPrefs } from './lib/cardioPrefs'
 import { activePrograms, addSession, clearRange, layerDays, orderDay, orderDays, removeProgramDays, type StackOrder } from './lib/programs'
 import { customFields, newCustomId, sameName, usageOf, type CustomExerciseInput } from './lib/customExercises'
 import { finishIn, isFinished, unfinishIn } from './lib/sessions'
-import type { CheckIn, CoachAdjust, CoachPlan } from './lib/coach'
 import type {
   AppNotification, BodyweightEntry, DaySession, NotifPrefs, CardioEntry, Exercise, ExerciseKind, ExerciseLog, ExerciseMode, Goal, NewGoal, PlanOverrides, PlannedExercise, Measurement, Program, Routine, Benchmark, AboutMe, Sport, TimedLog, StrengthSet, Units, WeekPlan, WeekPhase,
 } from './types'
@@ -193,14 +192,6 @@ interface State extends Data {
    */
   /** Put a week/month lifting plan on the calendar (replacing the one running); returns its id. */
   startProgram: (days: PlanOverrides, title: string, today: string, supports?: string) => string
-  /** Durata's trainer: the goal plan they're on (see lib/coach), or null. */
-  coach: CoachPlan | null
-  /** Start the trainer's plan: its first block goes on the calendar as their lifting plan. */
-  startCoach: (plan: Omit<CoachPlan, 'programId' | 'id' | 'createdAt'>, days: PlanOverrides, title: string, today: string) => void
-  /** Save a weekly check-in; with `days`, the next weeks are rebuilt (the plan changed, or the next block is due). */
-  coachCheckIn: (c: CheckIn, next: { adjust: CoachAdjust; weeks: number; blockEnd?: string; days?: PlanOverrides; title?: string }, today: string) => void
-  /** Stop the trainer's plan: its upcoming days come off the calendar (logged days stay). */
-  stopCoach: (today: string) => void
   /**
    * Add a run/bike training plan. `stopSame` first stops any plan still running for the same sport, so a new plan
    * replaces it instead of piling on top.
@@ -353,7 +344,6 @@ const defaults = () => ({
   tipsSeen: [] as string[],
   pickerEquipment: 'Any',
   finishedDays: [] as string[],
-  coach: null as CoachPlan | null,
   warmupsDone: [] as string[],
   equipment: null as string[] | null,
   trainingPrefs: { styles: [], cardio: [], cardioSplit: false } as TrainingPrefs,
@@ -602,21 +592,6 @@ export const useStore = create<State>()(
           return { overrides: layered, programs: all }
         })
         return id
-      },
-      startCoach: (plan, days, title, today) => {
-        const programId = get().startProgram(days, title, today)
-        set({ coach: { ...plan, id: `coach-${Date.now().toString(36)}`, createdAt: new Date().toISOString(), programId } })
-      },
-      coachCheckIn: (c, next, today) => {
-        const programId = next.days ? get().startProgram(next.days, next.title ?? 'Trainer plan', today) : get().coach?.programId
-        set((s) => (s.coach ? {
-          coach: { ...s.coach, programId, adjust: next.adjust, weeks: next.weeks, blockEnd: next.blockEnd ?? s.coach.blockEnd, checkins: [...s.coach.checkins, c].slice(-120) },
-        } : s))
-      },
-      stopCoach: (today) => {
-        const id = get().coach?.programId
-        if (id) get().stopProgram(id, today)
-        set({ coach: null })
       },
       startCardioProgram: ({ sessions, sport, title, goalId, replace, stopSame, today, phases }) => {
         const id = programId()
