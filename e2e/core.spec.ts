@@ -928,7 +928,7 @@ test('Make me a workout: Posture opens up, works the upper back, and ends with a
   await sheet.getByRole('group', { name: 'Lifting style' }).getByRole('button', { name: 'Posture', exact: true }).click()
   await expect(sheet.getByText(/Undo the desk/)).toBeVisible()
   await sheet.getByRole('button', { name: /^Generate/ }).click()
-  await expect(sheet.getByText(/Child’s Pose|Couch Stretch|Hamstring Stretch|Doorway Chest Stretch|Open Book/).last()).toBeVisible()
+  await expect(sheet.getByText(/Child’s Pose|Couch Stretch|Hamstring Stretch|Doorway Chest Stretch|Open Book|Pigeon Stretch|Goblet Squat Hold/).last()).toBeVisible()
 })
 
 test('suspension (TRX) and medicine ball moves: their own equipment filters, and "trx" finds them', async ({ page }) => {

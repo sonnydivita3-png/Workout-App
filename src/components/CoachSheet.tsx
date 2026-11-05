@@ -3,10 +3,10 @@ import { addDays, DAY_LABELS, parseISO, toISO } from '../lib/dates'
 import { BODY_PARTS } from '../lib/bodyParts'
 import { bodyweightOn } from '../lib/calories'
 import {
-  bestLiftSince, e1rmOf, estimate, EXPERIENCE, GOAL_KINDS, MOVE_FOCUS, planWeeks, TEST_LIFTS, WEIGHT_DISCLAIMER,
-  type CoachAnswers, type CoachGoal, type Experience, type GoalEstimate, type GoalKind, type MoveFocus,
+  bestLiftSince, CARDIO_PLACES, cardioDays, chooseDays, defaultCardio, e1rmOf, estimate, EXPERIENCE, GOAL_KINDS, minRest, MOVE_FOCUS, planWeeks,
+  recommendedDays, TEST_LIFTS, WEIGHT_DISCLAIMER,
+  type CardioPlace, type CoachAnswers, type CoachGoal, type Experience, type GoalEstimate, type GoalKind, type MoveFocus,
 } from '../lib/coach'
-import { defaultWeekdays } from '../lib/program'
 import { showWeight, storeWeight } from '../lib/units'
 import { useModal } from '../lib/useModal'
 import { useToday } from '../lib/useToday'
@@ -18,7 +18,7 @@ import { primaryBtn, secondaryBtn } from './Sheet'
 import { LikedCardioPicker, LikedStylesPicker } from './TrainingPrefsPicker'
 import { chipBtn } from './ui'
 
-type Step = 'intro' | 'goals' | 'lose' | 'muscle' | 'strength' | 'move' | 'experience' | 'days' | 'minutes' | 'styles' | 'cardio' | 'areas' | 'gear' | 'weight' | 'plan'
+type Step = 'intro' | 'goals' | 'lose' | 'muscle' | 'strength' | 'move' | 'experience' | 'available' | 'sessions' | 'minutes' | 'cardioPlace' | 'cardioAmount' | 'cardioKinds' | 'styles' | 'areas' | 'gear' | 'weight' | 'plan'
 
 const card = (on: boolean) => `flex w-full min-h-14 items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left ring-1 ${on ? 'bg-accent/15 ring-accent-ink' : 'bg-surface ring-neutral-200/70'}`
 
@@ -45,7 +45,12 @@ export function CoachSheet({ onClose }: { onClose: () => void }) {
   const [liftTarget, setLiftTarget] = useState<number | null>(null)
   const [focus, setFocus] = useState<MoveFocus[]>(['posture', 'mobility'])
   const [experience, setExperience] = useState<Experience>(s.logs.length > 60 ? 'some' : 'new')
-  const [days, setDays] = useState<number[]>(defaultWeekdays(4))
+  // The days they're free, then how many of them to train: the trainer picks which, spread out, with rest days.
+  const [available, setAvailable] = useState<number[]>([0, 1, 2, 3, 4, 5, 6])
+  const [sessionsPicked, setSessions] = useState<number | null>(null)
+  const [cardioPlace, setCardioPlace] = useState<CardioPlace | null>(null)
+  const [cardioPerWeek, setCardioPerWeek] = useState<number | null>(null)
+  const [cardioMinutes, setCardioMinutes] = useState<number | null>(null)
   const [minutes, setMinutes] = useState(60)
   const [understood, setUnderstood] = useState(false)
   const [i, setI] = useState(0)
@@ -56,7 +61,9 @@ export function CoachSheet({ onClose }: { onClose: () => void }) {
     'intro', 'goals',
     ...(has('lose') ? ['lose' as const] : []), ...(has('muscle') ? ['muscle' as const] : []),
     ...(has('strength') ? ['strength' as const] : []), ...(has('move') ? ['move' as const] : []),
-    'experience', 'days', 'minutes', 'styles', 'cardio', ...(has('muscle') ? [] : ['areas' as const]), 'gear',
+    'experience', 'available', 'sessions', 'minutes', 'cardioPlace',
+    ...(cardioPlace && cardioPlace !== 'none' ? ['cardioAmount' as const, 'cardioKinds' as const] : []),
+    'styles', ...(has('muscle') ? [] : ['areas' as const]), 'gear',
     ...(weighty ? ['weight' as const] : []), 'plan',
   ]
   const step = steps[Math.min(i, steps.length - 1)]
@@ -73,19 +80,34 @@ export function CoachSheet({ onClose }: { onClose: () => void }) {
       case 'move': return { kind: 'move', focus }
     }
   })
-  const answers: CoachAnswers = { goals, experience, days, minutes, areas, startLb: weight ?? lbNow }
+  const maxDays = Math.max(2, Math.min(available.length, 7 - minRest(experience)))
+  const recommended = recommendedDays(experience, available.length)
+  const sessions = Math.min(sessionsPicked ?? recommended, maxDays)
+  const days = chooseDays(available, sessions, experience)
+  const cardioDefault = defaultCardio(goals)
+  const place = cardioPlace ?? cardioDefault.place
+  // As many cardio sessions as fit: on its own days, the free days left that keep the rest days; mornings, lifting days.
+  const cardioMax = place === 'days' ? cardioDays(available, days, 7, experience).length : place === 'ampm' ? days.length : days.length
+  const perWeek = Math.min(cardioPerWeek ?? cardioDefault.perWeek, cardioMax)
+  const cardioMin = cardioMinutes ?? cardioDefault.minutes
+  const answers: CoachAnswers = {
+    goals, experience, days, available, minutes, areas, startLb: weight ?? lbNow,
+    cardio: { place, perWeek: place === 'after' ? days.length : perWeek, minutes: place === 'after' ? Math.min(cardioMin, Math.round(minutes / 2)) : cardioMin },
+  }
 
   const ok: Record<Step, boolean> = {
     intro: true, goals: kinds.length > 0,
     lose: !!weight && !!loseLb && loseLb > 0 && lb(loseLb)! < (weight ?? 0) * 0.5,
     muscle: true,
     strength: !!liftStart && !!liftTarget && lb(liftTarget)! > 0,
-    move: focus.length > 0, experience: true, days: days.length >= 2, minutes: true, styles: true, cardio: true, areas: true, gear: true,
+    move: focus.length > 0, experience: true, available: available.length >= 2, sessions: true, minutes: true, cardioPlace: !!cardioPlace,
+    cardioAmount: place === 'after' || perWeek > 0, cardioKinds: true, styles: true, areas: true, gear: true,
     weight: understood, plan: true,
   }
   const why: Partial<Record<Step, string>> = {
     goals: 'Pick at least one goal.', lose: 'Add your weight and how much to lose (at most half of it).',
-    strength: 'Add a recent set (or log the lift first) and the max you want.', move: 'Pick at least one.', days: 'Two days a week at least.',
+    strength: 'Add a recent set (or log the lift first) and the max you want.', move: 'Pick at least one.', available: 'Two days a week at least.', cardioPlace: 'Pick one.',
+    cardioAmount: 'No free day is left for cardio with your rest days: pick two-a-days or after lifting instead.',
     weight: 'Tick the box to carry on.',
   }
 
@@ -188,15 +210,62 @@ export function CoachSheet({ onClose }: { onClose: () => void }) {
             </div>
           </>
         )
-      case 'days':
+      case 'available':
         return (
           <>
-            <Q title="Which days can you train?" sub="Pick the days you can really keep. Three or four is plenty for most goals." />
-            <div role="group" aria-label="Training days" className="grid grid-cols-7 gap-1">
-              {DAY_LABELS.map((d, n) => <button key={d} aria-pressed={days.includes(n)} onClick={() => setDays((x) => toggle(x, n).sort())} className={`${chipBtn(days.includes(n))} px-0`}>{d}</button>)}
+            <Q title="Which days are you free to train?" sub="All the days you could. Next, how many of them to use: rest days are part of the plan." />
+            <div role="group" aria-label="Free days" className="grid grid-cols-7 gap-1">
+              {DAY_LABELS.map((d, n) => <button key={d} aria-pressed={available.includes(n)} onClick={() => setAvailable((x) => toggle(x, n).sort())} className={`${chipBtn(available.includes(n))} px-0`}>{d}</button>)}
             </div>
           </>
         )
+      case 'sessions':
+        return (
+          <>
+            <Q title="How many days a week should you train?" sub={`For your experience I’d start with ${recommended}. Muscle grows and fat burns while you recover, so at least ${minRest(experience)} rest day${minRest(experience) > 1 ? 's' : ''} a week stay${minRest(experience) > 1 ? '' : 's'} in.`} />
+            <div role="radiogroup" aria-label="Training days a week" className="mb-4 grid grid-cols-5 gap-2">
+              {Array.from({ length: maxDays - 1 }, (_, k) => k + 2).map((n) => (
+                <button key={n} role="radio" aria-checked={sessions === n} onClick={() => setSessions(n)} className={`${chipBtn(sessions === n)} px-0`}>{n}{n === recommended ? ' ★' : ''}</button>
+              ))}
+            </div>
+            <p className="text-sm text-neutral-600">Your training days: <b className="font-medium">{days.map((d) => DAY_LABELS[d]).join(', ')}</b>, spread so the same muscles get time to recover.</p>
+          </>
+        )
+      case 'cardioPlace':
+        return (
+          <>
+            <Q title="How do you want your cardio?" sub="Hours apart from lifting is best for strength; right after is the most time-efficient." />
+            <div role="radiogroup" aria-label="Cardio" className="space-y-2">
+              {CARDIO_PLACES.map((c) => (
+                <button key={c.id} role="radio" aria-checked={cardioPlace === c.id} onClick={() => setCardioPlace(c.id)} className={card(cardioPlace === c.id)}>
+                  <span><span className="block font-medium">{c.label}</span><span className="block text-sm text-neutral-500">{c.blurb}</span></span>
+                </button>
+              ))}
+            </div>
+          </>
+        )
+      case 'cardioAmount':
+        return (
+          <>
+            <Q title={place === 'after' ? 'How long at the end of each session?' : 'How much cardio?'} sub={has('lose') ? 'For weight loss, 150–300 minutes a week is the usual aim.' : 'Two sessions a week keeps your heart and lungs fit.'} />
+            {place !== 'after' && (
+              <>
+                <p className="mb-2 text-sm font-medium text-neutral-700">Sessions a week</p>
+                <div role="radiogroup" aria-label="Cardio sessions a week" className="mb-4 grid grid-cols-6 gap-2">
+                  {Array.from({ length: cardioMax }, (_, k) => k + 1).map((n) => <button key={n} role="radio" aria-checked={perWeek === n} onClick={() => setCardioPerWeek(n)} className={`${chipBtn(perWeek === n)} px-0`}>{n}</button>)}
+                </div>
+              </>
+            )}
+            <p className="mb-2 text-sm font-medium text-neutral-700">Minutes each</p>
+            <div role="radiogroup" aria-label="Cardio minutes" className="grid grid-cols-4 gap-2">
+              {[15, 20, 30, 45, 60].filter((m) => place !== 'after' || m <= minutes / 2).map((m) => <button key={m} role="radio" aria-checked={cardioMin === m} onClick={() => setCardioMinutes(m)} className={chipBtn(cardioMin === m)}>{m} min</button>)}
+            </div>
+            {place === 'after' && <p className="mt-3 text-sm text-neutral-600">Part of your {minutes}-minute sessions: the lifting takes the rest.</p>}
+            {place === 'ampm' && <p className="mt-3 text-sm text-neutral-600">A separate morning session, on top of your {minutes} minutes of lifting in the evening.</p>}
+          </>
+        )
+      case 'cardioKinds':
+        return <><Q title="Any cardio you like?" sub="Your cardio uses these." /><LikedCardioPicker /></>
       case 'minutes':
         return (
           <>
@@ -208,8 +277,6 @@ export function CoachSheet({ onClose }: { onClose: () => void }) {
         )
       case 'styles':
         return <><Q title="What kinds of workout do you enjoy?" sub="The plan leans towards these. Skip if you’re not sure." /><LikedStylesPicker /></>
-      case 'cardio':
-        return <><Q title="Any cardio you like?" sub="Your cardio days use these." /><LikedCardioPicker /></>
       case 'areas':
         return (
           <>

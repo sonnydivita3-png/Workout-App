@@ -297,6 +297,8 @@ export interface ProgramInput {
   emphasis?: string[]
   /** A run or bike plan already covers their cardio: no cardio days and no cardio finishers. */
   noCardio?: boolean
+  /** No cardio days (the cardio is placed by whoever asked, like the trainer), but finishers still fill short sessions. */
+  noCardioDays?: boolean
 }
 
 export type RepScheme = 'auto' | 'heavy' | 'moderate' | 'light'
@@ -345,8 +347,27 @@ const capped = (focus: string[], opts: DayOptions) => opts.capVolume !== false &
  * One planned session. Lifting days keep each muscle to sessionSets (a one-muscle day otherwise ran to eight or nine
  * exercises for that muscle); `finisher` fills 10+ spare minutes with easy cardio (see withFinisher).
  */
+/**
+ * Formats with a length of their own (a Tabata is about 20 minutes, a posture session about 30-40): on a longer day they
+ * come with a part that fills the rest, the way a coach would put a Tabata after the lifting, not leave an hour empty.
+ */
+const OWN_LENGTH: Partial<Record<WorkoutStyle, { minutes: number; with: WorkoutStyle }>> = {
+  tabata: { minutes: 20, with: 'standard' }, amrap: { minutes: 25, with: 'standard' }, emom: { minutes: 25, with: 'standard' },
+  fortime: { minutes: 25, with: 'standard' }, posture: { minutes: 35, with: 'functional' },
+}
+
 function makeDay(focus: string[], minutes: number, style: WorkoutStyle, rng: Rng, avoid: Set<string>, opts: DayOptions, cardioKind?: CardioSessionKind, finisher = true): PlannedExercise[] {
   const cardioDay = focus.length === 1 && focus[0] === 'Cardio'
+  const own = OWN_LENGTH[style]
+  const warmMin = (opts.warmup?.cardio ?? 0) + (opts.warmup?.mobility ?? 0)
+  if (own && minutes - warmMin >= own.minutes + 15) {
+    const rest = minutes - warmMin - own.minutes
+    const items = generateWorkout(focus.length ? focus : [...FULL], minutes, {
+      styles: [own.with, style], minutesByStyle: { [own.with]: rest, [style]: own.minutes }, rng, avoid, rest: opts.rest, warmup: opts.warmup, familiar: opts.familiar,
+      ...(opts.reps && opts.reps !== 'auto' ? { repRange: REP_RANGES[opts.reps] } : {}),
+    })
+    return finisher && !opts.noCardio ? addFinisher(items, minutes, rng) : items
+  }
   const items = generateWorkout(focus, minutes, {
     style, rng, avoid, rest: opts.rest, warmup: cardioDay ? undefined : opts.warmup, dropSets: opts.dropSets, avoidDropGroups: opts.avoidDropGroups, familiar: opts.familiar,
     ...(cardioKind ? { cardio: { kind: cardioKind } } : {}),
@@ -356,9 +377,13 @@ function makeDay(focus: string[], minutes: number, style: WorkoutStyle, rng: Rng
   return finisher ? withFinisher(items, focus, minutes, style, rng, opts) : items
 }
 
-/** A capped lifting session with 10+ minutes to spare finishes with easy cardio, so it still runs about as long as picked. */
+/**
+ * A session with 10+ minutes to spare (a capped lifting day, a functional or bodyweight day that ran out of moves)
+ * finishes with easy cardio, so it runs about as long as picked. Cardio days are their own length.
+ */
 function withFinisher(items: PlannedExercise[], focus: string[], minutes: number, style: WorkoutStyle, rng: Rng, opts: DayOptions): PlannedExercise[] {
-  return !opts.noCardio && capped(focus, opts) && LIFTING_STYLES.includes(style) ? addFinisher(items, minutes, rng) : items
+  const cardioDay = focus.length === 1 && focus[0] === 'Cardio'
+  return !opts.noCardio && !cardioDay && (LIFTING_STYLES.includes(style) || ['functional', 'bodyweight', 'posture'].includes(style)) ? addFinisher(items, minutes, rng) : items
 }
 
 /** The muscle a planned lift counts towards (null for warm-ups, cardio and timed pieces). */
@@ -631,8 +656,12 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
   const dpw = new Set(trainWeekdays).size
   const goals = goalList(goal)
   const emphasis = new Set(input.emphasis ?? [])
-  const types = withLikes(dayTypes(goals, dpw), input.likedStyles).filter((t) => !(input.noCardio && isCardioDay(t)))
+  const types = withLikes(dayTypes(goals, dpw), input.likedStyles).filter((t) => !((input.noCardio || input.noCardioDays) && isCardioDay(t)))
     .map((t) => (emphasis.size && t.groups.some((g) => emphasis.has(g)) ? { ...t, weight: t.weight * 1.4 } : t))
+  // How often a big muscle is trained in a week: twice is what most programs aim for (Schoenfeld et al. 2016), three
+  // times only on six or more days a week. A third lower-body day in a four-day week is a sign of a bad pick.
+  const weekHits = new Map<string, number>()
+  const maxHits = dpw >= 6 ? 3 : 2
   const split = input.split && input.split !== 'auto' ? splitRotation(input.split, dpw, SPLIT_STYLE[goals[0]]) : null
 
   const lastTrained = new Map<string, number>() // group -> day offset it was last trained
@@ -659,7 +688,7 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
     // Each week counts its sessions of a type afresh (its second Upper body is the same workout every week), whether or
     // not the week starts with a training day: counting only from a Monday session made a Tuesday-Thursday-Saturday
     // plan a new workout every week, so nothing it planned could build week to week.
-    if (weekIndex !== slotWeek) { slotCount.clear(); slotWeek = weekIndex }
+    if (weekIndex !== slotWeek) { slotCount.clear(); weekHits.clear(); slotWeek = weekIndex }
     if (!trainWeekdays.includes(weekdayIndex(parseISO(date)))) {
       out.push({ date, rest: true, focus: [], groups: [], weekIndex, items: [] })
       prevMajors = new Set()
@@ -679,7 +708,8 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
       if (m.length === 0) return 3
       return m.reduce((a, g) => a + Math.min(offset - (lastTrained.get(g) ?? -99), 7), 0) / m.length
     }
-    const scored = allowed.map((t) => ({ t, s: t.weight * stale(t) * (0.85 + rng() * 0.3) * 0.5 ** recentTypes.filter((n) => n === t.name).length }))
+    const often = (t: DayType) => majorsOf(t).some((g) => (weekHits.get(g) ?? 0) >= maxHits)
+    const scored = allowed.map((t) => ({ t, s: t.weight * stale(t) * (0.85 + rng() * 0.3) * 0.5 ** recentTypes.filter((n) => n === t.name).length * (often(t) ? 0.05 : 1) }))
     const type = split ? split[turn++ % split.length] : scored.reduce((a, b) => (b.s > a.s ? b : a)).t
 
     const focus = isCardioDay(type) ? ['Cardio'] : type.generic ? [] : type.groups
@@ -702,7 +732,8 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
     recent.push(items.map((p) => p.exerciseId))
     if (recent.length > 6) recent.shift()
 
-    for (const g of majorsOf(type)) lastTrained.set(g, offset)
+    // A full-body conditioning session (a WOD, a circuit, a Hyrox) loads each muscle about half as much as a day for it.
+    for (const g of majorsOf(type)) { lastTrained.set(g, offset); weekHits.set(g, (weekHits.get(g) ?? 0) + (type.generic ? 0.5 : 1)) }
     prevMajors = new Set(majorsOf(type))
     recentTypes.push(type.name)
     if (recentTypes.length > 3) recentTypes.shift()
