@@ -163,6 +163,11 @@ const EXTRAS: Extra[] = [
   ['x-slider-reverse-lunge', 'Slider Reverse Lunge', 'Quads', 'Sliders', 'reps', false, ['functional']],
   ['x-slider-hamstring-curl', 'Slider Hamstring Curl', 'Hamstrings', 'Sliders', 'reps', false, []],
   ['x-slider-mountain-climber', 'Slider Mountain Climber', 'Core', 'Sliders', 'time', false, ['hiit']],
+  // Movement-quality staples a coach uses for posture and mobility (any gym has a bar, a kettlebell and a wall).
+  ['x-dead-hang', 'Dead Hang', 'Mobility', 'Bodyweight', 'time', false, ['posture']],
+  ['x-ankle-rock', 'Knee-to-Wall Ankle Rock', 'Mobility', 'Bodyweight', 'reps', false, []],
+  ['x-goblet-squat-hold', 'Goblet Squat Hold (deep squat)', 'Mobility', 'Kettlebell', 'time', false, []],
+  ['x-db-single-leg-rdl', 'Dumbbell Single-Leg Romanian Deadlift', 'Hamstrings', 'Dumbbell', 'weight', true, ['balance']],
 ]
 
 EXERCISES.push(

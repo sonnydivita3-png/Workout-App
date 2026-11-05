@@ -1144,11 +1144,11 @@ function generateFunctional(minutes: number, rng: Rng, avoid: Set<string>, opts:
  * and the back of the shoulders, wake up the glutes, brace the trunk, then stretch. Light weights, slow reps, holds.
  */
 const POSTURE: { key: string; ids: string[]; families?: string[]; hold?: boolean }[] = [
-  { key: 'open', ids: ['x-thoracic-extension', 'x-open-book', 'Cat_Stretch', 'x-chin-tuck', 'x-doorway-chest-stretch'], hold: true },
+  { key: 'open', ids: ['x-thoracic-extension', 'x-open-book', 'Cat_Stretch', 'x-chin-tuck', 'x-doorway-chest-stretch', 'x-dead-hang', 'x-hip-90-90', 'x-ankle-rock'], hold: true },
   { key: 'back', ids: ['Band_Pull_Apart', 'x-band-face-pull', 'Face_Pull', 'x-prone-ytw', 'x-wall-angel', 'x-reverse-snow-angel', 'x-scap-pushup', 'x-kb-bottoms-up-press'], families: ['rear delt'] },
-  { key: 'glutes', ids: ['x-glute-bridge-march', 'Butt_Lift_Bridge', 'x-clamshell', 'x-single-leg-rdl', 'x-bird-dog'] },
+  { key: 'glutes', ids: ['x-glute-bridge-march', 'Butt_Lift_Bridge', 'x-clamshell', 'x-single-leg-rdl', 'x-db-single-leg-rdl', 'x-bird-dog'] },
   { key: 'core', ids: ['Dead_Bug', 'x-bird-dog', 'x-band-pallof', 'Pallof_Press', 'x-superman-hold', 'Plank', 'Side_Bridge', 'x-hollow-hold'] },
-  { key: 'stretch', ids: ['x-doorway-chest-stretch', 'x-couch-stretch', 'x-childs-pose', 'x-hamstring-stretch', 'x-open-book'], hold: true },
+  { key: 'stretch', ids: ['x-doorway-chest-stretch', 'x-couch-stretch', 'x-childs-pose', 'x-hamstring-stretch', 'x-open-book', 'x-goblet-squat-hold', 'x-pigeon-stretch'], hold: true },
 ]
 /** What gets another exercise first as the time grows: the upper back most, then the trunk and glutes. */
 const POSTURE_ORDER = ['back', 'core', 'glutes', 'open', 'stretch', 'back', 'core', 'open', 'glutes', 'back', 'stretch', 'core']

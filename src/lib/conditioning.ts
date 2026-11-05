@@ -126,7 +126,7 @@ export const CARDIO_GUIDE = 150
  * Weekly cardio minutes by goal. Everyone starts from the health guideline (150 moderate minutes); losing fat aims for
  * the 200–300 minutes the ACSM recommends for weight loss, and Hyrox / CrossFit needs a bigger engine.
  */
-export const GOAL_CARDIO: Record<ProgramGoal, number> = { muscle: CARDIO_GUIDE, strength: CARDIO_GUIDE, fitness: CARDIO_GUIDE, fatloss: 225, functional: 180 }
+export const GOAL_CARDIO: Record<ProgramGoal, number> = { muscle: CARDIO_GUIDE, strength: CARDIO_GUIDE, fitness: CARDIO_GUIDE, fatloss: 225, functional: 180, mobility: CARDIO_GUIDE }
 
 /** Weekly cardio minutes to aim for: their own number, else the most any of their goals needs, else the guideline. */
 export function cardioTarget(goals: ProgramGoal[], custom?: number | null): number {

@@ -11,7 +11,7 @@ import { plateau, workSets } from './progression'
 import { isMainLift } from './randomUtil'
 import { addDropSets, dropGroupsOf } from './warmups'
 
-export type ProgramGoal = 'muscle' | 'strength' | 'fatloss' | 'fitness' | 'functional'
+export type ProgramGoal = 'muscle' | 'strength' | 'fatloss' | 'fitness' | 'functional' | 'mobility'
 
 export const PROGRAM_GOALS: { id: ProgramGoal; label: string; blurb: string }[] = [
   { id: 'muscle', label: 'Build muscle', blurb: 'Body-part splits with straight sets and supersets, 8–12 reps.' },
@@ -19,6 +19,7 @@ export const PROGRAM_GOALS: { id: ProgramGoal; label: string; blurb: string }[] 
   { id: 'fatloss', label: 'Lose fat', blurb: 'HIIT, circuits and PHA, plus cardio, with some lifting to keep muscle.' },
   { id: 'fitness', label: 'General fitness', blurb: 'A balanced mix of lifting, bodyweight, circuits and cardio.' },
   { id: 'functional', label: 'Hyrox / CrossFit', blurb: 'Hyrox-style and CrossFit-style sessions with strength work and running.' },
+  { id: 'mobility', label: 'Move better', blurb: 'Posture, mobility and functional strength: upper back, hips and core, with everyday movements.' },
 ]
 
 /**
@@ -105,6 +106,16 @@ function goalDayTypes(goal: ProgramGoal, daysPerWeek: number): DayType[] {
         { name: 'Bodyweight', groups: ['Chest', 'Back', 'Quads', 'Core'], style: 'bodyweight', weight: 0.5 },
         { name: 'Run / cardio', groups: [], style: 'standard', weight: 0.8 },
       ]
+    case 'mobility':
+      // Posture work (upper back, rear shoulders, core, a stretch to finish), everyday movement patterns, and enough
+      // legs and hips to keep them strong through their range.
+      return [
+        { name: 'Posture', groups: ['Back', 'Shoulders', 'Core'], style: 'posture', weight: 1.3, generic: true },
+        { name: 'Functional', groups: FULL, style: 'functional', weight: fw(1.2), generic: true },
+        { name: 'Lower body', groups: LOWER_BODY, style: 'standard', weight: 0.7 },
+        { name: 'Bodyweight', groups: ['Chest', 'Back', 'Quads', 'Core'], style: 'bodyweight', weight: 0.6 },
+        cardio(0.5),
+      ]
   }
 }
 
@@ -149,7 +160,7 @@ export function bestSplit(daysPerWeek: number): SplitId {
 }
 
 /** Workout style for split days: the lifting style that matches the goal. */
-const SPLIT_STYLE: Record<ProgramGoal, WorkoutStyle> = { muscle: 'standard', strength: 'strength', fatloss: 'supersets', fitness: 'standard', functional: 'strength' }
+const SPLIT_STYLE: Record<ProgramGoal, WorkoutStyle> = { muscle: 'standard', strength: 'strength', fatloss: 'supersets', fitness: 'standard', functional: 'strength', mobility: 'standard' }
 
 /** The days of a split, in the order they repeat. */
 function splitRotation(split: Exclude<SplitId, 'auto'>, daysPerWeek: number, style: WorkoutStyle): DayType[] {
@@ -228,6 +239,7 @@ const CARDIO_ROTATION: Record<ProgramGoal, CardioSessionKind[]> = {
   fitness: ['steady', 'intervals', 'tempo', 'steady'],
   fatloss: ['intervals', 'steady', 'tempo', 'steady', 'hills'],
   functional: ['intervals', 'steady', 'tempo', 'hills'],
+  mobility: ['steady', 'steady', 'intervals'],
 }
 export const cardioKindFor = (goals: ProgramGoal[], n: number): CardioSessionKind => {
   const r = CARDIO_ROTATION[goals[0]] ?? CARDIO_ROTATION.fitness
@@ -278,6 +290,11 @@ export interface ProgramInput {
   perMuscle?: number
   /** Their own weekly sets per muscle (Settings), instead of the goal's. */
   setTarget?: number | null
+  /**
+   * Body parts they most want to work on (a trainer's "focus areas"): sessions that train them come up more often, and
+   * each gets about four more hard sets a week than the goal's usual.
+   */
+  emphasis?: string[]
   /** A run or bike plan already covers their cardio: no cardio days and no cardio finishers. */
   noCardio?: boolean
 }
@@ -613,7 +630,9 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
   const total = weeks * 7
   const dpw = new Set(trainWeekdays).size
   const goals = goalList(goal)
+  const emphasis = new Set(input.emphasis ?? [])
   const types = withLikes(dayTypes(goals, dpw), input.likedStyles).filter((t) => !(input.noCardio && isCardioDay(t)))
+    .map((t) => (emphasis.size && t.groups.some((g) => emphasis.has(g)) ? { ...t, weight: t.weight * 1.4 } : t))
   const split = input.split && input.split !== 'auto' ? splitRotation(input.split, dpw, SPLIT_STYLE[goals[0]]) : null
 
   const lastTrained = new Map<string, number>() // group -> day offset it was last trained
@@ -697,7 +716,7 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
     const weekOf = (w: number) => out.filter((d) => d.weekIndex === w && !d.rest)
     const week = [...new Set(out.map((d) => d.weekIndex))].map(weekOf).find((w) => w.length === dpw)
     if (week) {
-      const target = (g: string) => weeklyTarget(g, goals, input.setTarget)
+      const target = (g: string) => weeklyTarget(g, goals, input.setTarget) + (emphasis.has(g) ? 4 : 0)
       // Calves or core short of their target can go into another session with room: an everyday move for them.
       const extraFor = (part: string, used: Set<string>) =>
         generateWorkout([part], 15, { style: 'standard', rng, avoid: used, rest: input.rest, maxPerPart: 1, setCap: sessionSets, ...(input.reps && input.reps !== 'auto' ? { repRange: REP_RANGES[input.reps] } : {}) })
