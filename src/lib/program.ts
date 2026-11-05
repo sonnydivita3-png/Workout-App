@@ -42,6 +42,9 @@ const UPPER_BODY = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps']
 const LOWER_BODY = ['Quads', 'Hamstrings', 'Glutes', 'Calves', 'Core']
 const ARMS = ['Biceps', 'Triceps']
 const CARDIO: DayType = { name: 'Cardio', groups: [], style: 'standard', weight: 0.35 }
+/** Days with no big muscle in them, for a day after one that trained them all. */
+const ARMS_CORE_DAY: DayType = { name: 'Arms & core', groups: [...ARMS, 'Core', 'Calves'], style: 'standard', weight: 1 }
+const MOBILITY_DAY: DayType = { name: 'Mobility & core', groups: ['Core'], style: 'posture', weight: 1, generic: true }
 
 /**
  * Day types available for a goal. Full-body sessions touch every major muscle, so the next day can only be cardio:
@@ -696,8 +699,11 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
     }
 
     // Never repeat a major muscle group from yesterday. Cardio days have none, so a choice always exists.
-    const allowed = types.filter((t) => !majorsOf(t).some((g) => prevMajors.has(g)))
-    // Without cardio days (a run plan covers them) every session trains a major muscle: after a full-body day, rest.
+    let allowed = types.filter((t) => !majorsOf(t).some((g) => prevMajors.has(g)))
+    // Every session left trains a muscle worked yesterday (after a full-body day, with no cardio days): a day they asked
+    // to train is still a training day, for muscles that recover fast (arms, calves, core) or mobility, not a lost day.
+    if (!split && allowed.length === 0 && !input.noCardio) allowed = [goals.includes('mobility') ? MOBILITY_DAY : ARMS_CORE_DAY]
+    // With a run plan covering the cardio, that day is its run's: rest from lifting.
     if (!split && allowed.length === 0) {
       out.push({ date, rest: true, focus: [], groups: [], weekIndex, items: [] })
       prevMajors = new Set()
