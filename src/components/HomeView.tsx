@@ -1,4 +1,3 @@
-import { CoachCard } from './CoachCard'
 import { useState } from 'react'
 import { fmtLong } from '../lib/dates'
 import { goalDetail, goalPct, goalTitle } from '../lib/goals'
@@ -117,7 +116,6 @@ export function HomeView({ onNavigate }: { onNavigate: (t: Tab, sub?: string) =>
       </header>
 
       <TodayCard onNavigate={onNavigate} />
-      <CoachCard />
       <SafetyNudge onNavigate={onNavigate} />
 
       <section aria-label="This week" className="grid grid-cols-2 gap-2 text-center">

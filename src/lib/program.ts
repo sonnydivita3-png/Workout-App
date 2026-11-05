@@ -293,15 +293,8 @@ export interface ProgramInput {
   perMuscle?: number
   /** Their own weekly sets per muscle (Settings), instead of the goal's. */
   setTarget?: number | null
-  /**
-   * Body parts they most want to work on (a trainer's "focus areas"): sessions that train them come up more often, and
-   * each gets about four more hard sets a week than the goal's usual.
-   */
-  emphasis?: string[]
   /** A run or bike plan already covers their cardio: no cardio days and no cardio finishers. */
   noCardio?: boolean
-  /** No cardio days (the cardio is placed by whoever asked, like the trainer), but finishers still fill short sessions. */
-  noCardioDays?: boolean
 }
 
 export type RepScheme = 'auto' | 'heavy' | 'moderate' | 'light'
@@ -658,9 +651,7 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
   const total = weeks * 7
   const dpw = new Set(trainWeekdays).size
   const goals = goalList(goal)
-  const emphasis = new Set(input.emphasis ?? [])
-  const types = withLikes(dayTypes(goals, dpw), input.likedStyles).filter((t) => !((input.noCardio || input.noCardioDays) && isCardioDay(t)))
-    .map((t) => (emphasis.size && t.groups.some((g) => emphasis.has(g)) ? { ...t, weight: t.weight * 1.4 } : t))
+  const types = withLikes(dayTypes(goals, dpw), input.likedStyles).filter((t) => !(input.noCardio && isCardioDay(t)))
   // How often a big muscle is trained in a week: twice is what most programs aim for (Schoenfeld et al. 2016), three
   // times only on six or more days a week. A third lower-body day in a four-day week is a sign of a bad pick.
   const weekHits = new Map<string, number>()
@@ -753,7 +744,7 @@ export function generateProgram(input: ProgramInput): ProgramDay[] {
     const weekOf = (w: number) => out.filter((d) => d.weekIndex === w && !d.rest)
     const week = [...new Set(out.map((d) => d.weekIndex))].map(weekOf).find((w) => w.length === dpw)
     if (week) {
-      const target = (g: string) => weeklyTarget(g, goals, input.setTarget) + (emphasis.has(g) ? 4 : 0)
+      const target = (g: string) => weeklyTarget(g, goals, input.setTarget)
       // Calves or core short of their target can go into another session with room: an everyday move for them.
       const extraFor = (part: string, used: Set<string>) =>
         generateWorkout([part], 15, { style: 'standard', rng, avoid: used, rest: input.rest, maxPerPart: 1, setCap: sessionSets, ...(input.reps && input.reps !== 'auto' ? { repRange: REP_RANGES[input.reps] } : {}) })

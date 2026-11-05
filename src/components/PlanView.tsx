@@ -25,7 +25,6 @@ import { FinishWorkout } from './FinishWorkout'
 import { RestTimer } from './RestTimer'
 import { Tip } from './Tip'
 import { Chevron } from './Chevron'
-import { CoachSheet } from './CoachSheet'
 import { isFinished, sessionLabel, SESSIONS, splitItems } from '../lib/sessions'
 import { minutesFor } from '../lib/randomizer'
 import { bodyweightOn, restingPerHour } from '../lib/calories'
@@ -59,7 +58,6 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
   const [benchSheet, setBenchSheet] = useState(false)
   const [dayMenu, setDayMenu] = useState<false | 'menu' | 'load'>(false)
   const [arranging, setArranging] = useState(false)
-  const [coach, setCoach] = useState(false)
   // Finishing the day, or on a day split in two, one of its sessions.
   const [finishing, setFinishing] = useState<boolean | DaySession>(false)
   const [generator, setGenerator] = useState<GeneratorMode | null>(null)
@@ -226,7 +224,6 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
           {([
             ['Add an exercise', 'Search or browse 500 exercises', () => setPicking(true)],
             ['Make me a workout', 'Pick body parts and time, get a full workout', () => setGenerator('one')],
-            ['Reach a goal with your trainer', 'Lose weight, build muscle, get stronger or move better: a plan for as long as it takes', () => setCoach(true)],
             ['Plan a week or month', 'Training and rest days built around a goal', () => setGenerator('program')],
             ['Timed workout', 'A circuit (like 30 s of each move), AMRAP, EMOM, for time or Tabata, with a clock', () => setWodBuilder(true)],
             ['Core finisher', 'A few core moves to end with: pick 5 to 20 minutes', () => setCoreFinisher(true)],
@@ -241,7 +238,6 @@ export function PlanView({ initialAction, onSettings }: { initialAction?: string
         </Sheet>
       )}
       {arranging && <ArrangeSheet date={date} onClose={() => setArranging(false)} />}
-      {coach && <CoachSheet onClose={() => setCoach(false)} />}
       {benchSheet && <BenchmarkSheet date={date} dayName={DAY_NAMES[day]} onClose={() => setBenchSheet(false)} />}
       {wodBuilder && <WodBuilderSheet date={date} onClose={() => setWodBuilder(false)} />}
       {coreFinisher && <CoreFinisherSheet date={date} dayName={DAY_NAMES[day]} onClose={() => setCoreFinisher(false)} />}
