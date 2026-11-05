@@ -106,8 +106,8 @@ describe('any request Make me a workout can make', () => {
     for (let n = 0; n < 1500; n++) {
       const goal = r() < 0.5 ? 'calories' : 'time'
       const req = base({
-        kinds: pick(KINDS), liftStyle: pick(LIFT_STYLES), condStyle: pick(COND), focus: pick(FOCI), cardio: pick(SETUPS), minutes: pick([20, 30, 45, 60, 75, 90]),
-        warm: pick(WARMS), goal, kcal: pick([300, 500, 750, 1000]), timeLimit: r() < 0.5 ? null : pick([45, 60, 75, 90, 120]), gear: pick(GEAR_PRESETS).gear,
+        kinds: pick(KINDS), liftStyle: pick(LIFT_STYLES), condStyle: pick(COND), focus: pick(FOCI), cardio: pick(SETUPS), minutes: pick([20, 30, 45, 60, 75, 90, 120, 150, 180]),
+        warm: pick(WARMS), goal, kcal: pick([300, 500, 750, 1000]), timeLimit: r() < 0.5 ? null : pick([45, 60, 75, 90, 120, 150, 180]), gear: pick(GEAR_PRESETS).gear,
       })
       const plan = planRequest(req)
       if (!plan.canGenerate) continue
