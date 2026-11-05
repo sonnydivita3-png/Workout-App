@@ -32,7 +32,7 @@ export function weeklySets(logs: ExerciseLog[], date: string, lookup: (id: strin
  * muscle (more helps, up to ~20), strength comes mostly from heavy work and needs less volume, and about a third to
  * half of a growth dose keeps muscle while dieting or training for general fitness.
  */
-export const GOAL_SETS: Record<ProgramGoal, number> = { muscle: 12, strength: 8, fatloss: 8, fitness: 6, functional: 6 }
+export const GOAL_SETS: Record<ProgramGoal, number> = { muscle: 12, strength: 8, fatloss: 8, fitness: 6, functional: 6, mobility: 6 }
 /** With no goal set: the common middle-of-the-road number. */
 export const DEFAULT_SETS = 10
 /** Muscles that also work hard in the big lifts (biceps in rows, triceps in presses, glutes in squats, core in all of them). */
