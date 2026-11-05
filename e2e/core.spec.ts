@@ -259,6 +259,21 @@ test('randomizer remembers the last choices, and Full body is one tap', async ({
   await expect(sheet.getByRole('button', { name: '30 min', exact: true })).toHaveClass(/bg-accent/)
 })
 
+test('Make me a workout goes up to 3 hours', async ({ page }) => {
+  await seed(page)
+  await page.goto('/')
+  await page.locator('nav').getByText('Workouts').click()
+  await page.getByRole('button', { name: '+ Add', exact: true }).click()
+  await page.locator('.fixed').getByText('Make me a workout').click()
+  const sheet = page.locator('.fixed')
+  await sheet.getByRole('button', { name: 'Lifting', exact: true }).click()
+  await sheet.getByRole('button', { name: 'Cardio', exact: true }).click()
+  await sheet.getByRole('button', { name: 'Full body', exact: true }).click()
+  await sheet.getByRole('button', { name: '3h 00m', exact: true }).click()
+  await sheet.getByRole('button', { name: /^Generate/ }).click()
+  await expect(sheet.getByText(/about 1[78]\d min/)).toBeVisible()
+})
+
 test('plan edits change one date; Repeat every weekday makes it the usual week', async ({ page }) => {
   await seed(page)
   await page.goto('/')

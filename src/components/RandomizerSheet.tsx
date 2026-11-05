@@ -32,9 +32,9 @@ import { cardioNameOf, COND_GROUPS, LIFT_STYLES, makeWorkout, minPart, planReque
 import { NumberInput } from './NumberInput'
 
 const MAX_HISTORY = 50
-const DURATIONS = [20, 30, 45, 60, 75, 90]
+const DURATIONS = [20, 30, 45, 60, 75, 90, 120, 150, 180]
 const CALORIES = [300, 500, 750, 1000]
-const LIMITS = [45, 60, 75, 90, 120]
+const LIMITS = [45, 60, 75, 90, 120, 150, 180]
 // Styles that use cardio machines as stations.
 // Styles that choose their own lifts, so exercise-type preferences apply (timed formats use a set list of movements).
 const PICKS_LIFTS: WorkoutStyle[] = ['standard', 'strength', 'supersets', 'bodyweight', 'circuit', 'pha', 'functional', 'posture']
@@ -169,7 +169,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
       setSplit(({ warmup: _w, ...r }) => (void _w, r))
       return
     }
-    setSplit((cur) => ({ ...cur, [k]: Math.min(120, Math.max(minPart(k), (cur[k] ?? partMin(k)) + d)) }))
+    setSplit((cur) => ({ ...cur, [k]: Math.min(180, Math.max(minPart(k), (cur[k] ?? partMin(k)) + d)) }))
   }
   // A harder style: lifting styles stay lifting; HIIT ones (PHA, circuits) make it a conditioning workout instead.
   const switchStyle = (st: WorkoutStyle) => {
@@ -393,7 +393,7 @@ export function RandomizerSheet({ date, onClose, onSwitchMode, onUse }: Props) {
         {goal === 'time' && !(cardioOnly && fixedCardio) && (
           <div className="mb-5 flex flex-wrap gap-2">
             {DURATIONS.map((m) => (
-              <button key={m} onClick={() => { setMinutes(m); setSplit({}) }} className={chip(m === minutes && Object.keys(split).length === 0)}>{m} min</button>
+              <button key={m} onClick={() => { setMinutes(m); setSplit({}) }} className={chip(m === minutes && Object.keys(split).length === 0)}>{m < 120 ? `${m} min` : formatMinutes(m)}</button>
             ))}
           </div>
         )}
