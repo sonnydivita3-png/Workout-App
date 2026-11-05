@@ -36,6 +36,9 @@ const HYROX_SUBS: Record<string, [string, number, 'm' | 'reps']> = {
 }
 const FULL_RUN_KM = 1
 const MIN_PER_KM = 6
+/** A long simulation: each run at most 2.5 km, and each station at most 1.5 times its race size. */
+const MAX_RUN_KM = 2.5
+const MAX_STATION_SCALE = 1.5
 
 /** The run: on a treadmill when that's the running they do (they like the treadmill, not running outside). */
 function hyroxRun(): string {
@@ -56,8 +59,14 @@ export function generateHyrox(minutes: number, rng: Rng = Math.random): PlannedE
   const stations = HYROX_STATIONS.filter((_, i) => keep.has(i))
   const size = pairs * FULL_RUN_KM * MIN_PER_KM + stations.reduce((a, s) => a + s[3], 0)
   const scale = Math.min(1, Math.max(0.35, minutes / size))
+  // Past a full race, a long simulation the way Hyrox athletes build engine: the stations grow up to half again their
+  // race size and the runs take the rest of the time, up to 2.5 km each. The race order and the one run card stay.
+  const over = minutes / size
+  const stationScale = over > 1 ? Math.min(MAX_STATION_SCALE, 1 + (over - 1) / 2) : scale
+  const stationMin = stations.reduce((a, s) => a + s[3], 0) * stationScale
+  const runKm = over > 1 ? Math.min(MAX_RUN_KM, Math.max(FULL_RUN_KM, (minutes - stationMin) / (pairs * MIN_PER_KM))) : FULL_RUN_KM * scale
 
-  const runM = Math.max(200, roundTo(FULL_RUN_KM * 1000 * scale, 50))
+  const runM = Math.max(200, roundTo(runKm * 1000, 50))
   const block = 'hyrox'
   const blockLabel = `Hyrox-style · ${pairs} × (${runM} m run + station)`
   const items: PlannedExercise[] = [
@@ -78,8 +87,8 @@ export function generateHyrox(minutes: number, rng: Rng = Math.random): PlannedE
     const sled = station[0] === 'x-sled-push' || station[0] === 'x-sled-pull'
     const sub = !hasGear(BY_ID.get(station[0])!) || (sled && isHomeSetup()) ? HYROX_SUBS[station[0]] : undefined
     const [id, full, unit] = sub ?? station
-    const amount = unit === 'm' ? Math.max(10, roundTo(full * scale, full >= 200 ? 25 : 5)) : Math.max(10, roundTo(full * scale, 5))
-    items.push({ exerciseId: id, sets: 1, note: `${amount} ${unit}`, est: minutesOf(est * scale), block, blockLabel })
+    const amount = unit === 'm' ? Math.max(10, roundTo(full * stationScale, full >= 200 ? 25 : 5)) : Math.max(10, roundTo(full * stationScale, 5))
+    items.push({ exerciseId: id, sets: 1, note: `${amount} ${unit}`, est: minutesOf(est * stationScale), block, blockLabel })
   }
   return items
 }
