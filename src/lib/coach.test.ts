@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { buildBlock, cardioDays, checkInDue, chooseDays, defaultCardio, minRest, recommendedDays, sessionsIn, cleanCoach, estimate, nextCheckIn, planWeeks, programGoals, programInput, review, strengthWeeks, weekBurn, weightTrend, type CoachAnswers, type CoachPlan } from './coach'
+import { buildBlock, cardioDays, checkInDue, chooseDays, defaultCardio, minRest, recommendedDays, sessionsIn, cleanCoach, estimate, nextCheckIn, planWeeks, programGoals, programInput, review, strengthWeeks, weekBurn, weightTrend, type CoachAnswers, type CoachGoal, type CoachPlan } from './coach'
 import { minutesFor } from './randomizer'
 import { mulberry32 } from './randomUtil'
+import { parseISO } from './dates'
 import { perMinute } from './calorieTarget'
 import { plannedSets } from './muscles'
 import { BUILTIN_BY_ID } from '../data/exercises'
@@ -152,6 +153,14 @@ describe('the week a coach would lay out', () => {
       const days = chooseDays([0, 1, 2, 3, 4, 5, 6], recommendedDays(exp, 7), exp)
       const plan = week(answers({ experience: exp, days, available: [0, 1, 2, 3, 4, 5, 6], cardio: defaultCardio([{ kind: 'lose', lb: 20 }]) }))
       expect(plan.filter((d) => d.rest).length, exp).toBeGreaterThanOrEqual(minRest(exp))
+    }
+  })
+  it('every day they picked to train is a training day (5 days a week lost one to rest)', () => {
+    for (const n of [3, 4, 5, 6]) for (const goal of [{ kind: 'lose', lb: 20 }, { kind: 'move', focus: ['posture'] }, { kind: 'muscle', areas: [] }] as CoachGoal[]) for (const place of ['days', 'none', 'ampm'] as const) for (let seed = 1; seed <= 3; seed++) {
+      const days = chooseDays([0, 1, 2, 3, 4, 5, 6], n, 'experienced')
+      const plan = buildBlock(answers({ goals: [goal], experience: 'experienced', days, available: [0, 1, 2, 3, 4, 5, 6], cardio: { place, perWeek: 1, minutes: 30 } }), { minutes: 0, volume: 0 }, '2026-11-09', '2026-11-09', { capVolume: true }, mulberry32(seed))
+      const lost = plan.filter((d) => d.rest && days.includes((parseISO(d.date).getDay() + 6) % 7))
+      expect(lost.map((d) => d.date), `${n} days ${goal.kind} ${place} seed ${seed}`).toEqual([])
     }
   })
   it('cardio days go on the other free days, keeping the rest days', () => {
