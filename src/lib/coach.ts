@@ -1,6 +1,9 @@
 import type { ExerciseLog, PlannedExercise, Program } from '../types'
 import type { DayOptions, ProgramDay, ProgramGoal, ProgramInput, SetScheme } from './program'
-import { generateProgram } from './program'
+import { cardioKindFor, generateProgram } from './program'
+import { FINISHER, generateWorkout, mergeIntoDay, minutesFor } from './randomizer'
+import { roundTo5 } from './randomUtil'
+import { CARDIO_SESSIONS } from './cardioSession'
 import { STYLE_MET, workoutCalories } from './calorieTarget'
 import { addDays, parseISO, toISO } from './dates'
 import { hasData, strengthSessions, epley } from './stats'
@@ -56,12 +59,37 @@ export const TEST_LIFTS: { id: string; label: string }[] = [
   { id: 'Standing_Military_Press', label: 'Overhead press' },
 ]
 
+/**
+ * Where cardio goes: on days of its own, at the end of each lifting session, as a separate morning session on lifting
+ * days (two-a-days: cardio in the morning, weights in the evening), or not at all (beyond what sessions already have).
+ */
+export type CardioPlace = 'days' | 'after' | 'ampm' | 'none'
+
+export interface CoachCardio {
+  place: CardioPlace
+  /** Sessions a week (own days or morning sessions; 'after' is every lifting day). */
+  perWeek: number
+  /** Minutes each. */
+  minutes: number
+}
+
+export const CARDIO_PLACES: { id: CardioPlace; label: string; blurb: string }[] = [
+  { id: 'days', label: 'On its own days', blurb: 'Cardio sessions on days you don’t lift.' },
+  { id: 'after', label: 'After lifting', blurb: 'Each lifting session ends with cardio, inside the session’s time.' },
+  { id: 'ampm', label: 'Two-a-days', blurb: 'Cardio in the morning, weights in the evening, on lifting days.' },
+  { id: 'none', label: 'No extra cardio', blurb: 'Just what the sessions themselves include.' },
+]
+
 export interface CoachAnswers {
   /** In order of priority: the first one leads the plan. */
   goals: CoachGoal[]
   experience: Experience
-  /** Weekdays to train, 0 = Monday. */
+  /** Weekdays to lift on (picked from `available`, spread for recovery), 0 = Monday. */
   days: number[]
+  /** Weekdays they can train at all (cardio days come from these too). */
+  available?: number[]
+  /** How cardio fits in (older plans: none of their own). */
+  cardio?: CoachCardio
   /** Minutes a session. */
   minutes: number
   /** Body parts to give extra work (from a muscle goal, or picked on their own). */
@@ -124,6 +152,76 @@ const MOVE_WEEKS = 8
 const MUSCLE_WEEKS = 12
 const MAX_WEEKS = 104
 
+/** Rest days a week at least: one, two for someone new to training (recovery is when the adaptation happens). */
+export const minRest = (exp: Experience) => (exp === 'new' ? 2 : 1)
+/** Most training days in a row: three for someone new, else four. */
+const MAX_RUN: Record<Experience, number> = { new: 3, some: 4, experienced: 5 }
+
+/** Days a week a coach would start them on: 3 for someone new, 4 with some experience, 5 when experienced. */
+export function recommendedDays(exp: Experience, available: number): number {
+  return Math.max(2, Math.min(available, 7 - minRest(exp), exp === 'new' ? 3 : exp === 'some' ? 4 : 5))
+}
+
+/** Cardio sessions a week and minutes each for their goals: fat loss aims at the 200-300 minutes the ACSM gives for it. */
+export function defaultCardio(goals: CoachGoal[]): CoachCardio {
+  const lose = goals.some((g) => g.kind === 'lose')
+  return { place: 'days', perWeek: lose ? 4 : 2, minutes: lose ? 45 : 30 }
+}
+
+/** The longest run of days in a row (the week wraps: Sunday then Monday). */
+function longestRun(days: number[]): number {
+  if (days.length >= 7) return 7
+  const set = new Set(days)
+  let best = 0
+  for (let start = 0; start < 7; start++) {
+    if (set.has((start + 6) % 7) || !set.has(start)) continue
+    let n = 0
+    while (set.has((start + n) % 7) && n < 7) n++
+    best = Math.max(best, n)
+  }
+  return best
+}
+
+/**
+ * `n` training days from the days they're free, spread out the way a coach would: as even gaps as the week allows (the
+ * smallest gap as big as possible), and no more days in a row than their experience handles.
+ */
+export function chooseDays(available: number[], n: number, exp: Experience): number[] {
+  const free = [...new Set(available)].filter((d) => d >= 0 && d <= 6).sort((a, b) => a - b)
+  if (n >= free.length) return free
+  let best: number[] = free.slice(0, n)
+  let bestScore = -Infinity
+  const pick = (from: number, chosen: number[]) => {
+    if (chosen.length === n) {
+      const gaps = chosen.map((d, i) => ((chosen[(i + 1) % n] - d + 7) % 7) || 7)
+      const run = longestRun(chosen)
+      const score = Math.min(...gaps) * 10 - Math.max(...gaps) - (run > MAX_RUN[exp] ? 100 : 0) - run
+      if (score > bestScore) { bestScore = score; best = [...chosen] }
+      return
+    }
+    for (let i = from; i < free.length; i++) pick(i + 1, [...chosen, free[i]])
+  }
+  pick(0, [])
+  return best
+}
+
+/** Days for cardio of its own: from the free days left after lifting, spread, keeping their rest days. */
+export function cardioDays(available: number[], lifting: number[], wanted: number, exp: Experience): number[] {
+  const left = [...new Set(available)].filter((d) => !lifting.includes(d))
+  const room = Math.max(0, 7 - lifting.length - minRest(exp))
+  const n = Math.min(wanted, left.length, room)
+  if (!n) return []
+  // Spread against the lifting days: the free day farthest from them first.
+  const dist = (d: number) => Math.min(...lifting.map((l) => Math.min((d - l + 7) % 7, (l - d + 7) % 7)), 7)
+  const out: number[] = []
+  const pool = [...left]
+  while (out.length < n && pool.length) {
+    pool.sort((a, b) => dist(b) + Math.min(7, ...out.map((o) => Math.min((b - o + 7) % 7, (o - b + 7) % 7))) - (dist(a) + Math.min(7, ...out.map((o) => Math.min((a - o + 7) % 7, (o - a + 7) % 7)))))
+    out.push(pool.shift()!)
+  }
+  return out.sort((a, b) => a - b)
+}
+
 /** Each kind of goal as the planner's goal: losing weight trains like fat loss, moving better like mobility. */
 const PROGRAM_GOAL: Record<GoalKind, ProgramGoal> = { lose: 'fatloss', muscle: 'muscle', strength: 'strength', move: 'mobility' }
 export const programGoals = (goals: CoachGoal[]): ProgramGoal[] => [...new Set(goals.map((g) => PROGRAM_GOAL[g.kind]))]
@@ -181,27 +279,72 @@ export function planWeeks(est: GoalEstimate[]): number {
 export function programInput(a: CoachAnswers, adjust: CoachAdjust): Pick<ProgramInput, 'trainWeekdays' | 'goal' | 'minutes' | 'emphasis' | 'sets' | 'deload' | 'reps'> {
   const sets: SetScheme = adjust.volume < 0 ? 'flat' : adjust.volume > 0 ? 'weekly' : 'week3'
   const strengthOnly = a.goals.length === 1 && a.goals[0].kind === 'strength'
+  // Cardio after lifting is part of the session's time.
+  const after = a.cardio?.place === 'after' ? Math.min(a.cardio.minutes, Math.round(a.minutes / 2)) : 0
   return {
-    trainWeekdays: a.days, goal: programGoals(a.goals), minutes: a.minutes + adjust.minutes, emphasis: a.areas, sets, deload: true,
+    trainWeekdays: a.days, goal: programGoals(a.goals), minutes: a.minutes - after + adjust.minutes, emphasis: a.areas, sets, deload: true,
     // A strength goal on its own trains heavy; mixed with others, each session's style decides.
     reps: strengthOnly ? 'heavy' : 'auto',
   }
 }
 
 /** A block of the plan (four weeks from `anchorMonday`, skipping dates before `fromDate`). */
-export function buildBlock(a: CoachAnswers, adjust: CoachAdjust, anchorMonday: string, fromDate: string, options: DayOptions & Partial<ProgramInput>, rng?: Rng): ProgramDay[] {
-  return generateProgram({ ...options, ...programInput(a, adjust), anchorMonday, weeks: 4, fromDate, rng })
+export function buildBlock(a: CoachAnswers, adjust: CoachAdjust, anchorMonday: string, fromDate: string, options: DayOptions & Partial<ProgramInput>, rng: Rng = Math.random): ProgramDay[] {
+  const c = a.cardio
+  // The trainer places the cardio itself (where they asked for it), so the planner makes no cardio days.
+  const days = generateProgram({ ...options, ...programInput(a, adjust), anchorMonday, weeks: 4, fromDate, rng, ...(c ? { noCardioDays: true } : {}) })
+  if (!c || c.place === 'none' || options.noCardio) return days
+  const goals = programGoals(a.goals)
+  const own = c.place === 'days' ? cardioDays(a.available ?? a.days, a.days, c.perWeek, a.experience) : []
+  // Morning sessions on lifting days (as many as asked, spread through the week).
+  const mornings = c.place === 'ampm' ? spreadPick(a.days, Math.min(c.perWeek, a.days.length)) : []
+  const afterMin = Math.min(c.minutes, Math.round(a.minutes / 2))
+  let n = 0
+  let lastKind = 'Steady'
+  // (Not a machine the day already uses, like its warm-up's bike: one entry per exercise a day would drop it.)
+  const cardio = (minutes: number, day: PlannedExercise[] = []) => {
+    const kind = cardioKindFor(goals, n++)
+    lastKind = CARDIO_SESSIONS.find((k) => k.id === kind)?.label ?? 'Steady'
+    return generateWorkout(['Cardio'], minutes, { style: 'standard', rng, avoid: new Set(day.map((p) => p.exerciseId)), cardio: { kind } })
+  }
+  return days.map((d) => {
+    const wd = (parseISO(d.date).getDay() + 6) % 7
+    if (own.includes(wd) && d.rest) {
+      const items = cardio(c.minutes)
+      return { ...d, rest: false, name: `Cardio · ${lastKind}`, focus: ['Cardio'], groups: [], items }
+    }
+    if (d.rest || !a.days.includes(wd)) return d
+    if (c.place === 'after') {
+      // Their own cardio replaces the easy finisher, at the end of the session.
+      const lifting = d.items.filter((p) => p.note !== FINISHER)
+      return { ...d, items: mergeIntoDay(lifting, cardio(Math.max(afterMin, roundTo5(a.minutes - minutesFor(lifting))), lifting)) }
+    }
+    if (mornings.includes(wd)) {
+      const am = cardio(c.minutes, d.items).map((p) => ({ ...p, session: 'am' as const }))
+      const pm = d.items.map((p) => ({ ...p, session: 'pm' as const }))
+      return { ...d, name: `${lastKind} cardio AM · ${d.name} PM`, items: mergeIntoDay(pm, am) }
+    }
+    return d
+  })
+}
+
+/** `n` of `days`, spread out (every other one first). */
+function spreadPick(days: number[], n: number): number[] {
+  if (n >= days.length) return [...days]
+  const step = days.length / n
+  return Array.from({ length: n }, (_, i) => days[Math.floor(i * step)])
 }
 
 /**
- * Active calories a week of the plan burns: its training days' workouts on average (at their weight), times the days a
- * week they train. (An average, so a plan that starts midweek isn't counted short.)
+ * Active calories a week of the plan burns (at their weight): everything it plans, lifting and cardio days alike, over
+ * the weeks it covers. `perWeek` (training days a week) only scales a block shorter than a week.
  */
 export function weekBurn(days: { items: PlannedExercise[]; rest?: boolean }[], rate: (met: number) => number, perWeek: number): number {
   const mets = { lift: STYLE_MET.standard, cond: STYLE_MET.circuit, cardioFactor: 1 }
   const training = days.filter((d) => !d.rest && d.items.length)
   if (!training.length) return 0
-  return (training.reduce((a, d) => a + workoutCalories(d.items, rate, mets), 0) / training.length) * perWeek
+  const total = training.reduce((a, d) => a + workoutCalories(d.items, rate, mets), 0)
+  return days.length >= 7 ? total / (days.length / 7) : (total / training.length) * perWeek
 }
 
 /** Estimated 1RM from a set (reps past 12 count as 12, as everywhere in the app). */
@@ -355,7 +498,11 @@ export function cleanCoach(x: unknown): CoachPlan | null {
   if (!goals.length) return null
   return {
     ...p,
-    answers: { ...a, goals, areas: Array.isArray(a.areas) ? a.areas : [] },
+    answers: {
+      ...a, goals, areas: Array.isArray(a.areas) ? a.areas : [],
+      available: Array.isArray(a.available) ? a.available : a.days,
+      cardio: a.cardio && ['days', 'after', 'ampm', 'none'].includes(a.cardio.place) ? a.cardio : undefined,
+    },
     weeks: typeof p.weeks === 'number' ? p.weeks : 12,
     blockEnd: typeof p.blockEnd === 'string' ? p.blockEnd : p.startDate,
     adjust: { minutes: Number(p.adjust?.minutes) || 0, volume: p.adjust?.volume === -1 || p.adjust?.volume === 1 ? p.adjust.volume : 0 },

@@ -444,6 +444,8 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
   // Other choices can get several exercises each, and the bigger parts get theirs first (a lunge and a leg curl before a
   // second calf raise; ACSM 2009: large muscle groups before small).
   const fullBody = isFullBody(groups)
+  // (Planned sessions, which cap sets per muscle, fill spare time with a finisher instead.)
+  const fewParts = groups.length <= 2 || !opts.setCap
   const order = [...FULL_BODY_ORDER.filter((g) => groups.includes(g)), ...groups.filter((g) => !FULL_BODY_ORDER.includes(g))]
   const startSets = opts.setsPerExercise?.[0] ?? cfg.sets
   const maxSets = opts.setsPerExercise?.[1] ?? (fullBody ? Math.max(cfg.maxSets, 5) : cfg.maxSets)
@@ -485,7 +487,9 @@ function pickLifts(groups: string[], minutes: number, rng: Rng, avoid: Set<strin
     const mine = (e: Exercise) => e.group === g
     const find = (fits: (e: Exercise) => boolean) => {
       let i = q.findIndex((e) => fits(e) && !tooSimilar(e))
-      if (i < 0 && mode !== 'strict') i = q.findIndex((e) => fits(e) && !ONE_ONLY.has(familyOf(e) ?? ''))
+      // A second variation of a movement only on a day for one or two muscles (a long arm day): with more muscles in the
+      // session, a coach picks another muscle's movement or adds a set rather than two pull-ups or two dips.
+      if (i < 0 && mode !== 'strict' && fewParts) i = q.findIndex((e) => fits(e) && !ONE_ONLY.has(familyOf(e) ?? ''))
       return i
     }
     let i = find((e) => ok(e) && mine(e) && !unwanted(e))
@@ -1153,18 +1157,27 @@ const POSTURE: { key: string; ids: string[]; families?: string[]; hold?: boolean
 /** What gets another exercise first as the time grows: the upper back most, then the trunk and glutes. */
 const POSTURE_ORDER = ['back', 'core', 'glutes', 'open', 'stretch', 'back', 'core', 'open', 'glutes', 'back', 'stretch', 'core']
 
+/**
+ * The movement an exercise is, for keeping a session to one of each: its family (rear delt, bridge, plank…), else its
+ * name without the equipment ("Band Face Pull" and "Face Pull" are one movement).
+ */
+export const movementOf = (e: Exercise) =>
+  familyOf(e) ?? e.name.toLowerCase().replace(/\b(band|banded|cable|dumbbell|kettlebell|barbell|machine|seated|standing|single[- ]arm)\b/g, '').replace(/\s+/g, ' ').trim()
+
 function generatePosture(minutes: number, rng: Rng, avoid: Set<string>): PlannedExercise[] {
   const used = new Set<string>()
+  const moves = new Set<string>()
   const chosen: { key: string; p: PlannedExercise }[] = []
   const next = (key: string): PlannedExercise | undefined => {
     const part = POSTURE.find((x) => x.key === key)!
     // (Light kit only: a rear-delt move with dumbbells, a band or a cable, not a barbell.)
     const fromFamily = part.families ? POOL.filter((e) => part.families!.includes(familyOf(e) ?? '') && ['Dumbbell', 'Bands', 'Cable', 'Bodyweight'].includes(gearOf(e))) : []
     const pool = [...part.ids.map((id) => BY_ID.get(id)).filter((e): e is Exercise => !!e), ...fromFamily]
-      .filter((e) => hasGear(e) && !used.has(e.id) && !e.retired)
+      .filter((e) => hasGear(e) && !used.has(e.id) && !e.retired && !moves.has(movementOf(e)))
     const e = softShuffle(pool, avoid, rng)[0]
     if (!e) return undefined
     used.add(e.id)
+    moves.add(movementOf(e))
     // Stretches and openers: two 45-second holds. Strength: 2-3 slow sets of 12-15 (holds: 30 seconds).
     if (part.hold) return { exerciseId: e.id, sets: 2, seconds: 45, rest: 15 }
     return { exerciseId: e.id, sets: minutes >= 40 ? 3 : 2, ...(e.mode === 'time' ? { seconds: 30 } : { reps: pick([12, 15], rng) }), rest: 45 }

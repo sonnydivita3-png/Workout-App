@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildBlock, checkInDue, sessionsIn, cleanCoach, estimate, nextCheckIn, planWeeks, programGoals, programInput, review, strengthWeeks, weekBurn, weightTrend, type CoachAnswers, type CoachPlan } from './coach'
+import { buildBlock, cardioDays, checkInDue, chooseDays, defaultCardio, minRest, recommendedDays, sessionsIn, cleanCoach, estimate, nextCheckIn, planWeeks, programGoals, programInput, review, strengthWeeks, weekBurn, weightTrend, type CoachAnswers, type CoachPlan } from './coach'
 import { minutesFor } from './randomizer'
 import { mulberry32 } from './randomUtil'
 import { perMinute } from './calorieTarget'
@@ -135,6 +135,61 @@ describe('sessions since the last check-in', () => {
     expect(sessionsIn(program, [], '2026-11-02', '2026-11-05')).toEqual({ planned: 1, done: 0 })
     const logs = [{ date: '2026-11-05', exerciseId: 'b', sets: [{ weight: 100, reps: 5, done: true }] }]
     expect(sessionsIn(program, logs, '2026-11-02', '2026-11-05')).toEqual({ planned: 2, done: 1 })
+  })
+})
+
+describe('the week a coach would lay out', () => {
+  const week = (a: CoachAnswers, seed = 1) => buildBlock(a, { minutes: 0, volume: 0 }, '2026-11-09', '2026-11-09', { capVolume: true }, mulberry32(seed)).filter((d) => d.weekIndex === 0)
+  it('free every day: training days are picked and spread, with rest days between', () => {
+    expect(recommendedDays('new', 7)).toBe(3)
+    expect(recommendedDays('some', 7)).toBe(4)
+    expect(chooseDays([0, 1, 2, 3, 4, 5, 6], 3, 'new')).toEqual([0, 2, 4])
+    expect(chooseDays([0, 1, 2, 3, 4, 5, 6], 4, 'some')).toHaveLength(4)
+    // Never more days in a row than their experience handles (Mon-Fri free, 4 days, new: not four in a row).
+    const four = chooseDays([0, 1, 2, 3, 4], 4, 'new')
+    expect(four).not.toEqual([0, 1, 2, 3])
+    for (const exp of ['new', 'some', 'experienced'] as const) {
+      const days = chooseDays([0, 1, 2, 3, 4, 5, 6], recommendedDays(exp, 7), exp)
+      const plan = week(answers({ experience: exp, days, available: [0, 1, 2, 3, 4, 5, 6], cardio: defaultCardio([{ kind: 'lose', lb: 20 }]) }))
+      expect(plan.filter((d) => d.rest).length, exp).toBeGreaterThanOrEqual(minRest(exp))
+    }
+  })
+  it('cardio days go on the other free days, keeping the rest days', () => {
+    expect(cardioDays([0, 1, 2, 3, 4, 5, 6], [0, 2, 4], 4, 'new')).toHaveLength(2) // 3 lifting + 2 cardio leaves 2 rest days
+    const plan = week(answers({ days: [0, 2, 4], available: [0, 1, 2, 3, 4, 5, 6], cardio: { place: 'days', perWeek: 2, minutes: 40 } }))
+    expect(plan.filter((d) => d.name?.startsWith('Cardio')).length).toBe(2)
+    expect(plan.filter((d) => d.rest).length).toBeGreaterThanOrEqual(1)
+  })
+  it('two-a-days: cardio in the morning, lifting in the evening, on lifting days', () => {
+    const plan = week(answers({ days: [0, 2, 4], available: [0, 2, 4], cardio: { place: 'ampm', perWeek: 3, minutes: 30 } }))
+    const lifting = plan.filter((d) => !d.rest)
+    expect(lifting).toHaveLength(3)
+    for (const d of lifting) {
+      expect(d.name).toMatch(/cardio AM · .+ PM/)
+      expect(d.items.filter((p) => p.session === 'am').every((p) => p.minutes)).toBe(true)
+      expect(d.items.some((p) => p.session === 'pm' && !p.minutes)).toBe(true)
+    }
+  })
+  it('cardio after lifting is inside the session time', () => {
+    const plan = week(answers({ days: [0, 2, 4], available: [0, 2, 4], minutes: 60, cardio: { place: 'after', perWeek: 3, minutes: 20 } }))
+    for (const d of plan.filter((x) => !x.rest)) {
+      expect(d.items.at(-1)!.minutes, d.name).toBeGreaterThanOrEqual(20)
+      expect(minutesFor(d.items)).toBeLessThanOrEqual(60 * 1.15)
+    }
+  })
+  it('a liked Tabata on a 90-minute day is lifting plus the Tabata, not 20 minutes', () => {
+    for (let seed = 1; seed <= 6; seed++) {
+      const days = buildBlock(answers({ days: [0, 2, 4, 5], minutes: 90 }), { minutes: 0, volume: 0 }, '2026-11-09', '2026-11-09', { capVolume: true, likedStyles: ['tabata'] }, mulberry32(seed))
+      for (const d of days.filter((x) => x.style === 'tabata' && x.weekIndex < 3)) expect(minutesFor(d.items), d.date).toBeGreaterThan(90 * 0.75)
+    }
+  })
+  it('no lower-body day three times in a four-day week', () => {
+    const LOWER = ['Quads', 'Hamstrings', 'Glutes']
+    for (let seed = 1; seed <= 12; seed++) {
+      const plan = week(answers({ goals: [{ kind: 'muscle', areas: [] }, { kind: 'move', focus: ['posture'] }], days: [0, 1, 3, 4] }), seed)
+      const lower = plan.filter((d) => !d.rest && d.groups.length < 6 && d.groups.some((g) => LOWER.includes(g)) && d.groups.filter((g) => LOWER.includes(g)).length * 2 >= d.groups.filter((g) => !['Calves', 'Core', 'Biceps', 'Triceps'].includes(g)).length)
+      expect(lower.length, plan.map((d) => d.name).join(', ')).toBeLessThanOrEqual(2)
+    }
   })
 })
 

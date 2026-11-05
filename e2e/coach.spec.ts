@@ -21,7 +21,25 @@ test('the trainer: goals, one question a screen, a plan as long as they take, an
   await next()
   await expect(trainer.getByRole('heading', { name: 'What does moving better mean for you?' })).toBeVisible()
   await next() // posture and mobility, as suggested
-  for (const q of ['How long have you been training?', 'Which days can you train?', 'How long is a session?', 'What kinds of workout do you enjoy?', 'Any cardio you like?', 'Any areas you want extra work on?', 'Where do you train?']) {
+  await expect(trainer.getByRole('heading', { name: 'How long have you been training?' })).toBeVisible()
+  await next() // new to training
+  // Free every day: the trainer picks the days, with rest days between.
+  await expect(trainer.getByRole('heading', { name: 'Which days are you free to train?' })).toBeVisible()
+  await next()
+  await expect(trainer.getByRole('heading', { name: 'How many days a week should you train?' })).toBeVisible()
+  await expect(trainer.getByRole('radio', { name: '3 ★' })).toHaveAttribute('aria-checked', 'true')
+  await expect(trainer).toContainText('Your training days: Mon, Wed, Fri')
+  await next()
+  await trainer.getByRole('radio', { name: '90 min' }).click()
+  await next()
+  // Cardio: two-a-days, morning cardio and evening weights.
+  await expect(trainer.getByRole('button', { name: 'Next', exact: true })).toBeDisabled()
+  await trainer.getByRole('radio', { name: /^Two-a-days/ }).click()
+  await next()
+  await trainer.getByRole('radiogroup', { name: 'Cardio sessions a week' }).getByRole('radio', { name: '3' }).click()
+  await trainer.getByRole('radiogroup', { name: 'Cardio minutes' }).getByRole('radio', { name: '30 min' }).click()
+  await next()
+  for (const q of ['Any cardio you like?', 'What kinds of workout do you enjoy?', 'Any areas you want extra work on?', 'Where do you train?']) {
     await expect(trainer.getByRole('heading', { name: q })).toBeVisible()
     await next()
   }
@@ -36,6 +54,7 @@ test('the trainer: goals, one question a screen, a plan as long as they take, an
   await expect(trainer).toContainText(/Lose 20 lb/)
   await expect(trainer).toContainText(/About \d+ weeks · about [\d.]+ lb a week from training/)
   await expect(trainer).toContainText(/Move better: posture, mobility/)
+  await expect(trainer).toContainText(/cardio AM · .+ PM/)
   await trainer.getByRole('button', { name: 'Start my plan' }).click()
 
   const card = page.getByRole('region', { name: 'Your trainer' })
@@ -45,6 +64,12 @@ test('the trainer: goals, one question a screen, a plan as long as they take, an
   expect(s.coach.answers.goals.map((g: { kind: string }) => g.kind)).toEqual(['lose', 'move'])
   expect(s.programs.some((p: { title: string }) => p.title === 'Trainer: Lose weight + Move better')).toBe(true)
   expect(Object.keys(s.overrides).length).toBeGreaterThan(20)
+  // Rest days stay rest days; lifting days are split into a morning and an evening session.
+  const days = Object.entries(s.overrides as Record<string, { session?: string; minutes?: number }[]>).filter(([d]) => d >= iso(0)).slice(0, 14)
+  expect(days.filter(([, items]) => items.length === 0).length).toBeGreaterThanOrEqual(4)
+  const split = days.filter(([, items]) => items.some((p) => p.session === 'am'))
+  expect(split.length).toBeGreaterThanOrEqual(4)
+  for (const [, items] of split) expect(items.some((p) => p.session === 'pm')).toBe(true)
 
   // A check-in: progress for each goal, energy and soreness, then what changes and why.
   await card.getByRole('button', { name: 'Check in early' }).click()
