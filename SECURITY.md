@@ -1,9 +1,8 @@
-# Security policy
+# Security
 
-If you find a security or privacy problem in Durata, please report it privately rather than in a public issue:
-use GitHub's **Report a vulnerability** button on the repository's **Security** tab. Include what you found, how to
-reproduce it, and what data it could expose.
+Durata is a personal training tracker. Everything it stores (the plan, the log, weigh-ins) stays in the browser's
+storage on the device; it has no accounts, server or analytics, and a Content Security Policy (set in
+`vite.config.ts`) lets it load only its own files and talk to nothing else. Plan and backup files are fully checked
+before anything is loaded from them (`src/lib/plan.ts`, `src/lib/backup.ts`).
 
-You'll get a reply within a few days. Please give us a reasonable time to fix it before sharing it publicly.
-
-How the app protects data, and what was checked, is described in [docs/security.md](docs/security.md).
+To report a problem, use GitHub's **Report a vulnerability** button on the repository's **Security** tab.

@@ -26,6 +26,9 @@
   --color-green-600: #15803d;
   --color-green-800: #116030;
   --color-red-600: #c81e1e;
+  /* Activity colours, as on the printed calendar: runs blue, strength orange. */
+  --color-run: #1d4ed8;
+  --color-strength: #c2410c;
 }
 
 /* Dark mode flips the grey scale, so every existing bg-/text-neutral-* class works in both themes. */
@@ -57,6 +60,8 @@
   --color-green-50: rgb(60 220 120 / 0.14);
   --color-green-600: #4be08a;
   --color-green-800: #8cf0b5;
+  --color-run: #7cb4ff;
+  --color-strength: #ff9f5c;
 }
 
 /* Accent colours ("vibes"), tuned separately for light and dark backgrounds. The ink is the accent wherever the accent
@@ -109,19 +114,9 @@ button.bg-accent:disabled { background-color: var(--color-neutral-100); color: c
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 .sheet-panel { animation: sheet-rise 0.24s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .sheet-backdrop { animation: fade-in 0.18s ease-out both; }
-@keyframes confetti-fall { 0% { transform: translateY(-10vh) rotate(0); opacity: 1; } 100% { transform: translateY(105vh) rotate(720deg); opacity: 0; } }
 .pop-in { animation: pop-in 0.25s ease-out both; }
-.confetti { animation: confetti-fall var(--dur, 2.4s) ease-in forwards; }
-/* App tour: the spotlight's ring breathes so the eye finds it. */
-@keyframes tour-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-accent) 70%, transparent); } 100% { box-shadow: 0 0 0 14px transparent; } }
-.tour-ring { animation: tour-pulse 1.6s ease-out infinite; }
-/* Warm-up move demos: the end position fades in and out over the start, like a looping GIF. */
-@keyframes move-demo { 0%, 35% { opacity: 0; } 50%, 85% { opacity: 1; } 100% { opacity: 0; } }
-.move-demo-end { animation: move-demo 2.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
-  button, .pop-in, .tour-ring, .sheet-panel, .sheet-backdrop { transition: none; animation: none; }
-  .move-demo-end { display: none; }
-  .confetti { display: none; }
+  button, .pop-in, .sheet-panel, .sheet-backdrop { transition: none; animation: none; }
   button:not(:disabled):active { transform: none; }
   /* Everything else that moves (Tailwind transitions, progress bars filling) settles at once. */
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }

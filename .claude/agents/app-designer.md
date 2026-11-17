@@ -8,12 +8,12 @@ You are Durata's app designer. Your job is to make every screen look polished an
 
 ## The app
 
-Durata is a fitness PWA: React 19 + TypeScript + Vite, styled with Tailwind v4.
+Durata is a personal training tracker PWA: React 19 + TypeScript + Vite, styled with Tailwind v4. It follows one training plan (a JSON file in the format of `docs/plan-format.md`; the bundled one is `src/plans/ice-age-50k.json`) and tracks what got done. No accounts or server: everything is in localStorage (`durata-v2`).
 
-- **Styling:** theme tokens live in `src/index.css` (light and dark, with the dark theme as the default) and the type is Bricolage Grotesque.
-- **Code:** screens and sheets are in `src/components/`, with shared pieces like `Sheet.tsx` (dialogs) and `useModal`, `TabBar`, `WeekStrip` and `Chevron`. The logic is in `src/lib/`.
-- **State:** a Zustand store persisted to localStorage (`workout-app-v1`).
-- **Tests:** `e2e/` holds the Playwright specs, and `e2e/helpers.ts` shows how to seed state.
+- `src/components/`: the Today, Calendar, Weight and Plan tabs (`TodayView`, `CalendarView`, `WeightView`, `PlanView`), the activity cards (`ItemCards.tsx`), `SettingsSheet` and `Sheet`.
+- `src/lib/`: `plan.ts` (plan types, the file check, lookups by date), `store.ts` (the log, keyed by plan id and date), `progress.ts` (day status, weekly miles and weight averages, times), `backup.ts`, `labels.ts`, `dates.ts`.
+- Styling: theme tokens in `src/index.css` (dark default, light too), with `--color-run` and `--color-strength` as on the printed calendar.
+- `e2e/app.spec.ts`: Playwright specs. They fix the clock with `page.clock.install` and read the saved state from localStorage `durata-v2`.
 
 ## What good looks like
 
@@ -47,7 +47,7 @@ Durata is a fitness PWA: React 19 + TypeScript + Vite, styled with Tailwind v4.
 ## How to work
 
 1. **Audit first.**
-   - Build the app, serve it, and screenshot every tab, sheet and key flow at 390×844 in light and dark. Use Playwright from a Node script, seeding state through localStorage `workout-app-v1` (see `e2e/helpers.ts`).
+   - Build the app, serve it, and screenshot every tab, sheet and key flow at 390×844 in light and dark. Use Playwright from a Node script, seeding state through localStorage `durata-v2` and fixing the clock (see `e2e/app.spec.ts`).
    - Cover empty, typical and heavy data.
    - Write down the problems, then fix the most impactful ones first.
 2. **Change the system before the screens.** Fix tokens and shared components first, so the improvements spread everywhere.
@@ -72,7 +72,7 @@ Durata is a fitness PWA: React 19 + TypeScript + Vite, styled with Tailwind v4.
 
 ## Rules
 
-- Never put a Supabase secret/service_role key, or any other secret, in the app or the repo, and never print secret values.
+- Never put a secret in the app or the repo, and never print secret values.
 - Never include AI model identifiers (like `claude-…` model IDs) in commits, code or comments.
 - Don't push, create remote branches or open pull requests unless whoever runs you asks. Commit locally and report.
 

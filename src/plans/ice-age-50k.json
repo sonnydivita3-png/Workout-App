@@ -1,0 +1,3036 @@
+{
+ "format": "durata-plan",
+ "version": 1,
+ "id": "ice-age-50k-2027",
+ "name": "Ice Age Trail 50K",
+ "description": "25 weeks, Nov 16, 2026 to the race on May 8, 2027. Long-run times assume 12:00 a mile.",
+ "start": "2026-11-16",
+ "end": "2027-05-09",
+ "race": {
+  "date": "2027-05-08",
+  "name": "Ice Age Trail 50K",
+  "detail": "31 miles · La Grange"
+ },
+ "phases": [
+  {
+   "name": "Phase 1 · Base",
+   "start": "2026-11-16",
+   "end": "2027-01-10",
+   "summary": "Build the habit, set your baselines, lift three times a week. The long run grows to 10 miles."
+  },
+  {
+   "name": "Phase 2 · Build",
+   "start": "2027-01-11",
+   "end": "2027-03-07",
+   "summary": "Tuesday hills, Wednesday runs, more food. Long runs reach 3 hours; Sunday runs start."
+  },
+  {
+   "name": "Phase 3 · Peak",
+   "start": "2027-03-08",
+   "end": "2027-04-18",
+   "summary": "Back-to-back weekends. Biggest runs Apr 10 and 17. The deficit ends Mar 28."
+  },
+  {
+   "name": "Taper and race",
+   "start": "2027-04-19",
+   "end": "2027-05-09",
+   "summary": "Miles drop, keep the strides. Race Saturday, May 8."
+  }
+ ],
+ "weeks": [
+  {
+   "number": 1,
+   "start": "2026-11-16",
+   "miles": 12,
+   "long": "5 mi",
+   "goalLb": 218.5
+  },
+  {
+   "number": 2,
+   "start": "2026-11-23",
+   "miles": 14,
+   "long": "6 mi",
+   "goalLb": 217
+  },
+  {
+   "number": 3,
+   "start": "2026-11-30",
+   "miles": 16,
+   "long": "7 mi",
+   "goalLb": 215.5
+  },
+  {
+   "number": 4,
+   "start": "2026-12-07",
+   "miles": 12,
+   "long": "5 mi",
+   "goalLb": 214.5,
+   "down": true
+  },
+  {
+   "number": 5,
+   "start": "2026-12-14",
+   "miles": 18,
+   "long": "8 mi",
+   "goalLb": 213
+  },
+  {
+   "number": 6,
+   "start": "2026-12-21",
+   "miles": 20,
+   "long": "9 mi",
+   "goalLb": 211.5
+  },
+  {
+   "number": 7,
+   "start": "2026-12-28",
+   "miles": 22,
+   "long": "10 mi",
+   "goalLb": 210
+  },
+  {
+   "number": 8,
+   "start": "2027-01-04",
+   "miles": 16,
+   "long": "6 mi",
+   "goalLb": 208.5,
+   "down": true
+  },
+  {
+   "number": 9,
+   "start": "2027-01-11",
+   "miles": 24,
+   "long": "10 mi",
+   "goalLb": 207.5
+  },
+  {
+   "number": 10,
+   "start": "2027-01-18",
+   "miles": 26,
+   "long": "11 mi",
+   "goalLb": 206.5
+  },
+  {
+   "number": 11,
+   "start": "2027-01-25",
+   "miles": 28,
+   "long": "12 mi",
+   "goalLb": 205.5
+  },
+  {
+   "number": 12,
+   "start": "2027-02-01",
+   "miles": 19,
+   "long": "9 mi",
+   "goalLb": 204.5,
+   "down": true
+  },
+  {
+   "number": 13,
+   "start": "2027-02-08",
+   "miles": 32,
+   "long": "13 mi",
+   "goalLb": 203.5
+  },
+  {
+   "number": 14,
+   "start": "2027-02-15",
+   "miles": 35,
+   "long": "14 mi",
+   "goalLb": 202.5
+  },
+  {
+   "number": 15,
+   "start": "2027-02-22",
+   "miles": 37,
+   "long": "15 mi",
+   "goalLb": 201.5
+  },
+  {
+   "number": 16,
+   "start": "2027-03-01",
+   "miles": 25,
+   "long": "11 mi",
+   "goalLb": 200.5,
+   "down": true
+  },
+  {
+   "number": 17,
+   "start": "2027-03-08",
+   "miles": 40,
+   "long": "18 mi",
+   "goalLb": 200
+  },
+  {
+   "number": 18,
+   "start": "2027-03-15",
+   "miles": 42,
+   "long": "20 mi",
+   "goalLb": 199.5
+  },
+  {
+   "number": 19,
+   "start": "2027-03-22",
+   "miles": 45,
+   "long": "20 mi",
+   "goalLb": 199
+  },
+  {
+   "number": 20,
+   "start": "2027-03-29",
+   "miles": 27,
+   "long": "13 mi",
+   "goalLb": 199,
+   "down": true
+  },
+  {
+   "number": 21,
+   "start": "2027-04-05",
+   "miles": 47,
+   "long": "22 mi",
+   "goalLb": 199
+  },
+  {
+   "number": 22,
+   "start": "2027-04-12",
+   "miles": 44,
+   "long": "24 mi",
+   "goalLb": 199
+  },
+  {
+   "number": 23,
+   "start": "2027-04-19",
+   "miles": 32,
+   "long": "14 mi",
+   "goalLb": 199
+  },
+  {
+   "number": 24,
+   "start": "2027-04-26",
+   "miles": 20,
+   "long": "8 mi",
+   "goalLb": 199
+  },
+  {
+   "number": 25,
+   "start": "2027-05-03",
+   "miles": 38,
+   "long": "Race",
+   "goalLb": 199
+  }
+ ],
+ "targets": {
+  "p1-rest": {
+   "label": "Rest day",
+   "kcal": 2300,
+   "protein": 200,
+   "carbs": 195,
+   "fat": 80
+  },
+  "p1-train": {
+   "label": "Training day",
+   "kcal": 2700,
+   "protein": 200,
+   "carbs": 295,
+   "fat": 80
+  },
+  "p1-long": {
+   "label": "Long-run day",
+   "kcal": 3100,
+   "protein": 200,
+   "carbs": 385,
+   "fat": 85
+  },
+  "p2-rest": {
+   "label": "Rest day",
+   "kcal": 2700,
+   "protein": 200,
+   "carbs": 285,
+   "fat": 85
+  },
+  "p2-train": {
+   "label": "Training day",
+   "kcal": 3000,
+   "protein": 200,
+   "carbs": 350,
+   "fat": 90
+  },
+  "p2-long": {
+   "label": "Long-run day",
+   "kcal": 3500,
+   "protein": 200,
+   "carbs": 460,
+   "fat": 95
+  },
+  "p3-rest": {
+   "label": "Rest day",
+   "kcal": 3000,
+   "protein": 190,
+   "carbs": 345,
+   "fat": 95
+  },
+  "p3-train": {
+   "label": "Training day",
+   "kcal": 3300,
+   "protein": 190,
+   "carbs": 420,
+   "fat": 95
+  },
+  "p3-long": {
+   "label": "Long-run day",
+   "kcal": 3700,
+   "protein": 190,
+   "carbs": 510,
+   "fat": 100
+  },
+  "pk-rest": {
+   "label": "Rest day",
+   "kcal": 3200,
+   "protein": 190,
+   "carbs": 385,
+   "fat": 100
+  },
+  "pk-train": {
+   "label": "Training day",
+   "kcal": 3550,
+   "protein": 190,
+   "carbs": 470,
+   "fat": 100
+  },
+  "pk-long": {
+   "label": "Long-run day",
+   "kcal": 4000,
+   "protein": 180,
+   "carbs": 595,
+   "fat": 100
+  },
+  "tp-rest": {
+   "label": "Rest day",
+   "kcal": 3000,
+   "protein": 190,
+   "carbs": 345,
+   "fat": 95
+  },
+  "tp-train": {
+   "label": "Training day",
+   "kcal": 3300,
+   "protein": 190,
+   "carbs": 420,
+   "fat": 95
+  },
+  "carb-load": {
+   "label": "Carb load",
+   "protein": 150,
+   "carbs": "720–810",
+   "fat": 60
+  },
+  "race": {
+   "label": "Race fuel",
+   "note": "50 g carbs / hr"
+  }
+ },
+ "workouts": {
+  "A": {
+   "name": "Strength A",
+   "focus": "Legs",
+   "notes": [
+    "Stop every set with 2–3 reps in reserve. Start single-side work on your weaker side and match the reps. End the set when your form changes.",
+    "Add pogo hops and low box jumps (Phase 2 on) only if your back allows."
+   ],
+   "versions": [
+    {
+     "label": "Phase 1",
+     "start": "2026-11-16",
+     "end": "2027-01-10",
+     "exercises": [
+      {
+       "name": "Trap-bar deadlift, high handles",
+       "prescription": "4 × 5",
+       "sets": 4
+      },
+      {
+       "name": "Rear-foot-elevated split squat",
+       "prescription": "3 × 8 / leg",
+       "sets": 3
+      },
+      {
+       "name": "Step-up, 12–16 in box",
+       "prescription": "3 × 8 / leg",
+       "sets": 3
+      },
+      {
+       "name": "Hip thrust",
+       "prescription": "3 × 8",
+       "sets": 3
+      },
+      {
+       "name": "Single-leg calf raise",
+       "prescription": "3 × 12 / leg",
+       "sets": 3
+      },
+      {
+       "name": "Suitcase carry, 40 yd",
+       "prescription": "3 / hand",
+       "sets": 3
+      },
+      {
+       "name": "Side plank, 30–45 s",
+       "prescription": "2 / side",
+       "sets": 2
+      }
+     ]
+    },
+    {
+     "label": "Phase 2",
+     "start": "2027-01-11",
+     "end": "2027-03-07",
+     "exercises": [
+      {
+       "name": "Trap-bar deadlift, high handles",
+       "prescription": "4 × 4–5",
+       "sets": 4
+      },
+      {
+       "name": "Rear-foot-elevated split squat",
+       "prescription": "3 × 6 / leg",
+       "sets": 3
+      },
+      {
+       "name": "Step-up, 12–16 in box",
+       "prescription": "3 × 8 / leg",
+       "sets": 3
+      },
+      {
+       "name": "Hip thrust",
+       "prescription": "3 × 8",
+       "sets": 3
+      },
+      {
+       "name": "Single-leg calf raise",
+       "prescription": "3 × 12 / leg",
+       "sets": 3
+      },
+      {
+       "name": "Suitcase carry, 40 yd",
+       "prescription": "3 / hand",
+       "sets": 3
+      },
+      {
+       "name": "Side plank, 30–45 s",
+       "prescription": "2 / side",
+       "sets": 2
+      },
+      {
+       "name": "Pogo hops",
+       "prescription": "3 × 20",
+       "sets": 3
+      },
+      {
+       "name": "Low box jump",
+       "prescription": "3 × 5",
+       "sets": 3
+      }
+     ]
+    },
+    {
+     "label": "Phase 3",
+     "start": "2027-03-08",
+     "end": "2027-04-18",
+     "exercises": [
+      {
+       "name": "Trap-bar deadlift, high handles",
+       "prescription": "2 × 4–5",
+       "sets": 2
+      },
+      {
+       "name": "Rear-foot-elevated split squat",
+       "prescription": "2 × 6 / leg",
+       "sets": 2
+      },
+      {
+       "name": "Step-up, 12–16 in box",
+       "prescription": "2 × 8 / leg",
+       "sets": 2
+      },
+      {
+       "name": "Hip thrust",
+       "prescription": "2 × 8",
+       "sets": 2
+      },
+      {
+       "name": "Single-leg calf raise",
+       "prescription": "2 × 12 / leg",
+       "sets": 2
+      },
+      {
+       "name": "Suitcase carry, 40 yd",
+       "prescription": "2 / hand",
+       "sets": 2
+      },
+      {
+       "name": "Side plank, 30–45 s",
+       "prescription": "2 / side",
+       "sets": 2
+      },
+      {
+       "name": "Pogo hops",
+       "prescription": "2 × 20",
+       "sets": 2
+      },
+      {
+       "name": "Low box jump",
+       "prescription": "2 × 5",
+       "sets": 2
+      }
+     ]
+    },
+    {
+     "label": "Taper",
+     "start": "2027-04-19",
+     "end": "2027-05-09",
+     "note": "Light: 80% of your usual weights.",
+     "exercises": [
+      {
+       "name": "Trap-bar deadlift, high handles",
+       "prescription": "2 × 5",
+       "sets": 2
+      },
+      {
+       "name": "Rear-foot-elevated split squat",
+       "prescription": "2 × 6 / leg",
+       "sets": 2
+      },
+      {
+       "name": "Step-up, 12–16 in box",
+       "prescription": "2 × 8 / leg",
+       "sets": 2
+      },
+      {
+       "name": "Hip thrust",
+       "prescription": "2 × 8",
+       "sets": 2
+      },
+      {
+       "name": "Single-leg calf raise",
+       "prescription": "2 × 12 / leg",
+       "sets": 2
+      },
+      {
+       "name": "Suitcase carry, 40 yd",
+       "prescription": "2 / hand",
+       "sets": 2
+      },
+      {
+       "name": "Side plank, 30–45 s",
+       "prescription": "2 / side",
+       "sets": 2
+      }
+     ]
+    }
+   ]
+  },
+  "B": {
+   "name": "Strength B",
+   "focus": "Single-leg, trunk",
+   "notes": [
+    "Stop every set with 2–3 reps in reserve. Start single-side work on your weaker side and match the reps. End the set when your form changes."
+   ],
+   "versions": [
+    {
+     "label": "Phase 1",
+     "start": "2026-11-16",
+     "end": "2027-01-10",
+     "exercises": [
+      {
+       "name": "Single-leg Romanian deadlift",
+       "prescription": "3 × 8 / leg",
+       "sets": 3
+      },
+      {
+       "name": "Goblet squat to box, or belt squat",
+       "prescription": "3 × 8–10",
+       "sets": 3
+      },
+      {
+       "name": "Lateral step-down, 6–8 in",
+       "prescription": "3 × 10 / leg",
+       "sets": 3
+      },
+      {
+       "name": "Hamstring curl",
+       "prescription": "3 × 6–8, slider",
+       "sets": 3
+      },
+      {
+       "name": "Seated calf raise",
+       "prescription": "3 × 15",
+       "sets": 3
+      },
+      {
+       "name": "Pallof press",
+       "prescription": "3 × 10 / side",
+       "sets": 3
+      },
+      {
+       "name": "Copenhagen plank, 20 s",
+       "prescription": "2 / side",
+       "sets": 2
+      },
+      {
+       "name": "Tibialis raise",
+       "prescription": "2 × 20",
+       "sets": 2
+      }
+     ]
+    },
+    {
+     "label": "Phase 2",
+     "start": "2027-01-11",
+     "end": "2027-03-07",
+     "exercises": [
+      {
+       "name": "Single-leg Romanian deadlift",
+       "prescription": "3 × 8 / leg",
+       "sets": 3
+      },
+      {
+       "name": "Goblet squat to box, or belt squat",
+       "prescription": "3 × 8–10",
+       "sets": 3
+      },
+      {
+       "name": "Lateral step-down, 6–8 in",
+       "prescription": "3 × 10 / leg",
+       "sets": 3
+      },
+      {
+       "name": "Hamstring curl",
+       "prescription": "3 × 6–8, Nordic",
+       "sets": 3
+      },
+      {
+       "name": "Seated calf raise",
+       "prescription": "3 × 15",
+       "sets": 3
+      },
+      {
+       "name": "Pallof press",
+       "prescription": "3 × 10 / side",
+       "sets": 3
+      },
+      {
+       "name": "Copenhagen plank, 20 s",
+       "prescription": "2 / side",
+       "sets": 2
+      },
+      {
+       "name": "Tibialis raise",
+       "prescription": "2 × 20",
+       "sets": 2
+      }
+     ]
+    },
+    {
+     "label": "Phase 3",
+     "start": "2027-03-08",
+     "end": "2027-05-09",
+     "exercises": [
+      {
+       "name": "Single-leg Romanian deadlift",
+       "prescription": "2 × 8 / leg",
+       "sets": 2
+      },
+      {
+       "name": "Goblet squat to box, or belt squat",
+       "prescription": "2 × 8–10",
+       "sets": 2
+      },
+      {
+       "name": "Lateral step-down, 6–8 in",
+       "prescription": "2 × 10 / leg",
+       "sets": 2
+      },
+      {
+       "name": "Hamstring curl",
+       "prescription": "2 × 6–8, Nordic",
+       "sets": 2
+      },
+      {
+       "name": "Seated calf raise",
+       "prescription": "2 × 15",
+       "sets": 2
+      },
+      {
+       "name": "Pallof press",
+       "prescription": "2 × 10 / side",
+       "sets": 2
+      },
+      {
+       "name": "Copenhagen plank, 20 s",
+       "prescription": "2 / side",
+       "sets": 2
+      },
+      {
+       "name": "Tibialis raise",
+       "prescription": "2 × 20",
+       "sets": 2
+      }
+     ]
+    }
+   ]
+  },
+  "C": {
+   "name": "Strength C",
+   "focus": "Upper body, trunk",
+   "notes": [
+    "Stop every set with 2–3 reps in reserve. Start single-side work on your weaker side and match the reps. End the set when your form changes."
+   ],
+   "versions": [
+    {
+     "label": "Phase 1",
+     "start": "2026-11-16",
+     "end": "2027-01-10",
+     "exercises": [
+      {
+       "name": "Chest-supported row",
+       "prescription": "4 × 10",
+       "sets": 4
+      },
+      {
+       "name": "Half-kneeling one-arm cable row",
+       "prescription": "3 × 10 / arm",
+       "sets": 3
+      },
+      {
+       "name": "Half-kneeling landmine press",
+       "prescription": "3 × 8 / arm",
+       "sets": 3
+      },
+      {
+       "name": "Neutral-grip lat pulldown",
+       "prescription": "3 × 10",
+       "sets": 3
+      },
+      {
+       "name": "Push-up, stop 2 short of failure",
+       "prescription": "3 sets",
+       "sets": 3
+      },
+      {
+       "name": "Face pull",
+       "prescription": "3 × 15",
+       "sets": 3
+      },
+      {
+       "name": "Dead bug",
+       "prescription": "3 × 8 / side",
+       "sets": 3
+      },
+      {
+       "name": "Farmer carry, 40 yd",
+       "prescription": "3",
+       "sets": 3
+      }
+     ]
+    },
+    {
+     "label": "Phase 2",
+     "start": "2027-01-11",
+     "end": "2027-05-09",
+     "exercises": [
+      {
+       "name": "Chest-supported row",
+       "prescription": "2–3 × 10",
+       "sets": 3
+      },
+      {
+       "name": "Half-kneeling landmine press",
+       "prescription": "2–3 × 8 / arm",
+       "sets": 3
+      },
+      {
+       "name": "Face pull",
+       "prescription": "2–3 × 15",
+       "sets": 3
+      },
+      {
+       "name": "Dead bug",
+       "prescription": "2–3 × 8 / side",
+       "sets": 3
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "routine": {
+  "name": "Spine routine",
+  "minutes": 15,
+  "when": "Before every session",
+  "steps": [
+   "Side-rib breathing into your left ribs: 10 breaths, 5 s in, 7 s out",
+   "Cat-camel: 10 slow reps",
+   "Side-lying open book: 8 each side",
+   "Child's pose side reach: 3 × 30 s each way, one extra to the right",
+   "Dead hang: 3 × 20–30 s",
+   "Bird-dog: 6 each side, 5 s holds",
+   "Half-kneeling hip flexor stretch: 45 s each side"
+  ]
+ },
+ "effort": [
+  {
+   "term": "Easy",
+   "meaning": "Full sentences, about 120–140 bpm. Walk hills that break the talk test."
+  },
+  {
+   "term": "Strides",
+   "meaning": "4–6 × 20 s, fast but relaxed, full recovery."
+  },
+  {
+   "term": "Hills",
+   "meaning": "60–90 s uphill at 7 out of 10. Walk back down."
+  },
+  {
+   "term": "Steady",
+   "meaning": "10–15 min blocks, comfortably hard. 3 min easy between."
+  },
+  {
+   "term": "Long run",
+   "meaning": "Easy all the way. Power-hike the climbs."
+  }
+ ],
+ "notes": [
+  {
+   "title": "When to change the plan",
+   "bullets": [
+    "Weight over 0.5 lb a week behind for two weeks: cut 150 kcal. Losing over 2 lb a week: add 200.",
+    "Back score 2 over baseline for 48 hours: cut next week’s volume 25%.",
+    "Lifts down 10%, or resting heart rate up 7 beats: eat at maintenance and add a rest day.",
+    "Low libido, low mood or repeated illness: stop the deficit and tell your doctor.",
+    "Leg numbness or weakness, night pain, chest pain or pinpoint bone pain: stop and get seen."
+   ]
+  },
+  {
+   "title": "This month",
+   "start": "2026-11-16",
+   "end": "2026-11-30",
+   "bullets": [
+    "Lift before you run. Strength is the priority while mileage is low.",
+    "Every run is easy: full sentences. Walk hills that break the talk test.",
+    "Two rest days a week: Monday and Friday. Friday off keeps your legs fresh for Saturday.",
+    "Weigh every morning, compare weekly averages. Expect about 1.4 lb a week.",
+    "Weigh and log your food for the first four weeks."
+   ]
+  },
+  {
+   "title": "This month",
+   "start": "2026-12-01",
+   "end": "2026-12-31",
+   "bullets": [
+    "Keep lifting before you run.",
+    "Wednesday adds a short easy run from Dec 16.",
+    "Long runs over 90 minutes (Dec 19 on): take 30 g of carbs an hour.",
+    "The week of Dec 7 is a down week. Do not add miles.",
+    "On snow or ice, wear traction devices and run by time, not miles."
+   ]
+  },
+  {
+   "title": "This month",
+   "start": "2027-01-01",
+   "end": "2027-01-31",
+   "bullets": [
+    "Through Jan 10, keep the December pattern. From Jan 11, run before you lift.",
+    "Tuesday hills: hard but controlled, 7 out of 10. Walk back down.",
+    "Wednesday becomes an easy run plus a short Strength C. Rest days stay Monday and Friday.",
+    "Food goes up to about 3,000 kcal a day on Jan 11. Eat it.",
+    "Take 30 g of carbs an hour on every long run.",
+    "Register for the race and check its cutoff time."
+   ]
+  },
+  {
+   "title": "This month",
+   "start": "2027-02-01",
+   "end": "2027-02-28",
+   "bullets": [
+    "The week of Feb 1 is a down week: Wednesday is bike and Strength C, no run.",
+    "Long runs build to 3:00 on Feb 27.",
+    "From Feb 13: 40 g of carbs an hour, and Sunday adds an easy run.",
+    "Add pogo hops and low box jumps to Strength A if your back allows.",
+    "Treadmill hills at 4–8% are fine. Keep treadmill long runs under 90 minutes.",
+    "Feb 27: first 3-hour long run. Carry two flasks and your own gels.",
+    "Film yourself running from behind. Compare left and right side-plank times.",
+    "Confirm your race entry and the cutoff time."
+   ]
+  },
+  {
+   "title": "This month",
+   "start": "2027-03-01",
+   "end": "2027-03-31",
+   "bullets": [
+    "The week of Mar 1 is a down week. Peak starts Mar 8.",
+    "Saturdays pass 3 hours. Sundays are easy runs on tired legs.",
+    "Run every long run in the Southern Kettle Moraine. Include the Nordic loop.",
+    "Take 50 g of carbs an hour. Practice aid-station food. Do a sweat test.",
+    "The deficit ends Mar 28. If you are above 203 lb, do not extend it.",
+    "Strength drops to two sets. Never lift to soreness.",
+    "Repeat your bloodwork this month."
+   ]
+  },
+  {
+   "title": "This month",
+   "start": "2027-04-01",
+   "end": "2027-04-30",
+   "bullets": [
+    "Eat at maintenance all month. No deficit.",
+    "Apr 10 is 22 miles. Apr 17 is 24 miles, the longest run.",
+    "Rehearse race day on Apr 17: breakfast, vest, shoes, fueling.",
+    "Taper starts Apr 19. Miles drop. Keep the strides.",
+    "One light strength session a week, on Tuesday, at 80% of your usual weights."
+   ]
+  },
+  {
+   "title": "This month",
+   "start": "2027-05-01",
+   "end": "2027-05-09",
+   "bullets": [
+    "No strength work in race week.",
+    "Thursday and Friday: carb load. Expect the scale to jump 3–4 lb.",
+    "Nothing new on race day: shoes, vest, socks and food have all done a long run.",
+    "After the race: two easy weeks at maintenance.",
+    "Then a 500 kcal deficit for about seven weeks reaches 10% around mid-July."
+   ]
+  },
+  {
+   "title": "Food timing",
+   "bullets": [
+    "Four meals a day, 45–55 g of protein each.",
+    "30–60 g of carbs one to two hours before any run over an hour. Never run Tuesday’s session or the long run fasted.",
+    "On runs over 90 minutes, take carbs every hour. They count toward the day.",
+    "Eat a meal with 40 g or more of protein within two hours after training."
+   ]
+  },
+  {
+   "title": "Race day plan",
+   "start": "2027-05-03",
+   "end": "2027-05-09",
+   "bullets": [
+    "Eat 90–135 g of carbs two to three hours before the start.",
+    "Every hour: about 50 g carbs, 15–25 oz fluid, 250–450 mg sodium. Start in the first 30 minutes.",
+    "The first hour should feel too easy. Keep your heart rate under about 140 through the hilly first section.",
+    "Hike every climb from the first mile.",
+    "Save caffeine for the second half.",
+    "The race ends with two loops of the runnable Nordic Trail. Use the legs you saved.",
+    "Nine aid stations are listed, seven with food. Carry your own gels anyway.",
+    "Confirm your 50K start time on the race website.",
+    "Stop for new leg numbness or weakness, chest pain, or breathlessness out of proportion to the effort."
+   ]
+  }
+ ],
+ "days": [
+  {
+   "date": "2026-11-16",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2026-11-17",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 55
+    },
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-11-18",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "strength",
+     "title": "Strength C",
+     "workout": "C",
+     "minutes": 55
+    },
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 60
+    }
+   ]
+  },
+  {
+   "date": "2026-11-19",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Run",
+     "miles": 4,
+     "detail": "+ strides"
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 55
+    }
+   ]
+  },
+  {
+   "date": "2026-11-20",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2026-11-21",
+   "target": "p1-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 5,
+     "minutes": 60
+    }
+   ]
+  },
+  {
+   "date": "2026-11-22",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 90
+    }
+   ]
+  },
+  {
+   "date": "2026-11-23",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2026-11-24",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 55
+    },
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4
+    }
+   ]
+  },
+  {
+   "date": "2026-11-25",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "strength",
+     "title": "Strength C",
+     "workout": "C",
+     "minutes": 55
+    },
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 60
+    }
+   ]
+  },
+  {
+   "date": "2026-11-26",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Run",
+     "miles": 4,
+     "detail": "+ strides"
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 55
+    }
+   ]
+  },
+  {
+   "date": "2026-11-27",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2026-11-28",
+   "target": "p1-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 6,
+     "minutes": 72
+    }
+   ]
+  },
+  {
+   "date": "2026-11-29",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 90
+    }
+   ]
+  },
+  {
+   "date": "2026-11-30",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2026-12-01",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 55
+    },
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4
+    }
+   ]
+  },
+  {
+   "date": "2026-12-02",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "strength",
+     "title": "Strength C",
+     "workout": "C",
+     "minutes": 55
+    },
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 60
+    }
+   ]
+  },
+  {
+   "date": "2026-12-03",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Run",
+     "miles": 5,
+     "detail": "+ strides"
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 55
+    }
+   ]
+  },
+  {
+   "date": "2026-12-04",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2026-12-05",
+   "target": "p1-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 7,
+     "minutes": 84
+    }
+   ]
+  },
+  {
+   "date": "2026-12-06",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 105
+    }
+   ]
+  },
+  {
+   "date": "2026-12-07",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2026-12-08",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 55
+    },
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-12-09",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "strength",
+     "title": "Strength C",
+     "workout": "C",
+     "minutes": 55
+    },
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 60
+    }
+   ]
+  },
+  {
+   "date": "2026-12-10",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Run",
+     "miles": 4,
+     "detail": "+ strides"
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 55
+    }
+   ]
+  },
+  {
+   "date": "2026-12-11",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2026-12-12",
+   "target": "p1-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 5,
+     "minutes": 60
+    }
+   ]
+  },
+  {
+   "date": "2026-12-13",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 90
+    }
+   ]
+  },
+  {
+   "date": "2026-12-14",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2026-12-15",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 55
+    },
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4
+    }
+   ]
+  },
+  {
+   "date": "2026-12-16",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "strength",
+     "title": "Strength C",
+     "workout": "C",
+     "minutes": 55
+    },
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 60
+    },
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 2
+    }
+   ]
+  },
+  {
+   "date": "2026-12-17",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Run",
+     "miles": 4,
+     "detail": "+ strides"
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 55
+    }
+   ]
+  },
+  {
+   "date": "2026-12-18",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2026-12-19",
+   "target": "p1-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 8,
+     "minutes": 96,
+     "fuel": "30 g carbs/hr"
+    }
+   ]
+  },
+  {
+   "date": "2026-12-20",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 105
+    }
+   ]
+  },
+  {
+   "date": "2026-12-21",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2026-12-22",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 55
+    },
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4
+    }
+   ]
+  },
+  {
+   "date": "2026-12-23",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "strength",
+     "title": "Strength C",
+     "workout": "C",
+     "minutes": 55
+    },
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 60
+    },
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 2
+    }
+   ]
+  },
+  {
+   "date": "2026-12-24",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Run",
+     "miles": 5,
+     "detail": "+ strides"
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 55
+    }
+   ]
+  },
+  {
+   "date": "2026-12-25",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2026-12-26",
+   "target": "p1-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 9,
+     "minutes": 108,
+     "fuel": "30 g carbs/hr"
+    }
+   ]
+  },
+  {
+   "date": "2026-12-27",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 120
+    }
+   ]
+  },
+  {
+   "date": "2026-12-28",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2026-12-29",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 55
+    },
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4
+    }
+   ]
+  },
+  {
+   "date": "2026-12-30",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "strength",
+     "title": "Strength C",
+     "workout": "C",
+     "minutes": 55
+    },
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 60
+    },
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 3
+    }
+   ]
+  },
+  {
+   "date": "2026-12-31",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Run",
+     "miles": 5,
+     "detail": "+ strides"
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 55
+    }
+   ]
+  },
+  {
+   "date": "2027-01-01",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2027-01-02",
+   "target": "p1-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 10,
+     "minutes": 120,
+     "fuel": "30 g carbs/hr"
+    }
+   ]
+  },
+  {
+   "date": "2027-01-03",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 120
+    }
+   ]
+  },
+  {
+   "date": "2027-01-04",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2027-01-05",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 55
+    },
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4
+    }
+   ]
+  },
+  {
+   "date": "2027-01-06",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "strength",
+     "title": "Strength C",
+     "workout": "C",
+     "minutes": 55
+    },
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 60
+    },
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 2
+    }
+   ]
+  },
+  {
+   "date": "2027-01-07",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Run",
+     "miles": 4,
+     "detail": "+ strides"
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 55
+    }
+   ]
+  },
+  {
+   "date": "2027-01-08",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2027-01-09",
+   "target": "p1-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 6,
+     "minutes": 72
+    }
+   ]
+  },
+  {
+   "date": "2027-01-10",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 90
+    }
+   ]
+  },
+  {
+   "date": "2027-01-11",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-01-12",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Hills",
+     "miles": 5,
+     "detail": "6×60 s"
+    },
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 50
+    }
+   ]
+  },
+  {
+   "date": "2027-01-13",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 5
+    },
+    {
+     "type": "strength",
+     "title": "Strength C",
+     "workout": "C",
+     "minutes": 30
+    }
+   ]
+  },
+  {
+   "date": "2027-01-14",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4,
+     "detail": "+ strides"
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 50
+    }
+   ]
+  },
+  {
+   "date": "2027-01-15",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-01-16",
+   "target": "p2-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 10,
+     "minutes": 120,
+     "fuel": "30 g carbs/hr"
+    }
+   ]
+  },
+  {
+   "date": "2027-01-17",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 90
+    }
+   ]
+  },
+  {
+   "date": "2027-01-18",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-01-19",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Hills",
+     "miles": 6,
+     "detail": "7×60 s"
+    },
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 50
+    }
+   ]
+  },
+  {
+   "date": "2027-01-20",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 5
+    },
+    {
+     "type": "strength",
+     "title": "Strength C",
+     "workout": "C",
+     "minutes": 30
+    }
+   ]
+  },
+  {
+   "date": "2027-01-21",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4,
+     "detail": "+ strides"
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 50
+    }
+   ]
+  },
+  {
+   "date": "2027-01-22",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-01-23",
+   "target": "p2-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 11,
+     "minutes": 132,
+     "fuel": "30 g carbs/hr"
+    }
+   ]
+  },
+  {
+   "date": "2027-01-24",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 90
+    }
+   ]
+  },
+  {
+   "date": "2027-01-25",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-01-26",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Hills",
+     "miles": 6,
+     "detail": "8×75 s"
+    },
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 50
+    }
+   ]
+  },
+  {
+   "date": "2027-01-27",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 6
+    },
+    {
+     "type": "strength",
+     "title": "Strength C",
+     "workout": "C",
+     "minutes": 30
+    }
+   ]
+  },
+  {
+   "date": "2027-01-28",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4,
+     "detail": "+ strides"
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 50
+    }
+   ]
+  },
+  {
+   "date": "2027-01-29",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-01-30",
+   "target": "p2-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 12,
+     "minutes": 144,
+     "fuel": "30 g carbs/hr"
+    }
+   ]
+  },
+  {
+   "date": "2027-01-31",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 90
+    }
+   ]
+  },
+  {
+   "date": "2027-02-01",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-02-02",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Hills",
+     "miles": 6,
+     "detail": "6×60 s"
+    },
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 50
+    }
+   ]
+  },
+  {
+   "date": "2027-02-03",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 45
+    },
+    {
+     "type": "strength",
+     "title": "Strength C",
+     "workout": "C",
+     "minutes": 30
+    }
+   ]
+  },
+  {
+   "date": "2027-02-04",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4,
+     "detail": "+ strides"
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 50
+    }
+   ]
+  },
+  {
+   "date": "2027-02-05",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-02-06",
+   "target": "p2-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 9,
+     "minutes": 108,
+     "fuel": "30 g carbs/hr"
+    }
+   ]
+  },
+  {
+   "date": "2027-02-07",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 60
+    }
+   ]
+  },
+  {
+   "date": "2027-02-08",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-02-09",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Hills",
+     "miles": 6,
+     "detail": "8×90 s"
+    },
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 50
+    }
+   ]
+  },
+  {
+   "date": "2027-02-10",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 6
+    },
+    {
+     "type": "strength",
+     "title": "Strength C",
+     "workout": "C",
+     "minutes": 30
+    }
+   ]
+  },
+  {
+   "date": "2027-02-11",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4,
+     "detail": "+ strides"
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 50
+    }
+   ]
+  },
+  {
+   "date": "2027-02-12",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-02-13",
+   "target": "p2-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 13,
+     "minutes": 156,
+     "fuel": "40 g carbs/hr"
+    }
+   ]
+  },
+  {
+   "date": "2027-02-14",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 3
+    },
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 60
+    }
+   ]
+  },
+  {
+   "date": "2027-02-15",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-02-16",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Hills",
+     "miles": 7,
+     "detail": "9×90 s"
+    },
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 50
+    }
+   ]
+  },
+  {
+   "date": "2027-02-17",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 6
+    },
+    {
+     "type": "strength",
+     "title": "Strength C",
+     "workout": "C",
+     "minutes": 30
+    }
+   ]
+  },
+  {
+   "date": "2027-02-18",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4,
+     "detail": "+ strides"
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 50
+    }
+   ]
+  },
+  {
+   "date": "2027-02-19",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-02-20",
+   "target": "p2-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 14,
+     "minutes": 168,
+     "fuel": "40 g carbs/hr"
+    }
+   ]
+  },
+  {
+   "date": "2027-02-21",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4
+    },
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 60
+    }
+   ]
+  },
+  {
+   "date": "2027-02-22",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-02-23",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Hills",
+     "miles": 7,
+     "detail": "10×90 s"
+    },
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 50
+    }
+   ]
+  },
+  {
+   "date": "2027-02-24",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 6
+    },
+    {
+     "type": "strength",
+     "title": "Strength C",
+     "workout": "C",
+     "minutes": 30
+    }
+   ]
+  },
+  {
+   "date": "2027-02-25",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4,
+     "detail": "+ strides"
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 50
+    }
+   ]
+  },
+  {
+   "date": "2027-02-26",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-02-27",
+   "target": "p2-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 15,
+     "minutes": 180,
+     "fuel": "40 g carbs/hr"
+    }
+   ]
+  },
+  {
+   "date": "2027-02-28",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 5
+    },
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 60
+    }
+   ]
+  },
+  {
+   "date": "2027-03-01",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-03-02",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Hills",
+     "miles": 6,
+     "detail": "6×75 s"
+    },
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 50
+    }
+   ]
+  },
+  {
+   "date": "2027-03-03",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 45
+    },
+    {
+     "type": "strength",
+     "title": "Strength C",
+     "workout": "C",
+     "minutes": 30
+    }
+   ]
+  },
+  {
+   "date": "2027-03-04",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4,
+     "detail": "+ strides"
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 50
+    }
+   ]
+  },
+  {
+   "date": "2027-03-05",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-03-06",
+   "target": "p2-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 11,
+     "minutes": 132,
+     "fuel": "40 g carbs/hr"
+    }
+   ]
+  },
+  {
+   "date": "2027-03-07",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4
+    },
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 60
+    }
+   ]
+  },
+  {
+   "date": "2027-03-08",
+   "target": "p3-rest",
+   "items": []
+  },
+  {
+   "date": "2027-03-09",
+   "target": "p3-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Steady run",
+     "miles": 7,
+     "detail": "2×10 min"
+    },
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 40
+    }
+   ]
+  },
+  {
+   "date": "2027-03-10",
+   "target": "p3-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 6
+    }
+   ]
+  },
+  {
+   "date": "2027-03-11",
+   "target": "p3-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 3
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 40
+    }
+   ]
+  },
+  {
+   "date": "2027-03-12",
+   "target": "p3-rest",
+   "items": []
+  },
+  {
+   "date": "2027-03-13",
+   "target": "p3-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 18,
+     "minutes": 216,
+     "fuel": "50 g carbs/hr"
+    }
+   ]
+  },
+  {
+   "date": "2027-03-14",
+   "target": "p3-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 6
+    }
+   ]
+  },
+  {
+   "date": "2027-03-15",
+   "target": "p3-rest",
+   "items": []
+  },
+  {
+   "date": "2027-03-16",
+   "target": "p3-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Hills",
+     "miles": 7,
+     "detail": "8×90 s"
+    },
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 40
+    }
+   ]
+  },
+  {
+   "date": "2027-03-17",
+   "target": "p3-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 6
+    }
+   ]
+  },
+  {
+   "date": "2027-03-18",
+   "target": "p3-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 3
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 40
+    }
+   ]
+  },
+  {
+   "date": "2027-03-19",
+   "target": "p3-rest",
+   "items": []
+  },
+  {
+   "date": "2027-03-20",
+   "target": "p3-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 20,
+     "minutes": 240,
+     "fuel": "50 g carbs/hr"
+    }
+   ]
+  },
+  {
+   "date": "2027-03-21",
+   "target": "p3-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 6
+    }
+   ]
+  },
+  {
+   "date": "2027-03-22",
+   "target": "p3-rest",
+   "items": []
+  },
+  {
+   "date": "2027-03-23",
+   "target": "p3-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Steady run",
+     "miles": 8,
+     "detail": "2×15 min"
+    },
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 40
+    }
+   ]
+  },
+  {
+   "date": "2027-03-24",
+   "target": "p3-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 6
+    }
+   ]
+  },
+  {
+   "date": "2027-03-25",
+   "target": "p3-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 3
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 40
+    }
+   ]
+  },
+  {
+   "date": "2027-03-26",
+   "target": "p3-rest",
+   "items": []
+  },
+  {
+   "date": "2027-03-27",
+   "target": "p3-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 20,
+     "minutes": 240,
+     "fuel": "50 g carbs/hr"
+    }
+   ]
+  },
+  {
+   "date": "2027-03-28",
+   "target": "p3-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 8
+    }
+   ]
+  },
+  {
+   "date": "2027-03-29",
+   "target": "pk-rest",
+   "items": []
+  },
+  {
+   "date": "2027-03-30",
+   "target": "pk-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Hills",
+     "miles": 6,
+     "detail": "6×60 s"
+    },
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 40
+    }
+   ]
+  },
+  {
+   "date": "2027-03-31",
+   "target": "pk-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 45
+    }
+   ]
+  },
+  {
+   "date": "2027-04-01",
+   "target": "pk-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 40
+    }
+   ]
+  },
+  {
+   "date": "2027-04-02",
+   "target": "pk-rest",
+   "items": []
+  },
+  {
+   "date": "2027-04-03",
+   "target": "pk-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 13,
+     "minutes": 156,
+     "fuel": "50 g carbs/hr"
+    }
+   ]
+  },
+  {
+   "date": "2027-04-04",
+   "target": "pk-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4
+    }
+   ]
+  },
+  {
+   "date": "2027-04-05",
+   "target": "pk-rest",
+   "items": []
+  },
+  {
+   "date": "2027-04-06",
+   "target": "pk-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Steady run",
+     "miles": 8,
+     "detail": "3×12 min"
+    },
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 40
+    }
+   ]
+  },
+  {
+   "date": "2027-04-07",
+   "target": "pk-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 6
+    }
+   ]
+  },
+  {
+   "date": "2027-04-08",
+   "target": "pk-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 3
+    },
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 40
+    }
+   ]
+  },
+  {
+   "date": "2027-04-09",
+   "target": "pk-rest",
+   "items": []
+  },
+  {
+   "date": "2027-04-10",
+   "target": "pk-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 22,
+     "minutes": 264,
+     "fuel": "50 g carbs/hr"
+    }
+   ]
+  },
+  {
+   "date": "2027-04-11",
+   "target": "pk-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 8
+    }
+   ]
+  },
+  {
+   "date": "2027-04-12",
+   "target": "pk-rest",
+   "items": []
+  },
+  {
+   "date": "2027-04-13",
+   "target": "pk-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Hills",
+     "miles": 8,
+     "detail": "8×90 s"
+    },
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "minutes": 40
+    }
+   ]
+  },
+  {
+   "date": "2027-04-14",
+   "target": "pk-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 6
+    }
+   ]
+  },
+  {
+   "date": "2027-04-15",
+   "target": "pk-train",
+   "items": [
+    {
+     "type": "strength",
+     "title": "Strength B",
+     "workout": "B",
+     "minutes": 40
+    },
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 45
+    }
+   ]
+  },
+  {
+   "date": "2027-04-16",
+   "target": "pk-rest",
+   "items": []
+  },
+  {
+   "date": "2027-04-17",
+   "target": "pk-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 24,
+     "minutes": 288,
+     "fuel": "50 g carbs/hr"
+    }
+   ]
+  },
+  {
+   "date": "2027-04-18",
+   "target": "pk-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 6
+    }
+   ]
+  },
+  {
+   "date": "2027-04-19",
+   "target": "tp-rest",
+   "items": []
+  },
+  {
+   "date": "2027-04-20",
+   "target": "tp-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 6,
+     "detail": "+ strides"
+    },
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "detail": "light, 80% of usual weights"
+    }
+   ]
+  },
+  {
+   "date": "2027-04-21",
+   "target": "tp-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 5
+    }
+   ]
+  },
+  {
+   "date": "2027-04-22",
+   "target": "tp-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 3
+    }
+   ]
+  },
+  {
+   "date": "2027-04-23",
+   "target": "tp-rest",
+   "items": []
+  },
+  {
+   "date": "2027-04-24",
+   "target": "tp-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 14,
+     "minutes": 168,
+     "fuel": "50 g carbs/hr"
+    }
+   ]
+  },
+  {
+   "date": "2027-04-25",
+   "target": "tp-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4
+    }
+   ]
+  },
+  {
+   "date": "2027-04-26",
+   "target": "tp-rest",
+   "items": []
+  },
+  {
+   "date": "2027-04-27",
+   "target": "tp-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 5,
+     "detail": "+ strides"
+    },
+    {
+     "type": "strength",
+     "title": "Strength A",
+     "workout": "A",
+     "detail": "light, 80% of usual weights"
+    }
+   ]
+  },
+  {
+   "date": "2027-04-28",
+   "target": "tp-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4
+    }
+   ]
+  },
+  {
+   "date": "2027-04-29",
+   "target": "tp-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 3
+    }
+   ]
+  },
+  {
+   "date": "2027-04-30",
+   "target": "tp-rest",
+   "items": []
+  },
+  {
+   "date": "2027-05-01",
+   "target": "tp-train",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 8,
+     "minutes": 96,
+     "fuel": "30 g carbs/hr"
+    }
+   ]
+  },
+  {
+   "date": "2027-05-02",
+   "target": "tp-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 45
+    }
+   ]
+  },
+  {
+   "date": "2027-05-03",
+   "items": [],
+   "target": "tp-rest",
+   "label": "Race week"
+  },
+  {
+   "date": "2027-05-04",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 4,
+     "detail": "+ strides"
+    }
+   ],
+   "target": "tp-rest"
+  },
+  {
+   "date": "2027-05-05",
+   "items": [],
+   "target": "tp-rest"
+  },
+  {
+   "date": "2027-05-06",
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 3
+    }
+   ],
+   "target": "carb-load"
+  },
+  {
+   "date": "2027-05-07",
+   "items": [],
+   "target": "carb-load"
+  },
+  {
+   "date": "2027-05-08",
+   "items": [
+    {
+     "type": "race",
+     "title": "Ice Age Trail 50K",
+     "miles": 31,
+     "detail": "La Grange",
+     "fuel": "50 g carbs/hr"
+    }
+   ],
+   "target": "race",
+   "label": "Race day"
+  },
+  {
+   "date": "2027-05-09",
+   "items": [],
+   "label": "Recover: walk, eat and sleep. No running this week."
+  }
+ ]
+}

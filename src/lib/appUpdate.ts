@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { APP_VERSION } from './feedback'
+import { APP_VERSION } from './version'
 
 /**
  * Keeping phones on the latest version. The service worker updates in the background, but that can stall (an
@@ -80,4 +80,11 @@ export function startUpdateChecks() {
     void checkForUpdate()
   })
   setInterval(() => { if (document.visibilityState === 'visible') void checkForUpdate() }, INTERVAL_MS)
+}
+
+/** Settings → Check for updates: update now if there's a newer version. */
+export async function checkUpdateNow(): Promise<string> {
+  const latest = await checkForUpdate()
+  if (latest) { void applyUpdate(latest); return 'Updating…' }
+  return 'You have the latest version.'
 }
