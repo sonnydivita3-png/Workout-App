@@ -15,23 +15,20 @@ const versionFile = (): Plugin => ({
 
 /**
  * Content Security Policy for the built app (GitHub Pages can't send headers, so it's a meta tag). Scripts, styles,
- * fonts and the service worker come only from the app itself; the network only reaches the app and its Supabase
- * project. Inline styles stay allowed (React style attributes); inline scripts don't. Not applied to the dev server,
- * whose hot reload needs inline scripts and websockets.
+ * fonts and the service worker come only from the app itself, and it talks to nothing else. Inline styles stay
+ * allowed (React style attributes); inline scripts don't. Not applied to the dev server.
  */
 const securityPolicy = (): Plugin => ({
   name: 'security-policy',
   apply: 'build',
   transformIndexHtml() {
-    let supabase = 'https://*.supabase.co'
-    try { if (process.env.VITE_SUPABASE_URL) supabase = new URL(process.env.VITE_SUPABASE_URL).origin } catch { /* keep the wildcard */ }
     const csp = [
       "default-src 'self'",
       "script-src 'self'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
       "font-src 'self'",
-      `connect-src 'self' ${supabase}`,
+      "connect-src 'self'",
       "worker-src 'self'",
       "manifest-src 'self'",
       "object-src 'none'",
@@ -60,7 +57,7 @@ export default defineConfig({
       manifest: {
         name: 'Durata',
         short_name: 'Durata',
-        description: 'Minimal weekly workout tracker',
+        description: 'My training plan, day by day',
         theme_color: '#0d0a15',
         background_color: '#0d0a15',
         display: 'standalone',
@@ -73,7 +70,7 @@ export default defineConfig({
           { src: 'pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: { importScripts: ['sw-notify.js'], globPatterns: ['**/*.{js,css,html,svg,png,json,webp}'],
+      workbox: { globPatterns: ['**/*.{js,css,html,svg,png,json,webp}'],
         // Always fetched fresh: it's how the app finds out it's out of date.
         globIgnores: ['version.json'],
       },

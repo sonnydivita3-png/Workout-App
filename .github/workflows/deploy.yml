@@ -26,31 +26,9 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
-      # The key ends up in the public JS bundle, so refuse anything but the publishable/anon key.
-      - name: Check Supabase key is public
-        env:
-          KEY: ${{ vars.SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}
-          URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL }}
-        run: |
-          node -e '
-            // Without both, the site would ship in preview mode: accounts stay on each phone and friends can never
-            // find each other. Refuse to publish that by accident.
-            if (!process.env.URL || !process.env.KEY) { console.error("::error::SUPABASE_URL and SUPABASE_ANON_KEY must be set (repository variables), or social would silently run in preview mode."); process.exit(1) }
-            const k = process.env.KEY || ""
-            if (k.startsWith("sb_secret_")) { console.error("::error::SUPABASE_ANON_KEY is a secret key. Use the publishable key (sb_publishable_...) and revoke this one."); process.exit(1) }
-            const p = k.split(".")[1]
-            let role
-            try { role = p && JSON.parse(Buffer.from(p, "base64url").toString()).role } catch {}
-            if (role && role !== "anon") { console.error("::error::SUPABASE_ANON_KEY is a " + role + " key. Use the anon/publishable key and rotate this one."); process.exit(1) }
-          '
       - run: npm run build
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
-          # Required (checked above): the Supabase project behind friends and backup.
-          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}
-          # Optional: where "Send feedback" and bug reports go. Without it they open a GitHub issue instead.
-          VITE_FEEDBACK_EMAIL: ${{ vars.FEEDBACK_EMAIL }}
           VITE_APP_VERSION: ${{ github.sha }}
       - uses: actions/upload-pages-artifact@v5
         with:

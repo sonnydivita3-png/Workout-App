@@ -1,276 +1,95 @@
-import { useMemo, useState } from 'react'
-import { SettingsGear } from './SettingsGear'
-import { parseISO, toISO, weekDates, weekdayIndex } from '../lib/dates'
-import { cardioFirst, dayLabel, dayPlanOf, isRestDay, liftAndCardio, placeCardio, workItems } from '../lib/plan'
-import { hasData } from '../lib/stats'
-import { useToday } from '../lib/useToday'
-import { useWakeLock } from '../lib/useWakeLock'
-import { findExercise, useStore } from '../store'
-import { WodBuilderSheet } from './WodBuilderSheet'
-import { CoreFinisherSheet } from './CoreFinisherSheet'
-import { BenchmarkSheet } from './BenchmarkSheet'
-import { ProgramsCard } from './ProgramsCard'
-import { CardioPlanSheet } from './CardioPlanSheet'
-import { StrengthForPlanSheet } from './StrengthForPlanSheet'
-import { ProgramSheet } from './ProgramSheet'
-import { RandomizerSheet } from './RandomizerSheet'
-import type { GeneratorMode } from './ModeSwitch'
-import { DaySheet } from './DaySheet'
-import { rowBtn, Sheet } from './Sheet'
-import { ExercisePicker } from './ExercisePicker'
-import { DayWorkout } from './DayWorkout'
-import { WeekStrip } from './WeekStrip'
-import { ArrangeSheet } from './ArrangeSheet'
-import { FinishWorkout } from './FinishWorkout'
-import { RestTimer } from './RestTimer'
-import { Tip } from './Tip'
-import { Chevron } from './Chevron'
-import { isFinished, sessionLabel, SESSIONS, splitItems } from '../lib/sessions'
-import { minutesFor } from '../lib/randomizer'
-import { bodyweightOn, restingPerHour } from '../lib/calories'
-import { perMinute, STYLE_MET, workoutCalories } from '../lib/calorieTarget'
-import { formatMinutes } from '../lib/units'
-import type { DaySession, PlannedExercise } from '../types'
+import { useState } from 'react'
+import { shortDate } from '../lib/dates'
+import { notesOn, phaseOf, workoutOn } from '../lib/plan'
+import { usePlan } from '../lib/store'
+import { card, sectionTitle } from './ui'
 
-const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-// Ways to add to or change a day that's already planned: quieter than the workout itself.
-const dashed = 'min-h-12 flex-1 rounded-2xl border border-dashed border-neutral-300 px-1 py-2.5 text-sm leading-tight text-neutral-600 hover:bg-neutral-100/60'
-
-/** "Nov 2 – 8", or "Oct 26 – Nov 1" across a month end (in the phone's own date order). */
-function weekRange(a: Date, b: Date): string {
-  const f = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
-  try { return f.formatRange(a, b) } catch { return `${f.format(a)} – ${f.format(b)}` }
-}
-
-/**
- * The Workouts tab: this week, and the selected day's workout ready to log. There is one way to do a workout: tick
- * each set here (✓), then Finish. Timed formats (AMRAP, EMOM, circuits…) bring their own clock; the rest timer
- * between sets is optional (Settings → Workouts).
- */
-export function PlanView({ initialAction, onSettings }: { initialAction?: string; onSettings?: () => void }) {
-  const today = useToday()
-  const [anchor, setAnchor] = useState(() => parseISO(today))
-  const [day, setDay] = useState(() => weekdayIndex(parseISO(today)))
-  const [picking, setPicking] = useState(initialAction === 'add')
-  const [addMenu, setAddMenu] = useState(false)
-  const [wodBuilder, setWodBuilder] = useState(false)
-  const [coreFinisher, setCoreFinisher] = useState(false)
-  const [benchSheet, setBenchSheet] = useState(false)
-  const [dayMenu, setDayMenu] = useState<false | 'menu' | 'load'>(false)
-  const [arranging, setArranging] = useState(false)
-  // Finishing the day, or on a day split in two, one of its sessions.
-  const [finishing, setFinishing] = useState<boolean | DaySession>(false)
-  const [generator, setGenerator] = useState<GeneratorMode | null>(null)
-  // A strength plan to build for this run/bike plan (by id): from My plans, or right after adding the run plan.
-  const [strengthFor, setStrengthFor] = useState<string | null>(null)
-  // The optional rest countdown belongs to the day it started on.
-  const [restTimer, setRestTimer] = useState<{ date: string; until: number } | null>(null)
-  const s = useStore()
-
-  const dates = useMemo(() => weekDates(anchor), [anchor])
-  const date = toISO(dates[day])
-  // Left open overnight, the day that was today moves on to the new today, so sets aren't logged on yesterday by
-  // mistake. A workout still going past midnight (sets logged, not finished) stays where it is to be finished.
-  const [shownToday, setShownToday] = useState(today)
-  if (shownToday !== today) {
-    setShownToday(today)
-    const going = s.logs.some((l) => l.date === shownToday && hasData(l)) && !s.finishedDays.includes(shownToday)
-    if (date === shownToday && !going) { setAnchor(parseISO(today)); setDay(weekdayIndex(parseISO(today))) }
-  }
-  const planned = dayPlanOf(s.plan, s.overrides, date)
-  const work = workItems(planned)
-  const rest = isRestDay(s.overrides, date)
-  const finished = s.finishedDays.includes(date)
-  // Two sessions (a morning run, evening weights): each shows its own time and calories, and is finished on its own.
-  const split = splitItems(planned)
-  const lb = bodyweightOn(s.bodyweight, date)
-  const countTotal = s.trainingPrefs.calorieCount === 'total'
-  const kcalOf = (items: PlannedExercise[]) => lb
-    ? workoutCalories(items, (met) => perMinute(met, lb, date, s.aboutMe) + (countTotal ? restingPerHour(lb, date, s.aboutMe) / 60 : 0), { lift: STYLE_MET.standard, cond: STYLE_MET.circuit, cardioFactor: 1 })
-    : null
-  // The session to finish next gets the main button; the other waits its turn.
-  const nextSession = split ? SESSIONS.find((x) => !isFinished(s.finishedDays, date, x) && workItems(split[x]).length > 0) : undefined
-  const shiftWeek = (n: number) => setAnchor((a) => new Date(a.getFullYear(), a.getMonth(), a.getDate() + 7 * n))
-  // Mid-workout the phone shouldn't lock between sets.
-  useWakeLock(date === today && work.length > 0 && !finished)
-
-  // Optional rest timer: "As planned" (-1) uses each exercise's own rest; 0 means off.
-  const startRest = (plannedSecs: number) => {
-    if (plannedSecs <= 0 || s.restSeconds === 0) return
-    const secs = s.restSeconds === -1 ? plannedSecs : s.restSeconds
-    setRestTimer({ date, until: Date.now() + secs * 1000 })
-  }
-
-  const thisWeek = dates.some((d) => toISO(d) === today)
-  const dayTitle = `${DAY_NAMES[day]}${date === today ? ' · Today' : `, ${dates[day].toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`}`
-
+/** The plan's reference pages: strength workouts by phase, the routine, the effort guide and the notes for now. */
+export function PlanView({ today }: { today: string }) {
+  const plan = usePlan()
+  const date = today < plan.start ? plan.start : today > plan.end ? plan.end : today
+  const phase = phaseOf(plan, date)
+  const notes = notesOn(plan, date)
   return (
-    <>
-      <header className="mb-4 flex items-center justify-between gap-2">
-        <h1 className="min-w-0 text-2xl font-semibold tracking-tight">{weekRange(dates[0], dates[6])}</h1>
-        <div className="flex shrink-0 items-center gap-1 text-neutral-500">
-          {!thisWeek && <button onClick={() => { setAnchor(parseISO(today)); setDay(weekdayIndex(parseISO(today))) }} className="hit mr-1 rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-700">Today</button>}
-          <button onClick={() => shiftWeek(-1)} aria-label="Previous week" className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-neutral-200/60"><Chevron left /></button>
-          <button onClick={() => shiftWeek(1)} aria-label="Next week" className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-neutral-200/60"><Chevron /></button>
-          {onSettings && <SettingsGear onClick={onSettings} />}
-        </div>
+    <div className="space-y-4">
+      <header>
+        <h1 className="text-2xl">Plan</h1>
+        {phase && <p className="text-sm text-neutral-500">Now: {phase.name}{phase.summary ? `. ${phase.summary}` : ''}</p>}
       </header>
 
-      <Tip id="plan">Pick a day to see its workout. Tap <b className="font-medium">✓</b> as you finish each set, then <b className="font-medium">Finish workout</b>.</Tip>
-      <div data-tour="week">
-      <WeekStrip dates={dates} selected={day} counts={dates.map((d) => workItems(dayPlanOf(s.plan, s.overrides, toISO(d))).length)}
-        labels={dates.map((d) => dayLabel(dayPlanOf(s.plan, s.overrides, toISO(d)), (id) => findExercise(s.custom, id)))}
-        done={dates.map((d) => s.logs.some((l) => l.date === toISO(d) && hasData(l)))}
-        rest={dates.map((d) => isRestDay(s.overrides, toISO(d)))} today={today} onSelect={setDay} />
-      </div>
+      {Object.keys(plan.workouts).map((key) => <WorkoutTables key={key} id={key} date={date} />)}
 
-      <div className="mb-3 mt-5 flex items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">{dayTitle}</h2>
-        <div className="flex shrink-0 gap-2">
-          <button onClick={() => setAddMenu(true)} data-tour="add" className="hit h-9 rounded-full bg-accent px-4 text-sm font-semibold text-on-accent">+ Add</button>
-          <button onClick={() => setDayMenu('menu')} aria-label="Day options" className="hit flex h-9 w-10 items-center justify-center rounded-full bg-neutral-100 text-lg leading-none text-neutral-600">⋯</button>
-        </div>
-      </div>
+      {plan.routine && (
+        <section className={card}>
+          <p className={sectionTitle}>{plan.routine.name}{plan.routine.minutes ? ` · ${plan.routine.minutes} min` : ''}</p>
+          {plan.routine.when && <p className="mb-2 text-sm text-neutral-500">{plan.routine.when}</p>}
+          <ol className="list-decimal space-y-1 pl-5 text-sm">{plan.routine.steps.map((s) => <li key={s}>{s}</li>)}</ol>
+        </section>
+      )}
 
-      <ProgramsCard onReplace={(kind) => setGenerator(kind === 'cardio' ? 'cardio' : 'program')} onStrength={setStrengthFor} />
+      {plan.effort && (
+        <section className={card}>
+          <p className={sectionTitle}>Effort guide</p>
+          <dl className="space-y-2 text-sm">
+            {plan.effort.map((e) => <div key={e.term}><dt className="font-semibold">{e.term}</dt><dd className="text-neutral-600">{e.meaning}</dd></div>)}
+          </dl>
+        </section>
+      )}
 
-      <section data-tour="day" className="mt-3 space-y-3">
-        {planned.length === 0 && rest && (
-          <div className="rounded-2xl bg-surface px-4 py-10 text-center shadow-sm ring-1 ring-neutral-200/70">
-            <p className="text-lg font-semibold">Rest day</p>
-            <p className="mt-1 text-sm text-neutral-400">Recovery is part of the plan 😴</p>
-            <button onClick={() => s.resetDay(date)} className="mt-4 rounded-full bg-neutral-100 px-4 py-1.5 text-sm text-neutral-600">
-              Cancel rest day
-            </button>
-          </div>
-        )}
-        {planned.length === 0 && !rest && (
-          <div className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-neutral-200/70">
-            <p className="mb-3 font-semibold">Nothing planned</p>
-            <div className="grid grid-cols-2 gap-2">
-              {([
-                ['Add exercises', () => setPicking(true)],
-                ['Make me a workout', () => setGenerator('one')],
-                ['Plan my week', () => setGenerator('program')],
-                ...(s.routines.length ? [['Load a routine', () => setDayMenu('load')] as const] : []),
-                ['Rest day', () => s.setRestDay(date)],
-              ] as const).map(([label, go]) => (
-                <button key={label} onClick={go} className="rounded-xl bg-neutral-100 px-3 py-3 text-sm font-medium text-neutral-700">{label}</button>
-              ))}
-            </div>
-          </div>
-        )}
-        {liftAndCardio(planned) && !split && (
-          // Lifting and cardio on the same day (made together, a finisher, or from two plans): either can go first.
-          <div className="flex items-center justify-between gap-2 px-1 text-xs text-neutral-500">
-            <span>Cardio</span>
-            <div role="radiogroup" aria-label="Cardio first or last" className="flex rounded-full bg-neutral-100 p-0.5">
-              {([[true, 'Start with it'], [false, 'Finish with it']] as const).map(([first, label]) => (
-                <button key={label} role="radio" aria-checked={cardioFirst(planned) === first} onClick={() => s.setDayItems(date, placeCardio(planned, first))}
-                  className={`hit rounded-full px-3 py-1.5 ${cardioFirst(planned) === first ? 'bg-surface font-medium text-neutral-900 shadow-sm' : 'text-neutral-500'}`}>{label}</button>
-              ))}
-            </div>
-          </div>
-        )}
-        {split ? SESSIONS.map((ses, k) => {
-          const part = split[ses]
-          const done = isFinished(s.finishedDays, date, ses)
-          const minutes = Math.round(minutesFor(part))
-          const kcal = kcalOf(part)
-          const facts = [minutes > 0 ? `~${formatMinutes(minutes)}` : '', kcal ? `≈ ${kcal.toLocaleString()} ${countTotal ? 'total' : 'active'} cal` : ''].filter(Boolean).join(' · ')
-          return (
-            <section key={ses} aria-labelledby={`session-${ses}`} className={`space-y-3 ${k ? 'border-t border-neutral-200/70 pt-4' : ''}`}>
-              <div className="flex items-baseline justify-between gap-3 px-1">
-                <h3 id={`session-${ses}`} className="text-base font-semibold"><span aria-hidden>{ses === 'am' ? '☀️' : '🌙'} </span>{sessionLabel(ses)}</h3>
-                <p className="shrink-0 text-xs text-neutral-500">{done ? '✓ Done' : facts}</p>
-              </div>
-              <DayWorkout date={date} items={planned} only={ses} onSetDone={startRest} />
-              {workItems(part).length > 0 && date <= today && (done ? (
-                <div className="flex gap-2">
-                  <button onClick={() => setFinishing(ses)} className="min-h-12 flex-1 rounded-2xl bg-accent/15 py-3 text-sm font-semibold text-neutral-800 ring-1 ring-inset ring-accent/40">✓ {sessionLabel(ses)} complete · see summary</button>
-                  <button onClick={() => s.unfinishDay(date, ses)} className="min-h-12 rounded-2xl bg-neutral-100 px-4 py-3 text-sm font-medium text-neutral-600">Undo</button>
-                </div>
-              ) : nextSession === ses ? (
-                <button onClick={() => setFinishing(ses)} className="min-h-14 w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-on-accent shadow-sm">✓ Finish {sessionLabel(ses).toLowerCase()}</button>
-              ) : (
-                <button onClick={() => setFinishing(ses)} className="min-h-12 w-full rounded-2xl bg-neutral-100 py-3 text-sm font-medium text-neutral-700">✓ Finish {sessionLabel(ses).toLowerCase()}</button>
-              ))}
-            </section>
-          )
-        }) : <DayWorkout date={date} items={planned} onSetDone={startRest} />}
-        {planned.length > 0 && (
-          <div className="flex gap-2">
-            <button onClick={() => setPicking(true)} className={dashed}>+ Add exercise</button>
-            <button onClick={() => setCoreFinisher(true)} className={dashed}>+ Core finisher</button>
-            {planned.length > 1 && <button onClick={() => setArranging(true)} className={dashed}>⇅ Reorder</button>}
-          </div>
-        )}
-        {!split && work.length > 0 && date <= today && (
-          finished ? (
-            <div className="flex gap-2">
-              <button onClick={() => setFinishing(true)} className="min-h-12 flex-1 rounded-2xl bg-accent/15 py-3 text-sm font-semibold text-neutral-800 ring-1 ring-inset ring-accent/40">✓ Workout complete · see summary</button>
-              <button onClick={() => s.unfinishDay(date)} className="min-h-12 rounded-2xl bg-neutral-100 px-4 py-3 text-sm font-medium text-neutral-600">Undo</button>
-            </div>
-          ) : (
-            <button onClick={() => setFinishing(true)} className="min-h-14 w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-on-accent shadow-sm">✓ Finish workout</button>
-          )
-        )}
-      </section>
-      {finishing && <FinishWorkout date={date} session={typeof finishing === 'string' ? finishing : undefined} onBack={() => setFinishing(false)} onDone={() => { setFinishing(false); setRestTimer(null) }} />}
-      {restTimer?.date === date && <RestTimer until={restTimer.until} onChange={(until) => setRestTimer({ date, until })} onClose={() => setRestTimer(null)} />}
+      {notes.map((n) => (
+        <section key={`${n.title}-${n.start ?? ''}`} className={card}>
+          <p className={sectionTitle}>{n.title}{n.start && n.end ? ` · ${shortDate(n.start)}–${shortDate(n.end)}` : ''}</p>
+          <ul className="list-disc space-y-1 pl-5 text-sm text-neutral-700">{n.bullets.map((b) => <li key={b}>{b}</li>)}</ul>
+        </section>
+      ))}
 
-      {addMenu && (
-        <Sheet title={`Add to ${DAY_NAMES[day]}`} onClose={() => setAddMenu(false)}>
-          {([
-            ['Add an exercise', 'Search or browse 500 exercises', () => setPicking(true)],
-            ['Make me a workout', 'Pick body parts and time, get a full workout', () => setGenerator('one')],
-            ['Plan a week or month', 'Training and rest days built around a goal', () => setGenerator('program')],
-            ['Timed workout', 'A circuit (like 30 s of each move), AMRAP, EMOM, for time or Tabata, with a clock', () => setWodBuilder(true)],
-            ['Core finisher', 'A few core moves to end with: pick 5 to 20 minutes', () => setCoreFinisher(true)],
-            ...(s.benchmarks.length ? [['Benchmark workout', `Repeat one of your ${s.benchmarks.length} saved benchmarks`, () => setBenchSheet(true)] as const] : []),
-            ['Run or ride plan', 'Build up to a distance or a race', () => setGenerator('cardio')],
-          ] as const).map(([title, hint, go]) => (
-            <button key={title} onClick={() => { setAddMenu(false); go() }} className={rowBtn}>
-              <span><span className="block text-sm font-medium">{title}</span><span className="block text-xs text-neutral-500">{hint}</span></span>
-              <Chevron className="h-4 w-4 shrink-0 text-neutral-400" />
+      {plan.phases.length > 0 && (
+        <section className={card}>
+          <p className={sectionTitle}>Phases</p>
+          <ul className="space-y-2 text-sm">
+            {plan.phases.map((p) => (
+              <li key={p.name} className={p === phase ? 'font-semibold' : ''}>
+                {p.name} <span className="font-normal text-neutral-500">{shortDate(p.start)}–{shortDate(p.end)}</span>
+                {p.summary && <p className="font-normal text-neutral-600">{p.summary}</p>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  )
+}
+
+/** One workout's exercises, for the phase that's on now, or any other phase. */
+function WorkoutTables({ id, date }: { id: string; date: string }) {
+  const plan = usePlan()
+  const now = workoutOn(plan, id, date)
+  const [pick, setPick] = useState<number | null>(null)
+  if (!now) return null
+  const { workout } = now
+  const version = pick != null ? workout.versions[pick] : now.version
+  return (
+    <section className={card} aria-label={workout.name}>
+      <p className="font-semibold text-strength">{workout.name}{workout.focus ? ` · ${workout.focus}` : ''}</p>
+      {workout.versions.length > 1 && (
+        <div role="tablist" aria-label={`${workout.name} phase`} className="my-2 flex flex-wrap gap-1.5">
+          {workout.versions.map((v, i) => (
+            <button key={v.label} role="tab" aria-selected={v === version} onClick={() => setPick(i)}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${v === version ? 'bg-neutral-900 text-surface' : 'bg-neutral-100 text-neutral-600'}`}>
+              {v.label}{v === now.version ? ' (now)' : ''}
             </button>
           ))}
-        </Sheet>
+        </div>
       )}
-      {arranging && <ArrangeSheet date={date} onClose={() => setArranging(false)} />}
-      {benchSheet && <BenchmarkSheet date={date} dayName={DAY_NAMES[day]} onClose={() => setBenchSheet(false)} />}
-      {wodBuilder && <WodBuilderSheet date={date} onClose={() => setWodBuilder(false)} />}
-      {coreFinisher && <CoreFinisherSheet date={date} dayName={DAY_NAMES[day]} onClose={() => setCoreFinisher(false)} />}
-      {generator === 'one' && <RandomizerSheet date={date} onClose={() => setGenerator(null)} onSwitchMode={setGenerator} />}
-      {generator === 'program' && (
-        <ProgramSheet
-          onClose={() => setGenerator(null)}
-          onSwitchMode={setGenerator}
-          onApplied={(first) => { setAnchor(parseISO(first)); setDay(weekdayIndex(parseISO(first))) }}
-        />
-      )}
-      {generator === 'cardio' && (
-        <CardioPlanSheet
-          onClose={() => setGenerator(null)}
-          onApplied={(first, strength) => { setAnchor(parseISO(first)); setDay(weekdayIndex(parseISO(first))); if (strength) setStrengthFor(strength) }}
-        />
-      )}
-      {strengthFor && (
-        <StrengthForPlanSheet
-          programId={strengthFor}
-          onClose={() => setStrengthFor(null)}
-          onApplied={(first) => { setAnchor(parseISO(first)); setDay(weekdayIndex(parseISO(first))) }}
-        />
-      )}
-      {dayMenu && <DaySheet date={date} weekDates={dates.map(toISO)} initialMode={dayMenu} onClose={() => setDayMenu(false)} />}
-
-      {picking && (
-        <ExercisePicker
-          taken={new Set(planned.map((p) => p.exerciseId))}
-          onPick={(e) => s.addExercise(date, e.id, e.kind)}
-          onClose={() => setPicking(false)}
-        />
-      )}
-    </>
+      <p className="mb-1 text-xs text-neutral-500">{shortDate(version.start)}–{shortDate(version.end)}{version.note ? ` · ${version.note}` : ''}</p>
+      <table className="w-full text-sm">
+        <tbody>
+          {version.exercises.map((e) => (
+            <tr key={e.name} className="border-t border-neutral-200/70"><td className="py-1.5 pr-2">{e.name}</td><td className="whitespace-nowrap text-right text-neutral-600">{e.prescription}</td></tr>
+          ))}
+        </tbody>
+      </table>
+      {workout.notes && <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-neutral-500">{workout.notes.map((n) => <li key={n}>{n}</li>)}</ul>}
+    </section>
   )
 }

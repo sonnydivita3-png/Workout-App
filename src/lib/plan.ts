@@ -1,165 +1,209 @@
-import type { Exercise, ExerciseLog, PlanOverrides, PlannedExercise, WeekPlan } from '../types'
-import { areaOf } from './bodyParts'
-import { addDays, mondayOf, parseISO, toISO, weekdayIndex } from './dates'
-import { hasData } from './stats'
-import { dropSetsOf, workSets } from './progression'
+/**
+ * A training plan, as a file: every dated day with its activities, plus the workouts, targets and notes those days
+ * refer to. The format is documented in docs/plan-format.md (also shown in Settings, for Claude to write new plans in).
+ */
+export type ItemType = 'run' | 'strength' | 'bike' | 'hike' | 'mobility' | 'race' | 'other'
+export const ITEM_TYPES: ItemType[] = ['run', 'strength', 'bike', 'hike', 'mobility', 'race', 'other']
 
-/** The exercises planned for a date: a date-specific override if one exists, else the weekly template. */
-export function dayPlanOf(plan: WeekPlan, overrides: PlanOverrides | undefined, date: string): PlannedExercise[] {
-  return overrides?.[date] ?? plan[weekdayIndex(parseISO(date))]
+export interface PlanItem {
+  type: ItemType
+  title: string
+  miles?: number
+  /** Planned time in minutes (a long run's 1:12 is 72). */
+  minutes?: number
+  /** Extra detail: "+ strides", "6×60 s", "light". */
+  detail?: string
+  fuel?: string
+  /** For strength: the key of a workout in `workouts`. */
+  workout?: string
 }
 
-/** PHA stations planned on the other days of a date's week (Monday to Sunday), so another PHA that week can differ. */
-export function phaThisWeek(plan: WeekPlan, overrides: PlanOverrides | undefined, date: string): string[] {
-  const monday = mondayOf(parseISO(date))
-  return [0, 1, 2, 3, 4, 5, 6]
-    .map((i) => toISO(addDays(monday, i)))
-    .filter((d) => d !== date)
-    .flatMap((d) => dayPlanOf(plan, overrides, d).filter((p) => p.block === 'pha' || p.block?.endsWith('-pha')).map((p) => p.exerciseId))
+export interface PlanDay {
+  date: string
+  label?: string
+  /** A key of `targets`. */
+  target?: string
+  items: PlanItem[]
 }
 
-/** The exercises that count as the workout itself (warm-up moves aren't tracked as things to do). */
-export const workItems = (items: PlannedExercise[]) => items.filter((p) => !p.warmup)
-
-/** A session's own cardio: a run, ride or row with planned minutes (not the warm-up, not a station in a timed block). */
-const mainCardio = (p: PlannedExercise) => !p.warmup && !p.block && !p.wod && p.minutes != null
-/** Lifting or conditioning: anything else past the warm-up. */
-const training = (p: PlannedExercise) => !p.warmup && !mainCardio(p)
-
-/** Whether a day has both lifting (or conditioning) and cardio of its own: the days "cardio first or last" is about. */
-export const liftAndCardio = (items: PlannedExercise[]) => items.some(mainCardio) && items.some(training)
-
-/** Whether the day's cardio comes before its lifting. */
-export const cardioFirst = (items: PlannedExercise[]) => items.findIndex(mainCardio) < items.findIndex(training)
-
-/** The day with its cardio moved to the start (just after the warm-up) or the end; everything else keeps its order. */
-export function placeCardio(items: PlannedExercise[], first: boolean): PlannedExercise[] {
-  if (!liftAndCardio(items)) return items
-  const warm = items.filter((p) => p.warmup)
-  const cardio = items.filter(mainCardio)
-  const rest = items.filter(training)
-  return first ? [...warm, ...cardio, ...rest] : [...warm, ...rest, ...cardio]
+export interface Target {
+  label?: string
+  kcal?: number
+  protein?: number
+  carbs?: number | string
+  fat?: number
+  note?: string
 }
 
-/** A day explicitly marked as rest (an empty date override), as opposed to a day that just has nothing planned. */
-export const isRestDay = (overrides: PlanOverrides | undefined, date: string) => overrides?.[date]?.length === 0
+export interface Exercise {
+  name: string
+  prescription: string
+  /** How many sets to log. */
+  sets: number
+}
+
+export interface WorkoutVersion {
+  label: string
+  start: string
+  end: string
+  note?: string
+  exercises: Exercise[]
+}
+
+export interface Workout {
+  name: string
+  focus?: string
+  notes?: string[]
+  versions: WorkoutVersion[]
+}
+
+export interface Week {
+  number: number
+  /** The Monday it starts. */
+  start: string
+  miles?: number
+  long?: string
+  goalLb?: number
+  down?: boolean
+}
+
+export interface Phase {
+  name: string
+  start: string
+  end: string
+  summary?: string
+}
+
+export interface Note {
+  title: string
+  start?: string
+  end?: string
+  bullets: string[]
+}
+
+export interface Plan {
+  format: 'durata-plan'
+  version: 1
+  id: string
+  name: string
+  description?: string
+  start: string
+  end: string
+  race?: { date: string; name: string; detail?: string }
+  phases: Phase[]
+  weeks: Week[]
+  targets: Record<string, Target>
+  workouts: Record<string, Workout>
+  routine?: { name: string; minutes?: number; when?: string; steps: string[] }
+  effort?: { term: string; meaning: string }[]
+  notes?: Note[]
+  days: PlanDay[]
+}
+
+const DATE = /^\d{4}-\d{2}-\d{2}$/
+const isDate = (v: unknown): v is string => typeof v === 'string' && DATE.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`))
+const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+const isStr = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0
+const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0
+const isStrList = (v: unknown) => Array.isArray(v) && v.every(isStr)
 
 /**
- * The most recent workout actually logged: on or before `today`, with real data, and not on a day marked as rest.
- * Future dates and rest days never count.
+ * Check a plan file. Returns the plan, or the problems found (each with where it is), so a file from Claude that's a
+ * little off says exactly what to fix instead of half-loading.
  */
-export function lastWorkout(
-  logs: ExerciseLog[],
-  overrides: PlanOverrides | undefined,
-  today: string,
-): { date: string; logs: ExerciseLog[] } | null {
-  const eligible = logs.filter((l) => l.date <= today && hasData(l) && !isRestDay(overrides, l.date))
-  const date = eligible.map((l) => l.date).sort().at(-1)
-  return date ? { date, logs: eligible.filter((l) => l.date === date) } : null
-}
-
-/**
- * Turn a logged workout back into a plan, so it can be done again: same exercises in the same order, as many working
- * sets as last time, and the reps, hold or cardio time that was done.
- */
-export function repeatPlan(logs: ExerciseLog[], lookup: (id: string) => Exercise | undefined): PlannedExercise[] {
-  const mostCommon = (xs: number[]) => {
-    const counts = new Map<number, number>()
-    for (const x of xs) counts.set(x, (counts.get(x) ?? 0) + 1)
-    return [...counts].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0]?.[0]
+export function checkPlan(raw: unknown): { plan: Plan } | { errors: string[] } {
+  const errors: string[] = []
+  const err = (at: string, msg: string) => { if (errors.length < 30) errors.push(`${at}: ${msg}`) }
+  if (!isObj(raw)) return { errors: ['The file is not a plan (expected a JSON object).'] }
+  const p = raw
+  if (p.format !== 'durata-plan') err('format', 'must be "durata-plan"')
+  if (p.version !== 1) err('version', 'must be 1')
+  if (!isStr(p.id)) err('id', 'is missing')
+  if (!isStr(p.name)) err('name', 'is missing')
+  if (!isDate(p.start)) err('start', 'must be a date like 2026-11-16')
+  if (!isDate(p.end)) err('end', 'must be a date like 2027-05-09')
+  const targets = isObj(p.targets) ? p.targets : (err('targets', 'must be an object (it can be empty: {})'), {})
+  for (const [k, t] of Object.entries(targets)) {
+    if (!isObj(t)) { err(`targets.${k}`, 'must be an object'); continue }
+    for (const f of ['kcal', 'protein', 'fat'] as const) if (t[f] != null && !isNum(t[f])) err(`targets.${k}.${f}`, 'must be a number')
+    if (t.carbs != null && !isNum(t.carbs) && !isStr(t.carbs)) err(`targets.${k}.carbs`, 'must be a number or text like "720–810"')
   }
-  return logs.flatMap((l): PlannedExercise[] => {
-    const ex = lookup(l.exerciseId)
-    if (!ex) return []
-    if (ex.kind === 'cardio') {
-      return [{ exerciseId: l.exerciseId, sets: 1, ...(l.cardio?.minutes ? { minutes: l.cardio.minutes } : {}), ...(l.cardio?.distance ? { distance: l.cardio.distance } : {}) }]
-    }
-    // The working sets done (drop sets go back in as drop sets, after them).
-    const work = workSets(l)
-    const drops = dropSetsOf(l).length
-    const warm = (l.sets ?? []).filter((s) => s.warmup).length
-    const reps = mostCommon(work.map((s) => s.reps ?? 0).filter(Boolean))
-    const seconds = mostCommon(work.map((s) => s.seconds ?? 0).filter(Boolean))
-    return [{
-      exerciseId: l.exerciseId,
-      sets: Math.max(1, work.length),
-      ...(ex.mode === 'time' ? (seconds ? { seconds } : {}) : reps ? { reps } : {}),
-      ...(warm ? { warmupSets: warm } : {}),
-      ...(drops ? { dropSets: drops } : {}),
-    }]
+  const workouts = isObj(p.workouts) ? p.workouts : (err('workouts', 'must be an object (it can be empty: {})'), {})
+  for (const [k, w] of Object.entries(workouts)) {
+    const at = `workouts.${k}`
+    if (!isObj(w)) { err(at, 'must be an object'); continue }
+    if (!isStr(w.name)) err(`${at}.name`, 'is missing')
+    if (w.notes != null && !isStrList(w.notes)) err(`${at}.notes`, 'must be a list of text')
+    if (!Array.isArray(w.versions) || !w.versions.length) { err(`${at}.versions`, 'needs at least one version'); continue }
+    w.versions.forEach((v, i) => {
+      const vat = `${at}.versions[${i}]`
+      if (!isObj(v)) return err(vat, 'must be an object')
+      if (!isStr(v.label)) err(`${vat}.label`, 'is missing')
+      if (!isDate(v.start) || !isDate(v.end)) err(vat, 'needs start and end dates')
+      if (!Array.isArray(v.exercises) || !v.exercises.length) return err(`${vat}.exercises`, 'needs at least one exercise')
+      v.exercises.forEach((e, j) => {
+        if (!isObj(e) || !isStr(e.name) || !isStr(e.prescription)) err(`${vat}.exercises[${j}]`, 'needs a name and a prescription')
+        else if (!Number.isInteger(e.sets) || (e.sets as number) < 1 || (e.sets as number) > 20) err(`${vat}.exercises[${j}].sets`, 'must be a whole number from 1 to 20')
+      })
+    })
+  }
+  if (!Array.isArray(p.phases)) err('phases', 'must be a list (it can be empty)')
+  else p.phases.forEach((ph, i) => { if (!isObj(ph) || !isStr(ph.name) || !isDate(ph.start) || !isDate(ph.end)) err(`phases[${i}]`, 'needs a name, start and end') })
+  if (!Array.isArray(p.weeks)) err('weeks', 'must be a list (it can be empty)')
+  else p.weeks.forEach((w, i) => {
+    if (!isObj(w) || !Number.isInteger(w.number) || !isDate(w.start)) return err(`weeks[${i}]`, 'needs a number and a start date')
+    for (const f of ['miles', 'goalLb'] as const) if (w[f] != null && !isNum(w[f])) err(`weeks[${i}].${f}`, 'must be a number')
   })
-}
-
-/** A one-word label for a day in the week strip: the main muscle group, "Full", "Run", "Ride", "Timed" or "Cardio". */
-export function dayLabel(items: PlannedExercise[], lookup: (id: string) => Exercise | undefined): string {
-  const work = workItems(items)
-  if (work.length === 0) return ''
-  if (work.some((p) => p.wod)) return 'Timed'
-  if (work.some((p) => p.block === 'hyrox' || p.block?.endsWith('-hyrox'))) return 'Hyrox'
-  const exs = work.map((p) => lookup(p.exerciseId)).filter((e): e is Exercise => !!e)
-  const lifts = exs.filter((e) => e.kind === 'strength' && e.group !== 'Conditioning' && e.group !== 'Mobility')
-  if (lifts.length === 0) {
-    const ids = exs.map((e) => e.id.toLowerCase())
-    if (ids.length && ids.every((id) => /run|jog|treadmill|trail/.test(id))) return 'Run'
-    if (ids.length && ids.every((id) => /cycl|bik/.test(id))) return 'Ride'
-    return exs.some((e) => e.group === 'Conditioning') ? 'HIIT' : 'Cardio'
+  if (p.notes != null) {
+    if (!Array.isArray(p.notes)) err('notes', 'must be a list')
+    else p.notes.forEach((n, i) => { if (!isObj(n) || !isStr(n.title) || !isStrList(n.bullets)) err(`notes[${i}]`, 'needs a title and a list of bullets') })
   }
-  // Core goes with any day, so it only names a day that is all core.
-  const main = lifts.filter((e) => e.group !== 'Core')
-  if (main.length === 0) return 'Core'
-  // By area, so a leg day reads Legs rather than Quads (glutes are leg work too).
-  const area = (e: Exercise) => (e.group === 'Glutes' ? 'Legs' : areaOf(e.group))
-  const counts = new Map<string, number>()
-  for (const e of main) counts.set(area(e), (counts.get(area(e)) ?? 0) + 1)
-  const [top, n] = [...counts].sort((a, b) => b[1] - a[1])[0]
-  // One area that's most of the day names it (Legs, Chest, Arms…).
-  if (n >= main.length * 0.75) return top
-  const lower = counts.get('Legs') ?? 0
-  // Upper and lower body both in good measure: full body. Otherwise the bigger half (shoulders and arms is upper body).
-  if (lower > main.length * 0.25 && lower < main.length * 0.75) return 'Full'
-  return lower >= main.length * 0.75 ? 'Legs' : 'Upper'
-}
-
-/**
- * A short title for a logged workout, e.g. "Full body", "Upper body", "Chest & arms", "Legs + cardio", "Run": for
- * lists where every exercise name would be too much.
- */
-export function workoutTitle(exs: Exercise[]): string {
-  const lifts = exs.filter((e) => e.kind === 'strength' && e.group !== 'Conditioning' && e.group !== 'Mobility')
-  const cardio = exs.filter((e) => e.kind === 'cardio')
-  if (lifts.length === 0) {
-    if (exs.some((e) => e.group === 'Conditioning')) return 'HIIT'
-    const ids = cardio.map((e) => e.id.toLowerCase())
-    if (ids.length && ids.every((id) => /run|jog|treadmill|trail/.test(id))) return 'Run'
-    if (ids.length && ids.every((id) => /cycl|bik/.test(id))) return 'Ride'
-    return exs.some((e) => e.group === 'Mobility') && !cardio.length ? 'Mobility' : 'Cardio'
-  }
-  const ORDER = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core']
-  const areas = new Set(lifts.map((e) => (areaOf(e.group) === 'Glutes' ? 'Legs' : areaOf(e.group))).filter((a) => ORDER.includes(a)))
-  const upper = ['Chest', 'Back', 'Shoulders', 'Arms'].filter((a) => areas.has(a)).length
-  let title: string
-  if (upper >= 2 && areas.has('Legs')) title = 'Full body'
-  else if (upper >= 3) title = 'Upper body'
+  if (p.routine != null && (!isObj(p.routine) || !isStr(p.routine.name) || !isStrList(p.routine.steps))) err('routine', 'needs a name and a list of steps')
+  if (p.effort != null && (!Array.isArray(p.effort) || !p.effort.every((e) => isObj(e) && isStr(e.term) && isStr(e.meaning)))) err('effort', 'must be a list of { term, meaning }')
+  if (!Array.isArray(p.days) || !p.days.length) err('days', 'needs at least one day')
   else {
-    const names = ORDER.filter((a) => areas.has(a))
-    title = names.length === 0 ? 'Strength' : names.map((n, i) => (i ? n.toLowerCase() : n)).join(', ').replace(/, ([^,]*)$/, ' & $1')
+    const seen = new Set<string>()
+    p.days.forEach((d, i) => {
+      const at = `days[${i}]`
+      if (!isObj(d) || !isDate(d.date)) return err(at, 'needs a date like 2026-11-16')
+      const dat = `day ${d.date}`
+      if (seen.has(d.date)) err(dat, 'is listed twice')
+      seen.add(d.date)
+      if (d.target != null && !(isStr(d.target) && d.target in targets)) err(`${dat}.target`, `"${String(d.target)}" isn't in targets`)
+      if (!Array.isArray(d.items)) return err(`${dat}.items`, 'must be a list (empty for a rest day)')
+      d.items.forEach((it, j) => {
+        const iat = `${dat}.items[${j}]`
+        if (!isObj(it)) return err(iat, 'must be an object')
+        if (!ITEM_TYPES.includes(it.type as ItemType)) err(`${iat}.type`, `must be one of ${ITEM_TYPES.join(', ')}`)
+        if (!isStr(it.title)) err(`${iat}.title`, 'is missing')
+        for (const f of ['miles', 'minutes'] as const) if (it[f] != null && !isNum(it[f])) err(`${iat}.${f}`, 'must be a number')
+        if (it.workout != null && !(isStr(it.workout) && it.workout in workouts)) err(`${iat}.workout`, `"${String(it.workout)}" isn't in workouts`)
+      })
+    })
   }
-  return cardio.length ? `${title} + cardio` : title
+  if (errors.length) return { errors }
+  const plan = raw as unknown as Plan
+  return { plan: { ...plan, days: [...plan.days].sort((a, b) => a.date.localeCompare(b.date)) } }
 }
 
-/**
- * Where the most recent drop sets before `before` went (within two weeks), planned or logged: the next workout puts
- * its drop sets on other muscles.
- */
-export function lastDropGroups(plan: WeekPlan, overrides: PlanOverrides | undefined, logs: ExerciseLog[], before: string, lookup: (id: string) => Exercise | undefined): string[] {
-  for (let back = 1; back <= 14; back++) {
-    const date = toISO(addDays(parseISO(before), -back))
-    const ids = new Set([
-      ...dayPlanOf(plan, overrides, date).filter((p) => p.dropSets).map((p) => p.exerciseId),
-      ...logs.filter((l) => l.date === date && l.sets?.some((x) => x.drop && (x.weight || x.reps))).map((l) => l.exerciseId),
-    ])
-    const groups = [...new Set([...ids].map((id) => lookup(id)?.group).filter((g): g is string => !!g))]
-    if (groups.length) return groups
-  }
-  return []
+const inRange = (date: string, start?: string, end?: string) => (!start || date >= start) && (!end || date <= end)
+
+export const dayOf = (plan: Plan, date: string): PlanDay | undefined => plan.days.find((d) => d.date === date)
+export const phaseOf = (plan: Plan, date: string) => plan.phases.find((p) => inRange(date, p.start, p.end))
+export const weekOf = (plan: Plan, date: string) => [...plan.weeks].reverse().find((w) => w.start <= date && date <= addDaysIso(w.start, 6))
+export const targetOf = (plan: Plan, day?: PlanDay): Target | undefined => (day?.target ? plan.targets[day.target] : undefined)
+/** The version of a workout that applies on a date (the last one started, when none covers it). */
+export function workoutOn(plan: Plan, key: string, date: string): { workout: Workout; version: WorkoutVersion } | undefined {
+  const workout = plan.workouts[key]
+  if (!workout) return undefined
+  const version = workout.versions.find((v) => inRange(date, v.start, v.end)) ?? [...workout.versions].reverse().find((v) => v.start <= date) ?? workout.versions[0]
+  return { workout, version }
+}
+/** Notes that apply on a date: the whole-plan ones, and those whose dates cover it. */
+export const notesOn = (plan: Plan, date: string) => (plan.notes ?? []).filter((n) => inRange(date, n.start, n.end))
+
+export function addDaysIso(date: string, n: number): string {
+  const d = new Date(`${date}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
 }

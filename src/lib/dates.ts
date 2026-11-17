@@ -1,29 +1,29 @@
-export const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+import { useEffect, useState } from 'react'
 
-export const toISO = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-
-/** Monday-based weekday index (0-6). */
-export const weekdayIndex = (d: Date) => (d.getDay() + 6) % 7
-
-export function weekDates(anchor: Date): Date[] {
-  const monday = new Date(anchor)
-  monday.setDate(anchor.getDate() - weekdayIndex(anchor))
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday)
-    d.setDate(monday.getDate() + i)
-    return d
-  })
+/** Today on this phone's clock, as 2026-11-17. */
+export function todayIso(now = new Date()): string {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 }
 
-export const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)
+/** Today, kept current past midnight and when the app is reopened. */
+export function useToday(): string {
+  const [today, setToday] = useState(todayIso)
+  useEffect(() => {
+    const tick = () => setToday(todayIso())
+    const id = setInterval(tick, 60_000)
+    document.addEventListener('visibilitychange', tick)
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', tick) }
+  }, [])
+  return today
+}
 
-export const parseISO = (iso: string) => new Date(iso + 'T00:00:00')
-
-export const mondayOf = (d: Date) => addDays(d, -weekdayIndex(d))
-
-export const fmtShort = (iso: string) =>
-  parseISO(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-
-export const fmtLong = (iso: string) =>
-  parseISO(iso).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+const at = (iso: string) => new Date(`${iso}T12:00:00`)
+/** "Tue, Nov 17" */
+export const longDate = (iso: string) => at(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+/** "Nov 17" */
+export const shortDate = (iso: string) => at(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+/** "November 2026" */
+export const monthName = (iso: string) => at(iso).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+export const dayNum = (iso: string) => Number(iso.slice(8, 10))
+/** Whole days from a to b. */
+export const daysBetween = (a: string, b: string) => Math.round((at(b).getTime() - at(a).getTime()) / 86_400_000)

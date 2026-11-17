@@ -1,191 +1,123 @@
 import { describe, expect, it } from 'vitest'
-import type { ExerciseLog, PlanOverrides, WeekPlan } from '../types'
-import { dayLabel, workoutTitle, dayPlanOf, isRestDay, lastWorkout, repeatPlan, phaThisWeek, placeCardio, liftAndCardio, cardioFirst } from './plan'
-import { BUILTIN_BY_ID } from '../data/exercises'
-import { weekStats } from './stats'
+import raw from '../plans/ice-age-50k.json'
+import guide from '../../docs/plan-format.md?raw'
+import { addDaysIso, checkPlan, dayOf, notesOn, phaseOf, weekOf, workoutOn } from './plan'
 
-const TODAY = '2026-09-29' // Tuesday
-const run = (date: string, distance = 3): ExerciseLog => ({ date, exerciseId: 'running', cardio: { distance, minutes: 27 } })
-const lift = (date: string): ExerciseLog => ({ date, exerciseId: 'Barbell_Deadlift', sets: [{ weight: 225, reps: 5 }] })
-const emptyPlan = (): WeekPlan => Array.from({ length: 7 }, () => [])
+const plan = (() => {
+  const r = checkPlan(raw)
+  if ('errors' in r) throw new Error(r.errors.join('\n'))
+  return r.plan
+})()
+const titles = (date: string) => dayOf(plan, date)!.items.map((i) => i.title)
 
-describe('lastWorkout', () => {
-  it('never shows a run planned or logged for tomorrow', () => {
-    const logs = [lift('2026-09-26'), run('2026-09-30')] // Sat lift, tomorrow's run
-    const last = lastWorkout(logs, {}, TODAY)
-    expect(last?.date).toBe('2026-09-26')
-    expect(last?.logs.map((l) => l.exerciseId)).toEqual(['Barbell_Deadlift'])
+describe('the Ice Age 50K plan file', () => {
+  it('has every day from Nov 16 to May 9, once', () => {
+    expect(plan.days).toHaveLength(175)
+    plan.days.forEach((d, i) => expect(d.date).toBe(addDaysIso('2026-11-16', i)))
   })
 
-  it('is null when the only data is in the future', () => {
-    expect(lastWorkout([run('2026-09-30'), run('2026-10-05')], {}, TODAY)).toBeNull()
-  })
-
-  it('a workout logged today counts; a rest day today does not', () => {
-    expect(lastWorkout([lift('2026-09-26'), run(TODAY)], {}, TODAY)?.date).toBe(TODAY)
-    // Today is a rest day: no data today, so the most recent past workout is shown.
-    const overrides: PlanOverrides = { [TODAY]: [] }
-    expect(lastWorkout([lift('2026-09-26'), run('2026-09-30')], overrides, TODAY)?.date).toBe('2026-09-26')
-  })
-
-  it('skips days marked as rest, even if something is logged on them', () => {
-    const overrides: PlanOverrides = { '2026-09-28': [] }
-    const logs = [lift('2026-09-26'), run('2026-09-28')]
-    expect(lastWorkout(logs, overrides, TODAY)?.date).toBe('2026-09-26')
-  })
-
-  it('ignores entries with no real data', () => {
-    const blank: ExerciseLog = { date: '2026-09-28', exerciseId: 'running', cardio: { distance: null, minutes: null } }
-    const blankSets: ExerciseLog = { date: '2026-09-28', exerciseId: 'Barbell_Deadlift', sets: [{ weight: null, reps: null }] }
-    expect(lastWorkout([lift('2026-09-25'), blank, blankSets], {}, TODAY)?.date).toBe('2026-09-25')
-  })
-
-  it('groups every exercise from the most recent day', () => {
-    const logs = [lift('2026-09-27'), run('2026-09-27'), lift('2026-09-20')]
-    expect(lastWorkout(logs, {}, TODAY)?.logs).toHaveLength(2)
-  })
-})
-
-describe('rest days', () => {
-  it('an empty override is a rest day even when the weekly template has exercises; no override is not', () => {
-    const plan = emptyPlan()
-    plan[1] = [{ exerciseId: 'running', sets: 1 }] // Tuesday template
-    expect(dayPlanOf(plan, {}, TODAY)).toHaveLength(1)
-    expect(isRestDay({}, TODAY)).toBe(false)
-    expect(dayPlanOf(plan, { [TODAY]: [] }, TODAY)).toEqual([])
-    expect(isRestDay({ [TODAY]: [] }, TODAY)).toBe(true)
-    expect(isRestDay({ [TODAY]: [{ exerciseId: 'running', sets: 1 }] }, TODAY)).toBe(false)
-    expect(isRestDay(undefined, TODAY)).toBe(false)
-  })
-})
-
-describe('this week stats ignore future dates', () => {
-  it("tomorrow's data does not count as a workout or volume yet", () => {
-    const stats = weekStats([lift('2026-09-28'), lift('2026-09-30'), lift('2026-10-02')], TODAY)
-    expect(stats.workouts).toBe(1)
-    expect(stats.volume).toBe(225 * 5)
-  })
-})
-
-describe('last week so far', () => {
-  it('compares with last week up to the same weekday', () => {
-    // TODAY is Tuesday 2026-09-29: last week's Monday counts toward "so far", its Friday doesn't.
-    const lastMon = '2026-09-21'
-    const lastFri = '2026-09-25'
-    const stats = weekStats([lift(lastMon), lift(lastFri)], TODAY)
-    expect(stats.lastWorkouts).toBe(2)
-    expect(stats.lastWorkoutsSoFar).toBe(1)
-    expect(stats.lastVolumeSoFar).toBe(225 * 5)
-  })
-})
-
-describe('repeatPlan', () => {
-  it('rebuilds a workout: working sets, usual reps, warm-ups, holds and cardio', () => {
-    const logs: ExerciseLog[] = [
-      { date: TODAY, exerciseId: 'Barbell_Squat', sets: [{ weight: 95, reps: 5, warmup: true }, { weight: 185, reps: 8 }, { weight: 185, reps: 8 }, { weight: 185, reps: 6 }] },
-      { date: TODAY, exerciseId: 'Plank', sets: [{ weight: null, reps: null, seconds: 45 }, { weight: null, reps: null, seconds: 45 }] },
-      { date: TODAY, exerciseId: 'running', cardio: { distance: 3, minutes: 27 } },
-      { date: TODAY, exerciseId: 'gone-custom', sets: [{ weight: 10, reps: 10 }] },
-    ]
-    expect(repeatPlan(logs, (id) => BUILTIN_BY_ID.get(id))).toEqual([
-      { exerciseId: 'Barbell_Squat', sets: 3, reps: 8, warmupSets: 1 },
-      { exerciseId: 'Plank', sets: 2, seconds: 45 },
-      { exerciseId: 'running', sets: 1, minutes: 27, distance: 3 },
-    ])
-  })
-  it('keeps drop sets as drop sets, and leaves out sets that were never ticked', () => {
-    const logs: ExerciseLog[] = [
-      { date: TODAY, exerciseId: 'Leg_Press', sets: [{ weight: 320, reps: 12, done: true }, { weight: 320, reps: 12, done: true }, { weight: 320, reps: 10, done: true }, { weight: 255, reps: 12, drop: true, done: true }, { weight: 320, reps: 10, done: false }] },
-    ]
-    expect(repeatPlan(logs, (id) => BUILTIN_BY_ID.get(id))).toEqual([{ exerciseId: 'Leg_Press', sets: 3, reps: 12, dropSets: 1 }])
-  })
-})
-
-describe('dayLabel', () => {
-  const look = (id: string) => BUILTIN_BY_ID.get(id)
-  it('names a day by what it trains', () => {
-    expect(dayLabel([], look)).toBe('')
-    expect(dayLabel([{ exerciseId: 'running', sets: 1 }], look)).toBe('Run')
-    expect(dayLabel([{ exerciseId: 'cycling', sets: 1 }], look)).toBe('Ride')
-    expect(dayLabel([{ exerciseId: 'Barbell_Squat', sets: 3 }, { exerciseId: 'Leg_Press', sets: 3 }, { exerciseId: 'Plank', sets: 3 }], look)).toBe('Legs')
-    expect(dayLabel([{ exerciseId: 'Barbell_Squat', sets: 3 }, { exerciseId: 'Barbell_Bench_Press_-_Medium_Grip', sets: 3 }, { exerciseId: 'Pullups', sets: 3 }], look)).toBe('Full')
-    expect(dayLabel([{ exerciseId: 'x-burpee', sets: 1, wod: { kind: 'amrap', minutes: 10 } }], look)).toBe('Timed')
-    // Body parts roll up to an area: biceps and triceps make an arm day, quads and hamstrings a leg day.
-    expect(dayLabel([{ exerciseId: 'Dumbbell_Bicep_Curl', sets: 3 }, { exerciseId: 'Triceps_Pushdown', sets: 3 }], look)).toBe('Arms')
-    expect(dayLabel([{ exerciseId: 'Barbell_Squat', sets: 3 }, { exerciseId: 'Lying_Leg_Curls', sets: 3 }], look)).toBe('Legs')
-    expect(dayLabel([{ exerciseId: 'running', sets: 1, block: 'hyrox' }, { exerciseId: 'x-sled-push', sets: 1, block: 'hyrox' }], look)).toBe('Hyrox')
-  })
-  it('a mixed upper-body day is Upper, not Full or just its biggest part', () => {
-    const day = (...ids: string[]) => dayLabel(ids.map((exerciseId) => ({ exerciseId, sets: 3 })), look)
-    // Shoulders, arms and core: no legs, so not a full-body day.
-    expect(day('Standing_Military_Press', 'Dumbbell_Bicep_Curl', 'Triceps_Pushdown', 'Plank')).toBe('Upper')
-    // Chest and back: one chest lift and two back ones is still a chest-and-back day.
-    expect(day('Barbell_Bench_Press_-_Medium_Grip', 'Wide-Grip_Lat_Pulldown', 'Seated_Cable_Rows')).toBe('Upper')
-    // A leg day with one upper-body accessory stays a leg day; core alone is a core day.
-    expect(day('Barbell_Squat', 'Romanian_Deadlift', 'Leg_Press', 'Standing_Military_Press')).toBe('Legs')
-    expect(day('Plank', 'Crunches')).toBe('Core')
-    expect(day('Barbell_Bench_Press_-_Medium_Grip', 'Incline_Dumbbell_Press', 'Plank')).toBe('Chest')
-  })
-})
-
-describe('workoutTitle', () => {
-  const t = (...ids: string[]) => workoutTitle(ids.map((id) => BUILTIN_BY_ID.get(id)!))
-  it('sums a workout up in a few words', () => {
-    expect(t('Barbell_Squat', 'Barbell_Bench_Press_-_Medium_Grip', 'Bent_Over_Barbell_Row', 'Dumbbell_Bicep_Curl')).toBe('Full body')
-    expect(t('Barbell_Bench_Press_-_Medium_Grip', 'Bent_Over_Barbell_Row', 'Standing_Military_Press')).toBe('Upper body')
-    expect(t('Dumbbell_Bicep_Curl', 'Barbell_Squat')).toBe('Arms & legs')
-    expect(t('Barbell_Bench_Press_-_Medium_Grip', 'Dumbbell_Bicep_Curl', 'Triceps_Pushdown')).toBe('Chest & arms')
-    expect(t('Barbell_Squat', 'Lying_Leg_Curls', 'running')).toBe('Legs + cardio')
-    expect(t('running')).toBe('Run')
-    expect(t('Elliptical_Trainer')).toBe('Cardio')
-  })
-})
-
-describe('phaThisWeek', () => {
-  it("lists the PHA stations on the week's other days (Monday to Sunday), not the day itself or other weeks", () => {
-    const pha = (id: string, block = 'pha') => ({ exerciseId: id, sets: 4, reps: 12, block })
-    const empty = [[], [], [], [], [], [], []]
-    const overrides = {
-      '2026-10-26': [pha('A')], // Monday
-      '2026-10-28': [pha('B', 'pha-pha'), { exerciseId: 'Squat', sets: 3, reps: 5 }], // in a mixed workout
-      '2026-10-30': [pha('C')], // the day being made
-      '2026-11-02': [pha('D')], // next week
+  it('matches the printed week-by-week miles, long runs and weight goals', () => {
+    const miles = [12, 14, 16, 12, 18, 20, 22, 16, 24, 26, 28, 19, 32, 35, 37, 25, 40, 42, 45, 27, 47, 44, 32, 20, 38]
+    const goals = [218.5, 217, 215.5, 214.5, 213, 211.5, 210, 208.5, 207.5, 206.5, 205.5, 204.5, 203.5, 202.5, 201.5, 200.5, 200, 199.5, 199, 199, 199, 199, 199, 199, 199]
+    expect(plan.weeks.map((w) => w.miles)).toEqual(miles)
+    expect(plan.weeks.map((w) => w.goalLb)).toEqual(goals)
+    expect(plan.weeks.filter((w) => w.down).map((w) => w.number)).toEqual([4, 8, 12, 16, 20])
+    // The days add up to each week's miles.
+    for (const w of plan.weeks) {
+      const run = Array.from({ length: 7 }, (_, i) => dayOf(plan, addDaysIso(w.start, i)))
+        .flatMap((d) => d?.items ?? []).filter((i) => i.type === 'run' || i.type === 'race').reduce((a, i) => a + (i.miles ?? 0), 0)
+      expect(run, `week ${w.number}`).toBe(w.miles)
+      // And the long run is the week's longest.
+      const long = Array.from({ length: 7 }, (_, i) => dayOf(plan, addDaysIso(w.start, i))!).flatMap((d) => d.items).find((i) => i.title === 'Long run' || i.type === 'race')
+      expect(`${long?.miles} mi`, `week ${w.number}`).toBe(w.long === 'Race' ? '31 mi' : w.long)
     }
-    expect(phaThisWeek(empty, overrides, '2026-10-30').sort()).toEqual(['A', 'B'])
+  })
+
+  it('has the days as printed', () => {
+    expect(titles('2026-11-16')).toEqual([]) // Monday rest
+    expect(titles('2026-11-17')).toEqual(['Strength A', 'Easy run'])
+    expect(titles('2026-12-16')).toEqual(['Strength C', 'Bike/incline', 'Easy run'])
+    expect(titles('2027-01-12')).toEqual(['Hills', 'Strength A']) // from Jan 11: run before you lift
+    expect(dayOf(plan, '2027-01-12')!.items[0]).toMatchObject({ miles: 5, detail: '6×60 s' })
+    expect(dayOf(plan, '2027-02-27')!.items[0]).toMatchObject({ title: 'Long run', miles: 15, minutes: 180, fuel: '40 g carbs/hr' })
+    expect(titles('2027-04-15')).toEqual(['Strength B', 'Bike/incline'])
+    expect(dayOf(plan, '2027-04-17')!.items[0]).toMatchObject({ miles: 24, minutes: 288, fuel: '50 g carbs/hr' })
+    expect(dayOf(plan, '2027-05-08')!.items[0]).toMatchObject({ type: 'race', miles: 31 })
+    expect(dayOf(plan, '2027-05-09')!.items).toEqual([])
+  })
+
+  it('has the daily targets as printed', () => {
+    const t = (date: string) => plan.targets[dayOf(plan, date)!.target!]
+    expect(t('2026-11-16')).toMatchObject({ kcal: 2300, protein: 200, carbs: 195, fat: 80 })
+    expect(t('2026-11-21')).toMatchObject({ kcal: 3100, carbs: 385, fat: 85 })
+    expect(t('2027-01-11')).toMatchObject({ kcal: 2700, carbs: 285, fat: 85 })
+    expect(t('2027-03-07')).toMatchObject({ kcal: 3000, carbs: 350 })
+    expect(t('2027-03-14')).toMatchObject({ kcal: 3700, protein: 190, carbs: 510, fat: 100 }) // peak Sundays are long days
+    expect(t('2027-04-04')).toMatchObject({ kcal: 4000, protein: 180, carbs: 595 })
+    expect(t('2027-04-24')).toMatchObject({ kcal: 3300, carbs: 420 }) // taper long run
+    expect(t('2027-05-04')).toMatchObject({ kcal: 3000 })
+    expect(t('2027-05-06')).toMatchObject({ carbs: '720–810', protein: 150, fat: 60 })
+    expect(dayOf(plan, '2027-05-09')!.target).toBeUndefined()
+  })
+
+  it('gives each strength day the phase’s version of its workout', () => {
+    expect(workoutOn(plan, 'A', '2026-11-17')!.version.label).toBe('Phase 1')
+    expect(workoutOn(plan, 'A', '2027-01-12')!.version.exercises.map((e) => e.name)).toContain('Pogo hops')
+    expect(workoutOn(plan, 'A', '2027-03-09')!.version.exercises[0]).toMatchObject({ prescription: '2 × 4–5', sets: 2 })
+    expect(workoutOn(plan, 'A', '2027-04-20')!.version).toMatchObject({ label: 'Taper', note: expect.stringContaining('80%') })
+    expect(workoutOn(plan, 'B', '2027-01-14')!.version.exercises.find((e) => e.name === 'Hamstring curl')!.prescription).toBe('3 × 6–8, Nordic')
+    expect(workoutOn(plan, 'C', '2027-01-13')!.version.exercises).toHaveLength(4)
+    // Every strength day finds its workout, with a version that covers that date.
+    for (const d of plan.days) for (const it of d.items) if (it.type === 'strength') {
+      const w = workoutOn(plan, it.workout!, d.date)!
+      expect(w.version.start <= d.date && d.date <= w.version.end, `${d.date} ${it.title}`).toBe(true)
+    }
+  })
+
+  it('finds the week, phase and notes for a date', () => {
+    expect(weekOf(plan, '2026-11-17')).toMatchObject({ number: 1 })
+    expect(weekOf(plan, '2027-05-08')).toMatchObject({ number: 25 })
+    expect(phaseOf(plan, '2027-03-08')!.name).toContain('Peak')
+    const n = notesOn(plan, '2027-02-10').map((x) => x.title)
+    expect(n).toContain('When to change the plan')
+    expect(notesOn(plan, '2027-02-10').find((x) => x.title === 'This month')!.bullets[0]).toContain('Feb 1')
+    expect(notesOn(plan, '2027-05-05').map((x) => x.title)).toContain('Race day plan')
   })
 })
 
-describe('cardio first or last', () => {
-  const warm = { exerciseId: 'Bicycling_Stationary', sets: 1, minutes: 5, warmup: true, block: 'warmup' }
-  const squat = { exerciseId: 'Barbell_Squat', sets: 3, reps: 5 }
-  const press = { exerciseId: 'Standing_Military_Press', sets: 3, reps: 8 }
-  const run = { exerciseId: 'running', sets: 1, minutes: 20 }
-  const station = { exerciseId: 'x-row-erg', sets: 3, minutes: 1, block: 'circuit' }
-  it('moves the cardio after the warm-up or to the end; the lifting keeps its order', () => {
-    const day = [warm, squat, press, run]
-    expect(liftAndCardio(day)).toBe(true)
-    expect(cardioFirst(day)).toBe(false)
-    expect(placeCardio(day, true)).toEqual([warm, run, squat, press])
-    expect(cardioFirst(placeCardio(day, true))).toBe(true)
-    expect(placeCardio(placeCardio(day, true), false)).toEqual(day)
-  })
-  it("leaves alone a day without both, and a circuit's machine stations", () => {
-    expect(liftAndCardio([warm, run])).toBe(false)
-    expect(liftAndCardio([squat, station])).toBe(false)
-    expect(placeCardio([squat, station], true)).toEqual([squat, station])
-  })
-})
+describe('checking a plan file', () => {
+  const minimal = { format: 'durata-plan', version: 1, id: 'x', name: 'X', start: '2027-01-04', end: '2027-01-05', phases: [], weeks: [], targets: {}, workouts: {},
+    days: [{ date: '2027-01-05', items: [] }, { date: '2027-01-04', items: [{ type: 'run', title: 'Run', miles: 3 }] }] }
 
-describe('where the last drop sets went', () => {
-  it('finds the most recent day with drop sets, planned or logged, within two weeks', async () => {
-    const { lastDropGroups } = await import('./plan')
-    const { BUILTIN_BY_ID } = await import('../data/exercises')
-    const look = (id: string) => BUILTIN_BY_ID.get(id)
-    const empty = Array.from({ length: 7 }, () => [])
-    const overrides = { '2026-11-02': [{ exerciseId: 'Leg_Press', sets: 3, dropSets: 2 }, { exerciseId: 'Leverage_Shoulder_Press', sets: 3, dropSets: 2 }] }
-    const logs = [{ id: 'a', date: '2026-11-04', exerciseId: 'Wide-Grip_Lat_Pulldown', sets: [{ weight: 100, reps: 10 }, { weight: 80, reps: 8, drop: true }] }]
-    expect(lastDropGroups(empty, overrides, [], '2026-11-04', look)).toEqual(['Quads', 'Shoulders'])
-    expect(lastDropGroups(empty, overrides, logs as never, '2026-11-05', look)).toEqual(['Back'])
-    expect(lastDropGroups(empty, overrides, [], '2026-11-30', look)).toEqual([])
+  it('takes a minimal plan, sorting its days', () => {
+    const r = checkPlan(minimal)
+    expect('plan' in r && r.plan.days.map((d) => d.date)).toEqual(['2027-01-04', '2027-01-05'])
+  })
+
+  it('says exactly what is wrong', () => {
+    const bad = { ...minimal, version: 2, days: [{ date: '2027-01-04', target: 'nope', items: [{ type: 'swim', title: '', workout: 'Z', miles: '3' }] }, { date: '2027-01-04', items: [] }] }
+    const r = checkPlan(bad) as { errors: string[] }
+    expect(r.errors).toEqual(expect.arrayContaining([
+      'version: must be 1',
+      'day 2027-01-04.target: "nope" isn\'t in targets',
+      expect.stringMatching(/items\[0\]\.type: must be one of/),
+      'day 2027-01-04.items[0].title: is missing',
+      'day 2027-01-04.items[0].miles: must be a number',
+      'day 2027-01-04.items[0].workout: "Z" isn\'t in workouts',
+      'day 2027-01-04: is listed twice',
+    ]))
+    expect(checkPlan(null)).toEqual({ errors: [expect.stringContaining('not a plan')] })
+    expect(checkPlan({ ...minimal, workouts: { A: { name: 'A', versions: [{ label: 'x', start: '2027-01-01', end: '2027-02-01', exercises: [{ name: 'Row', prescription: '3 × 10', sets: 0 }] }] } } }))
+      .toEqual({ errors: ['workouts.A.versions[0].exercises[0].sets: must be a whole number from 1 to 20'] })
+  })
+
+  it('accepts the examples in the format guide', () => {
+    // Each JSON block in docs/plan-format.md, dropped into a minimal plan, passes the check.
+    const blocks = [...guide.matchAll(/```json\n([\s\S]*?)```/g)].map((m) => m[1].trim())
+    expect(blocks).toHaveLength(3)
+    const [day, targets, workouts] = blocks
+    const p = { ...minimal, ...JSON.parse(`{${targets}}`), ...JSON.parse(`{${workouts}}`), days: [{ ...JSON.parse(day), target: 'p1-train' }] }
+    p.days[0].items[0].workout = 'A'
+    expect(checkPlan(p)).toMatchObject({ plan: { id: 'x' } })
   })
 })
