@@ -3,8 +3,9 @@ import { daysBetween, dayNum, longDate } from '../lib/dates'
 import { addDaysIso, dayOf, phaseOf, targetOf, weekOf } from '../lib/plan'
 import { dayState } from '../lib/progress'
 import { STATE_DOT, STATE_LABEL } from '../lib/dayStyle'
-import { logKey, usePlan, useStore } from '../lib/store'
+import { finishDay, logKey, usePlan, useStore } from '../lib/store'
 import { ActivityCard, StrengthCard } from './ItemCards'
+import { DaySummary } from './DaySummary'
 import { CheckButton, Chevron, card, sectionTitle } from './ui'
 import { targetLine } from '../lib/labels'
 
@@ -84,6 +85,10 @@ export function TodayView({ date, setDate, today }: { date: string; setDate: (d:
               <span className="text-right font-medium">{targetLine(target)}</span>
             </div>
           )}
+          {log.finished && day.items.length > 0 ? (
+            <DaySummary plan={plan} date={date} />
+          ) : (
+          <>
           {plan.routine && training && (
             <section className={card} aria-label={plan.routine.name}>
               <div className="flex items-center gap-3">
@@ -110,6 +115,14 @@ export function TodayView({ date, setDate, today }: { date: string; setDate: (d:
               onChange={(e) => updateDay(plan.id, date, (d) => ({ ...d, note: e.target.value || undefined }))}
               className="w-full rounded-2xl bg-surface px-4 py-3 text-base outline-none ring-1 ring-neutral-200/60 placeholder:text-neutral-400" />
           </section>
+          {day.items.length > 0 && (
+            <button onClick={() => { finishDay(plan.id, date, day.items.length); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+              className="w-full min-h-12 rounded-2xl bg-accent px-4 py-3 text-base font-semibold text-on-accent">
+              Workout done
+            </button>
+          )}
+          </>
+          )}
         </>
       )}
       {toRace != null && toRace > 0 && plan.race && <p className="pt-2 text-center text-xs text-neutral-500">{toRace} days to {plan.race.name}</p>}

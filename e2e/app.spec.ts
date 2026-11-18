@@ -88,6 +88,27 @@ test('skipping, rest days, other days and phases', async ({ page }) => {
   await expect(page.getByText('31 miles · La Grange')).toBeVisible()
 })
 
+test('Workout done marks the rest done and folds the day; Edit opens it again', async ({ page }) => {
+  await open(page)
+  await page.getByRole('region', { name: 'Easy run' }).getByRole('checkbox', { name: 'Easy run done' }).click()
+  await page.getByLabel('Easy run miles').fill('3.1')
+  await page.getByLabel('Easy run time').fill('0:36')
+  await page.getByLabel('Note').fill('Felt easy')
+  await page.getByRole('button', { name: 'Workout done' }).click()
+  const summary = page.getByRole('region', { name: 'Workout summary' })
+  await expect(summary.getByText('✓ Strength A · 55 min')).toBeVisible()
+  await expect(summary.getByText('3.1 mi · 36 min · 11:37 /mi')).toBeVisible()
+  await expect(summary.getByText('Felt easy')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Strength A' })).toHaveCount(0)
+  // Strength A wasn't ticked, so Workout done counted it as done; the day is done on the week strip.
+  await expect(page.getByRole('navigation', { name: 'This week' }).getByRole('button', { name: /Tue, Nov 17, done/ })).toBeVisible()
+  await page.reload()
+  await expect(summary).toBeVisible()
+  await summary.getByRole('button', { name: 'Edit' }).click()
+  await expect(page.getByRole('region', { name: 'Strength A' }).getByRole('checkbox', { name: 'Strength A done' })).toHaveAttribute('aria-checked', 'true')
+  await expect(page.getByRole('button', { name: 'Workout done' })).toBeVisible()
+})
+
 test('weight: weigh-ins against the weekly goal', async ({ page }) => {
   await open(page)
   await tab(page, 'Weight').click()
