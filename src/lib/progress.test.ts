@@ -56,7 +56,7 @@ describe('times', () => {
 
 describe('backups', () => {
   it('round-trips the plan, log and weigh-ins', () => {
-    const logs = { [`${plan.id}|2026-11-17`]: { items: { 0: { status: 'done' as const, ex: { 0: { done: true, sets: [{ lb: 135, reps: 5 }] } } } }, spine: true, note: 'Felt good' } }
+    const logs = { [`${plan.id}|2026-11-17`]: { items: { 0: { status: 'done' as const, ex: { 0: { done: true, sets: [{ lb: 135, reps: 5 }] } } } }, spine: true, note: 'Felt good', finished: true } }
     const r = readBackup(JSON.parse(JSON.stringify(makeBackup(plan, logs, { '2026-11-17': 219.4 }))))
     expect('backup' in r && r.backup).toMatchObject({ plan: { id: plan.id }, logs, weights: { '2026-11-17': 219.4 } })
   })
@@ -64,7 +64,7 @@ describe('backups', () => {
     const r = readBackup({ format: 'durata-backup', plan: null, weights: { '2026-11-17': -5, bad: 200, '2026-11-18': 'x' },
       logs: { __proto__x: {}, 'p|nope': {}, 'p|2026-11-17': { items: { 0: { status: 'maybe', miles: 1e9, ex: { 0: { sets: [{ lb: 'heavy', reps: 5 }] } } } }, note: 7 } } })
     expect('backup' in r && r.backup.weights).toEqual({})
-    expect('backup' in r && r.backup.logs).toEqual({ 'p|2026-11-17': { items: { 0: { status: undefined, miles: undefined, minutes: undefined, ex: { 0: { done: undefined, sets: [{ lb: undefined, reps: 5 }] } } } }, spine: undefined, note: undefined } })
+    expect('backup' in r && r.backup.logs).toEqual({ 'p|2026-11-17': { items: { 0: { status: undefined, miles: undefined, minutes: undefined, ex: { 0: { done: undefined, sets: [{ lb: undefined, reps: 5 }] } } } }, spine: undefined, note: undefined, finished: undefined } })
     expect(readBackup({ format: 'other' })).toEqual({ error: expect.any(String) })
     expect(readBackup({ format: 'durata-backup', plan: { format: 'durata-plan' } })).toEqual({ error: expect.stringContaining('problems') })
   })

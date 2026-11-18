@@ -54,7 +54,7 @@ export function readBackup(raw: unknown): { backup: Backup } | { error: string }
     if (!SAFE(k) || !date || !DATE.test(date) || !isObj(d)) continue
     const items: Record<number, ItemLog> = {}
     if (isObj(d.items)) for (const [i, it] of Object.entries(d.items)) if (/^\d{1,2}$/.test(i)) items[Number(i)] = cleanItem(it)
-    logs[k] = { items, spine: d.spine === true || undefined, note: typeof d.note === 'string' ? d.note.slice(0, 5000) : undefined }
+    logs[k] = { items, spine: d.spine === true || undefined, note: typeof d.note === 'string' ? d.note.slice(0, 5000) : undefined, finished: d.finished === true || undefined }
   }
   const weights: Record<string, number> = {}
   if (isObj(raw.weights)) for (const [k, w] of Object.entries(raw.weights)) {

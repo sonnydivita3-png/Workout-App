@@ -17,6 +17,8 @@ export interface DayLog {
   items?: Record<number, ItemLog>
   spine?: boolean
   note?: string
+  /** Workout done was tapped: the day shows as a short summary until reopened. */
+  finished?: boolean
 }
 export type Theme = 'dark' | 'light' | 'auto'
 
@@ -81,4 +83,16 @@ export const bundledPlan = () => BUNDLED
 /** Change one item's log on a day. */
 export function updateItem(planId: string, date: string, index: number, fn: (l: ItemLog) => ItemLog) {
   useStore.getState().updateDay(planId, date, (d) => ({ ...d, items: { ...d.items, [index]: fn(d.items?.[index] ?? {}) } }))
+}
+
+/**
+ * Workout done: whatever wasn't ticked or skipped counts as done (that's what the button says), and the day folds
+ * into a summary.
+ */
+export function finishDay(planId: string, date: string, count: number) {
+  useStore.getState().updateDay(planId, date, (d) => {
+    const items = { ...d.items }
+    for (let i = 0; i < count; i++) if (!items[i]?.status) items[i] = { ...items[i], status: 'done' }
+    return { ...d, items, finished: true }
+  })
 }
