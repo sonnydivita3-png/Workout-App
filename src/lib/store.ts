@@ -38,6 +38,22 @@ export interface State {
 }
 
 export const STORE_KEY = 'durata-v2'
+
+/**
+ * Saved data from earlier versions. Version 2 of the Ice Age plan moved Thursday's session to Friday (Thursday became
+ * a rest day): anything logged for Thu Nov 19, when that was still a run and Strength B, moves to Fri Nov 20.
+ */
+export function migrateSaved(saved: Partial<State>, from: number): Partial<State> {
+  if (from < 2 && saved.logs) {
+    const thu = 'ice-age-50k-2027|2026-11-19'
+    const fri = 'ice-age-50k-2027|2026-11-20'
+    if (saved.logs[thu] && !saved.logs[fri]) {
+      const { [thu]: moved, ...rest } = saved.logs
+      saved = { ...saved, logs: { ...rest, [fri]: moved } }
+    }
+  }
+  return saved
+}
 export const logKey = (planId: string, date: string) => `${planId}|${date}`
 
 const BUNDLED = (() => {
@@ -69,7 +85,8 @@ export const useStore = create<State>()(
     }),
     {
       name: STORE_KEY,
-      version: 1,
+      version: 2,
+      migrate: (saved, from) => migrateSaved(saved as Partial<State>, from) as State,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({ plan: s.plan, logs: s.logs, weights: s.weights, theme: s.theme }),
     },

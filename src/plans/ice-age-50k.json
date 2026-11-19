@@ -22,13 +22,13 @@
    "name": "Phase 2 · Build",
    "start": "2027-01-11",
    "end": "2027-03-07",
-   "summary": "Tuesday hills, Wednesday runs, more food. Long runs reach 3 hours; Sunday runs start."
+   "summary": "Tuesday hills, Wednesday runs, more food. Long runs reach 3 hours; Saturday runs start."
   },
   {
    "name": "Phase 3 · Peak",
    "start": "2027-03-08",
    "end": "2027-04-18",
-   "summary": "Back-to-back weekends. Biggest runs Apr 10 and 17. The deficit ends Mar 28."
+   "summary": "Back-to-back weekends. Biggest runs Apr 11 and 18. The deficit ends Mar 28."
   },
   {
    "name": "Taper and race",
@@ -817,7 +817,7 @@
    "bullets": [
     "Lift before you run. Strength is the priority while mileage is low.",
     "Every run is easy: full sentences. Walk hills that break the talk test.",
-    "Two rest days a week: Monday and Friday. Friday off keeps your legs fresh for Saturday.",
+    "Two rest days a week: Monday and Thursday. The long run is on Sunday.",
     "Weigh every morning, compare weekly averages. Expect about 1.4 lb a week.",
     "Weigh and log your food for the first four weeks."
    ]
@@ -829,7 +829,7 @@
    "bullets": [
     "Keep lifting before you run.",
     "Wednesday adds a short easy run from Dec 16.",
-    "Long runs over 90 minutes (Dec 19 on): take 30 g of carbs an hour.",
+    "Long runs over 90 minutes (Dec 20 on): take 30 g of carbs an hour.",
     "The week of Dec 7 is a down week. Do not add miles.",
     "On snow or ice, wear traction devices and run by time, not miles."
    ]
@@ -841,7 +841,7 @@
    "bullets": [
     "Through Jan 10, keep the December pattern. From Jan 11, run before you lift.",
     "Tuesday hills: hard but controlled, 7 out of 10. Walk back down.",
-    "Wednesday becomes an easy run plus a short Strength C. Rest days stay Monday and Friday.",
+    "Wednesday becomes an easy run plus a short Strength C. Rest days stay Monday and Thursday.",
     "Food goes up to about 3,000 kcal a day on Jan 11. Eat it.",
     "Take 30 g of carbs an hour on every long run.",
     "Register for the race and check its cutoff time."
@@ -853,11 +853,11 @@
    "end": "2027-02-28",
    "bullets": [
     "The week of Feb 1 is a down week: Wednesday is bike and Strength C, no run.",
-    "Long runs build to 3:00 on Feb 27.",
-    "From Feb 13: 40 g of carbs an hour, and Sunday adds an easy run.",
+    "Long runs build to 3:00 on Feb 28.",
+    "From Feb 14: 40 g of carbs an hour, and Saturday adds an easy run.",
     "Add pogo hops and low box jumps to Strength A if your back allows.",
     "Treadmill hills at 4–8% are fine. Keep treadmill long runs under 90 minutes.",
-    "Feb 27: first 3-hour long run. Carry two flasks and your own gels.",
+    "Feb 28: first 3-hour long run. Carry two flasks and your own gels.",
     "Film yourself running from behind. Compare left and right side-plank times.",
     "Confirm your race entry and the cutoff time."
    ]
@@ -868,7 +868,7 @@
    "end": "2027-03-31",
    "bullets": [
     "The week of Mar 1 is a down week. Peak starts Mar 8.",
-    "Saturdays pass 3 hours. Sundays are easy runs on tired legs.",
+    "Sunday long runs pass 3 hours. Keep Saturday’s run truly easy: it sets up Sunday.",
     "Run every long run in the Southern Kettle Moraine. Include the Nordic loop.",
     "Take 50 g of carbs an hour. Practice aid-station food. Do a sweat test.",
     "The deficit ends Mar 28. If you are above 203 lb, do not extend it.",
@@ -882,8 +882,8 @@
    "end": "2027-04-30",
    "bullets": [
     "Eat at maintenance all month. No deficit.",
-    "Apr 10 is 22 miles. Apr 17 is 24 miles, the longest run.",
-    "Rehearse race day on Apr 17: breakfast, vest, shoes, fueling.",
+    "Apr 11 is 22 miles. Apr 18 is 24 miles, the longest run.",
+    "Rehearse race day on Apr 18: breakfast, vest, shoes, fueling.",
     "Taper starts Apr 19. Miles drop. Keep the strides.",
     "One light strength session a week, on Tuesday, at 80% of your usual weights."
    ]
@@ -968,6 +968,11 @@
   },
   {
    "date": "2026-11-19",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2026-11-20",
    "target": "p1-train",
    "items": [
     {
@@ -985,12 +990,18 @@
    ]
   },
   {
-   "date": "2026-11-20",
-   "target": "p1-rest",
-   "items": []
+   "date": "2026-11-21",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 90
+    }
+   ]
   },
   {
-   "date": "2026-11-21",
+   "date": "2026-11-22",
    "target": "p1-long",
    "items": [
     {
@@ -998,17 +1009,6 @@
      "title": "Long run",
      "miles": 5,
      "minutes": 60
-    }
-   ]
-  },
-  {
-   "date": "2026-11-22",
-   "target": "p1-train",
-   "items": [
-    {
-     "type": "hike",
-     "title": "Hike",
-     "minutes": 90
     }
    ]
   },
@@ -1053,6 +1053,11 @@
   },
   {
    "date": "2026-11-26",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2026-11-27",
    "target": "p1-train",
    "items": [
     {
@@ -1070,12 +1075,18 @@
    ]
   },
   {
-   "date": "2026-11-27",
-   "target": "p1-rest",
-   "items": []
+   "date": "2026-11-28",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 90
+    }
+   ]
   },
   {
-   "date": "2026-11-28",
+   "date": "2026-11-29",
    "target": "p1-long",
    "items": [
     {
@@ -1083,17 +1094,6 @@
      "title": "Long run",
      "miles": 6,
      "minutes": 72
-    }
-   ]
-  },
-  {
-   "date": "2026-11-29",
-   "target": "p1-train",
-   "items": [
-    {
-     "type": "hike",
-     "title": "Hike",
-     "minutes": 90
     }
    ]
   },
@@ -1138,6 +1138,11 @@
   },
   {
    "date": "2026-12-03",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2026-12-04",
    "target": "p1-train",
    "items": [
     {
@@ -1155,12 +1160,18 @@
    ]
   },
   {
-   "date": "2026-12-04",
-   "target": "p1-rest",
-   "items": []
+   "date": "2026-12-05",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 105
+    }
+   ]
   },
   {
-   "date": "2026-12-05",
+   "date": "2026-12-06",
    "target": "p1-long",
    "items": [
     {
@@ -1168,17 +1179,6 @@
      "title": "Long run",
      "miles": 7,
      "minutes": 84
-    }
-   ]
-  },
-  {
-   "date": "2026-12-06",
-   "target": "p1-train",
-   "items": [
-    {
-     "type": "hike",
-     "title": "Hike",
-     "minutes": 105
     }
    ]
   },
@@ -1223,6 +1223,11 @@
   },
   {
    "date": "2026-12-10",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2026-12-11",
    "target": "p1-train",
    "items": [
     {
@@ -1240,12 +1245,18 @@
    ]
   },
   {
-   "date": "2026-12-11",
-   "target": "p1-rest",
-   "items": []
+   "date": "2026-12-12",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 90
+    }
+   ]
   },
   {
-   "date": "2026-12-12",
+   "date": "2026-12-13",
    "target": "p1-long",
    "items": [
     {
@@ -1253,17 +1264,6 @@
      "title": "Long run",
      "miles": 5,
      "minutes": 60
-    }
-   ]
-  },
-  {
-   "date": "2026-12-13",
-   "target": "p1-train",
-   "items": [
-    {
-     "type": "hike",
-     "title": "Hike",
-     "minutes": 90
     }
    ]
   },
@@ -1313,6 +1313,11 @@
   },
   {
    "date": "2026-12-17",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2026-12-18",
    "target": "p1-train",
    "items": [
     {
@@ -1330,12 +1335,18 @@
    ]
   },
   {
-   "date": "2026-12-18",
-   "target": "p1-rest",
-   "items": []
+   "date": "2026-12-19",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 105
+    }
+   ]
   },
   {
-   "date": "2026-12-19",
+   "date": "2026-12-20",
    "target": "p1-long",
    "items": [
     {
@@ -1344,17 +1355,6 @@
      "miles": 8,
      "minutes": 96,
      "fuel": "30 g carbs/hr"
-    }
-   ]
-  },
-  {
-   "date": "2026-12-20",
-   "target": "p1-train",
-   "items": [
-    {
-     "type": "hike",
-     "title": "Hike",
-     "minutes": 105
     }
    ]
   },
@@ -1404,6 +1404,11 @@
   },
   {
    "date": "2026-12-24",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2026-12-25",
    "target": "p1-train",
    "items": [
     {
@@ -1421,12 +1426,18 @@
    ]
   },
   {
-   "date": "2026-12-25",
-   "target": "p1-rest",
-   "items": []
+   "date": "2026-12-26",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 120
+    }
+   ]
   },
   {
-   "date": "2026-12-26",
+   "date": "2026-12-27",
    "target": "p1-long",
    "items": [
     {
@@ -1435,17 +1446,6 @@
      "miles": 9,
      "minutes": 108,
      "fuel": "30 g carbs/hr"
-    }
-   ]
-  },
-  {
-   "date": "2026-12-27",
-   "target": "p1-train",
-   "items": [
-    {
-     "type": "hike",
-     "title": "Hike",
-     "minutes": 120
     }
    ]
   },
@@ -1495,6 +1495,11 @@
   },
   {
    "date": "2026-12-31",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2027-01-01",
    "target": "p1-train",
    "items": [
     {
@@ -1512,12 +1517,18 @@
    ]
   },
   {
-   "date": "2027-01-01",
-   "target": "p1-rest",
-   "items": []
+   "date": "2027-01-02",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 120
+    }
+   ]
   },
   {
-   "date": "2027-01-02",
+   "date": "2027-01-03",
    "target": "p1-long",
    "items": [
     {
@@ -1526,17 +1537,6 @@
      "miles": 10,
      "minutes": 120,
      "fuel": "30 g carbs/hr"
-    }
-   ]
-  },
-  {
-   "date": "2027-01-03",
-   "target": "p1-train",
-   "items": [
-    {
-     "type": "hike",
-     "title": "Hike",
-     "minutes": 120
     }
    ]
   },
@@ -1586,6 +1586,11 @@
   },
   {
    "date": "2027-01-07",
+   "target": "p1-rest",
+   "items": []
+  },
+  {
+   "date": "2027-01-08",
    "target": "p1-train",
    "items": [
     {
@@ -1603,12 +1608,18 @@
    ]
   },
   {
-   "date": "2027-01-08",
-   "target": "p1-rest",
-   "items": []
+   "date": "2027-01-09",
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 90
+    }
+   ]
   },
   {
-   "date": "2027-01-09",
+   "date": "2027-01-10",
    "target": "p1-long",
    "items": [
     {
@@ -1616,17 +1627,6 @@
      "title": "Long run",
      "miles": 6,
      "minutes": 72
-    }
-   ]
-  },
-  {
-   "date": "2027-01-10",
-   "target": "p1-train",
-   "items": [
-    {
-     "type": "hike",
-     "title": "Hike",
-     "minutes": 90
     }
    ]
   },
@@ -1672,6 +1672,11 @@
   },
   {
    "date": "2027-01-14",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-01-15",
    "target": "p2-train",
    "items": [
     {
@@ -1689,12 +1694,18 @@
    ]
   },
   {
-   "date": "2027-01-15",
-   "target": "p2-rest",
-   "items": []
+   "date": "2027-01-16",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 90
+    }
+   ]
   },
   {
-   "date": "2027-01-16",
+   "date": "2027-01-17",
    "target": "p2-long",
    "items": [
     {
@@ -1703,17 +1714,6 @@
      "miles": 10,
      "minutes": 120,
      "fuel": "30 g carbs/hr"
-    }
-   ]
-  },
-  {
-   "date": "2027-01-17",
-   "target": "p2-train",
-   "items": [
-    {
-     "type": "hike",
-     "title": "Hike",
-     "minutes": 90
     }
    ]
   },
@@ -1759,6 +1759,11 @@
   },
   {
    "date": "2027-01-21",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-01-22",
    "target": "p2-train",
    "items": [
     {
@@ -1776,12 +1781,18 @@
    ]
   },
   {
-   "date": "2027-01-22",
-   "target": "p2-rest",
-   "items": []
+   "date": "2027-01-23",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 90
+    }
+   ]
   },
   {
-   "date": "2027-01-23",
+   "date": "2027-01-24",
    "target": "p2-long",
    "items": [
     {
@@ -1790,17 +1801,6 @@
      "miles": 11,
      "minutes": 132,
      "fuel": "30 g carbs/hr"
-    }
-   ]
-  },
-  {
-   "date": "2027-01-24",
-   "target": "p2-train",
-   "items": [
-    {
-     "type": "hike",
-     "title": "Hike",
-     "minutes": 90
     }
    ]
   },
@@ -1846,6 +1846,11 @@
   },
   {
    "date": "2027-01-28",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-01-29",
    "target": "p2-train",
    "items": [
     {
@@ -1863,12 +1868,18 @@
    ]
   },
   {
-   "date": "2027-01-29",
-   "target": "p2-rest",
-   "items": []
+   "date": "2027-01-30",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 90
+    }
+   ]
   },
   {
-   "date": "2027-01-30",
+   "date": "2027-01-31",
    "target": "p2-long",
    "items": [
     {
@@ -1877,17 +1888,6 @@
      "miles": 12,
      "minutes": 144,
      "fuel": "30 g carbs/hr"
-    }
-   ]
-  },
-  {
-   "date": "2027-01-31",
-   "target": "p2-train",
-   "items": [
-    {
-     "type": "hike",
-     "title": "Hike",
-     "minutes": 90
     }
    ]
   },
@@ -1933,6 +1933,11 @@
   },
   {
    "date": "2027-02-04",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-02-05",
    "target": "p2-train",
    "items": [
     {
@@ -1950,12 +1955,18 @@
    ]
   },
   {
-   "date": "2027-02-05",
-   "target": "p2-rest",
-   "items": []
+   "date": "2027-02-06",
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 60
+    }
+   ]
   },
   {
-   "date": "2027-02-06",
+   "date": "2027-02-07",
    "target": "p2-long",
    "items": [
     {
@@ -1964,17 +1975,6 @@
      "miles": 9,
      "minutes": 108,
      "fuel": "30 g carbs/hr"
-    }
-   ]
-  },
-  {
-   "date": "2027-02-07",
-   "target": "p2-train",
-   "items": [
-    {
-     "type": "hike",
-     "title": "Hike",
-     "minutes": 60
     }
    ]
   },
@@ -2020,6 +2020,11 @@
   },
   {
    "date": "2027-02-11",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-02-12",
    "target": "p2-train",
    "items": [
     {
@@ -2037,25 +2042,7 @@
    ]
   },
   {
-   "date": "2027-02-12",
-   "target": "p2-rest",
-   "items": []
-  },
-  {
    "date": "2027-02-13",
-   "target": "p2-long",
-   "items": [
-    {
-     "type": "run",
-     "title": "Long run",
-     "miles": 13,
-     "minutes": 156,
-     "fuel": "40 g carbs/hr"
-    }
-   ]
-  },
-  {
-   "date": "2027-02-14",
    "target": "p2-train",
    "items": [
     {
@@ -2067,6 +2054,19 @@
      "type": "hike",
      "title": "Hike",
      "minutes": 60
+    }
+   ]
+  },
+  {
+   "date": "2027-02-14",
+   "target": "p2-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 13,
+     "minutes": 156,
+     "fuel": "40 g carbs/hr"
     }
    ]
   },
@@ -2112,6 +2112,11 @@
   },
   {
    "date": "2027-02-18",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-02-19",
    "target": "p2-train",
    "items": [
     {
@@ -2129,25 +2134,7 @@
    ]
   },
   {
-   "date": "2027-02-19",
-   "target": "p2-rest",
-   "items": []
-  },
-  {
    "date": "2027-02-20",
-   "target": "p2-long",
-   "items": [
-    {
-     "type": "run",
-     "title": "Long run",
-     "miles": 14,
-     "minutes": 168,
-     "fuel": "40 g carbs/hr"
-    }
-   ]
-  },
-  {
-   "date": "2027-02-21",
    "target": "p2-train",
    "items": [
     {
@@ -2159,6 +2146,19 @@
      "type": "hike",
      "title": "Hike",
      "minutes": 60
+    }
+   ]
+  },
+  {
+   "date": "2027-02-21",
+   "target": "p2-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 14,
+     "minutes": 168,
+     "fuel": "40 g carbs/hr"
     }
    ]
   },
@@ -2204,6 +2204,11 @@
   },
   {
    "date": "2027-02-25",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-02-26",
    "target": "p2-train",
    "items": [
     {
@@ -2221,25 +2226,7 @@
    ]
   },
   {
-   "date": "2027-02-26",
-   "target": "p2-rest",
-   "items": []
-  },
-  {
    "date": "2027-02-27",
-   "target": "p2-long",
-   "items": [
-    {
-     "type": "run",
-     "title": "Long run",
-     "miles": 15,
-     "minutes": 180,
-     "fuel": "40 g carbs/hr"
-    }
-   ]
-  },
-  {
-   "date": "2027-02-28",
    "target": "p2-train",
    "items": [
     {
@@ -2251,6 +2238,19 @@
      "type": "hike",
      "title": "Hike",
      "minutes": 60
+    }
+   ]
+  },
+  {
+   "date": "2027-02-28",
+   "target": "p2-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 15,
+     "minutes": 180,
+     "fuel": "40 g carbs/hr"
     }
    ]
   },
@@ -2296,6 +2296,11 @@
   },
   {
    "date": "2027-03-04",
+   "target": "p2-rest",
+   "items": []
+  },
+  {
+   "date": "2027-03-05",
    "target": "p2-train",
    "items": [
     {
@@ -2313,25 +2318,7 @@
    ]
   },
   {
-   "date": "2027-03-05",
-   "target": "p2-rest",
-   "items": []
-  },
-  {
    "date": "2027-03-06",
-   "target": "p2-long",
-   "items": [
-    {
-     "type": "run",
-     "title": "Long run",
-     "miles": 11,
-     "minutes": 132,
-     "fuel": "40 g carbs/hr"
-    }
-   ]
-  },
-  {
-   "date": "2027-03-07",
    "target": "p2-train",
    "items": [
     {
@@ -2343,6 +2330,19 @@
      "type": "hike",
      "title": "Hike",
      "minutes": 60
+    }
+   ]
+  },
+  {
+   "date": "2027-03-07",
+   "target": "p2-long",
+   "items": [
+    {
+     "type": "run",
+     "title": "Long run",
+     "miles": 11,
+     "minutes": 132,
+     "fuel": "40 g carbs/hr"
     }
    ]
   },
@@ -2382,6 +2382,11 @@
   },
   {
    "date": "2027-03-11",
+   "target": "p3-rest",
+   "items": []
+  },
+  {
+   "date": "2027-03-12",
    "target": "p3-train",
    "items": [
     {
@@ -2398,20 +2403,13 @@
    ]
   },
   {
-   "date": "2027-03-12",
-   "target": "p3-rest",
-   "items": []
-  },
-  {
    "date": "2027-03-13",
    "target": "p3-long",
    "items": [
     {
      "type": "run",
-     "title": "Long run",
-     "miles": 18,
-     "minutes": 216,
-     "fuel": "50 g carbs/hr"
+     "title": "Easy run",
+     "miles": 6
     }
    ]
   },
@@ -2421,8 +2419,10 @@
    "items": [
     {
      "type": "run",
-     "title": "Easy run",
-     "miles": 6
+     "title": "Long run",
+     "miles": 18,
+     "minutes": 216,
+     "fuel": "50 g carbs/hr"
     }
    ]
   },
@@ -2462,6 +2462,11 @@
   },
   {
    "date": "2027-03-18",
+   "target": "p3-rest",
+   "items": []
+  },
+  {
+   "date": "2027-03-19",
    "target": "p3-train",
    "items": [
     {
@@ -2478,20 +2483,13 @@
    ]
   },
   {
-   "date": "2027-03-19",
-   "target": "p3-rest",
-   "items": []
-  },
-  {
    "date": "2027-03-20",
    "target": "p3-long",
    "items": [
     {
      "type": "run",
-     "title": "Long run",
-     "miles": 20,
-     "minutes": 240,
-     "fuel": "50 g carbs/hr"
+     "title": "Easy run",
+     "miles": 6
     }
    ]
   },
@@ -2501,8 +2499,10 @@
    "items": [
     {
      "type": "run",
-     "title": "Easy run",
-     "miles": 6
+     "title": "Long run",
+     "miles": 20,
+     "minutes": 240,
+     "fuel": "50 g carbs/hr"
     }
    ]
   },
@@ -2542,6 +2542,11 @@
   },
   {
    "date": "2027-03-25",
+   "target": "p3-rest",
+   "items": []
+  },
+  {
+   "date": "2027-03-26",
    "target": "p3-train",
    "items": [
     {
@@ -2558,20 +2563,13 @@
    ]
   },
   {
-   "date": "2027-03-26",
-   "target": "p3-rest",
-   "items": []
-  },
-  {
    "date": "2027-03-27",
    "target": "p3-long",
    "items": [
     {
      "type": "run",
-     "title": "Long run",
-     "miles": 20,
-     "minutes": 240,
-     "fuel": "50 g carbs/hr"
+     "title": "Easy run",
+     "miles": 8
     }
    ]
   },
@@ -2581,8 +2579,10 @@
    "items": [
     {
      "type": "run",
-     "title": "Easy run",
-     "miles": 8
+     "title": "Long run",
+     "miles": 20,
+     "minutes": 240,
+     "fuel": "50 g carbs/hr"
     }
    ]
   },
@@ -2622,6 +2622,11 @@
   },
   {
    "date": "2027-04-01",
+   "target": "pk-rest",
+   "items": []
+  },
+  {
+   "date": "2027-04-02",
    "target": "pk-train",
    "items": [
     {
@@ -2638,20 +2643,13 @@
    ]
   },
   {
-   "date": "2027-04-02",
-   "target": "pk-rest",
-   "items": []
-  },
-  {
    "date": "2027-04-03",
    "target": "pk-long",
    "items": [
     {
      "type": "run",
-     "title": "Long run",
-     "miles": 13,
-     "minutes": 156,
-     "fuel": "50 g carbs/hr"
+     "title": "Easy run",
+     "miles": 4
     }
    ]
   },
@@ -2661,8 +2659,10 @@
    "items": [
     {
      "type": "run",
-     "title": "Easy run",
-     "miles": 4
+     "title": "Long run",
+     "miles": 13,
+     "minutes": 156,
+     "fuel": "50 g carbs/hr"
     }
    ]
   },
@@ -2702,6 +2702,11 @@
   },
   {
    "date": "2027-04-08",
+   "target": "pk-rest",
+   "items": []
+  },
+  {
+   "date": "2027-04-09",
    "target": "pk-train",
    "items": [
     {
@@ -2718,20 +2723,13 @@
    ]
   },
   {
-   "date": "2027-04-09",
-   "target": "pk-rest",
-   "items": []
-  },
-  {
    "date": "2027-04-10",
    "target": "pk-long",
    "items": [
     {
      "type": "run",
-     "title": "Long run",
-     "miles": 22,
-     "minutes": 264,
-     "fuel": "50 g carbs/hr"
+     "title": "Easy run",
+     "miles": 8
     }
    ]
   },
@@ -2741,8 +2739,10 @@
    "items": [
     {
      "type": "run",
-     "title": "Easy run",
-     "miles": 8
+     "title": "Long run",
+     "miles": 22,
+     "minutes": 264,
+     "fuel": "50 g carbs/hr"
     }
    ]
   },
@@ -2782,6 +2782,11 @@
   },
   {
    "date": "2027-04-15",
+   "target": "pk-rest",
+   "items": []
+  },
+  {
+   "date": "2027-04-16",
    "target": "pk-train",
    "items": [
     {
@@ -2798,20 +2803,13 @@
    ]
   },
   {
-   "date": "2027-04-16",
-   "target": "pk-rest",
-   "items": []
-  },
-  {
    "date": "2027-04-17",
    "target": "pk-long",
    "items": [
     {
      "type": "run",
-     "title": "Long run",
-     "miles": 24,
-     "minutes": 288,
-     "fuel": "50 g carbs/hr"
+     "title": "Easy run",
+     "miles": 6
     }
    ]
   },
@@ -2821,8 +2819,10 @@
    "items": [
     {
      "type": "run",
-     "title": "Easy run",
-     "miles": 6
+     "title": "Long run",
+     "miles": 24,
+     "minutes": 288,
+     "fuel": "50 g carbs/hr"
     }
    ]
   },
@@ -2862,6 +2862,11 @@
   },
   {
    "date": "2027-04-22",
+   "target": "tp-rest",
+   "items": []
+  },
+  {
+   "date": "2027-04-23",
    "target": "tp-train",
    "items": [
     {
@@ -2872,20 +2877,13 @@
    ]
   },
   {
-   "date": "2027-04-23",
-   "target": "tp-rest",
-   "items": []
-  },
-  {
    "date": "2027-04-24",
    "target": "tp-train",
    "items": [
     {
      "type": "run",
-     "title": "Long run",
-     "miles": 14,
-     "minutes": 168,
-     "fuel": "50 g carbs/hr"
+     "title": "Easy run",
+     "miles": 4
     }
    ]
   },
@@ -2895,8 +2893,10 @@
    "items": [
     {
      "type": "run",
-     "title": "Easy run",
-     "miles": 4
+     "title": "Long run",
+     "miles": 14,
+     "minutes": 168,
+     "fuel": "50 g carbs/hr"
     }
    ]
   },
@@ -2936,6 +2936,11 @@
   },
   {
    "date": "2027-04-29",
+   "target": "tp-rest",
+   "items": []
+  },
+  {
+   "date": "2027-04-30",
    "target": "tp-train",
    "items": [
     {
@@ -2946,20 +2951,13 @@
    ]
   },
   {
-   "date": "2027-04-30",
-   "target": "tp-rest",
-   "items": []
-  },
-  {
    "date": "2027-05-01",
    "target": "tp-train",
    "items": [
     {
-     "type": "run",
-     "title": "Long run",
-     "miles": 8,
-     "minutes": 96,
-     "fuel": "30 g carbs/hr"
+     "type": "hike",
+     "title": "Hike",
+     "minutes": 45
     }
    ]
   },
@@ -2968,9 +2966,11 @@
    "target": "tp-train",
    "items": [
     {
-     "type": "hike",
-     "title": "Hike",
-     "minutes": 45
+     "type": "run",
+     "title": "Long run",
+     "miles": 8,
+     "minutes": 96,
+     "fuel": "30 g carbs/hr"
     }
    ]
   },
@@ -2994,11 +2994,6 @@
   },
   {
    "date": "2027-05-05",
-   "items": [],
-   "target": "tp-rest"
-  },
-  {
-   "date": "2027-05-06",
    "items": [
     {
      "type": "run",
@@ -3006,6 +3001,11 @@
      "miles": 3
     }
    ],
+   "target": "tp-rest"
+  },
+  {
+   "date": "2027-05-06",
+   "items": [],
    "target": "carb-load"
   },
   {

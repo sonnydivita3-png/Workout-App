@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import raw from '../plans/ice-age-50k.json'
 import { makeBackup, readBackup } from './backup'
 import { checkPlan, dayOf, type Plan } from './plan'
-import type { DayLog } from './store'
+import { migrateSaved, type DayLog } from './store'
 import { dayState, formatDuration, pace, parseDuration, weekAverage, weekMiles } from './progress'
 
 const plan = (checkPlan(raw) as { plan: Plan }).plan
@@ -23,8 +23,8 @@ describe('a week’s miles', () => {
   it('counts logged miles, or the plan’s for a run marked done without them', () => {
     const logs: Record<string, DayLog> = {
       [`${plan.id}|2026-11-17`]: { items: { 1: { status: 'done' } } }, // easy 3, no numbers
-      [`${plan.id}|2026-11-19`]: { items: { 0: { status: 'done', miles: 4.3 } } },
-      [`${plan.id}|2026-11-21`]: { items: { 0: { status: 'skipped' } } },
+      [`${plan.id}|2026-11-20`]: { items: { 0: { status: 'done', miles: 4.3 } } },
+      [`${plan.id}|2026-11-22`]: { items: { 0: { status: 'skipped' } } },
     }
     expect(weekMiles(plan, plan.weeks[0], logs)).toEqual({ planned: 12, done: 7.3 })
   })
@@ -67,5 +67,16 @@ describe('backups', () => {
     expect('backup' in r && r.backup.logs).toEqual({ 'p|2026-11-17': { items: { 0: { status: undefined, miles: undefined, minutes: undefined, ex: { 0: { done: undefined, sets: [{ lb: undefined, reps: 5 }] } } } }, spine: undefined, note: undefined, finished: undefined } })
     expect(readBackup({ format: 'other' })).toEqual({ error: expect.any(String) })
     expect(readBackup({ format: 'durata-backup', plan: { format: 'durata-plan' } })).toEqual({ error: expect.stringContaining('problems') })
+  })
+})
+
+describe('saved data from before the Thursday/Friday swap', () => {
+  it('moves a log for Thu Nov 19 to Fri Nov 20, where that session is now', () => {
+    const logs = { 'ice-age-50k-2027|2026-11-19': { items: { 0: { status: 'done' as const } } }, 'ice-age-50k-2027|2026-11-17': { spine: true } }
+    expect(migrateSaved({ logs }, 1).logs).toEqual({ 'ice-age-50k-2027|2026-11-20': { items: { 0: { status: 'done' } } }, 'ice-age-50k-2027|2026-11-17': { spine: true } })
+    // Already logged on Friday, or already migrated: left alone.
+    const both = { ...logs, 'ice-age-50k-2027|2026-11-20': { note: 'x' } }
+    expect(migrateSaved({ logs: both }, 1).logs).toEqual(both)
+    expect(migrateSaved({ logs }, 2).logs).toEqual(logs)
   })
 })
