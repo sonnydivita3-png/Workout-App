@@ -3,8 +3,8 @@
  "version": 1,
  "id": "ice-age-50k-2027",
  "name": "Ice Age Trail 50K",
- "description": "25 weeks, Nov 16, 2026 to the race on May 8, 2027. Long-run times assume 12:00 a mile.",
- "start": "2026-11-16",
+ "description": "23 weeks, Nov 30, 2026 to the race on May 8, 2027. Long-run times assume 12:00 a mile.",
+ "start": "2026-11-30",
  "end": "2027-05-09",
  "race": {
   "date": "2027-05-08",
@@ -14,15 +14,15 @@
  "phases": [
   {
    "name": "Phase 1 · Base",
-   "start": "2026-11-16",
+   "start": "2026-11-30",
    "end": "2027-01-10",
-   "summary": "Build the habit, set your baselines, lift three times a week. The long run grows to 10 miles."
+   "summary": "Build the habit, set your baselines, lift three times a week. The long run grows to 9 miles."
   },
   {
    "name": "Phase 2 · Build",
    "start": "2027-01-11",
    "end": "2027-03-07",
-   "summary": "Tuesday hills, Wednesday runs, more food. Long runs reach 3 hours; Sunday runs start."
+   "summary": "Tuesday hills, run before you lift, more food. Long runs reach 3 hours; Sunday runs start."
   },
   {
    "name": "Phase 3 · Peak",
@@ -40,85 +40,70 @@
  "weeks": [
   {
    "number": 1,
-   "start": "2026-11-16",
-   "miles": 12,
-   "long": "5 mi",
-   "goalLb": 218.5
-  },
-  {
-   "number": 2,
-   "start": "2026-11-23",
-   "miles": 14,
-   "long": "6 mi",
-   "goalLb": 217
-  },
-  {
-   "number": 3,
    "start": "2026-11-30",
-   "miles": 16,
-   "long": "7 mi",
+   "miles": 13,
+   "long": "5 mi",
    "goalLb": 215.5
   },
   {
-   "number": 4,
+   "number": 2,
    "start": "2026-12-07",
+   "miles": 15,
+   "long": "6 mi",
+   "goalLb": 214.5
+  },
+  {
+   "number": 3,
+   "start": "2026-12-14",
+   "miles": 17,
+   "long": "7 mi",
+   "goalLb": 213
+  },
+  {
+   "number": 4,
+   "start": "2026-12-21",
    "miles": 12,
    "long": "5 mi",
-   "goalLb": 214.5,
+   "goalLb": 211.5,
    "down": true
   },
   {
    "number": 5,
-   "start": "2026-12-14",
-   "miles": 18,
-   "long": "8 mi",
-   "goalLb": 213
-  },
-  {
-   "number": 6,
-   "start": "2026-12-21",
-   "miles": 20,
-   "long": "9 mi",
-   "goalLb": 211.5
-  },
-  {
-   "number": 7,
    "start": "2026-12-28",
-   "miles": 22,
-   "long": "10 mi",
+   "miles": 19,
+   "long": "8 mi",
    "goalLb": 210
   },
   {
-   "number": 8,
+   "number": 6,
    "start": "2027-01-04",
-   "miles": 16,
-   "long": "6 mi",
-   "goalLb": 208.5,
-   "down": true
+   "miles": 21,
+   "long": "9 mi",
+   "goalLb": 208.5
   },
   {
-   "number": 9,
+   "number": 7,
    "start": "2027-01-11",
    "miles": 24,
    "long": "10 mi",
    "goalLb": 207.5
   },
   {
-   "number": 10,
+   "number": 8,
    "start": "2027-01-18",
    "miles": 26,
    "long": "11 mi",
    "goalLb": 206.5
   },
   {
-   "number": 11,
+   "number": 9,
    "start": "2027-01-25",
    "miles": 28,
    "long": "12 mi",
    "goalLb": 205.5
   },
   {
-   "number": 12,
+   "number": 10,
    "start": "2027-02-01",
    "miles": 19,
    "long": "9 mi",
@@ -126,28 +111,28 @@
    "down": true
   },
   {
-   "number": 13,
+   "number": 11,
    "start": "2027-02-08",
    "miles": 32,
    "long": "13 mi",
    "goalLb": 203.5
   },
   {
-   "number": 14,
+   "number": 12,
    "start": "2027-02-15",
    "miles": 35,
    "long": "14 mi",
    "goalLb": 202.5
   },
   {
-   "number": 15,
+   "number": 13,
    "start": "2027-02-22",
    "miles": 37,
    "long": "15 mi",
    "goalLb": 201.5
   },
   {
-   "number": 16,
+   "number": 14,
    "start": "2027-03-01",
    "miles": 25,
    "long": "11 mi",
@@ -155,28 +140,28 @@
    "down": true
   },
   {
-   "number": 17,
+   "number": 15,
    "start": "2027-03-08",
    "miles": 40,
    "long": "18 mi",
    "goalLb": 200
   },
   {
-   "number": 18,
+   "number": 16,
    "start": "2027-03-15",
    "miles": 42,
    "long": "20 mi",
    "goalLb": 199.5
   },
   {
-   "number": 19,
+   "number": 17,
    "start": "2027-03-22",
    "miles": 45,
    "long": "20 mi",
    "goalLb": 199
   },
   {
-   "number": 20,
+   "number": 18,
    "start": "2027-03-29",
    "miles": 27,
    "long": "13 mi",
@@ -184,37 +169,37 @@
    "down": true
   },
   {
-   "number": 21,
+   "number": 19,
    "start": "2027-04-05",
    "miles": 47,
    "long": "22 mi",
    "goalLb": 199
   },
   {
-   "number": 22,
+   "number": 20,
    "start": "2027-04-12",
    "miles": 44,
    "long": "24 mi",
    "goalLb": 199
   },
   {
-   "number": 23,
+   "number": 21,
    "start": "2027-04-19",
    "miles": 32,
    "long": "14 mi",
    "goalLb": 199
   },
   {
-   "number": 24,
+   "number": 22,
    "start": "2027-04-26",
    "miles": 20,
    "long": "8 mi",
    "goalLb": 199
   },
   {
-   "number": 25,
+   "number": 23,
    "start": "2027-05-03",
-   "miles": 38,
+   "miles": 40,
    "long": "Race",
    "goalLb": 199
   }
@@ -340,7 +325,7 @@
    "versions": [
     {
      "label": "Phase 1",
-     "start": "2026-11-16",
+     "start": "2026-11-30",
      "end": "2027-01-10",
      "exercises": [
       {
@@ -538,7 +523,7 @@
    "versions": [
     {
      "label": "Phase 1",
-     "start": "2026-11-16",
+     "start": "2026-11-30",
      "end": "2027-01-10",
      "exercises": [
       {
@@ -688,7 +673,7 @@
    "versions": [
     {
      "label": "Phase 1",
-     "start": "2026-11-16",
+     "start": "2026-11-30",
      "end": "2027-01-10",
      "exercises": [
       {
@@ -812,26 +797,26 @@
   },
   {
    "title": "This month",
-   "start": "2026-11-16",
-   "end": "2026-11-30",
+   "start": "2026-11-30",
+   "end": "2026-12-31",
    "bullets": [
+    "Monday is your one rest day. Friday is low impact: bike or incline walk, then mobility.",
     "Lift before you run. Strength is the priority while mileage is low.",
     "Every run is easy: full sentences. Walk hills that break the talk test.",
-    "Two rest days a week: Monday and Friday. Friday off keeps your legs fresh for Saturday.",
-    "Weigh every morning, compare weekly averages. Expect about 1.4 lb a week.",
-    "Weigh and log your food for the first four weeks."
+    "The week of Dec 21 is a down week. Do not add miles.",
+    "Weigh every morning, compare weekly averages. Weigh and log your food for four weeks.",
+    "On snow or ice, wear traction devices and run by time, not miles."
    ]
   },
   {
-   "title": "This month",
-   "start": "2026-12-01",
-   "end": "2026-12-31",
+   "title": "Set your baseline by Dec 13",
+   "start": "2026-11-30",
+   "end": "2026-12-13",
    "bullets": [
-    "Keep lifting before you run.",
-    "Wednesday adds a short easy run from Dec 16.",
-    "Long runs over 90 minutes (Dec 19 on): take 30 g of carbs an hour.",
-    "The week of Dec 7 is a down week. Do not add miles.",
-    "On snow or ice, wear traction devices and run by time, not miles."
+    "Orthopedic spine visit and a new standing X-ray.",
+    "Spirometry, a basic lung function test.",
+    "3–6 visits with a scoliosis PT (Schroth or SEAS).",
+    "Bloodwork: blood count, ferritin, vitamin D, testosterone."
    ]
   },
   {
@@ -840,10 +825,9 @@
    "end": "2027-01-31",
    "bullets": [
     "Through Jan 10, keep the December pattern. From Jan 11, run before you lift.",
-    "Tuesday hills: hard but controlled, 7 out of 10. Walk back down.",
-    "Wednesday becomes an easy run plus a short Strength C. Rest days stay Monday and Friday.",
+    "Long runs over 90 minutes (Jan 2 on): take 30 g of carbs an hour.",
+    "Tuesday hills from Jan 12: hard but controlled, 7 out of 10. Walk back down.",
     "Food goes up to about 3,000 kcal a day on Jan 11. Eat it.",
-    "Take 30 g of carbs an hour on every long run.",
     "Register for the race and check its cutoff time."
    ]
   },
@@ -868,7 +852,7 @@
    "end": "2027-03-31",
    "bullets": [
     "The week of Mar 1 is a down week. Peak starts Mar 8.",
-    "Saturdays pass 3 hours. Sundays are easy runs on tired legs.",
+    "Saturday long runs pass 3 hours. Sunday runs go on rolling trail, on tired legs.",
     "Run every long run in the Southern Kettle Moraine. Include the Nordic loop.",
     "Take 50 g of carbs an hour. Practice aid-station food. Do a sweat test.",
     "The deficit ends Mar 28. If you are above 203 lb, do not extend it.",
@@ -893,7 +877,7 @@
    "start": "2027-05-01",
    "end": "2027-05-09",
    "bullets": [
-    "No strength work in race week.",
+    "Race week: no strength work. Friday is rest or a 15-minute shakeout.",
     "Thursday and Friday: carb load. Expect the scale to jump 3–4 lb.",
     "Nothing new on race day: shoes, vest, socks and food have all done a long run.",
     "After the race: two easy weeks at maintenance.",
@@ -928,176 +912,6 @@
  ],
  "days": [
   {
-   "date": "2026-11-16",
-   "target": "p1-rest",
-   "items": []
-  },
-  {
-   "date": "2026-11-17",
-   "target": "p1-train",
-   "items": [
-    {
-     "type": "strength",
-     "title": "Strength A",
-     "workout": "A",
-     "minutes": 55
-    },
-    {
-     "type": "run",
-     "title": "Easy run",
-     "miles": 3
-    }
-   ]
-  },
-  {
-   "date": "2026-11-18",
-   "target": "p1-train",
-   "items": [
-    {
-     "type": "strength",
-     "title": "Strength C",
-     "workout": "C",
-     "minutes": 55
-    },
-    {
-     "type": "bike",
-     "title": "Bike/incline",
-     "minutes": 60
-    }
-   ]
-  },
-  {
-   "date": "2026-11-19",
-   "target": "p1-train",
-   "items": [
-    {
-     "type": "run",
-     "title": "Run",
-     "miles": 4,
-     "detail": "+ strides"
-    },
-    {
-     "type": "strength",
-     "title": "Strength B",
-     "workout": "B",
-     "minutes": 55
-    }
-   ]
-  },
-  {
-   "date": "2026-11-20",
-   "target": "p1-rest",
-   "items": []
-  },
-  {
-   "date": "2026-11-21",
-   "target": "p1-long",
-   "items": [
-    {
-     "type": "run",
-     "title": "Long run",
-     "miles": 5,
-     "minutes": 60
-    }
-   ]
-  },
-  {
-   "date": "2026-11-22",
-   "target": "p1-train",
-   "items": [
-    {
-     "type": "hike",
-     "title": "Hike",
-     "minutes": 90
-    }
-   ]
-  },
-  {
-   "date": "2026-11-23",
-   "target": "p1-rest",
-   "items": []
-  },
-  {
-   "date": "2026-11-24",
-   "target": "p1-train",
-   "items": [
-    {
-     "type": "strength",
-     "title": "Strength A",
-     "workout": "A",
-     "minutes": 55
-    },
-    {
-     "type": "run",
-     "title": "Easy run",
-     "miles": 4
-    }
-   ]
-  },
-  {
-   "date": "2026-11-25",
-   "target": "p1-train",
-   "items": [
-    {
-     "type": "strength",
-     "title": "Strength C",
-     "workout": "C",
-     "minutes": 55
-    },
-    {
-     "type": "bike",
-     "title": "Bike/incline",
-     "minutes": 60
-    }
-   ]
-  },
-  {
-   "date": "2026-11-26",
-   "target": "p1-train",
-   "items": [
-    {
-     "type": "run",
-     "title": "Run",
-     "miles": 4,
-     "detail": "+ strides"
-    },
-    {
-     "type": "strength",
-     "title": "Strength B",
-     "workout": "B",
-     "minutes": 55
-    }
-   ]
-  },
-  {
-   "date": "2026-11-27",
-   "target": "p1-rest",
-   "items": []
-  },
-  {
-   "date": "2026-11-28",
-   "target": "p1-long",
-   "items": [
-    {
-     "type": "run",
-     "title": "Long run",
-     "miles": 6,
-     "minutes": 72
-    }
-   ]
-  },
-  {
-   "date": "2026-11-29",
-   "target": "p1-train",
-   "items": [
-    {
-     "type": "hike",
-     "title": "Hike",
-     "minutes": 90
-    }
-   ]
-  },
-  {
    "date": "2026-11-30",
    "target": "p1-rest",
    "items": []
@@ -1115,7 +929,7 @@
     {
      "type": "run",
      "title": "Easy run",
-     "miles": 4
+     "miles": 3
     }
    ]
   },
@@ -1130,9 +944,9 @@
      "minutes": 55
     },
     {
-     "type": "bike",
-     "title": "Bike/incline",
-     "minutes": 60
+     "type": "run",
+     "title": "Easy run",
+     "miles": 2
     }
    ]
   },
@@ -1141,23 +955,34 @@
    "target": "p1-train",
    "items": [
     {
-     "type": "run",
-     "title": "Run",
-     "miles": 5,
-     "detail": "+ strides"
-    },
-    {
      "type": "strength",
      "title": "Strength B",
      "workout": "B",
      "minutes": 55
+    },
+    {
+     "type": "run",
+     "title": "Run",
+     "miles": 3,
+     "detail": "+ strides"
     }
    ]
   },
   {
    "date": "2026-12-04",
-   "target": "p1-rest",
-   "items": []
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 45
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2026-12-05",
@@ -1166,8 +991,8 @@
     {
      "type": "run",
      "title": "Long run",
-     "miles": 7,
-     "minutes": 84
+     "miles": 5,
+     "minutes": 60
     }
    ]
   },
@@ -1178,7 +1003,7 @@
     {
      "type": "hike",
      "title": "Hike",
-     "minutes": 105
+     "minutes": 75
     }
    ]
   },
@@ -1215,9 +1040,9 @@
      "minutes": 55
     },
     {
-     "type": "bike",
-     "title": "Bike/incline",
-     "minutes": 60
+     "type": "run",
+     "title": "Easy run",
+     "miles": 3
     }
    ]
   },
@@ -1226,23 +1051,34 @@
    "target": "p1-train",
    "items": [
     {
-     "type": "run",
-     "title": "Run",
-     "miles": 4,
-     "detail": "+ strides"
-    },
-    {
      "type": "strength",
      "title": "Strength B",
      "workout": "B",
      "minutes": 55
+    },
+    {
+     "type": "run",
+     "title": "Run",
+     "miles": 3,
+     "detail": "+ strides"
     }
    ]
   },
   {
    "date": "2026-12-11",
-   "target": "p1-rest",
-   "items": []
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 45
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2026-12-12",
@@ -1251,8 +1087,8 @@
     {
      "type": "run",
      "title": "Long run",
-     "miles": 5,
-     "minutes": 60
+     "miles": 6,
+     "minutes": 72
     }
    ]
   },
@@ -1300,14 +1136,9 @@
      "minutes": 55
     },
     {
-     "type": "bike",
-     "title": "Bike/incline",
-     "minutes": 60
-    },
-    {
      "type": "run",
      "title": "Easy run",
-     "miles": 2
+     "miles": 3
     }
    ]
   },
@@ -1316,23 +1147,34 @@
    "target": "p1-train",
    "items": [
     {
-     "type": "run",
-     "title": "Run",
-     "miles": 4,
-     "detail": "+ strides"
-    },
-    {
      "type": "strength",
      "title": "Strength B",
      "workout": "B",
      "minutes": 55
+    },
+    {
+     "type": "run",
+     "title": "Run",
+     "miles": 3,
+     "detail": "+ strides"
     }
    ]
   },
   {
    "date": "2026-12-18",
-   "target": "p1-rest",
-   "items": []
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 60
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2026-12-19",
@@ -1341,9 +1183,8 @@
     {
      "type": "run",
      "title": "Long run",
-     "miles": 8,
-     "minutes": 96,
-     "fuel": "30 g carbs/hr"
+     "miles": 7,
+     "minutes": 84
     }
    ]
   },
@@ -1354,7 +1195,7 @@
     {
      "type": "hike",
      "title": "Hike",
-     "minutes": 105
+     "minutes": 90
     }
    ]
   },
@@ -1376,7 +1217,7 @@
     {
      "type": "run",
      "title": "Easy run",
-     "miles": 4
+     "miles": 3
     }
    ]
   },
@@ -1391,11 +1232,6 @@
      "minutes": 55
     },
     {
-     "type": "bike",
-     "title": "Bike/incline",
-     "minutes": 60
-    },
-    {
      "type": "run",
      "title": "Easy run",
      "miles": 2
@@ -1407,23 +1243,34 @@
    "target": "p1-train",
    "items": [
     {
-     "type": "run",
-     "title": "Run",
-     "miles": 5,
-     "detail": "+ strides"
-    },
-    {
      "type": "strength",
      "title": "Strength B",
      "workout": "B",
      "minutes": 55
+    },
+    {
+     "type": "run",
+     "title": "Run",
+     "miles": 2,
+     "detail": "+ strides"
     }
    ]
   },
   {
    "date": "2026-12-25",
-   "target": "p1-rest",
-   "items": []
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 45
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2026-12-26",
@@ -1432,9 +1279,8 @@
     {
      "type": "run",
      "title": "Long run",
-     "miles": 9,
-     "minutes": 108,
-     "fuel": "30 g carbs/hr"
+     "miles": 5,
+     "minutes": 60
     }
    ]
   },
@@ -1445,7 +1291,7 @@
     {
      "type": "hike",
      "title": "Hike",
-     "minutes": 120
+     "minutes": 60
     }
    ]
   },
@@ -1482,11 +1328,6 @@
      "minutes": 55
     },
     {
-     "type": "bike",
-     "title": "Bike/incline",
-     "minutes": 60
-    },
-    {
      "type": "run",
      "title": "Easy run",
      "miles": 3
@@ -1498,23 +1339,34 @@
    "target": "p1-train",
    "items": [
     {
-     "type": "run",
-     "title": "Run",
-     "miles": 5,
-     "detail": "+ strides"
-    },
-    {
      "type": "strength",
      "title": "Strength B",
      "workout": "B",
      "minutes": 55
+    },
+    {
+     "type": "run",
+     "title": "Run",
+     "miles": 4,
+     "detail": "+ strides"
     }
    ]
   },
   {
    "date": "2027-01-01",
-   "target": "p1-rest",
-   "items": []
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 60
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2027-01-02",
@@ -1523,8 +1375,8 @@
     {
      "type": "run",
      "title": "Long run",
-     "miles": 10,
-     "minutes": 120,
+     "miles": 8,
+     "minutes": 96,
      "fuel": "30 g carbs/hr"
     }
    ]
@@ -1536,7 +1388,7 @@
     {
      "type": "hike",
      "title": "Hike",
-     "minutes": 120
+     "minutes": 90
     }
    ]
   },
@@ -1573,14 +1425,9 @@
      "minutes": 55
     },
     {
-     "type": "bike",
-     "title": "Bike/incline",
-     "minutes": 60
-    },
-    {
      "type": "run",
      "title": "Easy run",
-     "miles": 2
+     "miles": 4
     }
    ]
   },
@@ -1589,23 +1436,34 @@
    "target": "p1-train",
    "items": [
     {
-     "type": "run",
-     "title": "Run",
-     "miles": 4,
-     "detail": "+ strides"
-    },
-    {
      "type": "strength",
      "title": "Strength B",
      "workout": "B",
      "minutes": 55
+    },
+    {
+     "type": "run",
+     "title": "Run",
+     "miles": 4,
+     "detail": "+ strides"
     }
    ]
   },
   {
    "date": "2027-01-08",
-   "target": "p1-rest",
-   "items": []
+   "target": "p1-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 60
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2027-01-09",
@@ -1614,8 +1472,9 @@
     {
      "type": "run",
      "title": "Long run",
-     "miles": 6,
-     "minutes": 72
+     "miles": 9,
+     "minutes": 108,
+     "fuel": "30 g carbs/hr"
     }
    ]
   },
@@ -1690,8 +1549,19 @@
   },
   {
    "date": "2027-01-15",
-   "target": "p2-rest",
-   "items": []
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 60
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2027-01-16",
@@ -1777,8 +1647,19 @@
   },
   {
    "date": "2027-01-22",
-   "target": "p2-rest",
-   "items": []
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 60
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2027-01-23",
@@ -1864,8 +1745,19 @@
   },
   {
    "date": "2027-01-29",
-   "target": "p2-rest",
-   "items": []
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 60
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2027-01-30",
@@ -1951,8 +1843,19 @@
   },
   {
    "date": "2027-02-05",
-   "target": "p2-rest",
-   "items": []
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 45
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2027-02-06",
@@ -2038,8 +1941,19 @@
   },
   {
    "date": "2027-02-12",
-   "target": "p2-rest",
-   "items": []
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 60
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2027-02-13",
@@ -2130,8 +2044,19 @@
   },
   {
    "date": "2027-02-19",
-   "target": "p2-rest",
-   "items": []
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 60
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2027-02-20",
@@ -2222,8 +2147,19 @@
   },
   {
    "date": "2027-02-26",
-   "target": "p2-rest",
-   "items": []
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 60
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2027-02-27",
@@ -2314,8 +2250,19 @@
   },
   {
    "date": "2027-03-05",
-   "target": "p2-rest",
-   "items": []
+   "target": "p2-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 45
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2027-03-06",
@@ -2399,8 +2346,19 @@
   },
   {
    "date": "2027-03-12",
-   "target": "p3-rest",
-   "items": []
+   "target": "p3-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 45
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2027-03-13",
@@ -2479,8 +2437,19 @@
   },
   {
    "date": "2027-03-19",
-   "target": "p3-rest",
-   "items": []
+   "target": "p3-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 45
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2027-03-20",
@@ -2559,8 +2528,19 @@
   },
   {
    "date": "2027-03-26",
-   "target": "p3-rest",
-   "items": []
+   "target": "p3-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 45
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2027-03-27",
@@ -2639,8 +2619,19 @@
   },
   {
    "date": "2027-04-02",
-   "target": "pk-rest",
-   "items": []
+   "target": "pk-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 30
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2027-04-03",
@@ -2719,8 +2710,19 @@
   },
   {
    "date": "2027-04-09",
-   "target": "pk-rest",
-   "items": []
+   "target": "pk-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 45
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2027-04-10",
@@ -2789,18 +2791,24 @@
      "title": "Strength B",
      "workout": "B",
      "minutes": 40
-    },
-    {
-     "type": "bike",
-     "title": "Bike/incline",
-     "minutes": 45
     }
    ]
   },
   {
    "date": "2027-04-16",
-   "target": "pk-rest",
-   "items": []
+   "target": "pk-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 45
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2027-04-17",
@@ -2873,8 +2881,19 @@
   },
   {
    "date": "2027-04-23",
-   "target": "tp-rest",
-   "items": []
+   "target": "tp-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 30
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2027-04-24",
@@ -2947,8 +2966,19 @@
   },
   {
    "date": "2027-04-30",
-   "target": "tp-rest",
-   "items": []
+   "target": "tp-train",
+   "items": [
+    {
+     "type": "bike",
+     "title": "Bike/incline",
+     "minutes": 30
+    },
+    {
+     "type": "mobility",
+     "title": "Mobility",
+     "minutes": 15
+    }
+   ]
   },
   {
    "date": "2027-05-01",
@@ -2994,7 +3024,13 @@
   },
   {
    "date": "2027-05-05",
-   "items": [],
+   "items": [
+    {
+     "type": "run",
+     "title": "Easy run",
+     "miles": 3
+    }
+   ],
    "target": "tp-rest"
   },
   {
@@ -3003,7 +3039,7 @@
     {
      "type": "run",
      "title": "Easy run",
-     "miles": 3
+     "miles": 2
     }
    ],
    "target": "carb-load"
@@ -3011,7 +3047,8 @@
   {
    "date": "2027-05-07",
    "items": [],
-   "target": "carb-load"
+   "target": "carb-load",
+   "label": "Rest or a 15-minute shakeout"
   },
   {
    "date": "2027-05-08",

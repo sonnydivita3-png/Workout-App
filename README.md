@@ -1,7 +1,7 @@
 # Durata
 
 A personal training tracker, installable as a phone app (PWA). It follows one training plan, day by day, and tracks
-what got done: currently the 25-week Ice Age Trail 50K plan (Nov 16, 2026 to the race on May 8, 2027).
+what got done: currently the 23-week Ice Age Trail 50K plan (Nov 30, 2026 to the race on May 8, 2027).
 
 - **Today:** the day's activities from the plan, each checked off or skipped. Runs log actual miles and time (with
   pace); strength workouts show that phase's exercises, each ticked off, with optional weight × reps per set. Plus the

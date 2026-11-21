@@ -11,17 +11,17 @@ const plan = (() => {
 const titles = (date: string) => dayOf(plan, date)!.items.map((i) => i.title)
 
 describe('the Ice Age 50K plan file', () => {
-  it('has every day from Nov 16 to May 9, once', () => {
-    expect(plan.days).toHaveLength(175)
-    plan.days.forEach((d, i) => expect(d.date).toBe(addDaysIso('2026-11-16', i)))
+  it('has every day from Nov 30 to May 9, once', () => {
+    expect(plan.days).toHaveLength(161)
+    plan.days.forEach((d, i) => expect(d.date).toBe(addDaysIso('2026-11-30', i)))
   })
 
   it('matches the printed week-by-week miles, long runs and weight goals', () => {
-    const miles = [12, 14, 16, 12, 18, 20, 22, 16, 24, 26, 28, 19, 32, 35, 37, 25, 40, 42, 45, 27, 47, 44, 32, 20, 38]
-    const goals = [218.5, 217, 215.5, 214.5, 213, 211.5, 210, 208.5, 207.5, 206.5, 205.5, 204.5, 203.5, 202.5, 201.5, 200.5, 200, 199.5, 199, 199, 199, 199, 199, 199, 199]
+    const miles = [13, 15, 17, 12, 19, 21, 24, 26, 28, 19, 32, 35, 37, 25, 40, 42, 45, 27, 47, 44, 32, 20, 40]
+    const goals = [215.5, 214.5, 213, 211.5, 210, 208.5, 207.5, 206.5, 205.5, 204.5, 203.5, 202.5, 201.5, 200.5, 200, 199.5, 199, 199, 199, 199, 199, 199, 199]
     expect(plan.weeks.map((w) => w.miles)).toEqual(miles)
     expect(plan.weeks.map((w) => w.goalLb)).toEqual(goals)
-    expect(plan.weeks.filter((w) => w.down).map((w) => w.number)).toEqual([4, 8, 12, 16, 20])
+    expect(plan.weeks.filter((w) => w.down).map((w) => w.number)).toEqual([4, 10, 14, 18])
     // The days add up to each week's miles.
     for (const w of plan.weeks) {
       const run = Array.from({ length: 7 }, (_, i) => dayOf(plan, addDaysIso(w.start, i)))
@@ -34,34 +34,41 @@ describe('the Ice Age 50K plan file', () => {
   })
 
   it('has the days as printed', () => {
-    expect(titles('2026-11-16')).toEqual([]) // Monday rest
-    expect(titles('2026-11-17')).toEqual(['Strength A', 'Easy run'])
-    expect(titles('2026-12-16')).toEqual(['Strength C', 'Bike/incline', 'Easy run'])
+    expect(titles('2026-11-30')).toEqual([]) // Monday, the one rest day
+    expect(titles('2026-12-01')).toEqual(['Strength A', 'Easy run'])
+    expect(titles('2026-12-02')).toEqual(['Strength C', 'Easy run'])
+    expect(titles('2026-12-03')).toEqual(['Strength B', 'Run'])
+    expect(dayOf(plan, '2026-12-04')!.items).toEqual([{ type: 'bike', title: 'Bike/incline', minutes: 45 }, { type: 'mobility', title: 'Mobility', minutes: 15 }])
+    expect(dayOf(plan, '2026-12-06')!.items[0]).toMatchObject({ title: 'Hike', minutes: 75 })
     expect(titles('2027-01-12')).toEqual(['Hills', 'Strength A']) // from Jan 11: run before you lift
     expect(dayOf(plan, '2027-01-12')!.items[0]).toMatchObject({ miles: 5, detail: '6×60 s' })
     expect(dayOf(plan, '2027-02-27')!.items[0]).toMatchObject({ title: 'Long run', miles: 15, minutes: 180, fuel: '40 g carbs/hr' })
-    expect(titles('2027-04-15')).toEqual(['Strength B', 'Bike/incline'])
+    expect(titles('2027-04-15')).toEqual(['Strength B'])
     expect(dayOf(plan, '2027-04-17')!.items[0]).toMatchObject({ miles: 24, minutes: 288, fuel: '50 g carbs/hr' })
+    expect(dayOf(plan, '2027-05-06')!.items[0]).toMatchObject({ title: 'Easy run', miles: 2 })
+    expect(dayOf(plan, '2027-05-07')).toMatchObject({ items: [], label: 'Rest or a 15-minute shakeout' })
     expect(dayOf(plan, '2027-05-08')!.items[0]).toMatchObject({ type: 'race', miles: 31 })
     expect(dayOf(plan, '2027-05-09')!.items).toEqual([])
   })
 
   it('has the daily targets as printed', () => {
     const t = (date: string) => plan.targets[dayOf(plan, date)!.target!]
-    expect(t('2026-11-16')).toMatchObject({ kcal: 2300, protein: 200, carbs: 195, fat: 80 })
-    expect(t('2026-11-21')).toMatchObject({ kcal: 3100, carbs: 385, fat: 85 })
+    expect(t('2026-11-30')).toMatchObject({ kcal: 2300, protein: 200, carbs: 195, fat: 80 })
+    expect(t('2026-12-04')).toMatchObject({ kcal: 2700, carbs: 295 }) // Friday bike and mobility
+    expect(t('2026-12-05')).toMatchObject({ kcal: 3100, carbs: 385, fat: 85 })
     expect(t('2027-01-11')).toMatchObject({ kcal: 2700, carbs: 285, fat: 85 })
     expect(t('2027-03-07')).toMatchObject({ kcal: 3000, carbs: 350 })
     expect(t('2027-03-14')).toMatchObject({ kcal: 3700, protein: 190, carbs: 510, fat: 100 }) // peak Sundays are long days
+    expect(t('2027-04-02')).toMatchObject({ kcal: 3550 })
     expect(t('2027-04-04')).toMatchObject({ kcal: 4000, protein: 180, carbs: 595 })
     expect(t('2027-04-24')).toMatchObject({ kcal: 3300, carbs: 420 }) // taper long run
-    expect(t('2027-05-04')).toMatchObject({ kcal: 3000 })
+    expect(t('2027-05-05')).toMatchObject({ kcal: 3000 })
     expect(t('2027-05-06')).toMatchObject({ carbs: '720–810', protein: 150, fat: 60 })
     expect(dayOf(plan, '2027-05-09')!.target).toBeUndefined()
   })
 
   it('gives each strength day the phase’s version of its workout', () => {
-    expect(workoutOn(plan, 'A', '2026-11-17')!.version.label).toBe('Phase 1')
+    expect(workoutOn(plan, 'A', '2026-12-01')!.version.label).toBe('Phase 1')
     expect(workoutOn(plan, 'A', '2027-01-12')!.version.exercises.map((e) => e.name)).toContain('Pogo hops')
     expect(workoutOn(plan, 'A', '2027-03-09')!.version.exercises[0]).toMatchObject({ prescription: '2 × 4–5', sets: 2 })
     expect(workoutOn(plan, 'A', '2027-04-20')!.version).toMatchObject({ label: 'Taper', note: expect.stringContaining('80%') })
@@ -75,12 +82,14 @@ describe('the Ice Age 50K plan file', () => {
   })
 
   it('finds the week, phase and notes for a date', () => {
-    expect(weekOf(plan, '2026-11-17')).toMatchObject({ number: 1 })
-    expect(weekOf(plan, '2027-05-08')).toMatchObject({ number: 25 })
+    expect(weekOf(plan, '2026-12-01')).toMatchObject({ number: 1 })
+    expect(weekOf(plan, '2026-11-21')).toBeUndefined()
+    expect(weekOf(plan, '2027-05-08')).toMatchObject({ number: 23 })
     expect(phaseOf(plan, '2027-03-08')!.name).toContain('Peak')
     const n = notesOn(plan, '2027-02-10').map((x) => x.title)
     expect(n).toContain('When to change the plan')
     expect(notesOn(plan, '2027-02-10').find((x) => x.title === 'This month')!.bullets[0]).toContain('Feb 1')
+    expect(notesOn(plan, '2026-12-01').find((x) => x.title === 'This month')!.bullets[0]).toContain('Monday is your one rest day')
     expect(notesOn(plan, '2027-05-05').map((x) => x.title)).toContain('Race day plan')
   })
 })

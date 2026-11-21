@@ -6,27 +6,27 @@ import { migrateSaved, type DayLog } from './store'
 import { dayState, formatDuration, pace, parseDuration, weekAverage, weekMiles } from './progress'
 
 const plan = (checkPlan(raw) as { plan: Plan }).plan
-const tue = dayOf(plan, '2026-11-17')!
+const tue = dayOf(plan, '2026-12-01')!
 
 describe('how a day went', () => {
   it('is done, partly done, skipped, missed or still to do', () => {
-    expect(dayState(tue, { items: { 0: { status: 'done' }, 1: { status: 'done' } } }, '2026-11-17')).toBe('done')
-    expect(dayState(tue, { items: { 0: { status: 'done' } } }, '2026-11-17')).toBe('partial')
-    expect(dayState(tue, { items: { 0: { status: 'skipped' }, 1: { status: 'skipped' } } }, '2026-11-20')).toBe('skipped')
-    expect(dayState(tue, undefined, '2026-11-18')).toBe('missed')
-    expect(dayState(tue, undefined, '2026-11-17')).toBe('open')
-    expect(dayState(dayOf(plan, '2026-11-16'), undefined, '2026-11-20')).toBe('rest')
+    expect(dayState(tue, { items: { 0: { status: 'done' }, 1: { status: 'done' } } }, '2026-12-01')).toBe('done')
+    expect(dayState(tue, { items: { 0: { status: 'done' } } }, '2026-12-01')).toBe('partial')
+    expect(dayState(tue, { items: { 0: { status: 'skipped' }, 1: { status: 'skipped' } } }, '2026-12-04')).toBe('skipped')
+    expect(dayState(tue, undefined, '2026-12-02')).toBe('missed')
+    expect(dayState(tue, undefined, '2026-12-01')).toBe('open')
+    expect(dayState(dayOf(plan, '2026-11-30'), undefined, '2026-12-04')).toBe('rest')
   })
 })
 
 describe('a week’s miles', () => {
   it('counts logged miles, or the plan’s for a run marked done without them', () => {
     const logs: Record<string, DayLog> = {
-      [`${plan.id}|2026-11-17`]: { items: { 1: { status: 'done' } } }, // easy 3, no numbers
-      [`${plan.id}|2026-11-19`]: { items: { 0: { status: 'done', miles: 4.3 } } },
-      [`${plan.id}|2026-11-21`]: { items: { 0: { status: 'skipped' } } },
+      [`${plan.id}|2026-12-01`]: { items: { 1: { status: 'done' } } }, // easy 3, no numbers
+      [`${plan.id}|2026-12-03`]: { items: { 1: { status: 'done', miles: 4.3 } } },
+      [`${plan.id}|2026-12-05`]: { items: { 0: { status: 'skipped' } } },
     }
-    expect(weekMiles(plan, plan.weeks[0], logs)).toEqual({ planned: 12, done: 7.3 })
+    expect(weekMiles(plan, plan.weeks[0], logs)).toEqual({ planned: 13, done: 7.3 })
   })
 })
 
