@@ -123,13 +123,13 @@ export function updateItem(planId: string, date: string, index: number, fn: (l: 
 }
 
 /**
- * Workout done: whatever wasn't ticked or skipped counts as done (that's what the button says), and the day folds
- * into a summary.
+ * Workout done (`as` 'done'): whatever wasn't ticked or skipped counts as done, and the day folds into a summary.
+ * Missed workout (`as` 'skipped'): whatever wasn't ticked counts as skipped (anything already done stays done).
  */
-export function finishDay(planId: string, date: string, count: number) {
+export function finishDay(planId: string, date: string, count: number, as: Status = 'done') {
   useStore.getState().updateDay(planId, date, (d) => {
     const items = { ...d.items }
-    for (let i = 0; i < count; i++) if (!items[i]?.status) items[i] = { ...items[i], status: 'done' }
+    for (let i = 0; i < count; i++) if (!items[i]?.status) items[i] = { ...items[i], status: as }
     return { ...d, items, finished: true }
   })
 }
