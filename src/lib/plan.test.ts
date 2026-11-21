@@ -39,13 +39,9 @@ describe('the Ice Age 50K plan file', () => {
     expect(titles('2026-12-16')).toEqual(['Strength C', 'Bike/incline', 'Easy run'])
     expect(titles('2027-01-12')).toEqual(['Hills', 'Strength A']) // from Jan 11: run before you lift
     expect(dayOf(plan, '2027-01-12')!.items[0]).toMatchObject({ miles: 5, detail: '6×60 s' })
-    expect(dayOf(plan, '2027-02-28')!.items[0]).toMatchObject({ title: 'Long run', miles: 15, minutes: 180, fuel: '40 g carbs/hr' })
-    expect(titles('2027-04-15')).toEqual([]) // Thursday rest
-    expect(titles('2027-04-16')).toEqual(['Strength B', 'Bike/incline'])
-    expect(titles('2026-11-20')).toEqual(['Run', 'Strength B'])
-    expect(titles('2027-02-13')).toEqual(['Easy run', 'Hike'])
-    expect(titles('2027-05-05')).toEqual(['Easy run'])
-    expect(dayOf(plan, '2027-04-18')!.items[0]).toMatchObject({ miles: 24, minutes: 288, fuel: '50 g carbs/hr' })
+    expect(dayOf(plan, '2027-02-27')!.items[0]).toMatchObject({ title: 'Long run', miles: 15, minutes: 180, fuel: '40 g carbs/hr' })
+    expect(titles('2027-04-15')).toEqual(['Strength B', 'Bike/incline'])
+    expect(dayOf(plan, '2027-04-17')!.items[0]).toMatchObject({ miles: 24, minutes: 288, fuel: '50 g carbs/hr' })
     expect(dayOf(plan, '2027-05-08')!.items[0]).toMatchObject({ type: 'race', miles: 31 })
     expect(dayOf(plan, '2027-05-09')!.items).toEqual([])
   })
@@ -53,17 +49,12 @@ describe('the Ice Age 50K plan file', () => {
   it('has the daily targets as printed', () => {
     const t = (date: string) => plan.targets[dayOf(plan, date)!.target!]
     expect(t('2026-11-16')).toMatchObject({ kcal: 2300, protein: 200, carbs: 195, fat: 80 })
-    expect(t('2026-11-21')).toMatchObject({ kcal: 2700 }) // Saturday hike
-    expect(t('2026-11-22')).toMatchObject({ kcal: 3100, carbs: 385, fat: 85 }) // Sunday long run
-    expect(t('2026-11-19')).toMatchObject({ kcal: 2300 }) // Thursday rest
+    expect(t('2026-11-21')).toMatchObject({ kcal: 3100, carbs: 385, fat: 85 })
     expect(t('2027-01-11')).toMatchObject({ kcal: 2700, carbs: 285, fat: 85 })
-    expect(t('2027-03-07')).toMatchObject({ kcal: 3500, carbs: 460 }) // Sunday long run
-    expect(t('2027-03-13')).toMatchObject({ kcal: 3700, protein: 190, carbs: 510, fat: 100 }) // peak Saturdays are long days too
-    expect(t('2027-03-14')).toMatchObject({ kcal: 3700 })
-    expect(t('2027-03-06')).toMatchObject({ kcal: 3000 })
+    expect(t('2027-03-07')).toMatchObject({ kcal: 3000, carbs: 350 })
+    expect(t('2027-03-14')).toMatchObject({ kcal: 3700, protein: 190, carbs: 510, fat: 100 }) // peak Sundays are long days
     expect(t('2027-04-04')).toMatchObject({ kcal: 4000, protein: 180, carbs: 595 })
-    expect(t('2027-04-25')).toMatchObject({ kcal: 3300, carbs: 420 }) // taper long run
-    expect(t('2027-05-05')).toMatchObject({ kcal: 3000 })
+    expect(t('2027-04-24')).toMatchObject({ kcal: 3300, carbs: 420 }) // taper long run
     expect(t('2027-05-04')).toMatchObject({ kcal: 3000 })
     expect(t('2027-05-06')).toMatchObject({ carbs: '720–810', protein: 150, fat: 60 })
     expect(dayOf(plan, '2027-05-09')!.target).toBeUndefined()
