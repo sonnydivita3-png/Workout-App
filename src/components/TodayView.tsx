@@ -121,6 +121,12 @@ export function TodayView({ date, setDate, today }: { date: string; setDate: (d:
               Workout done
             </button>
           )}
+          {day.items.length > 0 && (
+            <button onClick={() => { finishDay(plan.id, date, day.items.length, 'skipped'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+              className="w-full min-h-12 rounded-2xl bg-neutral-100 px-4 py-3 text-base font-semibold text-neutral-700">
+              Missed workout
+            </button>
+          )}
           </>
           )}
         </>

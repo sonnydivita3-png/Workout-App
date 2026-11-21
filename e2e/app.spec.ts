@@ -109,6 +109,22 @@ test('Workout done marks the rest done and folds the day; Edit opens it again', 
   await expect(page.getByRole('button', { name: 'Workout done' })).toBeVisible()
 })
 
+test('Missed workout skips what wasn’t done and folds the day as missed', async ({ page }) => {
+  await open(page)
+  await page.getByRole('button', { name: 'Missed workout' }).click()
+  const summary = page.getByRole('region', { name: 'Workout summary' })
+  await expect(summary.getByText('Workout missed')).toBeVisible()
+  expect((await saved(page)).logs['ice-age-50k-2027|2026-11-17']).toMatchObject({ finished: true, items: { 0: { status: 'skipped' }, 1: { status: 'skipped' } } })
+  await expect(page.getByRole('navigation', { name: 'This week' }).getByRole('button', { name: /Tue, Nov 17, skipped/ })).toBeVisible()
+  // Something already done stays done.
+  await summary.getByRole('button', { name: 'Edit' }).click()
+  await page.getByRole('region', { name: 'Easy run' }).getByRole('button', { name: 'Skipped' }).click()
+  await page.getByRole('region', { name: 'Easy run' }).getByRole('checkbox', { name: 'Easy run done' }).click()
+  await page.getByRole('button', { name: 'Missed workout' }).click()
+  await expect(summary.getByText('Workout done')).toBeVisible()
+  expect((await saved(page)).logs['ice-age-50k-2027|2026-11-17'].items).toMatchObject({ 0: { status: 'skipped' }, 1: { status: 'done' } })
+})
+
 test('weight: weigh-ins against the weekly goal', async ({ page }) => {
   await open(page)
   await tab(page, 'Weight').click()
