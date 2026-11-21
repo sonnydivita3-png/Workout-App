@@ -50,7 +50,7 @@ def hike(m): return dict(type='hike', title='Hike', minutes=m)
 # Each week: Mon..Sun. None = rest.
 R = None
 W = [
- # wk, down, [Tue, Wed, Fri, Sun (long run), Sat]   (Mon and Thu rest)
+ # wk, down, [Tue, Wed, Thu, Sat (long run), Sun]   (Mon and Fri rest)
  (1, False, [[A(55), easy(3)], [C(55), bike(60)], [run(4, True), B(55)], [long(5, '1:00')], [hike(90)]]),
  (2, False, [[A(55), easy(4)], [C(55), bike(60)], [run(4, True), B(55)], [long(6, '1:12')], [hike(90)]]),
  (3, False, [[A(55), easy(4)], [C(55), bike(60)], [run(5, True), B(55)], [long(7, '1:24')], [hike(105)]]),
@@ -90,13 +90,13 @@ def target_for(d, items):
     if not items: return f'{p}-rest'
     if p == 'tp': return 'tp-train'
     if any(i.get('title') == 'Long run' for i in items): return f'{p}-long'
-    # Saturdays in the peak blocks are long days too (back-to-back weekends).
-    if d.weekday() == 5 and p in ('p3', 'pk'): return f'{p}-long'
+    # Sundays in the peak blocks are long days too (back-to-back weekends).
+    if d.weekday() == 6 and p in ('p3', 'pk'): return f'{p}-long'
     return f'{p}-train'
 
-for wk, down, (tue, wed, fri, sun, sat) in W:
+for wk, down, (tue, wed, thu, sat, sun) in W:
     mon = start + dt.timedelta(weeks=wk - 1)
-    plan = {0: [], 1: tue, 2: wed, 3: [], 4: fri, 5: sat, 6: sun}
+    plan = {0: [], 1: tue, 2: wed, 3: thu, 4: [], 5: sat, 6: sun}
     for i in range(7):
         d = mon + dt.timedelta(days=i)
         items = plan[i]
@@ -107,8 +107,8 @@ for wk, down, (tue, wed, fri, sun, sat) in W:
 race = [
  ('2027-05-03', [], 'tp-rest', 'Race week'),
  ('2027-05-04', [easy(4, True)], 'tp-rest', None),
- ('2027-05-05', [easy(3)], 'tp-rest', None),
- ('2027-05-06', [], 'carb-load', None),
+ ('2027-05-05', [], 'tp-rest', None),
+ ('2027-05-06', [easy(3)], 'carb-load', None),
  ('2027-05-07', [], 'carb-load', None),
  ('2027-05-08', [dict(type='race', title='Ice Age Trail 50K', miles=31, detail='La Grange', fuel='50 g carbs/hr')], 'race', 'Race day'),
  ('2027-05-09', [], None, 'Recover: walk, eat and sleep. No running this week.'),
@@ -162,8 +162,8 @@ for n, miles, lng, goal in WEEKS:
 
 phases = [
  dict(name='Phase 1 · Base', start='2026-11-16', end='2027-01-10', summary='Build the habit, set your baselines, lift three times a week. The long run grows to 10 miles.'),
- dict(name='Phase 2 · Build', start='2027-01-11', end='2027-03-07', summary='Tuesday hills, Wednesday runs, more food. Long runs reach 3 hours; Saturday runs start.'),
- dict(name='Phase 3 · Peak', start='2027-03-08', end='2027-04-18', summary='Back-to-back weekends. Biggest runs Apr 11 and 18. The deficit ends Mar 28.'),
+ dict(name='Phase 2 · Build', start='2027-01-11', end='2027-03-07', summary='Tuesday hills, Wednesday runs, more food. Long runs reach 3 hours; Sunday runs start.'),
+ dict(name='Phase 3 · Peak', start='2027-03-08', end='2027-04-18', summary='Back-to-back weekends. Biggest runs Apr 10 and 17. The deficit ends Mar 28.'),
  dict(name='Taper and race', start='2027-04-19', end='2027-05-09', summary='Miles drop, keep the strides. Race Saturday, May 8.'),
 ]
 
@@ -190,23 +190,23 @@ TIMING = ['Four meals a day, 45–55 g of protein each.', '30–60 g of carbs on
 notes = [
  dict(title='When to change the plan', bullets=CHANGE),
  dict(title='This month', start='2026-11-16', end='2026-11-30', bullets=['Lift before you run. Strength is the priority while mileage is low.',
-   'Every run is easy: full sentences. Walk hills that break the talk test.', 'Two rest days a week: Monday and Thursday. The long run is on Sunday.',
+   'Every run is easy: full sentences. Walk hills that break the talk test.', 'Two rest days a week: Monday and Friday. Friday off keeps your legs fresh for Saturday.',
    'Weigh every morning, compare weekly averages. Expect about 1.4 lb a week.', 'Weigh and log your food for the first four weeks.']),
  dict(title='This month', start='2026-12-01', end='2026-12-31', bullets=['Keep lifting before you run.', 'Wednesday adds a short easy run from Dec 16.',
-   'Long runs over 90 minutes (Dec 20 on): take 30 g of carbs an hour.', 'The week of Dec 7 is a down week. Do not add miles.',
+   'Long runs over 90 minutes (Dec 19 on): take 30 g of carbs an hour.', 'The week of Dec 7 is a down week. Do not add miles.',
    'On snow or ice, wear traction devices and run by time, not miles.']),
  dict(title='This month', start='2027-01-01', end='2027-01-31', bullets=['Through Jan 10, keep the December pattern. From Jan 11, run before you lift.',
-   'Tuesday hills: hard but controlled, 7 out of 10. Walk back down.', 'Wednesday becomes an easy run plus a short Strength C. Rest days stay Monday and Thursday.',
+   'Tuesday hills: hard but controlled, 7 out of 10. Walk back down.', 'Wednesday becomes an easy run plus a short Strength C. Rest days stay Monday and Friday.',
    'Food goes up to about 3,000 kcal a day on Jan 11. Eat it.', 'Take 30 g of carbs an hour on every long run.', 'Register for the race and check its cutoff time.']),
  dict(title='This month', start='2027-02-01', end='2027-02-28', bullets=['The week of Feb 1 is a down week: Wednesday is bike and Strength C, no run.',
-   'Long runs build to 3:00 on Feb 28.', 'From Feb 14: 40 g of carbs an hour, and Saturday adds an easy run.', 'Add pogo hops and low box jumps to Strength A if your back allows.',
-   'Treadmill hills at 4–8% are fine. Keep treadmill long runs under 90 minutes.', 'Feb 28: first 3-hour long run. Carry two flasks and your own gels.',
+   'Long runs build to 3:00 on Feb 27.', 'From Feb 13: 40 g of carbs an hour, and Sunday adds an easy run.', 'Add pogo hops and low box jumps to Strength A if your back allows.',
+   'Treadmill hills at 4–8% are fine. Keep treadmill long runs under 90 minutes.', 'Feb 27: first 3-hour long run. Carry two flasks and your own gels.',
    'Film yourself running from behind. Compare left and right side-plank times.', 'Confirm your race entry and the cutoff time.']),
- dict(title='This month', start='2027-03-01', end='2027-03-31', bullets=['The week of Mar 1 is a down week. Peak starts Mar 8.', 'Sunday long runs pass 3 hours. Keep Saturday’s run truly easy: it sets up Sunday.',
+ dict(title='This month', start='2027-03-01', end='2027-03-31', bullets=['The week of Mar 1 is a down week. Peak starts Mar 8.', 'Saturdays pass 3 hours. Sundays are easy runs on tired legs.',
    'Run every long run in the Southern Kettle Moraine. Include the Nordic loop.', 'Take 50 g of carbs an hour. Practice aid-station food. Do a sweat test.',
    'The deficit ends Mar 28. If you are above 203 lb, do not extend it.', 'Strength drops to two sets. Never lift to soreness.', 'Repeat your bloodwork this month.']),
- dict(title='This month', start='2027-04-01', end='2027-04-30', bullets=['Eat at maintenance all month. No deficit.', 'Apr 11 is 22 miles. Apr 18 is 24 miles, the longest run.',
-   'Rehearse race day on Apr 18: breakfast, vest, shoes, fueling.', 'Taper starts Apr 19. Miles drop. Keep the strides.', 'One light strength session a week, on Tuesday, at 80% of your usual weights.']),
+ dict(title='This month', start='2027-04-01', end='2027-04-30', bullets=['Eat at maintenance all month. No deficit.', 'Apr 10 is 22 miles. Apr 17 is 24 miles, the longest run.',
+   'Rehearse race day on Apr 17: breakfast, vest, shoes, fueling.', 'Taper starts Apr 19. Miles drop. Keep the strides.', 'One light strength session a week, on Tuesday, at 80% of your usual weights.']),
  dict(title='This month', start='2027-05-01', end='2027-05-09', bullets=['No strength work in race week.', 'Thursday and Friday: carb load. Expect the scale to jump 3–4 lb.',
    'Nothing new on race day: shoes, vest, socks and food have all done a long run.', 'After the race: two easy weeks at maintenance.', 'Then a 500 kcal deficit for about seven weeks reaches 10% around mid-July.']),
  dict(title='Food timing', bullets=TIMING),

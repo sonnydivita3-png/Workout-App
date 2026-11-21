@@ -23,8 +23,8 @@ describe('a week’s miles', () => {
   it('counts logged miles, or the plan’s for a run marked done without them', () => {
     const logs: Record<string, DayLog> = {
       [`${plan.id}|2026-11-17`]: { items: { 1: { status: 'done' } } }, // easy 3, no numbers
-      [`${plan.id}|2026-11-20`]: { items: { 0: { status: 'done', miles: 4.3 } } },
-      [`${plan.id}|2026-11-22`]: { items: { 0: { status: 'skipped' } } },
+      [`${plan.id}|2026-11-19`]: { items: { 0: { status: 'done', miles: 4.3 } } },
+      [`${plan.id}|2026-11-21`]: { items: { 0: { status: 'skipped' } } },
     }
     expect(weekMiles(plan, plan.weeks[0], logs)).toEqual({ planned: 12, done: 7.3 })
   })
@@ -70,13 +70,18 @@ describe('backups', () => {
   })
 })
 
-describe('saved data from before the Thursday/Friday swap', () => {
-  it('moves a log for Thu Nov 19 to Fri Nov 20, where that session is now', () => {
-    const logs = { 'ice-age-50k-2027|2026-11-19': { items: { 0: { status: 'done' as const } } }, 'ice-age-50k-2027|2026-11-17': { spine: true } }
-    expect(migrateSaved({ logs }, 1).logs).toEqual({ 'ice-age-50k-2027|2026-11-20': { items: { 0: { status: 'done' } } }, 'ice-age-50k-2027|2026-11-17': { spine: true } })
-    // Already logged on Friday, or already migrated: left alone.
-    const both = { ...logs, 'ice-age-50k-2027|2026-11-20': { note: 'x' } }
-    expect(migrateSaved({ logs: both }, 1).logs).toEqual(both)
-    expect(migrateSaved({ logs }, 2).logs).toEqual(logs)
+describe('saved data from the earlier calendars', () => {
+  const K = (d: string) => `ice-age-50k-2027|2026-11-${d}`
+  const run = { items: { 0: { status: 'done' as const } } }
+  it('version 1 → 2 moved Thursday’s log to Friday, and 2 → 3 moves it back', () => {
+    expect(migrateSaved({ logs: { [K('19')]: run, [K('17')]: { spine: true } } }, 1).logs).toEqual({ [K('19')]: run, [K('17')]: { spine: true } })
+  })
+  it('from version 2: Friday’s run and Strength B go back to Thursday, and the weekend swaps back', () => {
+    const hike = { items: { 0: { status: 'done' as const } }, note: 'hike' }
+    expect(migrateSaved({ logs: { [K('20')]: run, [K('21')]: hike } }, 2).logs).toEqual({ [K('19')]: run, [K('22')]: hike })
+    // Thursday already logged: Friday's log stays where it is.
+    expect(migrateSaved({ logs: { [K('19')]: { note: 'x' }, [K('20')]: run } }, 2).logs).toEqual({ [K('19')]: { note: 'x' }, [K('20')]: run })
+    // Already on version 3: nothing moves.
+    expect(migrateSaved({ logs: { [K('20')]: run } }, 3).logs).toEqual({ [K('20')]: run })
   })
 })

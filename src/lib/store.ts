@@ -40,8 +40,11 @@ export interface State {
 export const STORE_KEY = 'durata-v2'
 
 /**
- * Saved data from earlier versions. Version 2 of the Ice Age plan moved Thursday's session to Friday (Thursday became
- * a rest day): anything logged for Thu Nov 19, when that was still a run and Strength B, moves to Fri Nov 20.
+ * Saved data from earlier versions of the Ice Age plan's calendar, kept on the days where those sessions are now.
+ * - Version 2 moved Thursday's session to Friday and swapped Saturday and Sunday: a log for Thu Nov 19 moved to Fri
+ *   Nov 20.
+ * - Version 3 went back to the original calendar (run and Strength B Thursday, long run Saturday): Fri Nov 20's log
+ *   moves back to Thu Nov 19, and Sat Nov 21 and Sun Nov 22 swap back.
  */
 export function migrateSaved(saved: Partial<State>, from: number): Partial<State> {
   if (from < 2 && saved.logs) {
@@ -51,6 +54,23 @@ export function migrateSaved(saved: Partial<State>, from: number): Partial<State
       const { [thu]: moved, ...rest } = saved.logs
       saved = { ...saved, logs: { ...rest, [fri]: moved } }
     }
+  }
+  if (from < 3 && saved.logs) {
+    const k = (d: string) => `ice-age-50k-2027|2026-11-${d}`
+    const logs = { ...saved.logs }
+    const move = (a: string, b: string) => {
+      if (!logs[k(a)] || logs[k(b)]) return
+      logs[k(b)] = logs[k(a)]
+      delete logs[k(a)]
+    }
+    move('20', '19')
+    const sat = logs[k('21')]
+    const sun = logs[k('22')]
+    delete logs[k('21')]
+    delete logs[k('22')]
+    if (sun) logs[k('21')] = sun
+    if (sat) logs[k('22')] = sat
+    saved = { ...saved, logs }
   }
   return saved
 }
@@ -85,7 +105,7 @@ export const useStore = create<State>()(
     }),
     {
       name: STORE_KEY,
-      version: 2,
+      version: 3,
       migrate: (saved, from) => migrateSaved(saved as Partial<State>, from) as State,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({ plan: s.plan, logs: s.logs, weights: s.weights, theme: s.theme }),
