@@ -60,8 +60,17 @@ export function TodayView({ date, setDate, today }: { date: string; setDate: (d:
 
       {!day ? (
         <div className={card}>
-          <p className="font-medium">Not part of the plan</p>
-          <p className="text-sm text-neutral-500">{plan.name} runs {longDate(plan.start)} to {longDate(plan.end)}.</p>
+          {date < plan.start ? (
+            <>
+              <p className="font-medium">{plan.name} starts {longDate(plan.start)}</p>
+              <p className="text-sm text-neutral-500">{daysBetween(date, plan.start) === 1 ? 'Tomorrow' : `In ${daysBetween(date, plan.start)} days`}. Week 1 is on the Calendar tab.</p>
+            </>
+          ) : (
+            <>
+              <p className="font-medium">Not part of the plan</p>
+              <p className="text-sm text-neutral-500">{plan.name} ran {longDate(plan.start)} to {longDate(plan.end)}.</p>
+            </>
+          )}
         </div>
       ) : (
         <>
